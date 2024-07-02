@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 
@@ -63,7 +64,7 @@ class BatchGroupedReduceOperatorTest {
         ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
         expectedOutput.add(new StreamRecord<>("hellohello", Long.MAX_VALUE));
         expectedOutput.add(new StreamRecord<>("ciaociaociao", Long.MAX_VALUE));
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        expectedOutput.add(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
     }
@@ -81,7 +82,7 @@ class BatchGroupedReduceOperatorTest {
         ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
         expectedOutput.add(new StreamRecord<>("hello", Long.MAX_VALUE));
         expectedOutput.add(new StreamRecord<>("ciao", Long.MAX_VALUE));
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        expectedOutput.add(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         assertThat(testHarness.getOutput()).contains(expectedOutput.toArray());
     }

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.runtime.state.{StateInitializationContext, StateSnapshotContext}
@@ -24,8 +25,9 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.runtime.streamrecord.{RecordAttributes, StreamRecord}
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.table.planner.JLong
 
 object TimeTestUtil {
@@ -36,7 +38,7 @@ object TimeTestUtil {
     override def run(ctx: SourceContext[T]): Unit = {
       dataWithTimestampList.foreach {
         case Left(t) => ctx.collectWithTimestamp(t._2, t._1)
-        case Right(w) => ctx.emitWatermark(new Watermark(w))
+        case Right(w) => ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(w))
       }
     }
 
@@ -46,8 +48,10 @@ object TimeTestUtil {
   class TimestampAndWatermarkWithOffset[T <: Product](offset: Long)
     extends AssignerWithPunctuatedWatermarks[T] {
 
-    override def checkAndGetNextWatermark(lastElement: T, extractedTimestamp: Long): Watermark = {
-      new Watermark(extractedTimestamp - offset)
+    override def checkAndGetNextWatermark(
+        lastElement: T,
+        extractedTimestamp: Long): WatermarkEvent = {
+      WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp - offset)
     }
 
     override def extractTimestamp(element: T, previousElementTimestamp: Long): Long = {
@@ -84,7 +88,7 @@ object TimeTestUtil {
       }
 
       if (currentWatermark > 0) {
-        output.emitWatermark(new Watermark(currentWatermark))
+        output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentWatermark))
       }
     }
 
@@ -94,7 +98,7 @@ object TimeTestUtil {
           output.collect(new StreamRecord[T](t._2, t._1))
         case Right(w) =>
           currentWatermark = w
-          output.emitWatermark(new Watermark(w))
+          output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(w))
       }
     }
 

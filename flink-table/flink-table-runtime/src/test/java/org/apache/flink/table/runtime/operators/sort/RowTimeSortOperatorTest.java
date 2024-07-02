@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
@@ -82,7 +82,7 @@ public class RowTimeSortOperatorTest {
         testHarness.processElement(insertRecord(1, 1L, "Hi", 1));
         testHarness.processElement(insertRecord(4, 3L, "Helloworld, how are you?", 4));
         testHarness.processElement(insertRecord(4, 5L, "Hello, how are you?", 4));
-        testHarness.processWatermark(new Watermark(4L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4L));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, 1L, "Hi", 2));
@@ -96,7 +96,7 @@ public class RowTimeSortOperatorTest {
         expectedOutput.add(insertRecord(8, 4L, "Comment#2", 8));
         expectedOutput.add(insertRecord(9, 4L, "Comment#3", 9));
         expectedOutput.add(insertRecord(10, 4L, "Comment#4", 10));
-        expectedOutput.add(new Watermark(4L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4L));
 
         // do a snapshot, data could be recovered from state
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
@@ -111,18 +111,18 @@ public class RowTimeSortOperatorTest {
         testHarness.open();
         // late data will be dropped
         testHarness.processElement(insertRecord(5, 3L, "I am fine.", 6));
-        testHarness.processWatermark(new Watermark(5L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5L));
 
         expectedOutput.add(insertRecord(4, 5L, "Hello, how are you?", 4));
-        expectedOutput.add(new Watermark(5L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5L));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
         // those watermark has no effect
-        testHarness.processWatermark(new Watermark(11L));
-        testHarness.processWatermark(new Watermark(12L));
-        expectedOutput.add(new Watermark(11L));
-        expectedOutput.add(new Watermark(12L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(11L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(11L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(12L));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -150,7 +150,7 @@ public class RowTimeSortOperatorTest {
         testHarness.processElement(insertRecord(1L, 1L, "Hi", 2));
         testHarness.processElement(insertRecord(1L, 1L, "Hi", 1));
         testHarness.processElement(insertRecord(4L, 3L, "Helloworld, how are you?", 4));
-        testHarness.processWatermark(new Watermark(9L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(9L));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1L, 1L, "Hi", 2));
@@ -163,7 +163,7 @@ public class RowTimeSortOperatorTest {
         expectedOutput.add(insertRecord(7L, 4L, "Comment#1", 7));
         expectedOutput.add(insertRecord(8L, 4L, "Comment#2", 8));
         expectedOutput.add(insertRecord(9L, 4L, "Comment#3", 9));
-        expectedOutput.add(new Watermark(9L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(9L));
 
         // do a snapshot, data could be recovered from state
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
@@ -178,18 +178,18 @@ public class RowTimeSortOperatorTest {
         testHarness.open();
         // late data will be dropped
         testHarness.processElement(insertRecord(5L, 3L, "I am fine.", 6));
-        testHarness.processWatermark(new Watermark(10L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
 
         expectedOutput.add(insertRecord(10L, 4L, "Comment#4", 10));
-        expectedOutput.add(new Watermark(10L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
         // those watermark has no effect
-        testHarness.processWatermark(new Watermark(11L));
-        testHarness.processWatermark(new Watermark(12L));
-        expectedOutput.add(new Watermark(11L));
-        expectedOutput.add(new Watermark(12L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(11L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(11L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(12L));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
     }

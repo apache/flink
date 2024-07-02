@@ -20,19 +20,19 @@ package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
 
-/** {@link StreamElementQueueEntry} implementation for the {@link Watermark}. */
+/** {@link StreamElementQueueEntry} implementation for the {@link WatermarkEvent}. */
 @Internal
 class WatermarkQueueEntry<OUT> implements StreamElementQueueEntry<OUT> {
-    @Nonnull private final Watermark watermark;
+    @Nonnull private final WatermarkEvent watermark;
 
-    WatermarkQueueEntry(Watermark watermark) {
+    WatermarkQueueEntry(WatermarkEvent watermark) {
         this.watermark = Preconditions.checkNotNull(watermark);
     }
 
@@ -43,7 +43,7 @@ class WatermarkQueueEntry<OUT> implements StreamElementQueueEntry<OUT> {
 
     @Nonnull
     @Override
-    public Watermark getInputElement() {
+    public WatermarkEvent getInputElement() {
         return watermark;
     }
 

@@ -40,14 +40,16 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -220,12 +222,18 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        if (mark.getTimestamp() > currentWatermark) {
-            windowProcessor.advanceProgress(mark.getTimestamp());
-            super.processWatermark(mark);
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+        if (maybeTimestamp.isPresent()) {
+            if (maybeTimestamp.get() > currentWatermark) {
+                windowProcessor.advanceProgress(maybeTimestamp.get());
+                super.processWatermark(mark);
+            } else {
+                super.processWatermark(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(maybeTimestamp.get()));
+            }
         } else {
-            super.processWatermark(new Watermark(currentWatermark));
+            super.processWatermark(mark);
         }
     }
 

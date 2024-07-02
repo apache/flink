@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -33,9 +33,10 @@ class WatermarkToDataOutputTest {
         final CollectingDataOutput<Object> testingOutput = new CollectingDataOutput<>();
         final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
 
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(0L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(0L));
 
-        assertThat(testingOutput.events).contains(new Watermark(0L));
+        assertThat(testingOutput.events)
+                .contains(WatermarkUtils.createWatermarkEventFromTimestamp(0L));
     }
 
     @Test
@@ -43,15 +44,18 @@ class WatermarkToDataOutputTest {
         final CollectingDataOutput<Object> testingOutput = new CollectingDataOutput<>();
         final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
 
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(12L));
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(17L));
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(10L));
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(18L));
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(17L));
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(18L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(12L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(17L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(10L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(18L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(17L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(18L));
 
         assertThat(testingOutput.events)
-                .contains(new Watermark(12L), new Watermark(17L), new Watermark(18L));
+                .contains(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(12L),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(17L),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(18L));
     }
 
     @Test
@@ -60,9 +64,12 @@ class WatermarkToDataOutputTest {
         final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
 
         wmOutput.markIdle();
-        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(100L));
+        wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(100L));
 
         assertThat(testingOutput.events)
-                .contains(WatermarkStatus.IDLE, WatermarkStatus.ACTIVE, new Watermark(100L));
+                .contains(
+                        WatermarkStatus.IDLE,
+                        WatermarkStatus.ACTIVE,
+                        WatermarkUtils.createWatermarkEventFromTimestamp(100L));
     }
 }

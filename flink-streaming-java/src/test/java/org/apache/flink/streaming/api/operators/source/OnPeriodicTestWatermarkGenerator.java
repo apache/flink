@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
@@ -36,7 +36,7 @@ final class OnPeriodicTestWatermarkGenerator<T> implements WatermarkGenerator<T>
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
         if (lastTimestamp != null) {
-            output.emitWatermark(new Watermark(lastTimestamp));
+            output.emitWatermark(new TimestampWatermark(lastTimestamp));
         }
     }
 }

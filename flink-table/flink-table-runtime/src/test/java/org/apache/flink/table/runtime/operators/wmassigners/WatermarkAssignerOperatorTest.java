@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
@@ -78,13 +80,15 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
-        testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(
+                        2)); // this watermark should be ignored
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
         // trigger watermark emit
         testHarness.setProcessingTime(51);
-        expectedOutput.add(new Watermark(3));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3));
         assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
 
         stepProcessingTime(testHarness, 52, 1050, 50);
@@ -104,7 +108,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
 
         stepProcessingTime(testHarness, 1101, 1200, 50);
-        expectedOutput.add(new Watermark(7));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7));
         assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
     }
 
@@ -165,7 +169,9 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
-        testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(
+                        2)); // this watermark should be ignored
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
@@ -229,8 +235,13 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
             output.clear();
         }
 
-        testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
-        assertThat(((Watermark) testHarness.getOutput().poll()).getTimestamp())
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
+        assertThat(
+                        ((TimestampWatermark)
+                                        ((WatermarkEvent) testHarness.getOutput().poll())
+                                                .getWatermark())
+                                .getTimestamp())
                 .isEqualTo(Long.MAX_VALUE);
     }
 
@@ -246,17 +257,19 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         testHarness.getExecutionConfig().setAutoWatermarkInterval(5);
 
         long currentTime = 0;
-        List<Watermark> expected = new ArrayList<>();
+        List<WatermarkEvent> expected = new ArrayList<>();
 
         testHarness.open();
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L, 0L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L, 1L)));
-        testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(
+                        2)); // this watermark should be ignored
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L, 1L)));
         currentTime = currentTime + 5;
         testHarness.setProcessingTime(currentTime);
-        expected.add(new Watermark(1L));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(1L));
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L, 2L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L, 1L)));
@@ -264,10 +277,10 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L, null)));
         currentTime = currentTime + 5;
         testHarness.setProcessingTime(currentTime);
-        expected.add(new Watermark(2L));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(2L));
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(9L, 8L)));
-        expected.add(new Watermark(8L));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(8L));
 
         // no watermark output
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L, 7L)));
@@ -275,13 +288,13 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(11L, 10L)));
         currentTime = currentTime + 5;
         testHarness.setProcessingTime(currentTime);
-        expected.add(new Watermark(10L));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
 
         testHarness.close();
-        expected.add(Watermark.MAX_WATERMARK);
+        expected.add(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         // num_watermark + num_records
-        List<Watermark> results = extractWatermarks(testHarness.getOutput());
+        List<WatermarkEvent> results = extractWatermarks(testHarness.getOutput());
         assertThat(results).isEqualTo(expected);
         assertThat(MyWatermarkGenerator.openCalled).isTrue();
         assertThat(MyWatermarkGenerator.closeCalled).isTrue();

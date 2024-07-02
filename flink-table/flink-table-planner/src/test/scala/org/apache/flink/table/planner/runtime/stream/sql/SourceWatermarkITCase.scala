@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.bridge.scala._
@@ -85,7 +86,13 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val actualWatermark = TestValuesTableFactory
       .getWatermarkOutput("VirtualTable")
       .asScala
-      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .filter(x => x.isInstanceOf[TimestampWatermark])
+      .map(
+        x =>
+          TimestampData
+            .fromEpochMillis(x.asInstanceOf[TimestampWatermark].getTimestamp)
+            .toLocalDateTime
+            .toString)
       .toList
 
     assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
@@ -137,7 +144,14 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val actualWatermark = TestValuesTableFactory
       .getWatermarkOutput("VirtualTable1")
       .asScala
-      .map(x => LocalDateTime.ofInstant(Instant.ofEpochMilli(x.getTimestamp), zoneId).toString)
+      .filter(x => x.isInstanceOf[TimestampWatermark])
+      .map(
+        x =>
+          LocalDateTime
+            .ofInstant(
+              Instant.ofEpochMilli(x.asInstanceOf[TimestampWatermark].getTimestamp),
+              zoneId)
+            .toString)
       .toList
 
     assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
@@ -195,7 +209,13 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val actualWatermark = TestValuesTableFactory
       .getWatermarkOutput("NestedTable")
       .asScala
-      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .filter(x => x.isInstanceOf[TimestampWatermark])
+      .map(
+        x =>
+          TimestampData
+            .fromEpochMillis(x.asInstanceOf[TimestampWatermark].getTimestamp)
+            .toLocalDateTime
+            .toString)
       .toList
 
     assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
@@ -250,7 +270,13 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val actualWatermark = TestValuesTableFactory
       .getWatermarkOutput("UdfTable")
       .asScala
-      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .filter(x => x.isInstanceOf[TimestampWatermark])
+      .map(
+        x =>
+          TimestampData
+            .fromEpochMillis(x.asInstanceOf[TimestampWatermark].getTimestamp)
+            .toLocalDateTime
+            .toString)
       .toList
 
     assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
@@ -301,7 +327,13 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val actualWatermark = TestValuesTableFactory
       .getWatermarkOutput("MetadataTable")
       .asScala
-      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .filter(x => x.isInstanceOf[TimestampWatermark])
+      .map(
+        x =>
+          TimestampData
+            .fromEpochMillis(x.asInstanceOf[TimestampWatermark].getTimestamp)
+            .toLocalDateTime
+            .toString)
       .toList
 
     assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)

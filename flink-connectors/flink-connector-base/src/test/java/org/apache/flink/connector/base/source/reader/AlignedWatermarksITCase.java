@@ -20,7 +20,7 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -153,7 +153,7 @@ public class AlignedWatermarksITCase {
     private static class PunctuatedGenerator implements WatermarkGenerator<Long> {
         @Override
         public void onEvent(Long event, long eventTimestamp, WatermarkOutput output) {
-            output.emitWatermark(new Watermark(eventTimestamp));
+            output.emitWatermark(new TimestampWatermark(eventTimestamp));
         }
 
         @Override

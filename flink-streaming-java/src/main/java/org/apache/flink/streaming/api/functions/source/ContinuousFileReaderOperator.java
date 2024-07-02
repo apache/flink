@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -36,7 +37,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
@@ -432,7 +433,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         // we do nothing because we emit our own watermarks if needed.
     }
 
@@ -456,7 +457,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
         }
 
         try {
-            sourceContext.emitWatermark(Watermark.MAX_WATERMARK);
+            sourceContext.emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
         } catch (Exception e) {
             LOG.warn("unable to emit watermark while closing", e);
         }

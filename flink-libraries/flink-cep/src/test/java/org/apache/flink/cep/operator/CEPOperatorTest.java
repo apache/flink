@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.operator;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -43,10 +45,11 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TernaryBoolean;
@@ -100,7 +103,8 @@ public class CEPOperatorTest extends TestLogger {
         try {
             harness.open();
 
-            Watermark expectedWatermark = new Watermark(42L);
+            WatermarkEvent expectedWatermark =
+                    WatermarkUtils.createWatermarkEventFromTimestamp(42L);
 
             harness.processWatermark(expectedWatermark);
 
@@ -162,14 +166,15 @@ public class CEPOperatorTest extends TestLogger {
             harness.initializeState(snapshot);
             harness.open();
 
-            harness.processWatermark(new Watermark(Long.MIN_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MIN_VALUE));
 
             harness.processElement(
                     new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3L));
 
             // if element timestamps are not correctly checkpointed/restored this will lead to
             // a pruning time underflow exception in NFA
-            harness.processWatermark(new Watermark(2L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2L));
 
             harness.processElement(new StreamRecord<Event>(middleEvent, 3L));
             harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4L));
@@ -185,7 +190,8 @@ public class CEPOperatorTest extends TestLogger {
             harness.initializeState(snapshot2);
             harness.open();
 
-            harness.processWatermark(new Watermark(Long.MAX_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
 
             // get and verify the output
 
@@ -237,14 +243,15 @@ public class CEPOperatorTest extends TestLogger {
             harness.initializeState(snapshot);
             harness.open();
 
-            harness.processWatermark(new Watermark(Long.MIN_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MIN_VALUE));
 
             harness.processElement(
                     new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3L));
 
             // if element timestamps are not correctly checkpointed/restored this will lead to
             // a pruning time underflow exception in NFA
-            harness.processWatermark(new Watermark(2L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2L));
 
             // simulate snapshot/restore with empty element queue but NFA state
             OperatorSubtaskState snapshot2 = harness.snapshot(1L, 1L);
@@ -263,7 +270,8 @@ public class CEPOperatorTest extends TestLogger {
             harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4L));
             harness.processElement(new StreamRecord<>(endEvent, 5L));
 
-            harness.processWatermark(new Watermark(Long.MAX_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
 
             // get and verify the output
 
@@ -328,8 +336,10 @@ public class CEPOperatorTest extends TestLogger {
             harness.open();
 
             harness.processElement(new StreamRecord<>(startEvent, 3L));
-            harness.processWatermark(new Watermark(watermarkTimestamp1));
-            harness.processWatermark(new Watermark(watermarkTimestamp2));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(watermarkTimestamp1));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(watermarkTimestamp2));
 
             Queue<Object> result = harness.getOutput();
             Queue<StreamRecord<Tuple2<Map<String, List<Event>>, Long>>> sideOutput =
@@ -340,9 +350,12 @@ public class CEPOperatorTest extends TestLogger {
 
             Object watermark1 = result.poll();
 
-            assertTrue(watermark1 instanceof Watermark);
+            assertTrue(watermark1 instanceof WatermarkEvent);
+            Watermark genericWatermark = ((WatermarkEvent) watermark1).getWatermark();
+            assertTrue(genericWatermark instanceof TimestampWatermark);
 
-            assertEquals(watermarkTimestamp1, ((Watermark) watermark1).getTimestamp());
+            assertEquals(
+                    watermarkTimestamp1, ((TimestampWatermark) genericWatermark).getTimestamp());
 
             Tuple2<Map<String, List<Event>>, Long> leftResult = sideOutput.poll().getValue();
 
@@ -351,9 +364,12 @@ public class CEPOperatorTest extends TestLogger {
 
             Object watermark2 = result.poll();
 
-            assertTrue(watermark2 instanceof Watermark);
+            assertTrue(watermark2 instanceof WatermarkEvent);
 
-            assertEquals(watermarkTimestamp2, ((Watermark) watermark2).getTimestamp());
+            genericWatermark = ((WatermarkEvent) watermark2).getWatermark();
+            assertTrue(genericWatermark instanceof TimestampWatermark);
+            assertEquals(
+                    watermarkTimestamp2, ((TimestampWatermark) genericWatermark).getTimestamp());
         } finally {
             harness.close();
         }
@@ -583,7 +599,8 @@ public class CEPOperatorTest extends TestLogger {
         try {
             harness.open();
 
-            harness.processWatermark(new Watermark(Long.MIN_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MIN_VALUE));
 
             harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
             harness.processElement(new StreamRecord<Event>(middleEvent1, 2L));
@@ -601,7 +618,7 @@ public class CEPOperatorTest extends TestLogger {
             assertTrue(!operator.hasNonEmptySharedBuffer(42));
             assertTrue(!operator.hasNonEmptySharedBuffer(43));
 
-            harness.processWatermark(new Watermark(2L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2L));
 
             verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);
             verifyWatermark(harness.getOutput().poll(), 2L);
@@ -684,7 +701,8 @@ public class CEPOperatorTest extends TestLogger {
         try {
             harness.open();
 
-            harness.processWatermark(new Watermark(Long.MIN_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MIN_VALUE));
 
             harness.processElement(new StreamRecord<>(middle2Event1, 6));
             harness.processElement(new StreamRecord<>(middle1Event3, 7));
@@ -698,7 +716,7 @@ public class CEPOperatorTest extends TestLogger {
             assertEquals(7L, operator.getPQSize(41));
             assertTrue(!operator.hasNonEmptySharedBuffer(41));
 
-            harness.processWatermark(new Watermark(2L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2L));
 
             verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);
             verifyWatermark(harness.getOutput().poll(), 2L);
@@ -707,12 +725,12 @@ public class CEPOperatorTest extends TestLogger {
             assertEquals(6L, operator.getPQSize(41));
             assertTrue(operator.hasNonEmptySharedBuffer(41)); // processed the first element
 
-            harness.processWatermark(new Watermark(8L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(8L));
 
             List<List<Event>> resultingPatterns = new ArrayList<>();
             while (!harness.getOutput().isEmpty()) {
                 Object o = harness.getOutput().poll();
-                if (!(o instanceof Watermark)) {
+                if (!(o instanceof WatermarkEvent)) {
                     StreamRecord<Map<String, List<Event>>> el =
                             (StreamRecord<Map<String, List<Event>>>) o;
                     List<Event> res = new ArrayList<>();
@@ -759,7 +777,7 @@ public class CEPOperatorTest extends TestLogger {
             assertEquals(0L, operator.getPQSize(41));
             assertTrue(operator.hasNonEmptySharedBuffer(41));
 
-            harness.processWatermark(new Watermark(17L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(17L));
             verifyWatermark(harness.getOutput().poll(), 17L);
 
             assertTrue(!operator.hasNonEmptySharedBuffer(41));
@@ -789,11 +807,12 @@ public class CEPOperatorTest extends TestLogger {
 
             harness.open();
 
-            harness.processWatermark(new Watermark(Long.MIN_VALUE));
+            harness.processWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(Long.MIN_VALUE));
             harness.processElement(new StreamRecord<>(startEvent, 6));
 
             verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);
-            harness.processWatermark(new Watermark(6L));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6L));
             verifyWatermark(harness.getOutput().poll(), 6L);
 
             harness.processElement(new StreamRecord<>(middle1Event1, 4));
@@ -1006,7 +1025,7 @@ public class CEPOperatorTest extends TestLogger {
             List<List<Event>> resultingPatterns = new ArrayList<>();
             while (!harness.getOutput().isEmpty()) {
                 Object o = harness.getOutput().poll();
-                if (!(o instanceof Watermark)) {
+                if (!(o instanceof WatermarkEvent)) {
                     StreamRecord<Map<String, List<Event>>> el =
                             (StreamRecord<Map<String, List<Event>>>) o;
                     List<Event> res = new ArrayList<>();
@@ -1161,8 +1180,10 @@ public class CEPOperatorTest extends TestLogger {
     }
 
     private void verifyWatermark(Object outputObject, long timestamp) {
-        assertTrue(outputObject instanceof Watermark);
-        assertEquals(timestamp, ((Watermark) outputObject).getTimestamp());
+        assertTrue(outputObject instanceof WatermarkEvent);
+        Watermark genericWatermark = ((WatermarkEvent) outputObject).getWatermark();
+        assertTrue(genericWatermark instanceof TimestampWatermark);
+        assertEquals(timestamp, ((TimestampWatermark) genericWatermark).getTimestamp());
     }
 
     private void verifyPattern(Object outputObject, Event start, SubEvent middle, Event end) {

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -28,10 +30,11 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -230,7 +233,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
     }
 
     public void processWatermark(long watermark) throws Exception {
-        processWatermark(new Watermark(watermark));
+        processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(watermark));
     }
 
     public void processWatermarkStatus(WatermarkStatus status) throws Exception {
@@ -243,8 +246,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
         }
     }
 
-    public void processWatermark(Watermark mark) throws Exception {
-        currentWatermark = mark.getTimestamp();
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        Watermark genericWatermark = mark.getWatermark();
+        assert (genericWatermark instanceof TimestampWatermark);
+        currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
         if (inputs.isEmpty()) {
             getOneInputOperator().processWatermark(mark);
         } else {

@@ -19,7 +19,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -511,9 +511,9 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
                                 long eventTimestamp,
                                 WatermarkOutput output) {
                             if (eventTimestamp == 4) {
-                                output.emitWatermark(new Watermark(5));
+                                output.emitWatermark(new TimestampWatermark(5));
                             } else if (eventTimestamp == 14) {
-                                output.emitWatermark(new Watermark(15));
+                                output.emitWatermark(new TimestampWatermark(15));
                             }
                         }
 
@@ -682,7 +682,8 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
         }
 
         @Override
-        public void processWatermark(org.apache.flink.streaming.api.watermark.Watermark mark) {}
+        public void processWatermark(
+                org.apache.flink.streaming.api.watermark.WatermarkEvent mark) {}
 
         @Override
         public void processLatencyMarker(LatencyMarker latencyMarker) {}

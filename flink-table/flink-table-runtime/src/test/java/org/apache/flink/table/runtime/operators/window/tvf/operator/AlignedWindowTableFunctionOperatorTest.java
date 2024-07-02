@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.operator;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.CumulativeWindowAssigner;
@@ -66,12 +66,12 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         testHarness.processElement(insertRecord("key1", 1, 20L));
         testHarness.processElement(insertRecord("key2", 1, 3999L));
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(insertRecord("key1", 1, 20L, localMills(0L), localMills(3000L), 2999L));
         expectedOutput.add(
                 insertRecord("key2", 1, 3999L, localMills(3000L), localMills(6000L), 5999L));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -132,7 +132,7 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         testHarness.processElement(insertRecord("key1", 1, 20L));
         testHarness.processElement(insertRecord("key2", 1, 3999L));
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(
                 insertRecord("key1", 1, 20L, localMills(-2000L), localMills(1000L), 999L));
@@ -145,7 +145,7 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
                 insertRecord("key2", 1, 3999L, localMills(2000L), localMills(5000L), 4999L));
         expectedOutput.add(
                 insertRecord("key2", 1, 3999L, localMills(3000L), localMills(6000L), 5999L));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -214,7 +214,7 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         testHarness.processElement(insertRecord("key1", 1, 20L));
         testHarness.processElement(insertRecord("key2", 1, 3999L));
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(insertRecord("key1", 1, 20L, localMills(0), localMills(1000L), 999L));
         expectedOutput.add(insertRecord("key1", 1, 20L, localMills(0), localMills(2000L), 1999L));
@@ -225,7 +225,7 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
                 insertRecord("key2", 1, 3999L, localMills(3000L), localMills(5000L), 4999L));
         expectedOutput.add(
                 insertRecord("key2", 1, 3999L, localMills(3000L), localMills(6000L), 5999L));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -290,7 +290,7 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
         testHarness.processElement(binaryRecord(RowKind.INSERT, "key1", 1, 20L));
         testHarness.processElement(binaryRecord(RowKind.UPDATE_BEFORE, "key1", 1, 30L));
         testHarness.processElement(binaryRecord(RowKind.UPDATE_AFTER, "key1", 1, 40L));
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(
                 binaryRecord(
@@ -313,13 +313,13 @@ public class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionO
                         localMills(0L),
                         localMills(3000L),
                         2999L));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(9999));
-        expectedOutput.add(new Watermark(9999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(9999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(9999));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());

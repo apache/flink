@@ -20,6 +20,7 @@ package org.apache.flink.cep;
 
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -42,7 +43,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.types.Either;
@@ -230,10 +231,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
 
                                     @Override
-                                    public Watermark checkAndGetNextWatermark(
+                                    public WatermarkEvent checkAndGetNextWatermark(
                                             Tuple2<Event, Long> lastElement,
                                             long extractedTimestamp) {
-                                        return new Watermark(lastElement.f1 - 5);
+                                        return new WatermarkEvent(
+                                                new TimestampWatermark(lastElement.f1 - 5));
                                     }
                                 })
                         .map(
@@ -311,10 +313,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
 
                                     @Override
-                                    public Watermark checkAndGetNextWatermark(
+                                    public WatermarkEvent checkAndGetNextWatermark(
                                             Tuple2<Event, Long> lastElement,
                                             long extractedTimestamp) {
-                                        return new Watermark(lastElement.f1 - 5);
+                                        return new WatermarkEvent(
+                                                new TimestampWatermark(lastElement.f1 - 5));
                                     }
                                 })
                         .map(
@@ -469,10 +472,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
 
                                     @Override
-                                    public Watermark checkAndGetNextWatermark(
+                                    public WatermarkEvent checkAndGetNextWatermark(
                                             Tuple2<Event, Long> lastElement,
                                             long extractedTimestamp) {
-                                        return new Watermark(lastElement.f1 - 5);
+                                        return new WatermarkEvent(
+                                                new TimestampWatermark(lastElement.f1 - 5));
                                     }
                                 })
                         .map(
@@ -559,10 +563,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
 
                                     @Override
-                                    public Watermark checkAndGetNextWatermark(
+                                    public WatermarkEvent checkAndGetNextWatermark(
                                             Tuple2<Event, Long> lastElement,
                                             long extractedTimestamp) {
-                                        return new Watermark(lastElement.f1 - 5);
+                                        return new WatermarkEvent(
+                                                new TimestampWatermark(lastElement.f1 - 5));
                                     }
                                 })
                         .map(
@@ -718,10 +723,11 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
 
                                     @Override
-                                    public Watermark checkAndGetNextWatermark(
+                                    public WatermarkEvent checkAndGetNextWatermark(
                                             Tuple2<Event, Long> lastElement,
                                             long extractedTimestamp) {
-                                        return new Watermark(lastElement.f1 - 5);
+                                        return new WatermarkEvent(
+                                                new TimestampWatermark(lastElement.f1 - 5));
                                     }
                                 })
                         .map(

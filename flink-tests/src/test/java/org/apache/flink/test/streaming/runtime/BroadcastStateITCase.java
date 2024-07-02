@@ -29,7 +29,8 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
@@ -203,8 +204,8 @@ public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
 
         @Nullable
         @Override
-        public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
-            return new Watermark(extractedTimestamp);
+        public WatermarkEvent checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+            return WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp);
         }
     }
 

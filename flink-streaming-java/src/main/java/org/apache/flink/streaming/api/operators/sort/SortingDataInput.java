@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -35,13 +37,14 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.PushSorter;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -175,8 +178,13 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
-            watermarkSeen = Math.max(watermarkSeen, watermark.getTimestamp());
+        public void emitWatermark(WatermarkEvent watermark) {
+            Watermark genericWatermark = watermark.getWatermark();
+            if (!(genericWatermark instanceof TimestampWatermark)) {
+                return;
+            }
+            watermarkSeen =
+                    Math.max(watermarkSeen, ((TimestampWatermark) genericWatermark).getTimestamp());
         }
 
         @Override
@@ -220,7 +228,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         } else {
             emittedLast = true;
             if (watermarkSeen > Long.MIN_VALUE) {
-                output.emitWatermark(new Watermark(watermarkSeen));
+                output.emitWatermark(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(watermarkSeen));
             }
             return DataInputStatus.END_OF_DATA;
         }

@@ -66,6 +66,6 @@ public class BoundedOutOfOrdernessWatermarks<T> implements WatermarkGenerator<T>
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-        output.emitWatermark(new Watermark(maxTimestamp - outOfOrdernessMillis - 1));
+        output.emitWatermark(new TimestampWatermark(maxTimestamp - outOfOrdernessMillis - 1));
     }
 }

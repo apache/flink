@@ -19,15 +19,18 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.DefaultWatermarkPolicy;
+import org.apache.flink.api.common.WatermarkPolicy;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.StateDeclaration;
+import org.apache.flink.datastream.api.WatermarkDeclarable;
 
 import java.util.Collections;
 import java.util.Set;
 
 /** Base class for all user defined process functions. */
 @Experimental
-public interface ProcessFunction extends Function {
+public interface ProcessFunction extends Function, WatermarkDeclarable {
     /**
      * Initialization method for the function. It is called before the actual working methods (like
      * processRecord) and thus suitable for one time setup work.
@@ -61,4 +64,8 @@ public interface ProcessFunction extends Function {
      *     decide whether to retry the task execution.
      */
     default void close() throws Exception {}
+
+    default WatermarkPolicy watermarkPolicy() {
+        return new DefaultWatermarkPolicy();
+    }
 }

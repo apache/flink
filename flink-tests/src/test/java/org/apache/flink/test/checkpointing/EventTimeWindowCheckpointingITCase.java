@@ -45,11 +45,11 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
@@ -810,7 +810,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 ctx.collectWithTimestamp(generatedEvent, eventSequenceNo);
             }
 
-            ctx.emitWatermark(new Watermark(eventSequenceNo - watermarkTrailing));
+            ctx.emitWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(
+                            eventSequenceNo - watermarkTrailing));
         }
     }
 

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
@@ -46,11 +47,14 @@ public final class AssignerWithPunctuatedWatermarksAdapter<T> implements Waterma
 
     @Override
     public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
-        final org.apache.flink.streaming.api.watermark.Watermark next =
+        final org.apache.flink.streaming.api.watermark.WatermarkEvent next =
                 wms.checkAndGetNextWatermark(event, eventTimestamp);
 
         if (next != null) {
-            output.emitWatermark(new Watermark(next.getTimestamp()));
+            Watermark genericWatermark = next.getWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                output.emitWatermark(genericWatermark);
+            }
         }
     }
 

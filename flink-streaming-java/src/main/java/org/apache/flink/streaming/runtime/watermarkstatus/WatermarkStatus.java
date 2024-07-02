@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -72,9 +72,9 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  * </ul>
  *
  * <p>Note that to notify downstream tasks that a source task is permanently closed and will no
- * longer send any more elements, the source should still send a {@link Watermark#MAX_WATERMARK}
- * instead of {@link WatermarkStatus#IDLE}. Watermark Status elements only serve as markers for
- * temporary status.
+ * longer send any more elements, the source should still send a {@link
+ * TimestampWatermark#MAX_WATERMARK} instead of {@link WatermarkStatus#IDLE}. Watermark Status
+ * elements only serve as markers for temporary status.
  */
 @Internal
 public final class WatermarkStatus extends StreamElement {

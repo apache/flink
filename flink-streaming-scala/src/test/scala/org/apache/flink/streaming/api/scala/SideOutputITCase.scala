@@ -17,9 +17,10 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, ProcessFunction}
 import org.apache.flink.streaming.api.scala.function.{ProcessAllWindowFunction, ProcessWindowFunction}
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
@@ -382,7 +383,8 @@ class SideOutputITCase extends AbstractTestBaseJUnit4 {
 class TestAssigner extends AssignerWithPunctuatedWatermarks[(String, Int)] {
   override def checkAndGetNextWatermark(
       lastElement: (String, Int),
-      extractedTimestamp: Long): Watermark = new Watermark(extractedTimestamp)
+      extractedTimestamp: Long): WatermarkEvent = new WatermarkEvent(
+    new TimestampWatermark(extractedTimestamp))
 
   override def extractTimestamp(element: (String, Int), previousElementTimestamp: Long): Long =
     element._2.toLong

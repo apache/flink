@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
@@ -53,7 +54,6 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleFuturesAvailabilityHelper;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -148,7 +148,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private DataOutput<OUT> lastInvokedOutput;
 
-    private long latestWatermark = Watermark.UNINITIALIZED.getTimestamp();
+    private long latestWatermark = TimestampWatermark.UNINITIALIZED.getTimestamp();
 
     private boolean idle = false;
 
@@ -186,7 +186,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private InternalSourceReaderMetricGroup sourceMetricGroup;
 
-    private long currentMaxDesiredWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+    private long currentMaxDesiredWatermark = TimestampWatermark.MAX_WATERMARK.getTimestamp();
     /** Can be not completed only in {@link OperatingMode#WAITING_FOR_ALIGNMENT} mode. */
     private CompletableFuture<Void> waitingForAlignmentFuture =
             CompletableFuture.completedFuture(null);
@@ -450,7 +450,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 return DataInputStatus.END_OF_DATA;
             case DATA_FINISHED:
                 if (watermarkAlignmentParams.isEnabled()) {
-                    latestWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+                    latestWatermark = TimestampWatermark.MAX_WATERMARK.getTimestamp();
                     emitLatestWatermark();
                 }
                 sourceMetricGroup.idlingStarted();
@@ -513,12 +513,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private void emitLatestWatermark() {
         checkState(currentMainOutput != null);
-        if (latestWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
+        if (latestWatermark == TimestampWatermark.UNINITIALIZED.getTimestamp()) {
             return;
         }
         operatorEventGateway.sendEventToCoordinator(
                 new ReportedWatermarkEvent(
-                        idle ? Watermark.MAX_WATERMARK.getTimestamp() : latestWatermark));
+                        idle ? TimestampWatermark.MAX_WATERMARK.getTimestamp() : latestWatermark));
     }
 
     @Override

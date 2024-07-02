@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.operators.lifecycle;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjects;
 
@@ -60,7 +60,7 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  *   <li>Order of events when finishing an operator:
  *       <ol>
  *         <li>(last data element)
- *         <li>{@link Watermark#MAX_WATERMARK MAX_WATERMARK} (if with drain)
+ *         <li>{@link TimestampWatermark#MAX_WATERMARK MAX_WATERMARK} (if with drain)
  *         <li>{@link BoundedMultiInput#endInput endInput} (if with drain)
  *         <li>timer service quiesced
  *         <li>{@link StreamOperator#finish() finish} (if with drain)

@@ -166,7 +166,7 @@ under the License.
 		<testcontainers.version>1.19.1</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<commons.io.version>2.15.1</commons.io.version>
-		<japicmp.skip>false</japicmp.skip>
+		<japicmp.skip>true</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency

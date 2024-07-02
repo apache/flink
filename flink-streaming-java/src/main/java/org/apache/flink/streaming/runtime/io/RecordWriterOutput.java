@@ -18,6 +18,10 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.WatermarkDeclaration;
+import org.apache.flink.api.common.eventtime.InternalWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -28,8 +32,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.watermark.InternalWatermark;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
@@ -46,6 +49,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -72,12 +77,29 @@ public class RecordWriterOutput<OUT>
     // per-record path.
     private Counter numRecordsOut = new SimpleCounter();
 
+    private final List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations;
+
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
             RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
             TypeSerializer<OUT> outSerializer,
             OutputTag outputTag,
             boolean supportsUnalignedCheckpoints) {
+        this(
+                recordWriter,
+                outSerializer,
+                outputTag,
+                supportsUnalignedCheckpoints,
+                new ArrayList<>());
+    }
+
+    @SuppressWarnings("unchecked")
+    public RecordWriterOutput(
+            RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
+            TypeSerializer<OUT> outSerializer,
+            OutputTag outputTag,
+            boolean supportsUnalignedCheckpoints,
+            List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations) {
 
         checkNotNull(recordWriter);
         this.outputTag = outputTag;
@@ -87,13 +109,14 @@ public class RecordWriterOutput<OUT>
                 (RecordWriter<SerializationDelegate<StreamElement>>) (RecordWriter<?>) recordWriter;
 
         TypeSerializer<StreamElement> outRecordSerializer =
-                new StreamElementSerializer<>(outSerializer);
+                new StreamElementSerializer<>(outSerializer, watermarkDeclarations);
 
         if (outSerializer != null) {
             serializationDelegate = new SerializationDelegate<>(outRecordSerializer);
         }
 
         this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
+        this.watermarkDeclarations = watermarkDeclarations;
     }
 
     @Override
@@ -144,12 +167,25 @@ public class RecordWriterOutput<OUT>
     }
 
     @Override
-    public void emitWatermark(Watermark mark) {
+    public void emitWatermark(WatermarkEvent mark) {
+        Watermark genericWatermark = mark.getWatermark();
+        // TODOJEY
+        if (!(genericWatermark instanceof TimestampWatermark)) {
+            serializationDelegate.setInstance(mark);
+
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e.getMessage(), e);
+            }
+            return;
+        }
         if (announcedStatus.isIdle()) {
             return;
         }
 
-        watermarkGauge.setCurrentWatermark(mark.getTimestamp());
+        long ts = ((TimestampWatermark) genericWatermark).getTimestamp();
+        watermarkGauge.setCurrentWatermark(ts);
 
         if (recordWriter.isSubpartitionDerivable()) {
             serializationDelegate.setInstance(mark);
@@ -161,7 +197,7 @@ public class RecordWriterOutput<OUT>
             }
         } else {
             for (int i = 0; i < recordWriter.getNumberOfSubpartitions(); i++) {
-                serializationDelegate.setInstance(new InternalWatermark(mark.getTimestamp(), i));
+                serializationDelegate.setInstance(new WatermarkEvent(new InternalWatermark(ts, i)));
 
                 try {
                     recordWriter.emit(serializationDelegate, i);

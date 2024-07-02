@@ -67,6 +67,7 @@ public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
         // reset future because the next record may hit the rate limit
         availabilityFuture = null;
         final InputStatus inputStatus = sourceReader.pollNext(output);
+
         if (inputStatus == InputStatus.MORE_AVAILABLE) {
             // force another go through isAvailable() to evaluate rate-limiting
             return InputStatus.NOTHING_AVAILABLE;

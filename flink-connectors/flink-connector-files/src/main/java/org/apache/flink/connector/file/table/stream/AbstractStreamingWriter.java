@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -30,7 +32,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -132,9 +134,12 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        currentWatermark = mark.getTimestamp();
+        Watermark genericWatermark = mark.getWatermark();
+        if (genericWatermark instanceof TimestampWatermark) {
+            currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
+        }
     }
 
     @Override
@@ -156,7 +161,7 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
     public void endInput() throws Exception {
         buckets.onProcessingTime(Long.MAX_VALUE);
         helper.snapshotState(Long.MAX_VALUE);
-        output.emitWatermark(new Watermark(Long.MAX_VALUE));
+        output.emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
         commitUpToCheckpoint(Long.MAX_VALUE);
     }
 

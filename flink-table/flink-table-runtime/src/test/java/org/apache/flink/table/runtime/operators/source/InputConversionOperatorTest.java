@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.source;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -101,7 +103,7 @@ public class InputConversionOperatorTest {
                         true);
 
         // would throw an exception otherwise because an output is not set
-        operator.processWatermark(new Watermark(1000));
+        operator.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
     }
 
     @Test(expected = NullPointerException.class)
@@ -115,7 +117,7 @@ public class InputConversionOperatorTest {
                         true);
 
         // would throw an exception because it always emits Watermark.MAX_WATERMARK
-        operator.processWatermark(Watermark.MAX_WATERMARK);
+        operator.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     private static DynamicTableSource.DataStructureConverter createConverter(DataType dataType) {

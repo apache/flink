@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
@@ -26,7 +26,7 @@ final class OnEventTestWatermarkGenerator<T> implements WatermarkGenerator<T> {
 
     @Override
     public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
-        output.emitWatermark(new Watermark(eventTimestamp));
+        output.emitWatermark(new TimestampWatermark(eventTimestamp));
     }
 
     @Override

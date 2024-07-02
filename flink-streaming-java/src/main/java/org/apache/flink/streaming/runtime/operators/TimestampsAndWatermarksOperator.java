@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -117,12 +118,17 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
      * except for the "end of time" watermark.
      */
     @Override
-    public void processWatermark(org.apache.flink.streaming.api.watermark.Watermark mark)
+    public void processWatermark(org.apache.flink.streaming.api.watermark.WatermarkEvent mark)
             throws Exception {
+        Watermark genericWatermark = mark.getWatermark();
+        if (!(genericWatermark instanceof TimestampWatermark)) {
+            wmOutput.emitWatermark(genericWatermark);
+            return;
+        }
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
-        if (mark.getTimestamp() == Long.MAX_VALUE) {
-            wmOutput.emitWatermark(Watermark.MAX_WATERMARK);
+        if (((TimestampWatermark) genericWatermark).getTimestamp() == Long.MAX_VALUE) {
+            wmOutput.emitWatermark(TimestampWatermark.MAX_WATERMARK);
         }
     }
 
@@ -157,7 +163,9 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
         @Override
         public void emitWatermark(Watermark watermark) {
-            final long ts = watermark.getTimestamp();
+            assert (watermark instanceof TimestampWatermark);
+
+            final long ts = ((TimestampWatermark) watermark).getTimestamp();
 
             if (ts <= currentWatermark) {
                 return;
@@ -167,7 +175,9 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
             markActive();
 
-            output.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(ts));
+            output.emitWatermark(
+                    new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                            new TimestampWatermark(ts)));
         }
 
         @Override

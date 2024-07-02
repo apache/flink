@@ -17,16 +17,18 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.testutils.{CheckingIdentityRichAllWindowFunction, CheckingIdentityRichProcessAllWindowFunction, CheckingIdentityRichProcessWindowFunction, CheckingIdentityRichWindowFunction}
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.test.util.AbstractTestBaseJUnit4
 
 import org.junit.Assert._
@@ -361,8 +363,8 @@ object WindowReduceITCase {
 
     def checkAndGetNextWatermark(
         lastElement: (String, Int),
-        extractedTimestamp: Long): Watermark = {
-      new Watermark(lastElement._2 - 1)
+        extractedTimestamp: Long): WatermarkEvent = {
+      WatermarkUtils.createWatermarkEventFromTimestamp(lastElement._2 - 1)
     }
   }
 }

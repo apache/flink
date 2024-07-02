@@ -17,12 +17,14 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
 
@@ -61,7 +63,7 @@ class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
           element
 
         override def checkAndGetNextWatermark(lastElement: Long, extractedTimestamp: Long) =
-          new Watermark(extractedTimestamp)
+          WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp)
 
       })
       .keyBy((value: Long) => value)
@@ -74,7 +76,7 @@ class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
           element.split(":")(1).toLong
 
         override def checkAndGetNextWatermark(lastElement: String, extractedTimestamp: Long) =
-          new Watermark(extractedTimestamp)
+          WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp)
       })
 
     val broadcast = srcTwo.broadcast(DESCRIPTOR)

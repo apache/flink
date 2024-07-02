@@ -24,9 +24,12 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
+
+import java.util.Optional;
 
 /**
  * A stream operator that emits mini-batch marker in a given period. This mini-batch assigner works
@@ -34,7 +37,7 @@ import org.apache.flink.table.data.RowData;
  * processing time. The downstream operators will trigger mini-batch once the received mini-batch id
  * advanced.
  *
- * <p>NOTE: currently, we use {@link Watermark} to represents the mini-batch marker.
+ * <p>NOTE: currently, we use {@link WatermarkEvent} to represents the mini-batch marker.
  *
  * <p>The difference between this operator and {@link RowTimeMiniBatchAssginerOperator} is that,
  * this operator generates watermarks by itself using processing time, but the other forwards
@@ -77,7 +80,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
         if (currentBatch > currentWatermark) {
             currentWatermark = currentBatch;
             // emit
-            output.emitWatermark(new Watermark(currentBatch));
+            output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentBatch));
         }
         output.collect(element);
     }
@@ -89,7 +92,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
         if (currentBatch > currentWatermark) {
             currentWatermark = currentBatch;
             // emit
-            output.emitWatermark(new Watermark(currentBatch));
+            output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentBatch));
         }
         getProcessingTimeService().registerTimer(currentBatch + intervalMs, this);
     }
@@ -99,10 +102,16 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
      * rely only on the {@link AssignerWithPeriodicWatermarks} to emit watermarks from here).
      */
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
-        if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+        if (!maybeTimestamp.isPresent()) {
+            // fast forward
+            output.emitWatermark(mark);
+            return;
+        }
+        if (maybeTimestamp.get() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
             currentWatermark = Long.MAX_VALUE;
             output.emitWatermark(mark);
         }

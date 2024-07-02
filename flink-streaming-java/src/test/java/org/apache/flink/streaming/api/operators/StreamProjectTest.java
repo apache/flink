@@ -25,10 +25,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.api.datastream.StreamProjection;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -91,7 +91,8 @@ class StreamProjectTest {
                 new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
                         new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "c", 2),
                         initialTime + 3));
-        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         testHarness.processElement(
                 new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
                         new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "a", 7),
@@ -106,7 +107,7 @@ class StreamProjectTest {
         expectedOutput.add(
                 new StreamRecord<Tuple3<Integer, Integer, String>>(
                         new Tuple3<Integer, Integer, String>(2, 2, "c"), initialTime + 3));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         expectedOutput.add(
                 new StreamRecord<Tuple3<Integer, Integer, String>>(
                         new Tuple3<Integer, Integer, String>(7, 7, "a"), initialTime + 4));

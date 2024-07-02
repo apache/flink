@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -80,7 +80,7 @@ public class MigrationTestUtils {
         @Override
         public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
 
-            ctx.emitWatermark(new Watermark(0));
+            ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0));
 
             synchronized (ctx.getCheckpointLock()) {
                 for (long i = 0; i < numElements; i++) {
@@ -153,7 +153,7 @@ public class MigrationTestUtils {
         public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
 
             // immediately trigger any set timers
-            ctx.emitWatermark(new Watermark(1000));
+            ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
 
             synchronized (ctx.getCheckpointLock()) {
                 for (long i = 0; i < numElements; i++) {
@@ -218,7 +218,7 @@ public class MigrationTestUtils {
         @Override
         public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
 
-            ctx.emitWatermark(new Watermark(0));
+            ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0));
 
             synchronized (ctx.getCheckpointLock()) {
                 for (long i = 0; i < numElements; i++) {
@@ -292,7 +292,7 @@ public class MigrationTestUtils {
         public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
 
             // immediately trigger any set timers
-            ctx.emitWatermark(new Watermark(1000));
+            ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
 
             synchronized (ctx.getCheckpointLock()) {
                 for (long i = 0; i < numElements; i++) {

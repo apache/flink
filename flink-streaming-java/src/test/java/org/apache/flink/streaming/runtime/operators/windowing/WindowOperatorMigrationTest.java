@@ -36,7 +36,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
@@ -54,6 +54,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -416,16 +417,16 @@ class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator<>());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -491,20 +492,20 @@ class WindowOperatorMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
 
-        testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -566,16 +567,16 @@ class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator<>());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -639,20 +640,20 @@ class WindowOperatorMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
 
-        testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1003,16 +1004,16 @@ class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.processElement(
                 new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 1000));
 
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator<>());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -1086,20 +1087,20 @@ class WindowOperatorMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key1"), 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 3), 2999));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
 
-        testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 2), 5999));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1123,7 +1124,7 @@ class WindowOperatorMigrationTest implements MigrationTest {
             implements Comparator<Object> {
         @Override
         public int compare(Object o1, Object o2) {
-            if (o1 instanceof Watermark || o2 instanceof Watermark) {
+            if (o1 instanceof WatermarkEvent || o2 instanceof WatermarkEvent) {
                 return 0;
             } else {
                 StreamRecord<Tuple2<K, Integer>> sr0 = (StreamRecord<Tuple2<K, Integer>>) o1;
@@ -1145,7 +1146,7 @@ class WindowOperatorMigrationTest implements MigrationTest {
     private static class Tuple3ResultSortComparator implements Comparator<Object> {
         @Override
         public int compare(Object o1, Object o2) {
-            if (o1 instanceof Watermark || o2 instanceof Watermark) {
+            if (o1 instanceof WatermarkEvent || o2 instanceof WatermarkEvent) {
                 return 0;
             } else {
                 StreamRecord<Tuple3<String, Long, Long>> sr0 =

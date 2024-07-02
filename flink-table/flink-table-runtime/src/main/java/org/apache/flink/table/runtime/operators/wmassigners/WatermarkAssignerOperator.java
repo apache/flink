@@ -19,17 +19,21 @@
 package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -147,7 +151,8 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         if (currentWatermark > lastWatermark) {
             lastWatermark = currentWatermark;
             // emit watermark
-            output.emitWatermark(new Watermark(currentWatermark));
+            output.emitWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(currentWatermark));
         }
     }
 
@@ -182,10 +187,15 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
      * rely only on the {@link WatermarkGenerator} to emit watermarks from here).
      */
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
-        if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+        if (!maybeTimestamp.isPresent()) {
+            output.emitWatermark(mark);
+            return;
+        }
+        if (maybeTimestamp.get() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
             if (isIdlenessEnabled() && currentStatus.equals(WatermarkStatus.IDLE)) {
                 // mark the channel active
                 emitWatermarkStatus(WatermarkStatus.ACTIVE);
@@ -208,7 +218,7 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     @Override
     public void finish() throws Exception {
         // all records have been processed, emit a final watermark
-        processWatermark(Watermark.MAX_WATERMARK);
+        processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     @Override

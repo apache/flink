@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -70,6 +71,7 @@ import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
@@ -83,6 +85,7 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
@@ -1124,7 +1127,7 @@ public class StreamingJobGraphGenerator {
         config.setInputs(inputConfigs);
 
         config.setTypeSerializerOut(vertex.getTypeSerializerOut());
-
+        setWatermarkDeclarations(config);
         config.setStreamOperatorFactory(vertex.getOperatorFactory());
 
         config.setTimeCharacteristic(streamGraph.getTimeCharacteristic());
@@ -1162,6 +1165,16 @@ public class StreamingJobGraphGenerator {
         }
 
         vertexConfigs.put(vertexId, config);
+    }
+
+    private void setWatermarkDeclarations(StreamConfig config) {
+        Set<Class<? extends WatermarkDeclaration>> decralations =
+                streamGraph.getStreamNodes().stream()
+                        .filter(n -> (n.getOperatorFactory() instanceof SimpleOperatorFactory))
+                        .map(n -> WatermarkUtils.getWatermarkDeclarations(n.getOperator()))
+                        .flatMap(Set::stream)
+                        .collect(Collectors.toSet());
+        config.setWatermarkDeclarations(decralations);
     }
 
     private void setOperatorChainedOutputsConfig(

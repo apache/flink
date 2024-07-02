@@ -24,11 +24,11 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -66,14 +66,15 @@ class StreamGroupedReduceOperatorTest {
 
         testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
         testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
-        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         testHarness.processElement(new StreamRecord<>(2, initialTime + 3));
         testHarness.processElement(new StreamRecord<>(2, initialTime + 4));
         testHarness.processElement(new StreamRecord<>(3, initialTime + 5));
 
         expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
         expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
         expectedOutput.add(new StreamRecord<>(4, initialTime + 4));
         expectedOutput.add(new StreamRecord<>(3, initialTime + 5));

@@ -20,11 +20,14 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,7 +53,8 @@ public class MailboxWatermarkProcessor<OUT> {
      */
     private boolean progressWatermarkScheduled = false;
 
-    private Watermark maxInputWatermark = Watermark.UNINITIALIZED;
+    private WatermarkEvent maxInputWatermark =
+            WatermarkUtils.UNINITIALIZED_TIMESTAMP_WATEMMARK_EVENT;
 
     public MailboxWatermarkProcessor(
             Output<StreamRecord<OUT>> output,
@@ -61,10 +65,15 @@ public class MailboxWatermarkProcessor<OUT> {
         this.internalTimeServiceManager = checkNotNull(internalTimeServiceManager);
     }
 
-    public void emitWatermarkInsideMailbox(Watermark mark) throws Exception {
-        maxInputWatermark =
-                new Watermark(Math.max(maxInputWatermark.getTimestamp(), mark.getTimestamp()));
-        emitWatermarkInsideMailbox();
+    public void emitWatermarkInsideMailbox(WatermarkEvent mark) throws Exception {
+        Optional<Long> maybeMaxInputTimestamp = WatermarkUtils.getTimestamp(maxInputWatermark);
+        Optional<Long> maybeMarkTimestamp = WatermarkUtils.getTimestamp(mark);
+        if (maybeMaxInputTimestamp.isPresent() && maybeMarkTimestamp.isPresent()) {
+            maxInputWatermark =
+                    WatermarkUtils.createWatermarkEventFromTimestamp(
+                            Math.max(maybeMaxInputTimestamp.get(), maybeMarkTimestamp.get()));
+            emitWatermarkInsideMailbox();
+        }
     }
 
     private void emitWatermarkInsideMailbox() throws Exception {

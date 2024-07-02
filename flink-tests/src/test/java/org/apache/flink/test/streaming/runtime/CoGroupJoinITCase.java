@@ -31,11 +31,12 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
@@ -434,9 +435,9 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         }
 
         @Override
-        public Watermark checkAndGetNextWatermark(
+        public WatermarkEvent checkAndGetNextWatermark(
                 Tuple2<String, Integer> element, long extractedTimestamp) {
-            return new Watermark(extractedTimestamp - 1);
+            return WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp - 1);
         }
     }
 
@@ -450,9 +451,9 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         }
 
         @Override
-        public Watermark checkAndGetNextWatermark(
+        public WatermarkEvent checkAndGetNextWatermark(
                 Tuple3<String, String, Integer> lastElement, long extractedTimestamp) {
-            return new Watermark(lastElement.f2 - 1);
+            return WatermarkUtils.createWatermarkEventFromTimestamp(lastElement.f2 - 1);
         }
     }
 

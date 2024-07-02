@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
@@ -34,7 +36,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
@@ -44,6 +46,7 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
@@ -69,7 +72,8 @@ class StreamSourceOperatorWatermarksTest {
         testHarness.waitForTaskCompletion();
 
         assertThat(testHarness.getOutput()).hasSize(1);
-        assertThat(testHarness.getOutput().peek()).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(testHarness.getOutput().peek())
+                .isEqualTo(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     @Test
@@ -83,10 +87,12 @@ class StreamSourceOperatorWatermarksTest {
         testHarness.waitForTaskCompletion();
 
         // sent by source function
-        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(testHarness.getOutput().poll())
+                .isEqualTo(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         // sent by framework
-        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(testHarness.getOutput().poll())
+                .isEqualTo(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         assertThat(testHarness.getOutput()).isEmpty();
     }
@@ -166,8 +172,11 @@ class StreamSourceOperatorWatermarksTest {
         long nextWatermark = 0;
         for (StreamElement el : output) {
             nextWatermark += watermarkInterval;
-            Watermark wm = (Watermark) el;
-            assertThat(wm.getTimestamp()).isEqualTo(nextWatermark);
+            WatermarkEvent wm = (WatermarkEvent) el;
+            Watermark genericWatermark = wm.getWatermark();
+            assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+            assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                    .isEqualTo(nextWatermark);
         }
     }
 
@@ -254,9 +263,9 @@ class StreamSourceOperatorWatermarksTest {
         @Override
         public void run(SourceContext<T> ctx) {
             synchronized (ctx.getCheckpointLock()) {
-                ctx.emitWatermark(new Watermark(1000));
-                ctx.emitWatermark(new Watermark(2000));
-                ctx.emitWatermark(Watermark.MAX_WATERMARK);
+                ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
+                ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2000));
+                ctx.emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
             }
         }
 

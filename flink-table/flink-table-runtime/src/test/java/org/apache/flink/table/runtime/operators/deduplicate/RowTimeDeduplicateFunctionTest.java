@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
@@ -57,12 +57,12 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(record(RowKind.INSERT, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 101L));
-        expectedOutput.add(new Watermark(102));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
-        expectedOutput.add(new Watermark(302));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(302));
         expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
-        expectedOutput.add(new Watermark(402));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(402));
 
         // generateUpdateBefore: true, generateInsert: true
         testRowTimeDeduplicateKeepFirstRow(true, true, expectedOutput);
@@ -77,12 +77,12 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         expectedOutput.clear();
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 101L));
-        expectedOutput.add(new Watermark(102));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key3", 5, 299L));
-        expectedOutput.add(new Watermark(302));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(302));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
-        expectedOutput.add(new Watermark(402));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(402));
         testRowTimeDeduplicateKeepFirstRow(false, false, expectedOutput);
     }
 
@@ -93,16 +93,16 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 100L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 101L));
-        expectedOutput.add(new Watermark(102));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key1", 12, 100L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 300L));
         expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key2", 11, 101L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
-        expectedOutput.add(new Watermark(302));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(302));
         expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
-        expectedOutput.add(new Watermark(402));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(402));
 
         // generateUpdateBefore: true, generateInsert: true
         testRowTimeDeduplicateKeepLastRow(true, true, expectedOutput);
@@ -115,14 +115,14 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         expectedOutput.add(record(RowKind.INSERT, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 100L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 101L));
-        expectedOutput.add(new Watermark(102));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 300L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.INSERT, "key3", 5, 299L));
-        expectedOutput.add(new Watermark(302));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(302));
         expectedOutput.add(record(RowKind.INSERT, "key1", 12, 400L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 401L));
-        expectedOutput.add(new Watermark(402));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(402));
         testRowTimeDeduplicateKeepLastRow(false, true, expectedOutput);
 
         // generateUpdateBefore: false, generateInsert: false
@@ -130,14 +130,14 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 100L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 101L));
-        expectedOutput.add(new Watermark(102));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 300L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 301L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key3", 5, 299L));
-        expectedOutput.add(new Watermark(302));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(302));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key1", 12, 400L));
         expectedOutput.add(record(RowKind.UPDATE_AFTER, "key2", 11, 401L));
-        expectedOutput.add(new Watermark(402));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(402));
         testRowTimeDeduplicateKeepLastRow(false, false, expectedOutput);
     }
 
@@ -183,7 +183,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testHarness.processElement(insertRecord("key2", 11, 101L));
 
         // test 1: keep first row with row time
-        testHarness.processWatermark(new Watermark(102));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         actualOutput.addAll(testHarness.getOutput());
 
         // do a snapshot, close and restore again
@@ -205,7 +205,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testHarness.processElement(insertRecord("key3", 5, 299L));
 
         // test 2:  load snapshot state
-        testHarness.processWatermark(new Watermark(302));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(302));
 
         // test 3: expire the state
         testHarness.setStateTtlProcessingTime(minTtlTime.toMilliseconds() + 1);
@@ -262,7 +262,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testHarness.processElement(insertRecord("key2", 11, 101L));
 
         // test 1: keep last row with row time
-        testHarness.processWatermark(new Watermark(102));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(102));
         actualOutput.addAll(testHarness.getOutput());
 
         // do a snapshot, close and restore again
@@ -284,7 +284,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testHarness.processElement(insertRecord("key3", 5, 299L));
 
         // test 2: load snapshot state
-        testHarness.processWatermark(new Watermark(302));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(302));
 
         // test 3: expire the state
         testHarness.setStateTtlProcessingTime(minTtlTime.toMilliseconds() + 1);

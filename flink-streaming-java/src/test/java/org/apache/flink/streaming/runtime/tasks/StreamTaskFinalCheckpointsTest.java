@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -52,7 +53,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
@@ -820,9 +821,9 @@ class StreamTaskFinalCheckpointsTest {
             harness.processAll();
 
             // Finish & close operators.
-            harness.processElement(Watermark.MAX_WATERMARK, 0, 0);
-            harness.processElement(Watermark.MAX_WATERMARK, 0, 1);
-            harness.processElement(Watermark.MAX_WATERMARK, 0, 2);
+            harness.processElement(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK), 0, 0);
+            harness.processElement(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK), 0, 1);
+            harness.processElement(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK), 0, 2);
             harness.waitForTaskCompletion();
             harness.finishProcessing();
 
@@ -832,7 +833,7 @@ class StreamTaskFinalCheckpointsTest {
                                     checkpointMetaData.getCheckpointId(),
                                     checkpointMetaData.getTimestamp(),
                                     checkpointOptions),
-                            Watermark.MAX_WATERMARK,
+                            new WatermarkEvent(TimestampWatermark.MAX_WATERMARK),
                             new EndOfData(StopMode.DRAIN));
         }
     }

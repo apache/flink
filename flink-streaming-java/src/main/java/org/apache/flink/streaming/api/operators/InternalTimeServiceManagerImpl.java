@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -32,9 +34,10 @@ import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -45,6 +48,7 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -239,18 +243,25 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     }
 
     @Override
-    public void advanceWatermark(Watermark watermark) throws Exception {
+    public void advanceWatermark(WatermarkEvent watermark) throws Exception {
         for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-            service.advanceWatermark(watermark.getTimestamp());
+            Watermark genericWatermark = watermark.getWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                service.advanceWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+            }
         }
     }
 
     @Override
     public boolean tryAdvanceWatermark(
-            Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) throws Exception {
-        for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-            if (!service.tryAdvanceWatermark(watermark.getTimestamp(), shouldStopAdvancingFn)) {
-                return false;
+            WatermarkEvent watermark, ShouldStopAdvancingFn shouldStopAdvancingFn)
+            throws Exception {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(watermark);
+        if (maybeTimestamp.isPresent()) {
+            for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
+                if (!service.tryAdvanceWatermark(maybeTimestamp.get(), shouldStopAdvancingFn)) {
+                    return false;
+                }
             }
         }
         return true;

@@ -36,8 +36,9 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -155,14 +156,20 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        eventQueue.add(
-                new WatermarkReceivedEvent(
-                        operatorID,
-                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
-                        mark.getTimestamp(),
-                        1));
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        WatermarkUtils.getTimestamp(mark)
+                .ifPresent(
+                        ts -> {
+                            eventQueue.add(
+                                    new WatermarkReceivedEvent(
+                                            operatorID,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask(),
+                                            getRuntimeContext().getTaskInfo().getAttemptNumber(),
+                                            ts,
+                                            1));
+                        });
         super.processWatermark(mark);
     }
 

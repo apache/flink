@@ -17,6 +17,12 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.api.common.ReusableWatermarkContext;
+import org.apache.flink.api.common.WatermarkCombiner;
+import org.apache.flink.api.common.WatermarkDeclaration;
+import org.apache.flink.api.common.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -27,18 +33,24 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -63,8 +75,10 @@ public abstract class AbstractStreamTaskNetworkInput<
     private final RecordAttributesCombiner recordAttributesCombiner;
     private InputChannelInfo lastChannel = null;
     private R currentRecordDeserializer = null;
-
+    private final ReusableWatermarkContext reusableWatermarkContext;
     protected final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
+    protected final Map<Class<? extends Watermark>, WatermarkCombiner> watermarkCombiners =
+            new HashMap<>();
 
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
@@ -73,11 +87,33 @@ public abstract class AbstractStreamTaskNetworkInput<
             int inputIndex,
             Map<InputChannelInfo, R> recordDeserializers,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+        this(
+                checkpointedInputGate,
+                inputSerializer,
+                statusWatermarkValve,
+                inputIndex,
+                recordDeserializers,
+                canEmitBatchOfRecords,
+                new HashSet<>());
+    }
+
+    public AbstractStreamTaskNetworkInput(
+            CheckpointedInputGate checkpointedInputGate,
+            TypeSerializer<T> inputSerializer,
+            StatusWatermarkValve statusWatermarkValve,
+            int inputIndex,
+            Map<InputChannelInfo, R> recordDeserializers,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Set<WatermarkDeclaration> watermarkDeclarationSet) {
         super();
         this.checkpointedInputGate = checkpointedInputGate;
+        List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations =
+                watermarkDeclarationSet.stream()
+                        .map(w -> w.declaredWatermark())
+                        .collect(Collectors.toList());
         deserializationDelegate =
                 new NonReusingDeserializationDelegate<>(
-                        new StreamElementSerializer<>(inputSerializer));
+                        new StreamElementSerializer<>(inputSerializer, watermarkDeclarations));
         this.inputSerializer = inputSerializer;
 
         for (InputChannelInfo i : checkpointedInputGate.getChannelInfos()) {
@@ -90,6 +126,14 @@ public abstract class AbstractStreamTaskNetworkInput<
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
         this.recordAttributesCombiner =
                 new RecordAttributesCombiner(checkpointedInputGate.getNumberOfInputChannels());
+        this.reusableWatermarkContext =
+                new ReusableWatermarkContext(flattenedChannelIndices.size(), 0);
+
+        for (WatermarkDeclaration watermarkDeclaration : watermarkDeclarationSet) {
+            watermarkCombiners.put(
+                    watermarkDeclaration.declaredWatermark().watermarkClass(),
+                    watermarkDeclaration.watermarkCombiner());
+        }
     }
 
     @Override
@@ -157,8 +201,43 @@ public abstract class AbstractStreamTaskNetworkInput<
             output.emitRecord(streamElement.asRecord());
             return false;
         } else if (streamElement.isWatermark()) {
-            statusWatermarkValve.inputWatermark(
-                    streamElement.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
+            Watermark genericWatermark = streamElement.asWatermark().getWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                statusWatermarkValve.inputWatermark(
+                        streamElement.asWatermark(),
+                        flattenedChannelIndices.get(lastChannel),
+                        output);
+            } else {
+                WatermarkOutput watermarkOutput =
+                        watermark -> {
+                            try {
+                                output.emitWatermark(new WatermarkEvent(watermark));
+                            } catch (Exception e) {
+                                throw new FlinkRuntimeException(e);
+                            }
+                        };
+                reusableWatermarkContext.setChannelInfo(
+                        flattenedChannelIndices.size(), lastChannel.getInputChannelIdx());
+                watermarkCombiners.compute(
+                        genericWatermark.getClass(),
+                        (key, watermarkCombiner) -> {
+                            if (watermarkCombiner != null) {
+                                try {
+                                    watermarkCombiner.combineWatermark(
+                                            genericWatermark,
+                                            reusableWatermarkContext,
+                                            watermarkOutput);
+                                } catch (Exception e) {
+                                    throw new FlinkRuntimeException(e);
+                                }
+                                return watermarkCombiner; // Return the same combiner to maintain
+                                // the map entry
+                            } else {
+                                throw new FlinkRuntimeException(
+                                        "Unknown watermark class " + genericWatermark.getClass());
+                            }
+                        });
+            }
             return false;
         } else if (streamElement.isLatencyMarker()) {
             output.emitLatencyMarker(streamElement.asLatencyMarker());

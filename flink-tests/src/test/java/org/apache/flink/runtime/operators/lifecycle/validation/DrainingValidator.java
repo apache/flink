@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.operators.lifecycle.validation;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.operators.lifecycle.event.InputEndedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestCommandAckEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.WatermarkReceivedEvent;
-import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -43,8 +43,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * For each input, checks that the {@link Watermark#MAX_WATERMARK} was received and then the input
- * was closed.
+ * For each input, checks that the {@link TimestampWatermark#MAX_WATERMARK} was received and then
+ * the input was closed.
  */
 public class DrainingValidator implements TestOperatorLifecycleValidator {
 
@@ -54,7 +54,6 @@ public class DrainingValidator implements TestOperatorLifecycleValidator {
             String operatorId,
             int subtaskIndex,
             List<TestEvent> operatorEvents) {
-
         Map<Integer, List<TestEvent>> byAttempt = new HashMap<>();
         Set<Integer> normallyFinishedAttempts = new HashSet<>();
         int lastAttempt = Integer.MIN_VALUE;
@@ -89,7 +88,7 @@ public class DrainingValidator implements TestOperatorLifecycleValidator {
         for (TestEvent ev : operatorEvents) {
             if (ev instanceof WatermarkReceivedEvent) {
                 WatermarkReceivedEvent w = (WatermarkReceivedEvent) ev;
-                if (w.ts == Watermark.MAX_WATERMARK.getTimestamp()) {
+                if (w.ts == TimestampWatermark.MAX_WATERMARK.getTimestamp()) {
                     assertFalse(
                             String.format(
                                     "Max Watermark received twice by %s/%d/%d",

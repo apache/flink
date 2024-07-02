@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -62,7 +62,7 @@ public class PunctuatedWatermarkAssignerWrapper
 
     @Nullable
     @Override
-    public Watermark checkAndGetNextWatermark(RowData row, long extractedTimestamp) {
+    public WatermarkEvent checkAndGetNextWatermark(RowData row, long extractedTimestamp) {
         long timestamp = row.getLong(timeFieldIdx);
         return assigner.getWatermark(converter.toExternal(row), timestamp);
     }

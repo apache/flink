@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -27,7 +28,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
@@ -35,7 +36,9 @@ import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.function.Function.identity;
@@ -45,10 +48,10 @@ import static java.util.stream.Collectors.toMap;
  * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link
  * CheckpointedInputGate}.
  *
- * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
- * {@link WatermarkStatus} events, and forwards them to event subscribers once the {@link
- * StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or that a
- * {@link WatermarkStatus} needs to be propagated downstream to denote a status change.
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link WatermarkEvent}
+ * and {@link WatermarkStatus} events, and forwards them to event subscribers once the {@link
+ * StatusWatermarkValve} determines the {@link WatermarkEvent} from all inputs has advanced, or that
+ * a {@link WatermarkStatus} needs to be propagated downstream to denote a status change.
  *
  * <p>Forwarding elements, watermarks, or status elements must be protected by synchronizing on the
  * given lock object. This ensures that we don't call methods on a {@link StreamInputProcessor}
@@ -68,13 +71,32 @@ public final class StreamTaskNetworkInput<T>
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+        this(
+                checkpointedInputGate,
+                inputSerializer,
+                ioManager,
+                statusWatermarkValve,
+                inputIndex,
+                canEmitBatchOfRecords,
+                new HashSet<>());
+    }
+
+    public StreamTaskNetworkInput(
+            CheckpointedInputGate checkpointedInputGate,
+            TypeSerializer<T> inputSerializer,
+            IOManager ioManager,
+            StatusWatermarkValve statusWatermarkValve,
+            int inputIndex,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Set<WatermarkDeclaration> watermarkDeclarationSet) {
         super(
                 checkpointedInputGate,
                 inputSerializer,
                 statusWatermarkValve,
                 inputIndex,
                 getRecordDeserializers(checkpointedInputGate, ioManager),
-                canEmitBatchOfRecords);
+                canEmitBatchOfRecords,
+                watermarkDeclarationSet);
     }
 
     // Initialize one deserializer per input channel

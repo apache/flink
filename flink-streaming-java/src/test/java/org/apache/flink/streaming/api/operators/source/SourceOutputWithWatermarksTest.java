@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.operators.source;
 import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.RecordTimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -83,7 +83,8 @@ class SourceOutputWithWatermarksTest {
         assertThat(dataOutput.events)
                 .contains(
                         new StreamRecord<>(42, 12345L),
-                        new org.apache.flink.streaming.api.watermark.Watermark(12345L));
+                        new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                                new TimestampWatermark(12345L)));
     }
 
     // ------------------------------------------------------------------------
@@ -95,12 +96,12 @@ class SourceOutputWithWatermarksTest {
         @Override
         public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
             lastTimestamp = eventTimestamp;
-            output.emitWatermark(new Watermark(eventTimestamp));
+            output.emitWatermark(new TimestampWatermark(eventTimestamp));
         }
 
         @Override
         public void onPeriodicEmit(WatermarkOutput output) {
-            output.emitWatermark(new Watermark(lastTimestamp));
+            output.emitWatermark(new TimestampWatermark(lastTimestamp));
         }
     }
 }

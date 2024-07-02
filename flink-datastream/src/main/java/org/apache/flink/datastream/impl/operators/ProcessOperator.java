@@ -19,6 +19,11 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.WatermarkDeclaration;
+import org.apache.flink.api.common.WatermarkPolicy;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.datastream.api.WatermarkDeclarable;
+import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -27,24 +32,32 @@ import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
+import org.apache.flink.datastream.impl.context.LimitedDefaultNonPartitionedContext;
+import org.apache.flink.datastream.impl.context.UnsupportedEventTimeManager;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import java.util.Set;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
         extends AbstractUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput, WatermarkDeclarable {
 
     protected transient DefaultRuntimeContext context;
 
     protected transient DefaultPartitionedContext partitionedContext;
 
     protected transient NonPartitionedContext<OUT> nonPartitionedContext;
+
+    protected transient NonPartitionedContext<OUT> limitedNonPartitionedContext;
 
     protected transient TimestampCollector<OUT> outputCollector;
 
@@ -74,15 +87,45 @@ public class ProcessOperator<IN, OUT>
                         this::setCurrentKey,
                         getProcessingTimeManager(),
                         operatorContext,
-                        getOperatorStateBackend());
+                        getOperatorStateBackend(),
+                        getEventTimeManager());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
+        limitedNonPartitionedContext = getLimitedNonPartitionedContext();
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
         outputCollector.setTimestampFromStreamRecord(element);
         userFunction.processRecord(element.getValue(), outputCollector, partitionedContext);
+    }
+
+    @Override
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        Watermark genericWatermark = mark.getWatermark();
+        WatermarkPolicy watermarkPolicy = userFunction.watermarkPolicy();
+        WatermarkPolicy.WatermarkResult watermarkResult =
+                watermarkPolicy.useWatermark(genericWatermark);
+
+        switch (watermarkResult) {
+            case PEEK:
+                userFunction.onWatermark(
+                        mark.getWatermark(), outputCollector, limitedNonPartitionedContext);
+                super.processWatermark(mark);
+                break;
+            case POP:
+                userFunction.onWatermark(
+                        mark.getWatermark(), outputCollector, nonPartitionedContext);
+                break;
+            default:
+                throw new FlinkRuntimeException("Unknown watermark result: " + watermarkResult);
+        }
     }
 
     protected TimestampCollector<OUT> getOutputCollector() {
@@ -102,8 +145,22 @@ public class ProcessOperator<IN, OUT>
         return UnsupportedProcessingTimeManager.INSTANCE;
     }
 
+    protected EventTimeManager getEventTimeManager() {
+        return UnsupportedEventTimeManager.INSTANCE;
+    }
+
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, outputCollector, false, null);
+                context, partitionedContext, outputCollector, false, null, output);
+    }
+
+    protected NonPartitionedContext<OUT> getLimitedNonPartitionedContext() {
+        return new LimitedDefaultNonPartitionedContext<>(
+                context, partitionedContext, outputCollector, false, null, output);
+    }
+
+    @Override
+    public Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations() {
+        return this.userFunction.watermarkDeclarations();
     }
 }

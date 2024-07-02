@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.stream
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.common.state.CheckpointListener
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -24,7 +25,8 @@ import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
@@ -258,11 +260,11 @@ class FiniteTestSource(elements: Iterable[Row], watermarkGenerator: Row => Long)
     lock.synchronized {
       for (t <- elements) {
         ctx.collect(t)
-        ctx.emitWatermark(new Watermark(watermarkGenerator(t)))
+        ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(watermarkGenerator(t)))
       }
     }
 
-    ctx.emitWatermark(new Watermark(Long.MaxValue))
+    ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MaxValue))
 
     lock.synchronized {
       while (running && numCheckpointsComplete < 2) {

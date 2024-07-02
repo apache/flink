@@ -17,13 +17,13 @@
 
 package org.apache.flink.runtime.source.event;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
 import java.util.Objects;
 
 /**
- * Reports last emitted {@link Watermark} from a subtask to the {@link
+ * Reports last emitted {@link TimestampWatermark} from a subtask to the {@link
  * org.apache.flink.runtime.source.coordinator.SourceCoordinator}.
  */
 public class ReportedWatermarkEvent implements OperatorEvent {

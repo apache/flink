@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -269,32 +269,32 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         final SourceCoordinator.WatermarkAggregator<Integer> combinedWatermark =
                 new SourceCoordinator.WatermarkAggregator<>();
 
-        combinedWatermark.aggregate(0, new Watermark(10));
+        combinedWatermark.aggregate(0, new TimestampWatermark(10));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
 
-        combinedWatermark.aggregate(1, new Watermark(12));
+        combinedWatermark.aggregate(1, new TimestampWatermark(12));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
 
-        combinedWatermark.aggregate(2, new Watermark(13));
+        combinedWatermark.aggregate(2, new TimestampWatermark(13));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
 
-        combinedWatermark.aggregate(1, new Watermark(9));
+        combinedWatermark.aggregate(1, new TimestampWatermark(9));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(9);
 
         // The watermark of idle source
-        combinedWatermark.aggregate(1, new Watermark(Long.MAX_VALUE));
+        combinedWatermark.aggregate(1, new TimestampWatermark(Long.MAX_VALUE));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
 
-        combinedWatermark.aggregate(1, new Watermark(8));
+        combinedWatermark.aggregate(1, new TimestampWatermark(8));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(8);
 
-        combinedWatermark.aggregate(1, new Watermark(20));
+        combinedWatermark.aggregate(1, new TimestampWatermark(20));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(10);
 
-        combinedWatermark.aggregate(0, new Watermark(23));
+        combinedWatermark.aggregate(0, new TimestampWatermark(23));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(13);
 
-        combinedWatermark.aggregate(2, new Watermark(22));
+        combinedWatermark.aggregate(2, new TimestampWatermark(22));
         assertThat(combinedWatermark.getAggregatedWatermark().getTimestamp()).isEqualTo(20);
     }
 
@@ -319,7 +319,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         for (long round = 0; round < roundNumber; round++) {
             for (int key = 0; key < keyNumber; key++) {
                 long timestamp = getRandomTimestamp(testSourceIdle);
-                combinedWatermark.aggregate(key, new Watermark(timestamp));
+                combinedWatermark.aggregate(key, new TimestampWatermark(timestamp));
 
                 if (checkResult) {
                     latestWatermarks.put(key, timestamp);

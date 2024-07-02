@@ -21,7 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -39,7 +39,8 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
         implements SourceReaderMetricGroup {
     public static final long UNDEFINED = -1L;
     private static final long ACTIVE = Long.MAX_VALUE;
-    private static final long MAX_WATERMARK_TIMESTAMP = Watermark.MAX_WATERMARK.getTimestamp();
+    private static final long MAX_WATERMARK_TIMESTAMP =
+            TimestampWatermark.MAX_WATERMARK.getTimestamp();
 
     private final OperatorIOMetricGroup operatorIOMetricGroup;
     private final Counter numRecordsInErrors;
