@@ -95,7 +95,8 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                         // info
                         producedTypeInfo,
                         false, // ignoreParseErrors already contains the functionality of
-                        // failOnMissingField
+                        // failOnMissingField and failOnUnknownField
+                        false,
                         ignoreParseErrors,
                         timestampFormat);
         this.hasMetadata = requestedMetadata.size() > 0;
