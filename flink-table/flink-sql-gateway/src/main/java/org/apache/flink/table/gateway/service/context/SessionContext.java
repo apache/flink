@@ -255,15 +255,13 @@ public class SessionContext {
     /** Close resources, e.g. catalogs. */
     public void close() {
         operationManager.close();
-        for (String name : sessionState.catalogManager.listCatalogs()) {
-            try {
-                sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
-            } catch (Throwable t) {
-                LOG.error(
-                        String.format(
-                                "Failed to close catalog %s for the session %s.", name, sessionId),
-                        t);
-            }
+
+        try {
+            sessionState.catalogManager.close();
+        } catch (Throwable t) {
+            LOG.error(
+                    String.format("Failed to close catalog manager for the session %s.", sessionId),
+                    t);
         }
         try {
             userClassloader.close();
