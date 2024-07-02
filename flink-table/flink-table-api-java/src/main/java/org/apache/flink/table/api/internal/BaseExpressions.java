@@ -183,6 +183,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STR_TO_MAP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTRING;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTRING_INDEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM0;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TAN;
@@ -1274,6 +1275,28 @@ public abstract class BaseExpressions<InType, OutType> {
                         toExpr(),
                         objectToExpression(listDelimiter),
                         objectToExpression(keyValueDelimiter)));
+    }
+
+    /**
+     * Returns the substring of {@code expr} before {@code count} occurrences of the delimiter
+     * {@code delim}.
+     *
+     * @param delim an expression matching the type of {@code expr} specifying the delimiter.
+     * @param count an INTEGER expression to count the delimiters.
+     * @return The result matches the type of {@code expr}. {@code null} if any of its arguments are
+     *     {@code null}.<br>
+     *     If count is positive, everything to the left of the final delimiter (counting from the
+     *     left) is returned.<br>
+     *     If count is negative, everything to the right of the final delimiter (counting from the
+     *     right) is returned.
+     */
+    public OutType substringIndex(InType delim, InType count) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        SUBSTRING_INDEX,
+                        toExpr(),
+                        objectToExpression(delim),
+                        objectToExpression(count)));
     }
 
     // Temporal operations

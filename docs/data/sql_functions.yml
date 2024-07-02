@@ -377,6 +377,12 @@ string:
   - sql: SUBSTR(string, integer1[, integer2])
     table: STRING.substr(INTEGER1[, INTEGER2])
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
+  - sql: SUBSTRING_INDEX(string1, string2, integer1)
+    table: STRING1.substringIndex(STRING2, INTEGER1)
+    description: | 
+      Returns the substring of string1 before integer1 occurrences of the delimiter string2. string1 and string2 allow binary type, and the result matches the type of string1. null if any of its arguments are null. 
+      If integer1 is positive, everything to the left of the final delimiter (counting from the left) is returned. 
+      If integer1 is negative, everything to the right of the final delimiter (counting from the right) is returned.
 
 temporal:
   - sql: DATE string

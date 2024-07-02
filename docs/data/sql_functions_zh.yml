@@ -477,6 +477,12 @@ string:
   - sql: SUBSTR(string, integer1[, integer2])
     table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
+  - sql: SUBSTRING_INDEX(string1, string2, integer1)
+    table: STRING1.substringIndex(STRING2, INTEGER1)
+    description: |
+      返回 string1 中分隔符 string2 出现第 integer1 次前的子串。string1 和 string2 允许 binary 类型，并且返回值类型与 string1 一致。任意参数为 null 时返回 null。
+      如果 integer1 为正，则返回最终分隔符左侧的所有内容（从左侧开始计数）。
+      如果 integer1 为负，则返回最终分隔符右侧的所有内容（从右侧开始计数）。
 
 temporal:
   - sql: DATE string
