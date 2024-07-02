@@ -193,6 +193,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_END;
@@ -1184,6 +1186,25 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType locate(InType str, InType pos) {
         return toApiSpecificExpression(
                 unresolvedCall(LOCATE, toExpr(), objectToExpression(str), objectToExpression(pos)));
+    }
+
+    /**
+     * Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme. If the input is null, or there is an issue with the decoding process(such as
+     * encountering an illegal escape pattern), or the encoding scheme is not supported, will return
+     * null.
+     */
+    public OutType urlDecode() {
+        return toApiSpecificExpression(unresolvedCall(URL_DECODE, toExpr()));
+    }
+
+    /**
+     * Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme. If the input is null, or there is an issue with the encoding process, or the encoding
+     * scheme is not supported, will return null.
+     */
+    public OutType urlEncode() {
+        return toApiSpecificExpression(unresolvedCall(URL_ENCODE, toExpr()));
     }
 
     /**

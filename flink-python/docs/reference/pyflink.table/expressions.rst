@@ -188,6 +188,8 @@ string functions
     Expression.right
     Expression.instr
     Expression.locate
+    Expression.url_decode
+    Expression.url_encode
     Expression.parse_url
     Expression.ltrim
     Expression.rtrim
