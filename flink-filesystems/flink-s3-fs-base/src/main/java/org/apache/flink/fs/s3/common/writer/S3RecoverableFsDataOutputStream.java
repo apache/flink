@@ -131,8 +131,7 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
             fileStream.flush();
             openNewPartIfNecessary(userDefinedMinPartSize);
             Committer committer = upload.snapshotAndGetCommitter();
-            committer.commitAfterRecovery();
-            closeForCommit();
+            committer.commit();
         } finally {
             unlock();
         }
