@@ -27,6 +27,7 @@ import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.formats.parquet.vector.type.ParquetGroupField;
 import org.apache.flink.formats.parquet.vector.type.ParquetPrimitiveField;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.heap.AbstractHeapVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapArrayVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapMapVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapRowVector;
@@ -244,13 +245,11 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
         return Tuple2.of(reader.getLevelDelegation(), writableColumnVector);
     }
 
-    private static void setFieldNullFalg(boolean[] rowPosition, WritableColumnVector vector) {
-        int index = 0;
-        for (boolean isNullIndex : rowPosition) {
-            if (isNullIndex) {
+    private static void setFieldNullFalg(boolean[] nullFlags, AbstractHeapVector vector) {
+        for (int index = 0; index < vector.getLen() && index < nullFlags.length; index++) {
+            if (nullFlags[index]) {
                 vector.setNullAt(index);
             }
-            index++;
         }
     }
 }
