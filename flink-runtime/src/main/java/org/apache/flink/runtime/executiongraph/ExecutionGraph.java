@@ -96,9 +96,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
 
-    @Nullable
-    CheckpointStatsTracker getCheckpointStatsTracker();
-
     KvStateLocationRegistry getKvStateLocationRegistry();
 
     void setJsonPlan(String jsonPlan);

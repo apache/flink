@@ -238,7 +238,9 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {}
 
     @Override
     public void reportCheckpointMetrics(

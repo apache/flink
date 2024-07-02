@@ -19,8 +19,13 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.checkpoint.JobInitializationMetrics.SumMaxDuration;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,8 +33,9 @@ public class JobInitializationMetricsTest {
 
     @Test
     public void testBuildingJobInitializationMetricsFromSingleSubtask() {
+        final ExecutionAttemptID executionAttemptID = ExecutionAttemptID.randomId();
         JobInitializationMetricsBuilder initializationMetricsBuilder =
-                new JobInitializationMetricsBuilder(1, 0);
+                new JobInitializationMetricsBuilder(Collections.singleton(executionAttemptID), 0);
         assertThat(initializationMetricsBuilder.isComplete()).isFalse();
 
         SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder =
@@ -42,7 +48,8 @@ public class JobInitializationMetricsTest {
                         .setStatus(InitializationStatus.COMPLETED)
                         .build();
 
-        initializationMetricsBuilder.reportInitializationMetrics(subTaskInitializationMetrics);
+        initializationMetricsBuilder.reportInitializationMetrics(
+                executionAttemptID, subTaskInitializationMetrics);
         assertThat(initializationMetricsBuilder.isComplete()).isTrue();
 
         JobInitializationMetrics jobInitializationMetrics = initializationMetricsBuilder.build();
@@ -57,9 +64,13 @@ public class JobInitializationMetricsTest {
     }
 
     @Test
-    public void testBuildingJobInitializationMetrcsFromMultipleSubtasks() {
+    public void testBuildingJobInitializationMetricsFromMultipleSubtasks() {
+        final ExecutionAttemptID firstId = ExecutionAttemptID.randomId();
+        final ExecutionAttemptID secondId = ExecutionAttemptID.randomId();
+        final ExecutionAttemptID thirdId = ExecutionAttemptID.randomId();
         JobInitializationMetricsBuilder initializationMetricsBuilder =
-                new JobInitializationMetricsBuilder(3, 0);
+                new JobInitializationMetricsBuilder(
+                        new HashSet<>(Arrays.asList(firstId, secondId, thirdId)), 0);
         assertThat(initializationMetricsBuilder.isComplete()).isFalse();
 
         SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder1 =
@@ -67,6 +78,7 @@ public class JobInitializationMetricsTest {
         subTaskInitializationMetricsBuilder1.addDurationMetric("A", 5);
         subTaskInitializationMetricsBuilder1.addDurationMetric("B", 5);
         initializationMetricsBuilder.reportInitializationMetrics(
+                firstId,
                 subTaskInitializationMetricsBuilder1
                         .setStatus(InitializationStatus.COMPLETED)
                         .build(35));
@@ -77,12 +89,14 @@ public class JobInitializationMetricsTest {
         subTaskInitializationMetricsBuilder.addDurationMetric("A", 1);
         subTaskInitializationMetricsBuilder.addDurationMetric("B", 10);
         initializationMetricsBuilder.reportInitializationMetrics(
+                secondId,
                 subTaskInitializationMetricsBuilder
                         .setStatus(InitializationStatus.COMPLETED)
                         .build(140));
         assertThat(initializationMetricsBuilder.isComplete()).isFalse();
 
         initializationMetricsBuilder.reportInitializationMetrics(
+                thirdId,
                 new SubTaskInitializationMetricsBuilder(200)
                         .setStatus(InitializationStatus.FAILED)
                         .build(1000));

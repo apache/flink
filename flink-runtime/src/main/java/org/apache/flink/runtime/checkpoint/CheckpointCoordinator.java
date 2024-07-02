@@ -84,6 +84,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toMap;
@@ -1625,22 +1626,6 @@ public class CheckpointCoordinator {
         }
     }
 
-    /**
-     * Fails all pending checkpoints which have not been acknowledged by the given execution attempt
-     * id.
-     *
-     * @param executionAttemptId for which to discard unacknowledged pending checkpoints
-     * @param cause of the failure
-     */
-    public void failUnacknowledgedPendingCheckpointsFor(
-            ExecutionAttemptID executionAttemptId, Throwable cause) {
-        synchronized (lock) {
-            abortPendingCheckpoints(
-                    checkpoint -> !checkpoint.isAcknowledgedBy(executionAttemptId),
-                    new CheckpointException(CheckpointFailureReason.TASK_FAILURE, cause));
-        }
-    }
-
     private void rememberRecentExpiredCheckpointId(long id) {
         if (recentExpiredCheckpoints.size() >= NUM_GHOST_CHECKPOINT_IDS) {
             recentExpiredCheckpoints.removeFirst();
@@ -1776,7 +1761,14 @@ public class CheckpointCoordinator {
                 throw new IllegalStateException("CheckpointCoordinator is shut down");
             }
             long restoreTimestamp = SystemClock.getInstance().absoluteTimeMillis();
-            statsTracker.reportInitializationStartTs(restoreTimestamp);
+            statsTracker.reportInitializationStarted(
+                    tasks.stream()
+                            .map(ExecutionJobVertex::getTaskVertices)
+                            .flatMap(Stream::of)
+                            .map(ExecutionVertex::getCurrentExecutionAttempt)
+                            .map(Execution::getAttemptId)
+                            .collect(Collectors.toSet()),
+                    restoreTimestamp);
 
             // Restore from the latest checkpoint
             CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
@@ -2174,7 +2166,7 @@ public class CheckpointCoordinator {
     public void reportInitializationMetrics(
             ExecutionAttemptID executionAttemptID,
             SubTaskInitializationMetrics initializationMetrics) {
-        statsTracker.reportInitializationMetrics(initializationMetrics);
+        statsTracker.reportInitializationMetrics(executionAttemptID, initializationMetrics);
     }
 
     // ------------------------------------------------------------------------
@@ -2437,7 +2429,12 @@ public class CheckpointCoordinator {
     }
 
     private void reportFinishedTasks(
-            PendingCheckpointStats pendingCheckpointStats, List<Execution> finishedTasks) {
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            List<Execution> finishedTasks) {
+        if (pendingCheckpointStats == null) {
+            return;
+        }
+
         long now = System.currentTimeMillis();
         finishedTasks.forEach(
                 execution ->

@@ -203,7 +203,9 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
                     @Override
                     public void reportInitializationMetrics(
-                            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+                            JobID jobId,
+                            ExecutionAttemptID executionAttemptID,
+                            SubTaskInitializationMetrics initializationMetrics) {}
                 };
 
         JobID jobID = new JobID();
