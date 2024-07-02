@@ -19,6 +19,7 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
@@ -109,7 +110,7 @@ public class Fixture {
     }
 
     public RelDataType createStructType(List<RelDataType> keyTypes, List<String> names) {
-        return typeFactory.createStructType(keyTypes, names);
+        return typeFactory.createStructType(StructKind.PEEK_FIELDS_NO_EXPAND, keyTypes, names);
     }
 
     public RelDataType createRawType(String className, String serializerString) {
