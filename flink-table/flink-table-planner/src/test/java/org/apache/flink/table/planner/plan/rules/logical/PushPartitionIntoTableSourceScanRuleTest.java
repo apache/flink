@@ -65,7 +65,9 @@ class PushPartitionIntoTableSourceScanRuleTest
                                 .add(
                                         RuleSets.ofList(
                                                 CoreRules.FILTER_PROJECT_TRANSPOSE,
-                                                PushPartitionIntoTableSourceScanRule.INSTANCE))
+                                                PushPartitionIntoTableSourceScanRule.INSTANCE,
+                                                PushJoinedPartitionsIntoTableSourceScanRule
+                                                        .INSTANCE))
                                 .build());
 
         // define ddl
@@ -146,6 +148,26 @@ class PushPartitionIntoTableSourceScanRuleTest
                         virtualTablePath, catalogPartitionSpec, catalogPartition, true);
             }
         }
+    }
+
+    @TestTemplate
+    void testJoinPartitionPushdown1() {
+        String sql =
+                "select * from MyTable t1 inner join VirtualTable t2 on t1.part1 = t2.part1 and t1.part2 = t2.part2";
+        util().verifyRelPlan(sql);
+    }
+
+    @TestTemplate
+    void testJoinPartitionPushdown2() {
+        String sql = "select * from MyTable t1 inner join VirtualTable t2 on t2.part1 = t1.part1";
+        util().verifyRelPlan(sql);
+    }
+
+    @TestTemplate
+    void testJoinPartitionPushdown3() {
+        String sql =
+                "select * from MyTable t1 inner join VirtualTable t2 on t1.part2 = t2.part2 and t1.part1 = t2.part1";
+        util().verifyRelPlan(sql);
     }
 
     @TestTemplate
