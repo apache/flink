@@ -19,22 +19,36 @@
 
 package org.apache.flink.streaming.api.lineage;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
-import java.util.List;
+import java.util.Map;
 
-/**
- * Job lineage graph that users can get sources, sinks and relationships from lineage and manage the
- * relationship between jobs and tables.
- */
-@PublicEvolving
-public interface LineageGraph {
-    /* Source lineage vertex list. */
-    List<SourceLineageVertex> sources();
+/** Default implementation for {@link LineageDataset}. */
+@Internal
+public class DefaultLineageDataset implements LineageDataset {
+    private String name;
+    private String namespace;
+    private Map<String, LineageDatasetFacet> facets;
 
-    /* Sink lineage vertex list. */
-    List<LineageVertex> sinks();
+    public DefaultLineageDataset(
+            String name, String namespace, Map<String, LineageDatasetFacet> facets) {
+        this.name = name;
+        this.namespace = namespace;
+        this.facets = facets;
+    }
 
-    /* lineage edges from sources to sinks. */
-    List<LineageEdge> relations();
+    @Override
+    public String name() {
+        return name;
+    }
+
+    @Override
+    public String namespace() {
+        return namespace;
+    }
+
+    @Override
+    public Map<String, LineageDatasetFacet> facets() {
+        return facets;
+    }
 }

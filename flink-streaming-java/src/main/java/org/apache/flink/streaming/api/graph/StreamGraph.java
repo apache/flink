@@ -124,6 +124,7 @@ public class StreamGraph implements Pipeline {
     private CheckpointStorage checkpointStorage;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
     private InternalTimeServiceManager.Provider timerServiceProvider;
+    private LineageGraph lineageGraph;
     private JobType jobType = JobType.STREAMING;
     private Map<String, ResourceProfile> slotSharingGroupResources;
     private PipelineOptions.VertexDescriptionMode descriptionMode =
@@ -135,7 +136,6 @@ public class StreamGraph implements Pipeline {
     private boolean dynamic;
 
     private boolean autoParallelismEnabled;
-    private LineageGraph lineageGraph;
 
     public StreamGraph(
             Configuration jobConfiguration,
@@ -192,6 +192,14 @@ public class StreamGraph implements Pipeline {
         this.jobName = jobName;
     }
 
+    public LineageGraph getLineageGraph() {
+        return lineageGraph;
+    }
+
+    public void setLineageGraph(LineageGraph lineageGraph) {
+        this.lineageGraph = lineageGraph;
+    }
+
     public void setStateBackend(StateBackend backend) {
         this.stateBackend = backend;
     }
@@ -228,10 +236,6 @@ public class StreamGraph implements Pipeline {
 
     public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
         this.timeCharacteristic = timeCharacteristic;
-    }
-
-    public LineageGraph getLineageGraph() {
-        return lineageGraph;
     }
 
     public GlobalStreamExchangeMode getGlobalStreamExchangeMode() {

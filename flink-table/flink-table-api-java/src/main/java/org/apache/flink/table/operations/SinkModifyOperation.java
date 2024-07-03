@@ -163,14 +163,4 @@ public class SinkModifyOperation implements ModifyOperation {
                 Collections.singletonList(child),
                 Operation::asSummaryString);
     }
-
-    /** The type of sink modification. */
-    @Internal
-    public enum ModifyType {
-        INSERT,
-
-        UPDATE,
-
-        DELETE
-    }
 }
