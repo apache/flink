@@ -39,7 +39,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
  */
 @Internal
 @JsonIgnoreProperties(ignoreUnknown = true)
-final class JsonPlanEdge {
+public final class JsonPlanEdge {
     static final String FIELD_NAME_SOURCE = "source";
     static final String FIELD_NAME_TARGET = "target";
     static final String FIELD_NAME_SHUFFLE = "shuffle";
@@ -72,19 +72,19 @@ final class JsonPlanEdge {
         this.exchangeMode = exchangeMode;
     }
 
-    int getSourceId() {
+    public int getSourceId() {
         return sourceId;
     }
 
-    int getTargetId() {
+    public int getTargetId() {
         return targetId;
     }
 
-    ExecEdge.Shuffle getShuffle() {
+    public ExecEdge.Shuffle getShuffle() {
         return shuffle;
     }
 
-    StreamExchangeMode getExchangeMode() {
+    public StreamExchangeMode getExchangeMode() {
         return exchangeMode;
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
@@ -38,8 +39,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonPlanEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.fusion.OperatorFusionCodegenFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
@@ -48,6 +51,9 @@ import org.apache.flink.table.runtime.operators.multipleinput.input.InputSelecti
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -88,11 +94,25 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * node ({@link #rootNode}) of the sub-graph, `Agg1` and `Agg2` are the leaf nodes of the sub-graph,
  * `Exchange1` and `Exchange2` are the input nodes of the multiple input node.
  */
+@ExecNodeMetadata(
+        name = "batch-exec-multiple-input",
+        version = 1,
+        // producedTransformations = CommonExecCorrelate.CORRELATE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+    public static final String FIELD_NAME_ROOT_NODE = "root";
+    public static final String FIELD_NAME_NODES = "nodes";
+    public static final String FIELD_NAME_EDGES = "edges";
 
+    @JsonProperty(FIELD_NAME_ROOT_NODE)
     private final ExecNode<?> rootNode;
+
+    @JsonProperty(FIELD_NAME_NODES)
     private final List<ExecNode<?>> memberExecNodes;
+
+    @JsonProperty(FIELD_NAME_EDGES)
     private final List<ExecEdge> originalEdges;
 
     public BatchExecMultipleInput(
@@ -113,6 +133,23 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         this.memberExecNodes = memberExecNodes;
         checkArgument(inputProperties.size() == originalEdges.size());
         this.originalEdges = originalEdges;
+    }
+
+    @JsonCreator
+    public BatchExecMultipleInput(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_ROOT_NODE) ExecNode<?> rootNode,
+            @JsonProperty(FIELD_NAME_NODES) List<ExecNode<?>> nodes,
+            @JsonProperty(FIELD_NAME_EDGES) List<JsonPlanEdge> edges,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, context, persistedConfig, inputProperties, rootNode.getOutputType(), description);
+        this.rootNode = rootNode;
+        this.memberExecNodes = nodes;
+        checkArgument(inputProperties.size() == edges.size());
+        this.originalEdges = edges.stream().map(ExecEdge::fromJsonPlanEdge).collect(Collectors.toList());
     }
 
     @Override

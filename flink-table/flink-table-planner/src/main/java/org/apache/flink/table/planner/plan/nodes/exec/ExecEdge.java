@@ -104,6 +104,13 @@ public class ExecEdge {
                 + '}';
     }
 
+    //    public static ExecNode fromJsonPlanEdge(final JsonPlanEdge edge) {
+    //        Builder builder = builder();
+    //        builder.exchangeMode(edge.getExchangeMode()).shuffle(edge.getShuffle());
+    //        //                .source(new ExecNode(edge.getSourceId()))
+    //        //                .target(new ExecNode(edge.getTargetId()));
+    //    }
+
     public static Builder builder() {
         return new Builder();
     }

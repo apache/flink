@@ -60,9 +60,7 @@ public class ExpandTestPrograms {
                                             Row.of(2, 1L, null),
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 1L, "Hello"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 2L, "Hello"))
-                                    .expectedBatchRows(
-                                            Row.of(1, 1L, "Hi"),
-                                            Row.of(2, 2L, "Hello"))
+                                    .expectedBatchRows(Row.of(1, 1L, "Hi"), Row.of(2, 2L, "Hello"))
                                     .consumedAfterRestore(
                                             Row.of(5, 1L, null),
                                             Row.ofKind(RowKind.UPDATE_AFTER, 5, 1L, "Hello there"))
