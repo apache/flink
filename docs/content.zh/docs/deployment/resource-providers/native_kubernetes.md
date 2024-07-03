@@ -25,37 +25,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Native Kubernetes
+# 原生 Kubernetes
 
-This page describes how to deploy Flink natively on [Kubernetes](https://kubernetes.io).
+本页介绍如何在[Kubernetes](https://kubernetes.io)上原生部署Flink。
 
-## Getting Started
+## 开始使用
 
-This *Getting Started* section guides you through setting up a fully functional Flink Cluster on Kubernetes.
+本入门指南部分将引导你完成在 Kubernetes 上搭建一个完整功能的 Flink 集群的全过程。
 
-### Introduction
+### 介绍
 
-Kubernetes is a popular container-orchestration system for automating computer application deployment, scaling, and management.
-Flink's native Kubernetes integration allows you to directly deploy Flink on a running Kubernetes cluster.
-Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers depending on the required resources because it can directly talk to Kubernetes.
+Kubernetes是一个流行的容器编排系统，可以为应用程序提供自动化的部署、缩放和管理。
+Flink 的原生 Kubernetes 集成可以让你直接在运行的 Kubernetes 集群上部署 Flink。
+此外，由于 Flink 可以直接与 Kubernetes 通信，因此它能够根据所需资源动态地分配和取消分配 TaskManagers。
 
-### Preparation
+### 准备
 
-The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
+"开始" 部分假设你已经运行了一个满足以下要求的 Kubernetes 集群：
 
-- Kubernetes >= 1.9.
-- KubeConfig, which has access to list, create, delete pods and services, configurable via `~/.kube/config`. You can verify permissions by running `kubectl auth can-i <list|create|edit|delete> pods`.
-- Enabled Kubernetes DNS.
-- `default` service account with [RBAC](#rbac) permissions to create, delete pods.
+- Kubernetes >= 1.9。
+- KubeConfig，能够列出、创建、删除 pods 和 services ，可通过 `~/.kube/config` 设置。你可以通过运行 `kubectl auth can-i <list|create|edit|delete> pods` 检查权限。
+- 已启用 Kubernetes DNS。
+- 具有 RBAC（#rbac）权限能够创建和删除 pods 的默认服务账户。
 
-If you have problems setting up a Kubernetes cluster, then take a look at [how to setup a Kubernetes cluster](https://kubernetes.io/docs/setup/).
+如果你在设置 Kubernetes 集群时遇到问题，请参考 [如何设置 Kubernetes 集群](https://kubernetes.io/docs/setup/)。
 
-### Starting a Flink Session on Kubernetes
+### 在Kubernetes上启动Flink会话
 
-Once you have your Kubernetes cluster running and `kubectl` is configured to point to it, you can launch a Flink cluster in [Session Mode]({{< ref "docs/deployment/overview" >}}#session-mode) via
+当你的Kubernetes集群运行起来，并且`kubectl`已配置指向它，你就可以通过[会话模式]({{< ref "docs/deployment/overview" >}}#session-mode)启动一个Flink集群。
 
 ```bash
-# (1) Start Kubernetes session
+# (1) 启动 Kubernetes 会话
 $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-flink-cluster
 
 # (2) Submit example job
