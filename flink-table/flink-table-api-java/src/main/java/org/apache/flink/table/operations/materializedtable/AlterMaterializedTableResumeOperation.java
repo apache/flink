@@ -25,7 +25,7 @@ import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.Map;
 
-/** Operation to describe a ALTER MATERIALIZED TABLE ... SUSPEND statement. */
+/** Operation to describe a ALTER MATERIALIZED TABLE ... RESUME statement. */
 @Internal
 public class AlterMaterializedTableResumeOperation extends AlterMaterializedTableOperation {
 
