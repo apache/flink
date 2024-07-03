@@ -58,19 +58,19 @@ Flink 的原生 Kubernetes 集成可以让你直接在运行的 Kubernetes 集�
 # (1) 启动 Kubernetes 会话
 $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=my-first-flink-cluster
 
-# (2) Submit example job
+# (2) 提交示例 job
 $ ./bin/flink run \
     --target kubernetes-session \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
     ./examples/streaming/TopSpeedWindowing.jar
 
-# (3) Stop Kubernetes session by deleting cluster deployment
+# (3) 通过删除集群部署来停止 Kubernetes 会话
 $ kubectl delete deployment/my-first-flink-cluster
 
 ```
 
 {{< hint info >}}
-In default, Flink’s Web UI and REST endpoint are exposed as `ClusterIP` service. To access the service, please refer to [Accessing Flink’s Web UI](#accessing-flinks-web-ui) for instructions.
+默认情况下，Flink 的 Web UI 和 REST 端点以 `ClusterIP` 服务的形式暴露。要访问该服务，请参阅[访问 Flink 的 Web UI](#accessing-flinks-web-ui) 获取说明。
 {{< /hint >}}
 
 Congratulations! You have successfully run a Flink application by deploying Flink on Kubernetes.
