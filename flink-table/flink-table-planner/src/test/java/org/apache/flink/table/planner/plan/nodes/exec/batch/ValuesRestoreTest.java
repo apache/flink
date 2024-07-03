@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.test.program.SinkTestStep;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ValuesTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-/** {@link TableTestProgram} definitions for testing {@link StreamExecValues}. */
-public class ValuesTestPrograms {
+import java.util.Collections;
+import java.util.List;
 
-    public static final TableTestProgram VALUES_TEST =
-            TableTestProgram.of("values-test", "validates values node")
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("b INT", "a INT", "c VARCHAR")
-                                    .consumedValues("+I[1, 2, Hi]", "+I[3, 4, Hello]")
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink_t SELECT * FROM (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))")
-                    .build();
+/** Restore tests for {@link BatchExecValues}. */
+public class ValuesRestoreTest extends BatchCompiledPlanTestBase {
+
+    public ValuesRestoreTest() {
+        super(BatchExecValues.class);
+    }
+
+    @Override
+    public List<TableTestProgram> programs() {
+        return Collections.singletonList(ValuesTestPrograms.VALUES_TEST);
+    }
 }
