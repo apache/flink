@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn.entrypoint;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -65,7 +67,10 @@ public class YarnEntrypointUtils {
 
         configuration.set(JobManagerOptions.ADDRESS, hostname);
         configuration.set(RestOptions.ADDRESS, hostname);
-        configuration.set(RestOptions.BIND_ADDRESS, hostname);
+
+        if (StringUtils.isBlank(configuration.getString(RestOptions.BIND_ADDRESS))) {
+            configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        }
 
         // if a web monitor shall be started, set the port to random binding
         if (configuration.get(WebOptions.PORT, 0) >= 0) {
