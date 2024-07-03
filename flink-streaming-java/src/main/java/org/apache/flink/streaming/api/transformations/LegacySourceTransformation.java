@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements that this source produces
  */
 @Internal
-public class LegacySourceTransformation<T> extends TransformationWithLineage<T>
+public class LegacySourceTransformation<T> extends PhysicalTransformation<T>
         implements WithBoundedness {
 
     private final StreamOperatorFactory<T> operatorFactory;

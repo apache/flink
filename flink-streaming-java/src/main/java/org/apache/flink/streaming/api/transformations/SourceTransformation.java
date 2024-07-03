@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A {@link PhysicalTransformation} for {@link Source}. */
 @Internal
 public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
-        extends TransformationWithLineage<OUT> implements WithBoundedness {
+        extends PhysicalTransformation<OUT> implements WithBoundedness {
 
     private final Source<OUT, SplitT, EnumChkT> source;
     private final WatermarkStrategy<OUT> watermarkStrategy;

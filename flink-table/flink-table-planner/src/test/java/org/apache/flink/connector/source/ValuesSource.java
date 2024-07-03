@@ -32,22 +32,14 @@ import org.apache.flink.connector.source.split.ValuesSourceSplit;
 import org.apache.flink.connector.source.split.ValuesSourceSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.lineage.LineageDataset;
-import org.apache.flink.streaming.api.lineage.LineageDatasetFacet;
-import org.apache.flink.streaming.api.lineage.LineageVertex;
-import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
-import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -60,9 +52,7 @@ import java.util.stream.IntStream;
  * must be 1. RowData is not serializable and the parallelism of table source may not be 1, so we
  * introduce a new source for testing in table module.
  */
-public class ValuesSource
-        implements Source<RowData, ValuesSourceSplit, NoOpEnumState>, LineageVertexProvider {
-    private static final String LINEAGE_NAMESPACE = "values://ValuesSource";
+public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnumState> {
     private final TypeSerializer<RowData> serializer;
 
     private final List<byte[]> serializedElements;
@@ -135,37 +125,5 @@ public class ValuesSource
     @Override
     public SimpleVersionedSerializer<NoOpEnumState> getEnumeratorCheckpointSerializer() {
         return new NoOpEnumStateSerializer();
-    }
-
-    @Override
-    public LineageVertex getLineageVertex() {
-        return new SourceLineageVertex() {
-            @Override
-            public Boundedness boundedness() {
-                return boundedness;
-            }
-
-            @Override
-            public List<LineageDataset> datasets() {
-                LineageDataset dataset =
-                        new LineageDataset() {
-                            @Override
-                            public String name() {
-                                return "";
-                            }
-
-                            @Override
-                            public String namespace() {
-                                return LINEAGE_NAMESPACE;
-                            }
-
-                            @Override
-                            public Map<String, LineageDatasetFacet> facets() {
-                                return new HashMap<>();
-                            }
-                        };
-                return Arrays.asList(dataset);
-            }
-        };
     }
 }

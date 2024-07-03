@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.Internal;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,9 +30,9 @@ import java.util.Set;
 /** Default implementation for {@link LineageGraph}. */
 @Internal
 public class DefaultLineageGraph implements LineageGraph {
-    @JsonProperty private final List<LineageEdge> lineageEdges;
-    @JsonProperty private final List<SourceLineageVertex> sources;
-    @JsonProperty private final List<LineageVertex> sinks;
+    private final List<LineageEdge> lineageEdges;
+    private final List<SourceLineageVertex> sources;
+    private final List<LineageVertex> sinks;
 
     private DefaultLineageGraph(List<LineageEdge> lineageEdges) {
         this.lineageEdges = lineageEdges;

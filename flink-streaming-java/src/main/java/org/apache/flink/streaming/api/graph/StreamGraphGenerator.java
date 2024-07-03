@@ -46,8 +46,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.lineage.LineageGraph;
-import org.apache.flink.streaming.api.lineage.LineageGraphUtils;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionCheckpointStorage;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
@@ -283,12 +281,10 @@ public class StreamGraphGenerator {
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
         }
+
         streamGraph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         setFineGrainedGlobalStreamExchangeMode(streamGraph);
-
-        LineageGraph lineageGraph = LineageGraphUtils.convertToLineageGraph(transformations);
-        streamGraph.setLineageGraph(lineageGraph);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {

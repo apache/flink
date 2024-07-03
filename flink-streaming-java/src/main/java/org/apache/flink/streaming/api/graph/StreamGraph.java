@@ -124,7 +124,6 @@ public class StreamGraph implements Pipeline {
     private CheckpointStorage checkpointStorage;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
     private InternalTimeServiceManager.Provider timerServiceProvider;
-    private LineageGraph lineageGraph;
     private JobType jobType = JobType.STREAMING;
     private Map<String, ResourceProfile> slotSharingGroupResources;
     private PipelineOptions.VertexDescriptionMode descriptionMode =
@@ -191,14 +190,6 @@ public class StreamGraph implements Pipeline {
 
     public void setJobName(String jobName) {
         this.jobName = jobName;
-    }
-
-    public LineageGraph getLineageGraph() {
-        return lineageGraph;
-    }
-
-    public void setLineageGraph(LineageGraph lineageGraph) {
-        this.lineageGraph = lineageGraph;
     }
 
     public void setStateBackend(StateBackend backend) {

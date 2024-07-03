@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
- * SinkTransformation}.
+ * org.apache.flink.streaming.api.transformations.SinkTransformation}.
  */
 @Internal
 public class SinkTransformationTranslator<Input, Output>

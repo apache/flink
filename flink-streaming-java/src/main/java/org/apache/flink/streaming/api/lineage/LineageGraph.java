@@ -20,12 +20,13 @@
 package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import java.util.List;
 
 /**
- * Job lineage graph that users can get sources, sinks and relationships from lineage and manage the
- * relationship between jobs and tables.
+ * Job lineage is built according to {@link StreamGraph}, users can get sources, sinks and
+ * relationships from lineage and manage the relationship between jobs and tables.
  */
 @PublicEvolving
 public interface LineageGraph {

@@ -46,7 +46,7 @@ import java.util.List;
  * @param <T> The type of the elements in the input {@code LegacySinkTransformation}
  */
 @Internal
-public class LegacySinkTransformation<T> extends TransformationWithLineage<T> {
+public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
 
     private final Transformation<T> input;
 
