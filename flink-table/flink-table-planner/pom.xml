@@ -235,7 +235,14 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-  </dependencies>
+
+		<dependency>
+			<groupId>net.javacrumbs.json-unit</groupId>
+			<artifactId>json-unit-assertj</artifactId>
+			<version>2.23.0</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>

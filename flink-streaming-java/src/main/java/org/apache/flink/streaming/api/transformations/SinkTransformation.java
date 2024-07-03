@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OutputT> The output type of the {@link Sink}
  */
 @Internal
-public class SinkTransformation<InputT, OutputT> extends PhysicalTransformation<OutputT> {
+public class SinkTransformation<InputT, OutputT> extends TransformationWithLineage<OutputT> {
 
     private final DataStream<InputT> inputStream;
     private final Sink<InputT> sink;

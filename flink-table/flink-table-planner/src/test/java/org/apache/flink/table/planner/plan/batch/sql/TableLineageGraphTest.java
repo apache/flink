@@ -14,27 +14,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
-package org.apache.flink.streaming.api.lineage;
+package org.apache.flink.table.planner.plan.batch.sql;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.planner.plan.common.TableLineageGraphTestBase;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import java.util.List;
+/** Lineage Graph tests for varies queries in batch. */
+public class TableLineageGraphTest extends TableLineageGraphTestBase {
 
-/**
- * Job lineage graph that users can get sources, sinks and relationships from lineage and manage the
- * relationship between jobs and tables.
- */
-@PublicEvolving
-public interface LineageGraph {
-    /* Source lineage vertex list. */
-    List<SourceLineageVertex> sources();
+    @Override
+    protected TableTestUtil getTableTestUtil() {
+        return batchTestUtil(TableConfig.getDefault());
+    }
 
-    /* Sink lineage vertex list. */
-    List<LineageVertex> sinks();
-
-    /* lineage edges from sources to sinks. */
-    List<LineageEdge> relations();
+    @Override
+    protected boolean isBatchMode() {
+        return true;
+    }
 }
