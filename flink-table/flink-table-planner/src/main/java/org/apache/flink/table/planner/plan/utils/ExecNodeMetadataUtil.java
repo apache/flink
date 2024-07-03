@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit;
@@ -167,9 +168,9 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecTableSourceScan.class);
                     add(BatchExecCalc.class);
                     add(BatchExecLimit.class);
-                    // Commenting out so that RestoreTestCompleteness test passes.
                     add(BatchExecHashAggregate.class);
                     add(BatchExecSortAggregate.class);
+                    add(BatchExecCorrelate.class);
                 }
             };
 

@@ -55,7 +55,6 @@ public class BatchExecLimit extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_LIMIT_START = "limitStart";
     public static final String FIELD_NAME_LIMIT_END = "limitEnd";
     public static final String FIELD_NAME_IS_GLOBAL = "isGlobal";
-    public static final String FIELD_NAME_INPUT_PROPERTY = "inputProperty";
 
     @JsonProperty(FIELD_NAME_LIMIT_START)
     private final long limitStart;

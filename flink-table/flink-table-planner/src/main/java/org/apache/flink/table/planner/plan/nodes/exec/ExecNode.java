@@ -52,6 +52,7 @@ public interface ExecNode<T> extends ExecNodeTranslator<T>, FusionCodegenExecNod
     String FIELD_NAME_TYPE = "type";
     String FIELD_NAME_CONFIGURATION = "configuration";
     String FIELD_NAME_DESCRIPTION = "description";
+    String FIELD_NAME_INPUT_PROPERTY = "inputProperty";
     String FIELD_NAME_INPUT_PROPERTIES = "inputProperties";
     String FIELD_NAME_OUTPUT_TYPE = "outputType";
     String FIELD_NAME_STATE = "state";
