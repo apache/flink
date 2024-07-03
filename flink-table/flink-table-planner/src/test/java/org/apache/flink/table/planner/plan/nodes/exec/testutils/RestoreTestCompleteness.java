@@ -19,16 +19,12 @@
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupTableAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonOverAggregate;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil.ExecNodeNameVersion;
 
@@ -52,14 +48,6 @@ public class RestoreTestCompleteness {
     private static final Set<Class<? extends ExecNode<?>>> SKIP_EXEC_NODES =
             new HashSet<Class<? extends ExecNode<?>>>() {
                 {
-                    /** TODO: Remove after FLINK-33676 is merged. */
-                    add(StreamExecWindowAggregate.class);
-                    add(StreamExecLocalWindowAggregate.class);
-                    add(StreamExecGlobalWindowAggregate.class);
-
-                    /** TODO: Remove after FLINK-33805 is merged. */
-                    add(StreamExecOverAggregate.class);
-
                     /** Ignoring python based exec nodes temporarily. */
                     add(StreamExecPythonCalc.class);
                     add(StreamExecPythonCorrelate.class);
