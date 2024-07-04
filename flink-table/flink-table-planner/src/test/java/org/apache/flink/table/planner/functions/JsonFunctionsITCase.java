@@ -186,6 +186,20 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         STRING(),
                         STRING())
 
+                // floating numbers
+                .testResult(
+                        $("f0").jsonValue("$.longBalance"),
+                        "JSON_VALUE(f0, '$.longBalance')",
+                        "123456789.987654321",
+                        STRING(),
+                        STRING())
+                .testResult(
+                        $("f0").jsonValue("$.balance"),
+                        "JSON_VALUE(f0, '$.balance')",
+                        "13.37",
+                        STRING(),
+                        STRING())
+
                 // RETURNING + Supported Data Types
                 .testResult(
                         $("f0").jsonValue("$.type"),
@@ -207,6 +221,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         $("f0").jsonValue("$.balance", DOUBLE()),
                         "JSON_VALUE(f0, '$.balance' RETURNING DOUBLE)",
                         13.37,
+                        DOUBLE())
+                .testResult(
+                        $("f0").jsonValue("$.longBalance", DOUBLE()),
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DOUBLE)",
+                        123456789.987654321,
                         DOUBLE())
 
                 // ON EMPTY / ON ERROR
@@ -459,9 +478,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").jsonQuery("$.items", ARRAY(STRING())),
                                 "JSON_QUERY(f0, '$.items' RETURNING ARRAY<STRING>)",
                                 new String[] {
-                                    "{\"itemId\":1234,\"count\":10}",
+                                    "{\"count\":10,\"itemId\":1234}",
                                     null,
-                                    "{\"itemId\":4567,\"count\":11}"
+                                    "{\"count\":11,\"itemId\":4567}"
                                 },
                                 ARRAY(STRING()))
                         .testResult(
