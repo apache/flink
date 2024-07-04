@@ -362,9 +362,9 @@ under the License.
 							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
 						</relocation>
 						<relocation>
-							<pattern>com.jayway</pattern>
-							<!-- From flink-table-runtime -->
-							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
+							<pattern>com.jayway.jsonpath</pattern>
+							<!-- From flink-shaded-jsonpath -->
+							<shadedPattern>org.apache.flink.shaded.com.jayway.jsonpath</shadedPattern>
 						</relocation>
 
 						<relocation>
