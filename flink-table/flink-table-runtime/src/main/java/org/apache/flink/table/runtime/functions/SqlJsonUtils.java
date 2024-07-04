@@ -27,6 +27,15 @@ import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
 
+import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
+import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
+import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
+import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
+import org.apache.flink.shaded.com.jayway.jsonpath.Option;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.MappingProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,16 +45,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Serializa
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.InvalidPathException;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.spi.cache.CacheProvider;
-import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
-import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
-import com.jayway.jsonpath.spi.mapper.MappingProvider;
 
 import java.util.Collection;
 import java.util.Collections;

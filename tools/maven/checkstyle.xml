@@ -194,6 +194,10 @@ This file is based on the checkstyle file of Apache Beam.
 			<message key="import.illegal" value="{0}; Use flink-shaded-jackson instead."/>
 		</module>
 		<module name="IllegalImport">
+			<property name="illegalPkgs" value="com.jayway.jsonpath"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-jsonpath instead."/>
+		</module>
+		<module name="IllegalImport">
 			<property name="illegalPkgs" value="org.objectweb.asm"/>
 			<message key="import.illegal" value="{0}; Use flink-shaded-asm instead."/>
 		</module>
