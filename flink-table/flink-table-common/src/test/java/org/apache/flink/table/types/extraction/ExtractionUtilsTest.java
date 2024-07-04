@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.GenericArrayType;
@@ -93,6 +95,41 @@ public class ExtractionUtilsTest {
         assertThat(innerFuture.getActualTypeArguments()[0]).isEqualTo(Long.class);
     }
 
+    @Test
+    void testExtractExecutableNamesWithMultiLocalVariableBlocks() {
+        List<String> expectedParameterNames =
+                ImmutableList.of("generic", "genericFuture", "listOfGenericFuture", "array");
+
+        // test the local variable is not initialized at first
+        List<Method> methods =
+                ExtractionUtils.collectMethods(
+                        MultiLocalVariableWithoutInitializationClass.class, "method");
+        Method method = methods.get(0);
+        List<String> parameterNames = ExtractionUtils.extractExecutableNames(method);
+        assertThat(parameterNames).isEqualTo(expectedParameterNames);
+
+        // test the local variable is initialized at first
+        methods =
+                ExtractionUtils.collectMethods(
+                        MultiLocalVariableBlocksWithInitializationClass.class, "method");
+        method = methods.get(0);
+        parameterNames = ExtractionUtils.extractExecutableNames(method);
+        assertThat(parameterNames).isEqualTo(expectedParameterNames);
+    }
+
+    @Test
+    void testExtractExecutableNamesWithParameterNameShadowed() {
+        List<String> expectedParameterNames =
+                ImmutableList.of(
+                        "generic", "result", "genericFuture", "listOfGenericFuture", "array");
+        // test the local variable is not initialized at first
+        List<Method> methods =
+                ExtractionUtils.collectMethods(ParameterNameShadowedClass.class, "method");
+        Method method = methods.get(0);
+        List<String> parameterNames = ExtractionUtils.extractExecutableNames(method);
+        assertThat(parameterNames).isEqualTo(expectedParameterNames);
+    }
+
     /** Test function. */
     public static class ClassBase<T> {
 
@@ -114,4 +151,77 @@ public class ExtractionUtilsTest {
 
     /** Test function. */
     public static class FutureClass extends ClassBase2<CompletableFuture<Long>> {}
+
+    /**
+     * A test function that contains multi local variable blocks without initialization at first.
+     */
+    public static class MultiLocalVariableWithoutInitializationClass extends ClassBase<Long> {
+
+        @Override
+        public void method(
+                Long generic,
+                CompletableFuture<Long> genericFuture,
+                List<CompletableFuture<Long>> listOfGenericFuture,
+                Long[] array) {
+            // don't initialize the local variable
+            String localVariable;
+
+            if (generic == null) {
+                localVariable = "null";
+            } else if (generic < 0) {
+                localVariable = "negative";
+            } else if (generic > 0) {
+                localVariable = "positive";
+            } else {
+                localVariable = "zero";
+            }
+
+            // use the local variable
+            System.err.println("localVariable: " + localVariable);
+        }
+    }
+
+    /** A test function that contains multi local variable blocks with initialization at first. */
+    public static class MultiLocalVariableBlocksWithInitializationClass extends ClassBase<Long> {
+
+        @Override
+        public void method(
+                Long generic,
+                CompletableFuture<Long> genericFuture,
+                List<CompletableFuture<Long>> listOfGenericFuture,
+                Long[] array) {
+            // initialize the local variable
+            String localVariable = "";
+
+            if (generic == null) {
+                localVariable = "null";
+            } else if (generic < 0) {
+                localVariable = "negative";
+            } else if (generic > 0) {
+                localVariable = "positive";
+            } else {
+                localVariable = "zero";
+            }
+
+            // use the local variable
+            System.err.println("localVariable: " + localVariable);
+        }
+    }
+
+    /**
+     * A test function where one function parameter has the same name as a class member variable
+     * within another complex function parameter.
+     */
+    public static class ParameterNameShadowedClass {
+
+        @SuppressWarnings("unused")
+        public void method(
+                Long generic,
+                // this `result` has the same name as the class member variable in
+                // `CompletableFuture`
+                Object result,
+                CompletableFuture<Long> genericFuture,
+                List<CompletableFuture<Long>> listOfGenericFuture,
+                Long[] array) {}
+    }
 }
