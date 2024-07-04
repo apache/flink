@@ -63,10 +63,14 @@ public abstract class CatalogTest {
     protected final String t1 = "t1";
     protected final String t2 = "t2";
     protected final String t3 = "t3";
+    protected final String m1 = "m1";
+    protected final String m2 = "m2";
     protected final ObjectPath path1 = new ObjectPath(db1, t1);
     protected final ObjectPath path2 = new ObjectPath(db2, t2);
     protected final ObjectPath path3 = new ObjectPath(db1, t2);
     protected final ObjectPath path4 = new ObjectPath(db1, t3);
+    protected final ObjectPath modelPath1 = new ObjectPath(db1, m1);
+    protected final ObjectPath modelPath2 = new ObjectPath(db1, m2);
     protected final ObjectPath nonExistDbPath = ObjectPath.fromString("non.exist");
     protected final ObjectPath nonExistObjectPath = ObjectPath.fromString("db1.nonexist");
 
@@ -1308,6 +1312,13 @@ public abstract class CatalogTest {
      * @return a CatalogTable instance
      */
     public abstract CatalogTable createTable();
+
+    /**
+     * Create a CatalogModel instance by specific catalog implementation.
+     *
+     * @return a CatalogModel instance
+     */
+    public abstract CatalogModel createModel();
 
     /**
      * Create another CatalogTable instance by specific catalog implementation.
