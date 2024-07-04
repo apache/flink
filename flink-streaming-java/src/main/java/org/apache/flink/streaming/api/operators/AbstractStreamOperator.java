@@ -209,10 +209,10 @@ public abstract class AbstractStreamOperator<OUT>
                         MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
                         granularity);
             }
-            MetricGroup jobMetricGroup = this.metrics.getJobMetricGroup();
+            MetricGroup taskMetricGroup = this.metrics.getTaskMetricGroup();
             this.latencyStats =
                     new LatencyStats(
-                            jobMetricGroup.addGroup("latency"),
+                            taskMetricGroup.addGroup("latency"),
                             historySize,
                             container.getIndexInSubtaskGroup(),
                             getOperatorID(),
@@ -221,7 +221,7 @@ public abstract class AbstractStreamOperator<OUT>
             LOG.warn("An error occurred while instantiating latency metrics.", e);
             this.latencyStats =
                     new LatencyStats(
-                            UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup()
+                            UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                     .addGroup("latency"),
                             1,
                             0,
