@@ -35,7 +35,6 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
-import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -98,19 +97,15 @@ class ParquetRowDataWriterTest {
             RowType.of(
                     new ArrayType(true, new IntType()),
                     new MapType(
-                            true,
-                            new VarCharType(false, VarCharType.MAX_LENGTH),
+                            new VarCharType(VarCharType.MAX_LENGTH),
                             new VarCharType(VarCharType.MAX_LENGTH)),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
-    private static final RowType INVALID_ROW_TYPE1 =
+    private static final RowType MAP_ROW_TYPE =
             RowType.of(
                     new MapType(
-                            false,
-                            new VarCharType(VarCharType.MAX_LENGTH),
+                            new VarCharType(true, VarCharType.MAX_LENGTH),
                             new VarCharType(VarCharType.MAX_LENGTH)));
-    private static final RowType INVALID_ROW_TYPE2 =
-            RowType.of(new MultisetType(new VarCharType(VarCharType.MAX_LENGTH)));
 
     private static final RowType NESTED_ARRAY_MAP_TYPE =
             RowType.of(
@@ -135,6 +130,11 @@ class ParquetRowDataWriterTest {
     private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER =
             DataFormatConverters.getConverterForDataType(
                     TypeConversions.fromLogicalToDataType(ROW_TYPE));
+
+    @SuppressWarnings("unchecked")
+    private static final DataFormatConverters.DataFormatConverter<RowData, Row> MAP_CONVERTER =
+            DataFormatConverters.getConverterForDataType(
+                    TypeConversions.fromLogicalToDataType(MAP_ROW_TYPE));
 
     @SuppressWarnings("unchecked")
     private static final DataFormatConverters.DataFormatConverter<RowData, Row>
@@ -283,25 +283,17 @@ class ParquetRowDataWriterTest {
     public void invalidTypeTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
             throws IOException {
         Path path = new Path(folder.toString(), UUID.randomUUID().toString());
-        ParquetWriterFactory<RowData> factory1 =
-                ParquetRowDataBuilder.createWriterFactory(INVALID_ROW_TYPE1, conf, utcTimestamp);
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(MAP_ROW_TYPE, conf, utcTimestamp);
+        final BulkWriter<RowData> rowDataBulkWriter =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        Map<String, String> mapData = new HashMap<>();
+        mapData.put(null, "v1");
+        final Row row = Row.of(mapData);
         assertThatThrownBy(
-                        () ->
-                                factory1.create(
-                                        path.getFileSystem()
-                                                .create(path, FileSystem.WriteMode.OVERWRITE)),
-                        "f0 MAP<STRING, STRING> NOT NULL has nullable key, unsupported by Parquet format. See FLINK-35641 and https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
-                .isInstanceOf(IllegalStateException.class);
-
-        ParquetWriterFactory<RowData> factory2 =
-                ParquetRowDataBuilder.createWriterFactory(INVALID_ROW_TYPE2, conf, utcTimestamp);
-        assertThatThrownBy(
-                        () ->
-                                factory2.create(
-                                        path.getFileSystem()
-                                                .create(path, FileSystem.WriteMode.OVERWRITE)),
-                        "f0 MULTISET<STRING> has nullable elements, unsupported by Parquet format. See FLINK-35641 and https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
-                .isInstanceOf(IllegalStateException.class);
+                        () -> rowDataBulkWriter.addElement(MAP_CONVERTER.toInternal(row)),
+                        "Parquet does not support null keys in a map. See https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
+                .isInstanceOf(RuntimeException.class);
     }
 
     public void nestedArrayAndMapTest(

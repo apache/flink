@@ -116,7 +116,7 @@ public abstract class StatisticsReportTestBase extends TestLogger {
         ddlTypesMap.put("time", "f_time");
         ddlTypesMap.put("row<col1 string, col2 int>", "f_row");
         ddlTypesMap.put("array<int>", "f_array");
-        ddlTypesMap.put("map<string NOT NULL, int>", "f_map");
+        ddlTypesMap.put("map<string, int>", "f_map");
 
         return ddlTypesMap;
     }
