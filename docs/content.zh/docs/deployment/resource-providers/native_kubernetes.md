@@ -73,23 +73,24 @@ $ kubectl delete deployment/my-first-flink-cluster
 默认情况下，Flink 的 Web UI 和 REST 端点以 `ClusterIP` 服务的形式暴露。要访问该服务，请参阅[访问 Flink 的 Web UI](#accessing-flinks-web-ui) 获取说明。
 {{< /hint >}}
 
-Congratulations! You have successfully run a Flink application by deploying Flink on Kubernetes.
+恭喜！你已成功在 Kubernetes 上部署 Flink 并运行了一个 Flink 应用程序。
 
 {{< top >}}
 
-## Deployment Modes
+## 部署模式
 
-For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode), as these modes provide a better isolation for the Applications.
+对于生产使用，我们推荐在[应用模式]({{< ref "docs/deployment/overview" >}}#application-mode)下部署Flink应用程序，因为这种模式为应用程序提供了更好的隔离。
 
-### Application Mode
+### 应用程序模式
 
-The [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode) requires that the user code is bundled together with the Flink image because it runs the user code's `main()` method on the cluster.
-The Application Mode makes sure that all Flink components are properly cleaned up after the termination of the application.
-Bundling can be done by modifying the base Flink Docker image, or via the User Artifact Management, which makes it possible to upload and download artifacts that are not available locally.
+[应用模式]({{< ref "docs/deployment/overview" >}}#application-mode)要求用户代码与Flink镜像一起打包，因为它会在集群上运行用户代码的`main()`方法。
+应用模式确保在应用程序终止后清理所有Flink组件。
+可以通过修改基础Flink Docker镜像或通过用户 Artifact 管理进行打包，这使得可以上传和下载本地不可用的制品。
 
-#### Modify the Docker image
 
-The Flink community provides a [base Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#docker-hub-flink-images) which can be used to bundle the user code:
+#### 修改 Docker 镜像
+
+Flink 社区提供了一个 [基础 Docker 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#docker-hub-flink-images)，可以用来打包用户代码：
 
 ```dockerfile
 FROM flink
@@ -97,7 +98,7 @@ RUN mkdir -p $FLINK_HOME/usrlib
 COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 ```
 
-After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
+在创建并发布名为`custom-image-name`的Docker镜像后，你可以使用以下命令启动一个应用集群：
 
 ```bash
 $ ./bin/flink run-application \
@@ -107,9 +108,9 @@ $ ./bin/flink run-application \
     local:///opt/flink/usrlib/my-flink-job.jar
 ```
 
-#### Configure User Artifact Management
+#### 配置用户 Artifact 管理
 
-In case you have a locally available Flink job JAR, artifact upload can be used so Flink will upload the local artifact to DFS during deployment and fetch it on the deployed JobManager pod:
+如果你有一个本地可用的Flink作业JAR包，可以使用制品上传功能，以便在部署时让Flink将本地制品上传到DFS，并在部署的JobManager pod上获取它：
 
 ```bash
 $ ./bin/flink run-application \
@@ -121,8 +122,9 @@ $ ./bin/flink run-application \
     local:///tmp/my-flink-job.jar
 ```
 
-The `kubernetes.artifacts.local-upload-enabled` enables this feature, and `kubernetes.artifacts.local-upload-target` has to point to a valid remote target that exists and has the permissions configured properly.
-You can add additional artifacts via the `user.artifacts.artifact-list` config option, which can contain a mix of local and remote artifacts:
+`kubernetes.artifacts.local-upload-enabled` 选项启用此功能，而 `kubernetes.artifacts.local-upload-target` 需要指向一个有效且权限设置正确的远程目标。
+
+可以通过 `user.artifacts.artifact-list` 配置选项添加额外的制品，该选项可以包含本地和远程制品的组合：
 
 ```bash
 $ ./bin/flink run-application \
@@ -135,7 +137,7 @@ $ ./bin/flink run-application \
     local:///tmp/my-flink-job.jar
 ```
 
-In case the job JAR or any additional artifact is already available remotely via DFS or HTTP(S), Flink will simply fetch it on the deployed JobManager pod:
+如果作业 JAR 包或任何其他附加制品已经通过DFS或HTTP(S)远程可用，Flink将简单地在部署的JobManager pod上获取它。
 
 ```bash
 # FileSystem
@@ -154,21 +156,20 @@ $ ./bin/flink run-application \
 ```
 
 {{< hint warning >}}
-Please be aware that already existing artifacts will not be overwritten during a local upload!
+请注意，本地上传时，已存在的制品将不会被覆盖！
 {{< /hint >}}
 
 {{< hint info >}}
-JAR fetching supports downloading from [filesystems]({{< ref "docs/deployment/filesystems/overview" >}}) or HTTP(S) in Application Mode.  
-The JAR will be downloaded to
-[user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
+JAR 的获取支持在应用模式下从 [文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 或 HTTP(S) 下载。
+JAR 将被下载到镜像中的 [user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) 路径。
 {{< /hint >}}
 
-The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
-If you do not specify this option, then Flink will generate a random name.
+`kubernetes.cluster-id` 选项指定了集群的名称，必须是唯一的。
+如果不指定此选项，Flink 将生成一个随机名称。
 
-The `kubernetes.container.image.ref` option specifies the image to start the pods with.
+`kubernetes.container.image.ref` 选项指定了启动Pod所使用的镜像。
 
-Once the application cluster is deployed you can interact with it:
+一旦应用程序集群部署完成，您就可以与其进行交互：
 
 ```bash
 # List running job on the cluster
@@ -177,25 +178,25 @@ $ ./bin/flink list --target kubernetes-application -Dkubernetes.cluster-id=my-fi
 $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-first-application-cluster <jobId>
 ```
 
-You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/flink`.
+你可以通过向 `bin/flink` 传递键值对 `-Dkey=value` 来覆盖 [Flink配置文件]{{< ref "docs/deployment/config#flink-配置文件" >}} 中的设置。
 
-### Per-Job Cluster Mode
+### Per-Job 集群模式
 
-Flink on Kubernetes does not support Per-Job Cluster Mode.
+在 Kubernetes 上的 Flink 不支持 Per-Job 集群模式。
 
-### Session Mode
+### Session 模式
 
-You have seen the deployment of a Session cluster in the [Getting Started](#getting-started) guide at the top of this page.
+你已经在本页面顶部的[入门](#getting-started)指南中看到了 Session 集群的部署。
 
-The Session Mode can be executed in two modes:
+Session模式可以在两种方式下执行：
 
-* **detached mode** (default): The `kubernetes-session.sh` deploys the Flink cluster on Kubernetes and then terminates.
+* **分离模式**（默认）：`kubernetes-session.sh`会部署Flink集群到Kubernetes，然后退出。
 
-* **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands to control the running Flink cluster.
-  For example, `stop` stops the running Session cluster.
-  Type `help` to list all supported commands.
+* **附属模式** (`-Dexecution.attached=true`): `kubernetes-session.sh` 保持活动状态，允许输入命令来控制正在运行的 Flink 集群。
+  例如，`stop` 命令可以停止运行中的 Session 集群。
+  输入 `help` 列出所有支持的命令。
 
-In order to re-attach to a running Session cluster with the cluster id `my-first-flink-cluster` use the following command:
+要重新连接到运行中的会话集群，其集群ID为`my-first-flink-cluster`，请使用以下命令：
 
 ```bash
 $ ./bin/kubernetes-session.sh \
@@ -203,11 +204,11 @@ $ ./bin/kubernetes-session.sh \
     -Dexecution.attached=true
 ```
 
-You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
+你可以通过向 `bin/kubernetes-session.sh` 传递键值对 `-Dkey=value` 来覆盖 [Flink 配置文件]({{< ref "docs/zh/deployment/config#flink-配置文件" >}}) 中的设置。
 
-#### Stop a Running Session Cluster
+#### 停止一个正在运行的 Session 集群
 
-In order to stop a running Session Cluster with cluster id `my-first-flink-cluster` you can either [delete the Flink deployment](#manual-resource-cleanup) or use:
+要停止具有集群ID `my-first-flink-cluster` 的运行中的Session 集群，你可以[删除Flink部署](#manual-resource-cleanup)或使用：
 
 ```bash
 $ echo 'stop' | ./bin/kubernetes-session.sh \
@@ -217,16 +218,16 @@ $ echo 'stop' | ./bin/kubernetes-session.sh \
 
 {{< top >}}
 
-## Flink on Kubernetes Reference
+## Flink 在 Kubernetes 上的参考
 
-### Configuring Flink on Kubernetes
+### 在 Kubernetes 上配置 Flink
 
-The Kubernetes-specific configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}#kubernetes).
+Kubernetes 特定的配置选项列在[配置页面]({{< ref "docs/deployment/config" >}}#kubernetes)上。
 
-Flink uses [Fabric8 Kubernetes client](https://github.com/fabric8io/kubernetes-client) to communicate with Kubernetes APIServer to create/delete Kubernetes resources(e.g. Deployment, Pod, ConfigMap, Service, etc.), as well as watch the Pods and ConfigMaps.
-Except for the above Flink config options, some [expert options](https://github.com/fabric8io/kubernetes-client#configuring-the-client) of Fabric8 Kubernetes client could be configured via system properties or environment variables.
+Flink 使用 [Fabric8 Kubernetes 客户端](https://github.com/fabric8io/kubernetes-client) 与 Kubernetes APIServer 通信，以创建/删除 Kubernetes 资源（如 Deployment、Pod、ConfigMap、Service 等），以及监视 Pods 和 ConfigMaps。
+除了上述 Flink 配置选项外，还可以通过系统属性或环境变量配置 Fabric8 Kubernetes 客户端的一些[专家选项](https://github.com/fabric8io/kubernetes-client#configuring-the-client)。
 
-For example, users could use the following Flink config options to set the concurrent max requests.
+例如，用户可以使用以下 Flink 配置选项设置最大并发请求数：
 
 ```yaml
 containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
