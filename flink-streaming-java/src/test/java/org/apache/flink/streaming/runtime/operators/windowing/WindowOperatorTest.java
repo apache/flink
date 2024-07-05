@@ -3230,10 +3230,11 @@ class WindowOperatorTest {
         expected.add(new Watermark(2000)); // here is the cleanup timer
         expected.add(new Watermark(5000));
 
-        System.out.println(expected);
-        System.out.println(testHarness.getOutput());
         TestHarnessUtil.assertOutputEqualsSorted(
-                "Output was not correct.", expected, expected, new Tuple2ResultSortComparator());
+                "Output was not correct.",
+                expected,
+                testHarness.getOutput(),
+                new Tuple2ResultSortComparator());
         testHarness.close();
     }
 
