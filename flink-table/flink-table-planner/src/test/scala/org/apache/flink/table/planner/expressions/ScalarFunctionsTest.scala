@@ -621,6 +621,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "JSON_QUOTE('skipping backslash \')",
       "\"skipping backslash \""
     )
+    testSqlApi(
+      "JSON_QUOTE('this will be quoted ≠')",
+      "\"this will be quoted \\u2260\""
+    )
   }
 
   @Test

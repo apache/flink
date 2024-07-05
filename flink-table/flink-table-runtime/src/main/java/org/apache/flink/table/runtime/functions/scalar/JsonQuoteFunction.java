@@ -37,44 +37,44 @@ public class JsonQuoteFunction extends BuiltInScalarFunction {
         StringBuilder outputStr = new StringBuilder();
 
         for (int i = 0; i < input.length(); i++) {
-            char ch = input.charAt(i);
-            switch (ch) {
-                case '"':
-                    outputStr.append("\\\"");
-                    break;
-                case '\\':
-                    outputStr.append("\\\\");
-                    break;
-                case '/':
-                    outputStr.append("\\/");
-                    break;
-                case '\b':
-                    outputStr.append("\\b");
-                    break;
-                case '\f':
-                    outputStr.append("\\f");
-                    break;
-                case '\n':
-                    outputStr.append("\\n");
-                    break;
-                case '\r':
-                    outputStr.append("\\r");
-                    break;
-                case '\t':
-                    outputStr.append("\\t");
-                    break;
-                default:
-                    outputStr.append(formatStr(ch));
+            int codePoint = input.codePointAt(i);
+            if (codePoint < 128) {
+                appendASCII(outputStr, (char) codePoint);
+            } else {
+                outputStr.append(String.format("\\u%04x", codePoint));
             }
         }
         return outputStr.toString();
     }
 
-    private static String formatStr(char ch) {
-        if (ch > 127) {
-            return String.format("\\u%04x", ch);
-        } else {
-            return String.valueOf(ch);
+    private static void appendASCII(StringBuilder outputStr, char ch) {
+        switch (ch) {
+            case '"':
+                outputStr.append("\\\"");
+                break;
+            case '\\':
+                outputStr.append("\\\\");
+                break;
+            case '/':
+                outputStr.append("\\/");
+                break;
+            case '\b':
+                outputStr.append("\\b");
+                break;
+            case '\f':
+                outputStr.append("\\f");
+                break;
+            case '\n':
+                outputStr.append("\\n");
+                break;
+            case '\r':
+                outputStr.append("\\r");
+                break;
+            case '\t':
+                outputStr.append("\\t");
+                break;
+            default:
+                outputStr.append(ch);
         }
     }
 
