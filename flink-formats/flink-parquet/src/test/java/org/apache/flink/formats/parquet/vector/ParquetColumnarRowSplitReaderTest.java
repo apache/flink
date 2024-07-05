@@ -816,7 +816,7 @@ class ParquetColumnarRowSplitReaderTest {
         for (int i = 0; i < rowNum; i++) {
             Integer v = i;
             Map<String, String> mp1 = new HashMap<>();
-            mp1.put(null, "val_" + i);
+            mp1.put("key_" + i, "val_" + i);
             Map<String, String> mp2 = new HashMap<>();
             mp2.put("key_" + i, null);
             mp2.put("key@" + i, "val@" + i);
@@ -874,7 +874,7 @@ class ParquetColumnarRowSplitReaderTest {
                 f3.addGroup(0);
                 Group mapList = f3.addGroup(0);
                 Group map1 = mapList.addGroup(0);
-                createParquetMapGroup(map1, null, "val_" + i);
+                createParquetMapGroup(map1, "key_" + i, "val_" + i);
                 Group map2 = mapList.addGroup(0);
                 createParquetMapGroup(map2, "key_" + i, null);
                 createParquetMapGroup(map2, "key@" + i, "val@" + i);
@@ -927,9 +927,7 @@ class ParquetColumnarRowSplitReaderTest {
 
     private void createParquetMapGroup(Group map, String key, String value) {
         Group entry = map.addGroup(0);
-        if (key != null) {
-            entry.append("key", key);
-        }
+        entry.append("key", key);
         if (value != null) {
             entry.append("value", value);
         }
