@@ -39,6 +39,7 @@ import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.MappingProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
@@ -66,13 +67,16 @@ public class SqlJsonUtils {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final ObjectMapper MAPPER =
             new ObjectMapper(JSON_FACTORY)
-                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                    .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
     private static final Pattern JSON_PATH_BASE =
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.MULTILINE);
-    private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER = new JacksonJsonProvider();
-    private static final MappingProvider JSON_PATH_MAPPING_PROVIDER = new JacksonMappingProvider();
+    private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER =
+            new JacksonJsonProvider(MAPPER);
+    private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
+            new JacksonMappingProvider(MAPPER);
     private static final String JSON_QUERY_FUNCTION_NAME = "JSON_QUERY";
     private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
     private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
