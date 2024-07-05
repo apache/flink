@@ -187,7 +187,7 @@ public class SqlGatewayE2ECase extends TestLogger {
             gatewayRestClient.executeStatementWithResult("SET 'execution.runtime-mode' = 'batch'");
 
             // verify the result
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntilIgnoringExceptions(
                     () -> {
                         List<RowData> result =
                                 gatewayRestClient.executeStatementWithResult(
@@ -219,7 +219,7 @@ public class SqlGatewayE2ECase extends TestLogger {
                     "ALTER MATERIALIZED TABLE my_materialized_table_in_continuous_mode RESUME");
 
             // verify the result
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntilIgnoringExceptions(
                     () -> {
                         List<RowData> result =
                                 gatewayRestClient.executeStatementWithResult(
@@ -312,7 +312,7 @@ public class SqlGatewayE2ECase extends TestLogger {
 
             // verify the materialized table should auto refresh the today partition or tomorrow
             // partition
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntilIgnoringExceptions(
                     () -> {
                         List<RowData> result =
                                 gatewayRestClient.executeStatementWithResult(
@@ -345,9 +345,10 @@ public class SqlGatewayE2ECase extends TestLogger {
             gatewayRestClient.executeStatementWithResult(
                     "ALTER MATERIALIZED TABLE my_materialized_table_in_full_mode RESUME");
 
-            // wait until the materialized table is updated and verify only today or tomorrow data
+            // wait until the materialized table is updated and verify only today or tomorrow
+            // data
             // should be updated
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntilIgnoringExceptions(
                     () -> {
                         List<RowData> result =
                                 gatewayRestClient.executeStatementWithResult(
@@ -378,7 +379,7 @@ public class SqlGatewayE2ECase extends TestLogger {
                             + "')");
 
             // verify the materialized table that all partitions are updated
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntilIgnoringExceptions(
                     () -> {
                         List<RowData> result =
                                 gatewayRestClient.executeStatementWithResult(
