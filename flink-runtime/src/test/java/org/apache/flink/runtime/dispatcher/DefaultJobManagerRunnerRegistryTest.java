@@ -164,7 +164,8 @@ class DefaultJobManagerRunnerRegistryTest {
                 .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        // Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
     }
 
     @Test
@@ -191,7 +192,8 @@ class DefaultJobManagerRunnerRegistryTest {
         final CompletableFuture<Void> cleanupResult =
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(), Executors.directExecutor());
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        // Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
         assertThatFuture(cleanupResult)
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
@@ -212,7 +214,9 @@ class DefaultJobManagerRunnerRegistryTest {
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(), UnsupportedOperationExecutor.INSTANCE);
 
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        // Since the cleanup future hasn't completed yet, the JobManagerRunner is expected to not
+        // have been unregistered.
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
         assertThat(jobManagerRunner.getTerminationFuture()).isNotCompleted();
         assertThat(cleanupFuture).isNotCompleted();
 

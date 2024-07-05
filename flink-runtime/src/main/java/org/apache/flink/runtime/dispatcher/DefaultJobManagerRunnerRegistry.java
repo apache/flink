@@ -40,8 +40,7 @@ import java.util.concurrent.Executor;
  */
 public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry {
 
-    @VisibleForTesting
-    final Map<JobID, JobManagerRunner> jobManagerRunners;
+    @VisibleForTesting final Map<JobID, JobManagerRunner> jobManagerRunners;
 
     public DefaultJobManagerRunnerRegistry(int initialCapacity) {
         Preconditions.checkArgument(initialCapacity > 0);
@@ -86,15 +85,16 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     @Override
     public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor unusedExecutor) {
         if (isRegistered(jobId)) {
-            return this.jobManagerRunners
-                    .get(jobId)
-                    .closeAsync()
-                    .whenCompleteAsync(
-                            (result, throwable) -> {
-                                if (throwable == null) {
-                                    unregister(jobId);
-                                }
-                            });
+            CompletableFuture<Void> resultFuture = this.jobManagerRunners.get(jobId).closeAsync();
+
+            resultFuture.whenComplete(
+                    (result, throwable) -> {
+                        if (throwable == null) {
+                            unregister(jobId);
+                        }
+                    });
+
+            return resultFuture;
         }
 
         return FutureUtils.completedVoidFuture();
