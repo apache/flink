@@ -2384,6 +2384,9 @@ under the License.
 								<exclude>org.apache.flink.util.function.SerializableFunction</exclude>
 								<exclude>org.apache.flink.util.function.SupplierWithException</exclude>
 								<exclude>org.apache.flink.util.function.ThrowingConsumer</exclude>
+								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130 -->
+								<exclude>org.apache.flink.configuration.Configuration#getBytes(java.lang.String,byte[])</exclude>
+								<exclude>org.apache.flink.configuration.Configuration#setBytes(java.lang.String,byte[])</exclude>
 								<!-- Disable check for two sink methods. -->
 								<!-- TypeSerializer needs to be considered upgraded to Public. Tracked under FLINK-35566 -->
 								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#createInputSerializer()</exclude>
