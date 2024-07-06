@@ -376,10 +376,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
                 if (triggerResult.isFire()) {
                     ACC contents = windowState.get();
-                    if (contents == null) {
-                        continue;
+                    if (contents != null) {
+                        emitWindowContents(actualWindow, contents);
                     }
-                    emitWindowContents(actualWindow, contents);
                 }
 
                 if (triggerResult.isPurge()) {
@@ -409,10 +408,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
                 if (triggerResult.isFire()) {
                     ACC contents = windowState.get();
-                    if (contents == null) {
-                        continue;
+                    if (contents != null) {
+                        emitWindowContents(window, contents);
                     }
-                    emitWindowContents(window, contents);
                 }
 
                 if (triggerResult.isPurge()) {
