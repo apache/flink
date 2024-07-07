@@ -3071,7 +3071,7 @@ public class WindowOperatorTest extends TestLogger {
     }
 
     @Test
-    void testCleanupTimerWithEmptyStateNoResultForTumblingWindows() throws Exception {
+    public void testCleanupTimerWithEmptyStateNoResultForTumblingWindows() throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
