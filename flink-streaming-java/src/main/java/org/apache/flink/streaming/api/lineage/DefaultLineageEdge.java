@@ -19,22 +19,28 @@
 
 package org.apache.flink.streaming.api.lineage;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
-import java.util.List;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Job lineage graph that users can get sources, sinks and relationships from lineage and manage the
- * relationship between jobs and tables.
- */
-@PublicEvolving
-public interface LineageGraph {
-    /* Source lineage vertex list. */
-    List<SourceLineageVertex> sources();
+/** Implementation of LineageEdge. */
+@Internal
+public class DefaultLineageEdge implements LineageEdge {
+    @JsonProperty private SourceLineageVertex sourceLineageVertex;
+    @JsonProperty private LineageVertex sinkVertex;
 
-    /* Sink lineage vertex list. */
-    List<LineageVertex> sinks();
+    public DefaultLineageEdge(SourceLineageVertex sourceLineageVertex, LineageVertex sinkVertex) {
+        this.sourceLineageVertex = sourceLineageVertex;
+        this.sinkVertex = sinkVertex;
+    }
 
-    /* lineage edges from sources to sinks. */
-    List<LineageEdge> relations();
+    @Override
+    public SourceLineageVertex source() {
+        return this.sourceLineageVertex;
+    }
+
+    @Override
+    public LineageVertex sink() {
+        return this.sinkVertex;
+    }
 }

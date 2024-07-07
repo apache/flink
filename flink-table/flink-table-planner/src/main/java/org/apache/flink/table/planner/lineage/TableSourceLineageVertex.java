@@ -14,27 +14,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
-package org.apache.flink.streaming.api.lineage;
+package org.apache.flink.table.planner.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 
-import java.util.List;
-
-/**
- * Job lineage graph that users can get sources, sinks and relationships from lineage and manage the
- * relationship between jobs and tables.
- */
+/** Source lineage vertex for table. */
 @PublicEvolving
-public interface LineageGraph {
-    /* Source lineage vertex list. */
-    List<SourceLineageVertex> sources();
-
-    /* Sink lineage vertex list. */
-    List<LineageVertex> sinks();
-
-    /* lineage edges from sources to sinks. */
-    List<LineageEdge> relations();
-}
+public interface TableSourceLineageVertex extends SourceLineageVertex {}
