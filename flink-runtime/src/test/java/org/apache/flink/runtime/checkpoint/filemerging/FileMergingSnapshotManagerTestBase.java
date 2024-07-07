@@ -116,6 +116,36 @@ public abstract class FileMergingSnapshotManagerTestBase {
     }
 
     @Test
+    public void testSpecialCharactersInPath() throws IOException {
+        FileSystem fs = LocalFileSystem.getSharedInstance();
+        if (!fs.exists(checkpointBaseDir)) {
+            fs.mkdirs(checkpointBaseDir);
+            fs.mkdirs(sharedStateDir);
+            fs.mkdirs(taskOwnedStateDir);
+        }
+        // No exception will throw.
+        try (FileMergingSnapshotManager fmsm =
+                new FileMergingSnapshotManagerBuilder(
+                                jobID,
+                                new ResourceID("localhost:53424-,;:$&+=?/[]@#qqq"),
+                                getFileMergingType())
+                        .setMetricGroup(
+                                new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup())
+                        .build()) {
+            fmsm.initFileSystem(
+                    LocalFileSystem.getSharedInstance(),
+                    checkpointBaseDir,
+                    sharedStateDir,
+                    taskOwnedStateDir,
+                    writeBufferSize);
+            assertThat(fmsm).isNotNull();
+            fmsm.registerSubtaskForSharedStates(
+                    new SubtaskKey(jobID.toString(), ",;:$&+=?/[]@#www", 0, 1));
+        }
+    }
+
+    @Test
     void testRefCountBetweenLogicalAndPhysicalFiles() throws IOException {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
