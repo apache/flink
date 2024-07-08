@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -119,6 +120,9 @@ public class StreamConfig implements Serializable {
     private static final String TIME_CHARACTERISTIC = "timechar";
 
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
+
+    private static final String ATTRIBUTE = "attribute";
+
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
                     .booleanType()
@@ -798,6 +802,20 @@ public class StreamConfig implements Serializable {
 
     public boolean isGraphContainingLoops() {
         return config.getBoolean(GRAPH_CONTAINING_LOOPS, false);
+    }
+
+    public void setAttribute(Attribute attribute) {
+        if (attribute != null) {
+            toBeSerializedConfigObjects.put(ATTRIBUTE, attribute);
+        }
+    }
+
+    public Attribute getAttribute(ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(this.config, ATTRIBUTE, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate checkpoint storage.", e);
+        }
     }
 
     /**

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -187,9 +188,6 @@ public class StreamingJobGraphGenerator {
 
     private final Map<Integer, InputOutputFormatContainer> chainedInputOutputFormats;
 
-    // the ids of nodes whose output result partition type should be set to BLOCKING
-    private final Set<Integer> outputBlockingNodesID;
-
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
@@ -230,7 +228,6 @@ public class StreamingJobGraphGenerator {
         this.chainedMinResources = new HashMap<>();
         this.chainedPreferredResources = new HashMap<>();
         this.chainedInputOutputFormats = new HashMap<>();
-        this.outputBlockingNodesID = new HashSet<>();
         this.physicalEdgesInOrder = new ArrayList<>();
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
         this.chainInfos = new HashMap<>();
@@ -682,10 +679,12 @@ public class StreamingJobGraphGenerator {
             List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
             StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
-
-            boolean isOutputOnlyAfterEndOfStream = currentNode.isOutputOnlyAfterEndOfStream();
-            if (isOutputOnlyAfterEndOfStream) {
-                outputBlockingNodesID.add(currentNode.getId());
+            Attribute attribute = currentNode.getAttribute();
+            boolean isNoOutputUntilEndOfInput =
+                    currentNode.isOutputOnlyAfterEndOfStream()
+                            || attribute.isNoOutputUntilEndOfInput();
+            if (isNoOutputUntilEndOfInput) {
+                attribute.setNoOutputUntilEndOfInput(true);
             }
 
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
@@ -697,9 +696,13 @@ public class StreamingJobGraphGenerator {
             }
 
             for (StreamEdge chainable : chainableOutputs) {
-                // Mark downstream nodes in the same chain as outputBlocking
-                if (isOutputOnlyAfterEndOfStream) {
-                    outputBlockingNodesID.add(chainable.getTargetId());
+                // Only modify the attribute of downstream nodes in the same chain.
+                if (isNoOutputUntilEndOfInput) {
+                    StreamNode targetNode = streamGraph.getStreamNode(chainable.getTargetId());
+                    Attribute targetNodeAttribute = targetNode.getAttribute();
+                    if (targetNodeAttribute != null) {
+                        targetNodeAttribute.setNoOutputUntilEndOfInput(true);
+                    }
                 }
                 transitiveOutEdges.addAll(
                         createChain(
@@ -707,10 +710,6 @@ public class StreamingJobGraphGenerator {
                                 chainIndex + 1,
                                 chainInfo,
                                 chainEntryPoints));
-                // Mark upstream nodes in the same chain as outputBlocking
-                if (outputBlockingNodesID.contains(chainable.getTargetId())) {
-                    outputBlockingNodesID.add(currentNodeId);
-                }
             }
 
             for (StreamEdge nonChainable : nonChainableOutputs) {
@@ -757,7 +756,7 @@ public class StreamingJobGraphGenerator {
                             : new StreamConfig(new Configuration());
 
             tryConvertPartitionerForDynamicGraph(chainableOutputs, nonChainableOutputs);
-
+            config.setAttribute(attribute);
             setOperatorConfig(currentNodeId, config, chainInfo.getChainedSources());
 
             setOperatorChainedOutputsConfig(config, chainableOutputs);
@@ -1504,7 +1503,9 @@ public class StreamingJobGraphGenerator {
     }
 
     private ResultPartitionType determineUndefinedResultPartitionType(StreamEdge edge) {
-        if (outputBlockingNodesID.contains(edge.getSourceId())) {
+        Attribute sourceNodeAttribute =
+                streamGraph.getStreamNode(edge.getSourceId()).getAttribute();
+        if (sourceNodeAttribute.isNoOutputUntilEndOfInput()) {
             edge.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
             return ResultPartitionType.BLOCKING;
         }
