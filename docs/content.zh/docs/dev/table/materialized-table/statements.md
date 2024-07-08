@@ -96,7 +96,7 @@ CREATE MATERIALIZED TABLE my_materialized_table
 如上例所示，我们为 `ds` 分区列指定了 `date-formatter` 选项。每次调度时，调度时间将转换为相应的 `ds` 分区值。例如，在 `2024-01-01 00:00:00` 的调度时间下，只有分区 `ds = '2024-01-01'` 会被刷新。
 
 <span class="label label-danger">注意</span>
-- `partition.fields.#.date-formatter` 选项仅适用于全量模式。
+- [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) 选项仅适用于全量模式。
 - [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) 中的字段必须是有效的字符串类型分区字段。
 
 ## FRESHNESS
