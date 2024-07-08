@@ -37,6 +37,10 @@ public final class SinkTestStep extends TableTestStep {
     public final @Nullable List<Row> expectedAfterRestore;
     public final @Nullable List<String> expectedBeforeRestoreStrings;
     public final @Nullable List<String> expectedAfterRestoreStrings;
+    // These are added for situations where we need to specify the output in batch.
+    // In many cases, the "expectBeforeRestore*" variables are sufficient.
+    public final @Nullable List<Row> expectedBatchBeforeRows;
+    public final @Nullable List<String> expectedBatchBeforeStrings;
     public final boolean testChangelogData;
 
     SinkTestStep(
@@ -49,6 +53,8 @@ public final class SinkTestStep extends TableTestStep {
             @Nullable List<Row> expectedAfterRestore,
             @Nullable List<String> expectedBeforeRestoreStrings,
             @Nullable List<String> expectedAfterRestoreStrings,
+            @Nullable List<Row> expectedBatchBeforeRows,
+            @Nullable List<String> expectedBatchBeforeStrings,
             boolean testChangelogData) {
         super(name, schemaComponents, distribution, partitionKeys, options);
         if (expectedBeforeRestore != null && expectedAfterRestoreStrings != null) {
@@ -63,12 +69,33 @@ public final class SinkTestStep extends TableTestStep {
         this.expectedAfterRestore = expectedAfterRestore;
         this.expectedBeforeRestoreStrings = expectedBeforeRestoreStrings;
         this.expectedAfterRestoreStrings = expectedAfterRestoreStrings;
+        this.expectedBatchBeforeRows = expectedBatchBeforeRows;
+        this.expectedBatchBeforeStrings = expectedBatchBeforeStrings;
         this.testChangelogData = testChangelogData;
     }
 
     /** Builder for creating a {@link SinkTestStep}. */
     public static SinkTestStep.Builder newBuilder(String name) {
         return new SinkTestStep.Builder(name);
+    }
+
+    public List<String> getExpectedBatchBeforeResultAsString() {
+        if (expectedBatchBeforeStrings != null) {
+            return expectedBatchBeforeStrings;
+        }
+        if (expectedBatchBeforeRows != null) {
+            return expectedBatchBeforeRows.stream().map(Row::toString).collect(Collectors.toList());
+        }
+
+        if (expectedBeforeRestoreStrings != null) {
+            return expectedBeforeRestoreStrings;
+        }
+
+        if (expectedBeforeRestore != null) {
+            return expectedBeforeRestore.stream().map(Row::toString).collect(Collectors.toList());
+        }
+
+        return Collections.emptyList();
     }
 
     public List<String> getExpectedBeforeRestoreAsStrings() {
@@ -119,6 +146,8 @@ public final class SinkTestStep extends TableTestStep {
 
         private List<Row> expectedBeforeRestore;
         private List<Row> expectedAfterRestore;
+        private List<Row> expectedBatchBeforeRows;
+        private List<String> expectedBatchBeforeStrings;
 
         private List<String> expectedBeforeRestoreStrings;
         private List<String> expectedAfterRestoreStrings;
@@ -157,6 +186,16 @@ public final class SinkTestStep extends TableTestStep {
             return this;
         }
 
+        public Builder expectedBatchRows(Row... expectedRows) {
+            this.expectedBatchBeforeRows = Arrays.asList(expectedRows);
+            return this;
+        }
+
+        public Builder expectedBatchStrings(String... expectedRows) {
+            this.expectedBatchBeforeStrings = Arrays.asList(expectedRows);
+            return this;
+        }
+
         public Builder testChangelogData() {
             this.testChangelogData = true;
             return this;
@@ -178,6 +217,8 @@ public final class SinkTestStep extends TableTestStep {
                     expectedAfterRestore,
                     expectedBeforeRestoreStrings,
                     expectedAfterRestoreStrings,
+                    expectedBatchBeforeRows,
+                    expectedBatchBeforeStrings,
                     testChangelogData);
         }
     }
