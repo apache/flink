@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Duration;
 import java.util.stream.Stream;
 
@@ -139,6 +140,20 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").truncate(2),
                                 "TRUNCATE(f0, 2)",
                                 new BigDecimal("123.45"),
-                                DataTypes.DECIMAL(6, 2).notNull()));
+                                DataTypes.DECIMAL(6, 2).notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
+                        .onFieldsWithData(Long.valueOf("123456"))
+                        .testResult(
+                                $("f0").shiftleft(2L),
+                                "shiftleft (f0, 2)",
+                                new BigInteger("493824"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
+                        .onFieldsWithData(Long.valueOf("123456"))
+                        .testResult(
+                                $("f0").shiftright(2L),
+                                "shiftright (f0, 2)",
+                                new BigInteger("30864"),
+                                DataTypes.BIGINT().notNull()));
     }
 }

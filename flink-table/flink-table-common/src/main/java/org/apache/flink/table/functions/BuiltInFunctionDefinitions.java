@@ -1810,6 +1810,32 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ROUND))
                     .build();
 
+    public static final BuiltInFunctionDefinition SHIFTLEFT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("shiftleft")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BIGINT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitLeftShiftFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition SHIFTRIGHT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("shiftright")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BIGINT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitRightShiftFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Catalog functions
     // --------------------------------------------------------------------------------------------

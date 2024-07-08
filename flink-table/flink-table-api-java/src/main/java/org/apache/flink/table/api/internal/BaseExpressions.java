@@ -171,6 +171,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA224
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA256;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA384;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA512;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHIFTLEFT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHIFTRIGHT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIGN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIMILAR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIN;
@@ -824,6 +826,15 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(TRUNCATE, toExpr()));
     }
 
+    public OutType shiftleft(InType shiftBits) {
+        return toApiSpecificExpression(
+                unresolvedCall(SHIFTLEFT, toExpr(), objectToExpression(shiftBits)));
+    }
+
+    public OutType shiftright(InType shiftBits) {
+        return toApiSpecificExpression(
+                unresolvedCall(SHIFTRIGHT, toExpr(), objectToExpression(shiftBits)));
+    }
     // String operations
 
     /**
