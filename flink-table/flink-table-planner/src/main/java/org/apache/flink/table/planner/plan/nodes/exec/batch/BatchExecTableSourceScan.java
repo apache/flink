@@ -53,8 +53,8 @@ import java.util.UUID;
         name = "batch-exec-table-source-scan",
         version = 1,
         producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_17,
-        minStateVersion = FlinkVersion.v1_17)
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         implements BatchExecNode<RowData> {
 
