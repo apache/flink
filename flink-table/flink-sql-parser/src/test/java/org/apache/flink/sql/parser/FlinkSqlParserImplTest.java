@@ -2858,15 +2858,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testCreateTableAsSelectWithWatermark() {
-        sql("CREATE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+        sql("CREATE TABLE t (watermark FOR col1 AS col1 - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithConstraints() {
+        sql("CREATE TABLE t (PRIMARY KEY (col1) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
         sql("CREATE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()

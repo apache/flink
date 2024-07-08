@@ -276,6 +276,8 @@ class SqlCreateTableConverter {
         Map<String, String> mergedOptions =
                 mergeOptions(sqlCreateTable, sourceProperties, mergingStrategies);
 
+        // It is assumed only a primary key constraint may be defined in the table. The
+        // SqlCreateTableAs has validations to ensure this before the object is created.
         Optional<SqlTableConstraint> primaryKey =
                 sqlCreateTable.getFullConstraints().stream()
                         .filter(SqlTableConstraint::isPrimaryKey)
