@@ -407,7 +407,7 @@ Flink SQL使用的标识符词法规则(table，attribute，function names)和Ja
 
 *   大写或小写的标识符都是保留的，就算没有被引用。
 *   标识符的匹配区分大小写。
-*   和Java不同，反引号(`\`)允许标识符包含非字母数字（no-alphanumeric）字符(例如：<code>"SELECT a AS \`my field\` FROM t"</code>)。
+*   和Java不同，反引号(\`)允许标识符包含非字母数字（no-alphanumeric）字符(例如：<code>"SELECT a AS \`my field\` FROM t"</code>)。
 
 字符串必须被单引号括起来（例如： `SELECT 'Hello World'`）。两个单引号用于转义（例如:`SELECT 'It''s me'`）。
 
