@@ -673,7 +673,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
 
         final String sql =
-                "create table tbl1 (c0 int, c1 double metadata, c2 as c0 * f0) "
+                "create table tbl1 (c0 int, c1 double metadata, c2 as c0 * f0, c3 timestamp(3), "
+                        + "watermark FOR c3 AS c3 - interval '3' second) "
                         + "AS SELECT * FROM src1";
 
         Operation ctas = parseAndConvert(sql);
@@ -688,8 +689,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                                         .column("c0", DataTypes.INT())
                                                         .columnByMetadata("c1", DataTypes.DOUBLE())
                                                         .columnByExpression("c2", "`c0` * `f0`")
+                                                        .column("c3", DataTypes.TIMESTAMP(3))
                                                         .column("f0", DataTypes.INT().notNull())
                                                         .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .watermark(
+                                                                "c3", "`c3` - INTERVAL '3' SECOND")
                                                         .build()))));
     }
 
@@ -723,6 +727,72 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                                         .column("c0", DataTypes.INT())
                                                         .column("f0", DataTypes.BIGINT().notNull())
                                                         .column("f1", DataTypes.DOUBLE())
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithPrimaryKey() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (PRIMARY KEY (f0) NOT ENFORCED) " + "AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .primaryKey("f0")
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithWatermark() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (WATERMARK FOR f1 AS f1 - INTERVAL '3' SECOND) "
+                        + "AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .watermark(
+                                                                "f1", "`f1` - INTERVAL '3' SECOND")
                                                         .build()))));
     }
 

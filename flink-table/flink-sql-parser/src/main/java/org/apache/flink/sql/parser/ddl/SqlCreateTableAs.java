@@ -125,11 +125,6 @@ public class SqlCreateTableAs extends SqlCreateTable {
                     "CREATE TABLE AS SELECT syntax does not support to create temporary table yet.");
         }
 
-        if (getWatermark().isPresent()) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet.");
-        }
         if (getDistribution() != null) {
             throw new SqlValidateException(
                     getParserPosition(),
@@ -140,11 +135,6 @@ public class SqlCreateTableAs extends SqlCreateTable {
             throw new SqlValidateException(
                     getParserPosition(),
                     "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet.");
-        }
-        if (getFullConstraints().stream().anyMatch(SqlTableConstraint::isPrimaryKey)) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support primary key constraints yet.");
         }
     }
 
