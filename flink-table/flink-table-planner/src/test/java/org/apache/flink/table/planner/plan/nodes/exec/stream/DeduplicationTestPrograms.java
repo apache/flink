@@ -42,7 +42,7 @@ public class DeduplicationTestPrograms {
         Row.of(9L, "carol", "apple", 9000L)
     };
 
-    static final TableTestProgram DEDUPLICATE =
+    public static final TableTestProgram DEDUPLICATE =
             TableTestProgram.of("deduplicate-asc", "validates deduplication in ascending")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -79,7 +79,7 @@ public class DeduplicationTestPrograms {
                                     + "WHERE row_num = 1")
                     .build();
 
-    static final TableTestProgram DEDUPLICATE_PROCTIME =
+    public static final TableTestProgram DEDUPLICATE_PROCTIME =
             TableTestProgram.of(
                             "deduplicate-asc-proctime",
                             "validates deduplication in ascending with proctime")
@@ -118,7 +118,7 @@ public class DeduplicationTestPrograms {
                                     + "WHERE row_num = 1")
                     .build();
 
-    static final TableTestProgram DEDUPLICATE_DESC =
+    public static final TableTestProgram DEDUPLICATE_DESC =
             TableTestProgram.of("deduplicate-desc", "validates deduplication in descending")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")

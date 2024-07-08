@@ -68,7 +68,7 @@ public class GroupWindowAggregateTestPrograms {
                     .producedAfterRestore(AFTER_DATA)
                     .build();
 
-    static final TableTestProgram GROUP_TUMBLE_WINDOW_EVENT_TIME =
+    public static final TableTestProgram GROUP_TUMBLE_WINDOW_EVENT_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-tumble-event-time",
                             "validates group by using tumbling window with event time")
@@ -106,7 +106,7 @@ public class GroupWindowAggregateTestPrograms {
                                     + "GROUP BY name, TUMBLE(rowtime, INTERVAL '5' SECOND)")
                     .build();
 
-    static final TableTestProgram GROUP_TUMBLE_WINDOW_PROC_TIME =
+    public static final TableTestProgram GROUP_TUMBLE_WINDOW_PROC_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-tumble-proc-time",
                             "validates group by using tumbling window with processing time")
@@ -135,7 +135,7 @@ public class GroupWindowAggregateTestPrograms {
                                     + "GROUP BY name, TUMBLE(proctime, INTERVAL '5' SECOND)")
                     .build();
 
-    static final TableTestProgram GROUP_HOP_WINDOW_EVENT_TIME =
+    public static final TableTestProgram GROUP_HOP_WINDOW_EVENT_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-hop-event-time",
                             "validates group by using hopping window with event time")
@@ -171,7 +171,7 @@ public class GroupWindowAggregateTestPrograms {
                                     + "GROUP BY name, HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '10' SECOND)")
                     .build();
 
-    static final TableTestProgram GROUP_HOP_WINDOW_PROC_TIME =
+    public static final TableTestProgram GROUP_HOP_WINDOW_PROC_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-hop-proc-time",
                             "validates group by using hopping window with processing time")
@@ -202,7 +202,7 @@ public class GroupWindowAggregateTestPrograms {
                                     + "GROUP BY name, HOP(proctime, INTERVAL '5' SECOND, INTERVAL '10' SECOND)")
                     .build();
 
-    static final TableTestProgram GROUP_SESSION_WINDOW_EVENT_TIME =
+    public static final TableTestProgram GROUP_SESSION_WINDOW_EVENT_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-session-event-time",
                             "validates group by using session window with event time")
@@ -227,7 +227,7 @@ public class GroupWindowAggregateTestPrograms {
                                     + "GROUP BY name, SESSION(rowtime, INTERVAL '3' SECOND)")
                     .build();
 
-    static final TableTestProgram GROUP_SESSION_WINDOW_PROC_TIME =
+    public static final TableTestProgram GROUP_SESSION_WINDOW_PROC_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-session-proc-time",
                             "validates group by using session window with processing time")

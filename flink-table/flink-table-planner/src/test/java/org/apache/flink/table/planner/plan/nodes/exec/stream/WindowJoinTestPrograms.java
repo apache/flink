@@ -135,7 +135,7 @@ public class WindowJoinTestPrograms {
                     .producedAfterRestore(SRC_TWO_AFTER_DATA)
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_INNER_TUMBLE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_INNER_TUMBLE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-inner-tumble-event-time",
                             "validates window inner join using tumbling window with event time")
@@ -165,7 +165,7 @@ public class WindowJoinTestPrograms {
                                     "ON"))
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_LEFT_TUMBLE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_LEFT_TUMBLE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-left-tumble-event-time",
                             "validates window left join using tumbling window with event time")
@@ -202,7 +202,7 @@ public class WindowJoinTestPrograms {
                                     "ON"))
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_RIGHT_TUMBLE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_RIGHT_TUMBLE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-right-tumble-event-time",
                             "validates window right join using tumbling window with event time")
@@ -240,7 +240,7 @@ public class WindowJoinTestPrograms {
                                     "ON"))
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_FULL_OUTER_TUMBLE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_FULL_OUTER_TUMBLE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-full-outer-tumble-event-time",
                             "validates window full outer join using tumbling window with event time")
@@ -285,7 +285,7 @@ public class WindowJoinTestPrograms {
                                     "ON"))
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_SEMI_TUMBLE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_SEMI_TUMBLE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-semi-tumble-event-time",
                             "validates window semi join using tumbling window with event time")
@@ -315,7 +315,7 @@ public class WindowJoinTestPrograms {
                                     + "             WHERE L.name = R.name AND L.window_start = R.window_start AND L.window_end = R.window_end)")
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_ANTI_TUMBLE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_ANTI_TUMBLE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-anti-tumble-event-time",
                             "validates window anti join using tumbling window with event time")
@@ -345,7 +345,7 @@ public class WindowJoinTestPrograms {
                                     + "             WHERE L.name = R.name AND L.window_start = R.window_start AND L.window_end = R.window_end)")
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_HOP_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_HOP_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-hop-event-time",
                             "validates window join using hopping window with event time")
@@ -395,7 +395,7 @@ public class WindowJoinTestPrograms {
                                     "ON"))
                     .build();
 
-    static final TableTestProgram WINDOW_JOIN_CUMULATE_EVENT_TIME =
+    public static final TableTestProgram WINDOW_JOIN_CUMULATE_EVENT_TIME =
             TableTestProgram.of(
                             "window-join-cumulate-event-time",
                             "validates window join using cumulate window with event time")

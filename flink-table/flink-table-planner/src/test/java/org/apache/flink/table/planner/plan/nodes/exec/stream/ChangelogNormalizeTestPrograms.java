@@ -76,7 +76,7 @@ public class ChangelogNormalizeTestPrograms {
         "-D[six, 6, f]"
     };
 
-    static final TableTestProgram CHANGELOG_SOURCE =
+    public static final TableTestProgram CHANGELOG_SOURCE =
             TableTestProgram.of(
                             "changelog-normalize-source", "validates changelog normalize source")
                     .setupConfig(
@@ -97,7 +97,7 @@ public class ChangelogNormalizeTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t")
                     .build();
 
-    static final TableTestProgram CHANGELOG_SOURCE_MINI_BATCH =
+    public static final TableTestProgram CHANGELOG_SOURCE_MINI_BATCH =
             TableTestProgram.of(
                             "changelog-normalize-source-mini-batch",
                             "validates changelog normalize source with mini batch")
@@ -124,7 +124,7 @@ public class ChangelogNormalizeTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t")
                     .build();
 
-    static final TableTestProgram UPSERT_SOURCE =
+    public static final TableTestProgram UPSERT_SOURCE =
             TableTestProgram.of(
                             "changelog-normalize-upsert", "validates changelog normalize upsert")
                     .setupConfig(

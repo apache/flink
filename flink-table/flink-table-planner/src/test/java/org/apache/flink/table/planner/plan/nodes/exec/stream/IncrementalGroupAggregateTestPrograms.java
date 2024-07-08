@@ -40,7 +40,7 @@ public class IncrementalGroupAggregateTestPrograms {
 
     static final String[] SOURCE_SCHEMA = {"a INT", "b BIGINT", "c VARCHAR"};
 
-    static final TableTestProgram INCREMENTAL_GROUP_AGGREGATE_SIMPLE =
+    public static final TableTestProgram INCREMENTAL_GROUP_AGGREGATE_SIMPLE =
             TableTestProgram.of(
                             "incremental-group-aggregate-simple",
                             "validates incremental group aggregation")
@@ -73,7 +73,7 @@ public class IncrementalGroupAggregateTestPrograms {
                                     + "     GROUP BY b")
                     .build();
 
-    static final TableTestProgram INCREMENTAL_GROUP_AGGREGATE_COMPLEX =
+    public static final TableTestProgram INCREMENTAL_GROUP_AGGREGATE_COMPLEX =
             TableTestProgram.of(
                             "incremental-group-aggregate-complex",
                             "validates incremental group aggregation with multiple aggregations")

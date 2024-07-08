@@ -114,7 +114,7 @@ public class WindowRankTestPrograms {
                     + "    )\n"
                     + "  ) WHERE row_num <= 3"; // row_num must be greater than 1
 
-    static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_MIN_TOP_N =
+    public static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_MIN_TOP_N =
             TableTestProgram.of(
                             "window-rank-tumble-tvf-min-top-n",
                             "validates window min top-n follows after tumbling window")
@@ -137,7 +137,7 @@ public class WindowRankTestPrograms {
                     .runSql(String.format(QUERY_TVF_TOP_N, "ASC", TUMBLE_TVF))
                     .build();
 
-    static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_AGG_MIN_TOP_N =
+    public static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_AGG_MIN_TOP_N =
             TableTestProgram.of(
                             "window-rank-tumble-tvf-agg-min-top-n",
                             "validates window min top-n with tumbling window follows after window aggregation")
@@ -160,7 +160,7 @@ public class WindowRankTestPrograms {
                     .runSql(String.format(QUERY_TVF_AGG_TOP_N, "ASC", TUMBLE_TVF))
                     .build();
 
-    static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_MAX_TOP_N =
+    public static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_MAX_TOP_N =
             TableTestProgram.of(
                             "window-rank-tumble-tvf-max-top-n",
                             "validates window max top-n follows after tumbling window")
@@ -183,7 +183,7 @@ public class WindowRankTestPrograms {
                     .runSql(String.format(QUERY_TVF_TOP_N, "DESC", TUMBLE_TVF))
                     .build();
 
-    static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_AGG_MAX_TOP_N =
+    public static final TableTestProgram WINDOW_RANK_TUMBLE_TVF_AGG_MAX_TOP_N =
             TableTestProgram.of(
                             "window-rank-tumble-tvf-agg-max-top-n",
                             "validates window max top-n with tumbling window follows after window aggregation")
@@ -206,7 +206,7 @@ public class WindowRankTestPrograms {
                     .runSql(String.format(QUERY_TVF_AGG_TOP_N, "DESC", TUMBLE_TVF))
                     .build();
 
-    static final TableTestProgram WINDOW_RANK_HOP_TVF_MIN_TOP_N =
+    public static final TableTestProgram WINDOW_RANK_HOP_TVF_MIN_TOP_N =
             TableTestProgram.of(
                             "window-rank-hop-tvf-min-top-n",
                             "validates window min top-n follows after hop window")
@@ -237,7 +237,7 @@ public class WindowRankTestPrograms {
                     .runSql(String.format(QUERY_TVF_TOP_N, "ASC", HOP_TVF))
                     .build();
 
-    static final TableTestProgram WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1 =
+    public static final TableTestProgram WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1 =
             TableTestProgram.of(
                             "window-rank-hop-tvf-named-min-top-n",
                             "validates window min top-n follows after hop window")
@@ -278,7 +278,7 @@ public class WindowRankTestPrograms {
                                     + "  ) WHERE row_num <= 3")
                     .build();
 
-    static final TableTestProgram WINDOW_RANK_CUMULATE_TVF_MIN_TOP_N =
+    public static final TableTestProgram WINDOW_RANK_CUMULATE_TVF_MIN_TOP_N =
             TableTestProgram.of(
                             "window-rank-cumulate-tvf-min-top-n",
                             "validates window min top-n follows after cumulate window")

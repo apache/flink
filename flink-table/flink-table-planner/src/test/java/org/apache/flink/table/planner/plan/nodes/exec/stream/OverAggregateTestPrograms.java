@@ -113,7 +113,7 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 2, 2, 40]"
     };
 
-    static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS =
             getTableTestProgram(
                     "over-aggregate-bounded-partitioned-rows",
                     "validates over aggregate node with time range and partitioning",
@@ -121,7 +121,7 @@ public class OverAggregateTestPrograms {
                     BEFORE_RESTORE_DATA,
                     AFTER_RESTORE_OUTPUT);
 
-    static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS =
             getTableTestProgram(
                     "over-aggregate-bounded-non-partitioned-rows",
                     "validates over aggregate node with time range and no partitioning",
@@ -154,7 +154,7 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 8, 8, 85]"
     };
 
-    static final TableTestProgram OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS =
             getTableTestProgram(
                     "over-aggregate-unbounded-partitioned-rows",
                     "validates over aggregate node with no bounds and partitioning",
@@ -186,7 +186,7 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 6, 6, 69]"
     };
 
-    static final TableTestProgram OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS =
             getTableTestProgram(
                     "over-aggregate-bounded-partitioned-preceding-rows",
                     "validates over aggregate node partitioned and bounded by prior rows",

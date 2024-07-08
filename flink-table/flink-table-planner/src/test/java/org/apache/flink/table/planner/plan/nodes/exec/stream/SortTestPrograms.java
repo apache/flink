@@ -40,7 +40,7 @@ public class SortTestPrograms {
         Row.of(5, "c", 9)
     };
 
-    static final TableTestProgram SORT_LIMIT_ASC =
+    public static final TableTestProgram SORT_LIMIT_ASC =
             TableTestProgram.of(
                             "sort-limit-asc",
                             "validates sort limit node by sorting integers in asc mode")
@@ -88,7 +88,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a LIMIT 3")
                     .build();
 
-    static final TableTestProgram SORT_LIMIT_DESC =
+    public static final TableTestProgram SORT_LIMIT_DESC =
             TableTestProgram.of(
                             "sort-limit-desc",
                             "validates sort limit node by sorting integers in desc mode")

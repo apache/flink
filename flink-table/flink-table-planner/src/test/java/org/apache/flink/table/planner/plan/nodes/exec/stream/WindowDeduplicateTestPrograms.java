@@ -100,7 +100,7 @@ public class WindowDeduplicateTestPrograms {
                     + "    FROM %s\n" // Window TVF
                     + "  ) WHERE %s"; // row_num = 1 | row_num <= 1 | row_num < 2
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_ASC_TUMBLE_FIRST_ROW =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_ASC_TUMBLE_FIRST_ROW =
             TableTestProgram.of(
                             "window-deduplicate-asc-tumble-first-row",
                             "validates window deduplicate in ascending order with at most one row for each tumbling window")
@@ -123,7 +123,7 @@ public class WindowDeduplicateTestPrograms {
                                     CONDITION_TWO))
                     .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_ASC_TUMBLE_FIRST_ROW_CONDITION_ONE =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_ASC_TUMBLE_FIRST_ROW_CONDITION_ONE =
             TableTestProgram.of(
                             "window-deduplicate-asc-tumble-first-row-condition-1",
                             "validates window deduplicate in ascending order with at most one row for each tumbling window")
@@ -146,7 +146,7 @@ public class WindowDeduplicateTestPrograms {
                                     CONDITION_ONE))
                     .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_ASC_TUMBLE_FIRST_ROW_CONDITION_THREE =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_ASC_TUMBLE_FIRST_ROW_CONDITION_THREE =
             TableTestProgram.of(
                             "window-deduplicate-asc-tumble-first-row-condition-3",
                             "validates window deduplicate in ascending order with at most one row for each tumbling window")
@@ -169,7 +169,7 @@ public class WindowDeduplicateTestPrograms {
                                     CONDITION_THREE))
                     .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_ASC_PARTITION_BY_ITEM_TUMBLE_FIRST_ROW =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_ASC_PARTITION_BY_ITEM_TUMBLE_FIRST_ROW =
             TableTestProgram.of(
                             "window-deduplicate-asc-partition-by-item-tumble-first-row",
                             "validates window deduplicate in ascending order with at most one row per item for each tumbling window")
@@ -198,7 +198,7 @@ public class WindowDeduplicateTestPrograms {
                                     CONDITION_TWO))
                     .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_DESC_TUMBLE_LAST_ROW =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_DESC_TUMBLE_LAST_ROW =
             TableTestProgram.of(
                             "window-deduplicate-desc-tumble-last-row",
                             "validates window deduplicate in descending order with at most one row for each tumbling window")
@@ -221,36 +221,37 @@ public class WindowDeduplicateTestPrograms {
                                     CONDITION_TWO))
                     .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_DESC_PARTITION_BY_ITEM_TUMBLE_FIRST_ROW =
-            TableTestProgram.of(
-                            "window-deduplicate-desc-partition-by-item-tumble-first-row",
-                            "validates window deduplicate in descending order with at most one row per item for each tumbling window")
-                    .setupTableSource(SOURCE)
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink_t")
-                                    .addSchema(SINK_SCHEMA)
-                                    .consumedBeforeRestore(
-                                            "+I[2020-04-15T08:00:08, 2.00, A, supplier3, 2020-04-15T08:00, 2020-04-15T08:00:10, 1]",
-                                            "+I[2020-04-15T08:00:07, 2.00, G, supplier1, 2020-04-15T08:00, 2020-04-15T08:00:10, 1]",
-                                            "+I[2020-04-15T08:00:09, 5.00, D, supplier4, 2020-04-15T08:00, 2020-04-15T08:00:10, 1]")
-                                    .consumedAfterRestore(
-                                            "+I[2020-04-15T08:00:17, 6.00, D, supplier5, 2020-04-15T08:00:10, 2020-04-15T08:00:20, 1]",
-                                            "+I[2020-04-15T08:00:13, 1.00, E, supplier1, 2020-04-15T08:00:10, 2020-04-15T08:00:20, 1]",
-                                            "+I[2020-04-15T08:00:15, 3.00, B, supplier2, 2020-04-15T08:00:10, 2020-04-15T08:00:20, 1]",
-                                            "+I[2020-04-15T08:00:21, 2.00, B, supplier7, 2020-04-15T08:00:20, 2020-04-15T08:00:30, 1]",
-                                            "+I[2020-04-15T08:00:28, 6.00, A, supplier8, 2020-04-15T08:00:20, 2020-04-15T08:00:30, 1]",
-                                            "+I[2020-04-15T08:00:25, 3.00, C, supplier3, 2020-04-15T08:00:20, 2020-04-15T08:00:30, 1]")
-                                    .build())
-                    .runSql(
-                            String.format(
-                                    QUERY,
-                                    "window_start, window_end, item",
-                                    "DESC",
-                                    TUMBLE_TVF,
-                                    CONDITION_TWO))
-                    .build();
+    public static final TableTestProgram
+            WINDOW_DEDUPLICATE_DESC_PARTITION_BY_ITEM_TUMBLE_FIRST_ROW =
+                    TableTestProgram.of(
+                                    "window-deduplicate-desc-partition-by-item-tumble-first-row",
+                                    "validates window deduplicate in descending order with at most one row per item for each tumbling window")
+                            .setupTableSource(SOURCE)
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink_t")
+                                            .addSchema(SINK_SCHEMA)
+                                            .consumedBeforeRestore(
+                                                    "+I[2020-04-15T08:00:08, 2.00, A, supplier3, 2020-04-15T08:00, 2020-04-15T08:00:10, 1]",
+                                                    "+I[2020-04-15T08:00:07, 2.00, G, supplier1, 2020-04-15T08:00, 2020-04-15T08:00:10, 1]",
+                                                    "+I[2020-04-15T08:00:09, 5.00, D, supplier4, 2020-04-15T08:00, 2020-04-15T08:00:10, 1]")
+                                            .consumedAfterRestore(
+                                                    "+I[2020-04-15T08:00:17, 6.00, D, supplier5, 2020-04-15T08:00:10, 2020-04-15T08:00:20, 1]",
+                                                    "+I[2020-04-15T08:00:13, 1.00, E, supplier1, 2020-04-15T08:00:10, 2020-04-15T08:00:20, 1]",
+                                                    "+I[2020-04-15T08:00:15, 3.00, B, supplier2, 2020-04-15T08:00:10, 2020-04-15T08:00:20, 1]",
+                                                    "+I[2020-04-15T08:00:21, 2.00, B, supplier7, 2020-04-15T08:00:20, 2020-04-15T08:00:30, 1]",
+                                                    "+I[2020-04-15T08:00:28, 6.00, A, supplier8, 2020-04-15T08:00:20, 2020-04-15T08:00:30, 1]",
+                                                    "+I[2020-04-15T08:00:25, 3.00, C, supplier3, 2020-04-15T08:00:20, 2020-04-15T08:00:30, 1]")
+                                            .build())
+                            .runSql(
+                                    String.format(
+                                            QUERY,
+                                            "window_start, window_end, item",
+                                            "DESC",
+                                            TUMBLE_TVF,
+                                            CONDITION_TWO))
+                            .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_ASC_HOP_FIRST_ROW =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_ASC_HOP_FIRST_ROW =
             TableTestProgram.of(
                             "window-deduplicate-asc-hop-first-row",
                             "validates window deduplicate in ascending order with one row for each hopping window")
@@ -276,7 +277,7 @@ public class WindowDeduplicateTestPrograms {
                                     CONDITION_TWO))
                     .build();
 
-    static final TableTestProgram WINDOW_DEDUPLICATE_ASC_CUMULATE_FIRST_ROW =
+    public static final TableTestProgram WINDOW_DEDUPLICATE_ASC_CUMULATE_FIRST_ROW =
             TableTestProgram.of(
                             "window-deduplicate-asc-cumulate-first-row",
                             "validates window deduplicate in ascending order with one row for each cumulate window")

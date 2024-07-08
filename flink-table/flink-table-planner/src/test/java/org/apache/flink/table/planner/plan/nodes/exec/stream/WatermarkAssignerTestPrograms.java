@@ -83,7 +83,7 @@ public class WatermarkAssignerTestPrograms {
 
     static final String[] SINK_SCHEMA = {"a INT", "b BIGINT", "ts TIMESTAMP(3)"};
 
-    static final TableTestProgram WATERMARK_ASSIGNER_BASIC_FILTER =
+    public static final TableTestProgram WATERMARK_ASSIGNER_BASIC_FILTER =
             TableTestProgram.of(
                             "watermark-assigner-basic-filter",
                             "validates watermark assigner with basic filtering")
@@ -106,7 +106,7 @@ public class WatermarkAssignerTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, b, ts FROM source_t WHERE b = 3")
                     .build();
 
-    static final TableTestProgram WATERMARK_ASSIGNER_PUSHDOWN_METADATA =
+    public static final TableTestProgram WATERMARK_ASSIGNER_PUSHDOWN_METADATA =
             TableTestProgram.of(
                             "watermark-assigner-pushdown-metadata",
                             "validates watermark assigner with pushdown metadata")

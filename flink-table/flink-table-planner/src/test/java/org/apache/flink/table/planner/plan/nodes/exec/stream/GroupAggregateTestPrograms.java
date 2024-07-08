@@ -76,7 +76,7 @@ public class GroupAggregateTestPrograms {
                             Row.of(7, 7L, 7, "XYZ", 7L))
                     .build();
 
-    static final TableTestProgram GROUP_BY_SIMPLE =
+    public static final TableTestProgram GROUP_BY_SIMPLE =
             TableTestProgram.of(
                             "group-aggregate-simple", "validates basic aggregation using group by")
                     .setupTableSource(SOURCE_ONE)
@@ -106,7 +106,7 @@ public class GroupAggregateTestPrograms {
                                     + "FROM source_t GROUP BY b")
                     .build();
 
-    static final TableTestProgram GROUP_BY_SIMPLE_MINI_BATCH =
+    public static final TableTestProgram GROUP_BY_SIMPLE_MINI_BATCH =
             TableTestProgram.of(
                             "group-aggregate-simple-mini-batch",
                             "validates basic aggregation using group by with mini batch")
@@ -131,7 +131,7 @@ public class GroupAggregateTestPrograms {
                     .runSql(GroupAggregateTestPrograms.GROUP_BY_SIMPLE.getRunSqlTestStep().sql)
                     .build();
 
-    static final TableTestProgram GROUP_BY_DISTINCT =
+    public static final TableTestProgram GROUP_BY_DISTINCT =
             TableTestProgram.of("group-aggregate-distinct", "validates group by distinct")
                     .setupTableSource(SOURCE_TWO)
                     .setupTableSink(
@@ -182,7 +182,7 @@ public class GroupAggregateTestPrograms {
                                     + "FROM source_t GROUP BY e")
                     .build();
 
-    static final TableTestProgram GROUP_BY_DISTINCT_MINI_BATCH =
+    public static final TableTestProgram GROUP_BY_DISTINCT_MINI_BATCH =
             TableTestProgram.of(
                             "group-aggregate-distinct-mini-batch",
                             "validates group by distinct with mini batch")
@@ -214,7 +214,7 @@ public class GroupAggregateTestPrograms {
                     .runSql(GROUP_BY_DISTINCT.getRunSqlTestStep().sql)
                     .build();
 
-    static final TableTestProgram GROUP_BY_UDF_WITH_MERGE =
+    public static final TableTestProgram GROUP_BY_UDF_WITH_MERGE =
             TableTestProgram.of(
                             "group-aggregate-udf-with-merge",
                             "validates udfs with merging using group by")
@@ -254,7 +254,7 @@ public class GroupAggregateTestPrograms {
                                     + "FROM source_t GROUP BY e")
                     .build();
 
-    static final TableTestProgram GROUP_BY_UDF_WITH_MERGE_MINI_BATCH =
+    public static final TableTestProgram GROUP_BY_UDF_WITH_MERGE_MINI_BATCH =
             TableTestProgram.of(
                             "group-aggregate-udf-with-merge-mini-batch",
                             "validates udfs with merging using group by with mini batch")
@@ -284,7 +284,7 @@ public class GroupAggregateTestPrograms {
                     .runSql(GROUP_BY_UDF_WITH_MERGE.getRunSqlTestStep().sql)
                     .build();
 
-    static final TableTestProgram GROUP_BY_UDF_WITHOUT_MERGE =
+    public static final TableTestProgram GROUP_BY_UDF_WITHOUT_MERGE =
             TableTestProgram.of(
                             "group-aggregate-udf-without-merge",
                             "validates udfs without merging using group by")
@@ -334,7 +334,7 @@ public class GroupAggregateTestPrograms {
                                     + "FROM source_t GROUP BY e")
                     .build();
 
-    static final TableTestProgram GROUP_BY_UDF_WITHOUT_MERGE_MINI_BATCH =
+    public static final TableTestProgram GROUP_BY_UDF_WITHOUT_MERGE_MINI_BATCH =
             TableTestProgram.of(
                             "group-aggregate-udf-without-merge-mini-batch",
                             "validates udfs without merging using group by with mini batch")
@@ -372,7 +372,7 @@ public class GroupAggregateTestPrograms {
                     .runSql(GROUP_BY_UDF_WITHOUT_MERGE.getRunSqlTestStep().sql)
                     .build();
 
-    static final TableTestProgram AGG_WITH_STATE_TTL_HINT =
+    public static final TableTestProgram AGG_WITH_STATE_TTL_HINT =
             TableTestProgram.of("agg-with-state-ttl-hint", "agg with state ttl hint")
                     .setupTableSource(SOURCE_ONE)
                     .setupTableSink(

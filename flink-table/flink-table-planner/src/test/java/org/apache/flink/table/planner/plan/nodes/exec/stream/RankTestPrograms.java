@@ -28,7 +28,7 @@ import static org.apache.flink.table.factories.TestFormatFactory.CHANGELOG_MODE;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecRank}. */
 public class RankTestPrograms {
 
-    static final TableTestProgram RANK_TEST_APPEND_FAST_STRATEGY =
+    public static final TableTestProgram RANK_TEST_APPEND_FAST_STRATEGY =
             getTableTestProgram(
                     "rank-test-append-fast-strategy",
                     "I",
@@ -45,7 +45,7 @@ public class RankTestPrograms {
                     },
                     new String[] {"+I[4, d, 1]", "+I[3, e, 1]"});
 
-    static final TableTestProgram RANK_TEST_RETRACT_STRATEGY =
+    public static final TableTestProgram RANK_TEST_RETRACT_STRATEGY =
             getTableTestProgram(
                     "rank-test-retract-strategy",
                     "I,UA,UB",
@@ -62,7 +62,7 @@ public class RankTestPrograms {
                     },
                     new String[] {"+I[4, d, 1]", "+I[3, e, 1]"});
 
-    static final TableTestProgram RANK_TEST_UPDATE_FAST_STRATEGY =
+    public static final TableTestProgram RANK_TEST_UPDATE_FAST_STRATEGY =
             TableTestProgram.of("rank-test-update-fast-strategy", "validates rank exec node")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -152,7 +152,7 @@ public class RankTestPrograms {
                 .build();
     }
 
-    static final TableTestProgram RANK_N_TEST =
+    public static final TableTestProgram RANK_N_TEST =
             TableTestProgram.of("rank-n-test", "validates rank node can handle multiple outputs")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable1")

@@ -51,7 +51,7 @@ public class MatchRecognizeTestPrograms {
 
     static final Row[] COMPLEX_DATA2 = {Row.of("BETA", 7L, 22, 4)};
 
-    static final TableTestProgram MATCH_SIMPLE =
+    public static final TableTestProgram MATCH_SIMPLE =
             TableTestProgram.of("match-simple", "simple match recognize test")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -83,7 +83,7 @@ public class MatchRecognizeTestPrograms {
                                     + "     ) AS T")
                     .build();
 
-    static final TableTestProgram MATCH_COMPLEX =
+    public static final TableTestProgram MATCH_COMPLEX =
             TableTestProgram.of("match-complex", "complex match recognize test")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -157,7 +157,7 @@ public class MatchRecognizeTestPrograms {
                     .producedAfterRestore(AFTER_DATA)
                     .build();
 
-    static final TableTestProgram MATCH_ORDER_BY_EVENT_TIME =
+    public static final TableTestProgram MATCH_ORDER_BY_EVENT_TIME =
             TableTestProgram.of("match-order-by-event-time", "complex match recognize test")
                     .setupTableSource(SOURCE)
                     .setupTableSink(
@@ -169,7 +169,7 @@ public class MatchRecognizeTestPrograms {
                     .runSql(getEventTimeSql("ORDER BY rowtime"))
                     .build();
 
-    static final TableTestProgram MATCH_ORDER_BY_INT_COLUMN =
+    public static final TableTestProgram MATCH_ORDER_BY_INT_COLUMN =
             TableTestProgram.of("match-order-by-int-column", "complex match recognize test")
                     .setupTableSource(SOURCE)
                     .setupTableSink(
@@ -199,7 +199,7 @@ public class MatchRecognizeTestPrograms {
         return String.format(sql, orderByClause);
     }
 
-    static final TableTestProgram MATCH_SKIP_TO_FIRST =
+    public static final TableTestProgram MATCH_SKIP_TO_FIRST =
             getSkipTestProgram(
                     "match-skip-to-first",
                     "skip to first match recognize test",
@@ -207,7 +207,7 @@ public class MatchRecognizeTestPrograms {
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 105, 107), Row.of(1L, 101, 101)},
                     new Row[] {Row.of(1L, 100, 111)});
 
-    static final TableTestProgram MATCH_SKIP_TO_LAST =
+    public static final TableTestProgram MATCH_SKIP_TO_LAST =
             getSkipTestProgram(
                     "match-skip-to-last",
                     "skip to last match recognize test",
@@ -215,7 +215,7 @@ public class MatchRecognizeTestPrograms {
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 105, 107), Row.of(1L, 101, 101)},
                     new Row[] {Row.of(1L, 100, 111)});
 
-    static final TableTestProgram MATCH_SKIP_TO_NEXT_ROW =
+    public static final TableTestProgram MATCH_SKIP_TO_NEXT_ROW =
             getSkipTestProgram(
                     "match-skip-to-next-row",
                     "skip to next row match recognize test",
@@ -231,7 +231,7 @@ public class MatchRecognizeTestPrograms {
                     },
                     new Row[] {Row.of(1L, 100, 111), Row.of(1L, 110, 111), Row.of(1L, 111, 111)});
 
-    static final TableTestProgram MATCH_SKIP_PAST_LAST_ROW =
+    public static final TableTestProgram MATCH_SKIP_PAST_LAST_ROW =
             getSkipTestProgram(
                     "match-skip-past-last-row",
                     "skip past last row match recognize test",

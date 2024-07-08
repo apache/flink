@@ -38,7 +38,7 @@ public class MiniBatchAssignerTestPrograms {
         "WATERMARK for `row_time` AS `row_time` - INTERVAL '1' SECOND"
     };
 
-    static final TableTestProgram MINI_BATCH_ASSIGNER_ROW_TIME =
+    public static final TableTestProgram MINI_BATCH_ASSIGNER_ROW_TIME =
             TableTestProgram.of(
                             "mini-batch-assigner-row-time",
                             "validates mini batch assigner with row time")
@@ -106,7 +106,7 @@ public class MiniBatchAssignerTestPrograms {
                                     + "AND L.window_end = R.window_end")
                     .build();
 
-    static final TableTestProgram MINI_BATCH_ASSIGNER_PROC_TIME =
+    public static final TableTestProgram MINI_BATCH_ASSIGNER_PROC_TIME =
             TableTestProgram.of(
                             "mini-batch-assigner-proc-time",
                             "validates mini batch assigner with proc time")

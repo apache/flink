@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.fail;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecAsyncCalc}. */
 public class AsyncCalcTestPrograms {
 
-    static final TableTestProgram ASYNC_CALC_UDF_SIMPLE =
+    public static final TableTestProgram ASYNC_CALC_UDF_SIMPLE =
             TableTestProgram.of("async-calc-simple", "validates async calc node with simple UDF")
                     .setupTemporaryCatalogFunction("udf1", AsyncJavaFunc0.class)
                     .setupTableSource(
@@ -60,7 +60,7 @@ public class AsyncCalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, udf1(a) FROM source_t")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_COMPLEX =
+    public static final TableTestProgram ASYNC_CALC_UDF_COMPLEX =
             TableTestProgram.of("async-calc-complex", "validates calc node with complex UDFs")
                     .setupTemporaryCatalogFunction("udf1", AsyncJavaFunc0.class)
                     .setupTemporaryCatalogFunction("udf2", AsyncJavaFunc1.class)
@@ -126,7 +126,7 @@ public class AsyncCalcTestPrograms {
                                     + "(udf1(a) > 0 or (a * b) < 100) and b > 10")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_NESTED =
+    public static final TableTestProgram ASYNC_CALC_UDF_NESTED =
             TableTestProgram.of(
                             "async-calc-nested",
                             "validates async calc node when chained through nested calls")
@@ -146,7 +146,7 @@ public class AsyncCalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, udf1(udf1(udf1(a))) FROM source_t")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_CONDITION =
+    public static final TableTestProgram ASYNC_CALC_UDF_CONDITION =
             TableTestProgram.of(
                             "async-calc-condition",
                             "validates async calc node with the udf written in the condition of the SQL query")
@@ -166,7 +166,7 @@ public class AsyncCalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a FROM source_t WHERE udf1(a) > 6")
                     .build();
 
-    static final TableTestProgram ASYNC_CALC_UDF_FAILURE_EXCEPTION =
+    public static final TableTestProgram ASYNC_CALC_UDF_FAILURE_EXCEPTION =
             TableTestProgram.of(
                             "async-calc-failure-exception",
                             "validates async calc node that fails some number of times and then recovers after restore")

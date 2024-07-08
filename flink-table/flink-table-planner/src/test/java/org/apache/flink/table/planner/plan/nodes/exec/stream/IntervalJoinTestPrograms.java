@@ -79,7 +79,7 @@ public class IntervalJoinTestPrograms {
         "order_id INT", "order_ts_str STRING", "shipment_ts_str STRING"
     };
 
-    static final TableTestProgram INTERVAL_JOIN_EVENT_TIME =
+    public static final TableTestProgram INTERVAL_JOIN_EVENT_TIME =
             TableTestProgram.of(
                             "interval-join-event-time", "validates interval join using event time")
                     .setupTableSource(
@@ -114,7 +114,7 @@ public class IntervalJoinTestPrograms {
                                     + " WHERE o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
                     .build();
 
-    static final TableTestProgram INTERVAL_JOIN_PROC_TIME =
+    public static final TableTestProgram INTERVAL_JOIN_PROC_TIME =
             TableTestProgram.of(
                             "interval-join-proc-time",
                             "validates interval join using processing time")
@@ -152,7 +152,7 @@ public class IntervalJoinTestPrograms {
                                     + " WHERE o.proc_time BETWEEN s.proc_time - INTERVAL '5' SECOND AND s.proc_time + INTERVAL '5' SECOND;")
                     .build();
 
-    static final TableTestProgram INTERVAL_JOIN_NEGATIVE_INTERVAL =
+    public static final TableTestProgram INTERVAL_JOIN_NEGATIVE_INTERVAL =
             TableTestProgram.of(
                             "interval-join-negative-interval",
                             "validates interval join using event time")

@@ -98,7 +98,7 @@ public class WindowAggregateTestPrograms {
         "+I[d, 2020-10-10T00:00:40, 2020-10-10T00:00:45, 2, 24, 2]"
     };
 
-    static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME =
+    public static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME =
             getTableTestProgram(
                     "window-aggregate-tumble-event-time",
                     "validates group by using tumbling window with event time",
@@ -107,7 +107,7 @@ public class WindowAggregateTestPrograms {
                     TUMBLE_EVENT_TIME_BEFORE_ROWS,
                     TUMBLE_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE =
+    public static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE =
             getTableTestProgram(
                     "window-aggregate-tumble-event-time-two-phase",
                     "validates group by using tumbling window with event time with two phase aggregation",
@@ -116,7 +116,7 @@ public class WindowAggregateTestPrograms {
                     TUMBLE_EVENT_TIME_BEFORE_ROWS,
                     TUMBLE_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+    public static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
             getTableTestProgram(
                     "window-aggregate-tumble-event-time-two-phase-distinct-split",
                     "validates group by using tumbling window with event time with two phase aggregation",
@@ -141,7 +141,7 @@ public class WindowAggregateTestPrograms {
         "+I[d, 2020-10-10T00:00:41, 2020-10-10T00:00:46, 2, 24, 2]"
     };
 
-    static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_WITH_OFFSET =
+    public static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_WITH_OFFSET =
             getTableTestProgram(
                     "window-aggregate-tumble-event-time-with-offset",
                     "validates group by using tumbling window with event time with an offset",
@@ -150,7 +150,7 @@ public class WindowAggregateTestPrograms {
                     TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS);
 
-    static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET =
+    public static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET =
             getTableTestProgram(
                     "window-aggregate-tumble-event-time-two-phase-with-offset",
                     "validates group by using tumbling window with event time with two phase aggregation with an offset",
@@ -159,15 +159,16 @@ public class WindowAggregateTestPrograms {
                     TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS);
 
-    static final TableTestProgram TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT =
-            getTableTestProgram(
-                    "window-aggregate-tumble-event-time-two-phase-with-offset-distinct-split",
-                    "validates group by using tumbling window with event time with two phase aggregation with an offset",
-                    AggregatePhaseStrategy.TWO_PHASE.toString(),
-                    "TUMBLE(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '1' SECOND)",
-                    TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
-                    TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
-                    DistinctAggSplit.ENABLED);
+    public static final TableTestProgram
+            TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT =
+                    getTableTestProgram(
+                            "window-aggregate-tumble-event-time-two-phase-with-offset-distinct-split",
+                            "validates group by using tumbling window with event time with two phase aggregation with an offset",
+                            AggregatePhaseStrategy.TWO_PHASE.toString(),
+                            "TUMBLE(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '1' SECOND)",
+                            TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
+                            TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
+                            DistinctAggSplit.ENABLED);
 
     private static final String[] HOP_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-09T23:59:55, 2020-10-10T00:00:05, 4, 10, 2]",
@@ -192,7 +193,7 @@ public class WindowAggregateTestPrograms {
         "+I[c, 2020-10-10T00:00:40, 2020-10-10T00:00:50, 1, 12, 1]"
     };
 
-    static final TableTestProgram HOP_WINDOW_EVENT_TIME =
+    public static final TableTestProgram HOP_WINDOW_EVENT_TIME =
             getTableTestProgram(
                     "window-aggregate-hop-event-time",
                     "validates group by using a hop window with event time",
@@ -201,7 +202,7 @@ public class WindowAggregateTestPrograms {
                     HOP_EVENT_TIME_BEFORE_ROWS,
                     HOP_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE =
+    public static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE =
             getTableTestProgram(
                     "window-aggregate-hop-event-time-two-phase",
                     "validates group by using a hop window with event time with two phase aggregation",
@@ -210,7 +211,7 @@ public class WindowAggregateTestPrograms {
                     HOP_EVENT_TIME_BEFORE_ROWS,
                     HOP_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+    public static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
             getTableTestProgram(
                     "window-aggregate-hop-event-time-two-phase-distinct-split",
                     "validates group by using a hop window with event time with two phase aggregation",
@@ -243,7 +244,7 @@ public class WindowAggregateTestPrograms {
         "+I[c, 2020-10-10T00:00:41, 2020-10-10T00:00:51, 1, 12, 1]"
     };
 
-    static final TableTestProgram HOP_WINDOW_EVENT_TIME_WITH_OFFSET =
+    public static final TableTestProgram HOP_WINDOW_EVENT_TIME_WITH_OFFSET =
             getTableTestProgram(
                     "window-aggregate-hop-event-time-with-offset",
                     "validates group by using a hop window with event time with an offset",
@@ -252,7 +253,7 @@ public class WindowAggregateTestPrograms {
                     HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS);
 
-    static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET =
+    public static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET =
             getTableTestProgram(
                     "window-aggregate-hop-event-time-two-phase-with-offset",
                     "validates group by using a hop window with event time with two phase aggregation with an offset",
@@ -261,15 +262,16 @@ public class WindowAggregateTestPrograms {
                     HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS);
 
-    static final TableTestProgram HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT =
-            getTableTestProgram(
-                    "window-aggregate-hop-event-time-two-phase-with-offset-distinct-split",
-                    "validates group by using a hop window with event time with two phase aggregation with an offset",
-                    AggregatePhaseStrategy.TWO_PHASE.toString(),
-                    "HOP(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND, INTERVAL '1' SECOND)",
-                    HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
-                    HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
-                    DistinctAggSplit.ENABLED);
+    public static final TableTestProgram
+            HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT =
+                    getTableTestProgram(
+                            "window-aggregate-hop-event-time-two-phase-with-offset-distinct-split",
+                            "validates group by using a hop window with event time with two phase aggregation with an offset",
+                            AggregatePhaseStrategy.TWO_PHASE.toString(),
+                            "HOP(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND, INTERVAL '1' SECOND)",
+                            HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
+                            HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
+                            DistinctAggSplit.ENABLED);
 
     private static final String[] CUMULATE_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:05, 4, 10, 2]",
@@ -294,7 +296,7 @@ public class WindowAggregateTestPrograms {
         "+I[null, 2020-10-10T00:00:30, 2020-10-10T00:00:45, 1, 7, 0]"
     };
 
-    static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME =
+    public static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME =
             getTableTestProgram(
                     "window-aggregate-cumulate-event-time",
                     "validates group by using cumulate window with event time",
@@ -303,7 +305,7 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_BEFORE_ROWS,
                     CUMULATE_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE =
+    public static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE =
             getTableTestProgram(
                     "window-aggregate-cumulate-event-time-two-phase",
                     "validates group by using cumulate window with event time with two phase aggregation",
@@ -312,7 +314,7 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_BEFORE_ROWS,
                     CUMULATE_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+    public static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
             getTableTestProgram(
                     "window-aggregate-cumulate-event-time-two-phase-distinct-split",
                     "validates group by using cumulate window with event time with two phase aggregation with distinct split",
@@ -346,7 +348,7 @@ public class WindowAggregateTestPrograms {
         "+I[null, 2020-10-10T00:00:31, 2020-10-10T00:00:46, 1, 7, 0]"
     };
 
-    static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET =
+    public static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET =
             getTableTestProgram(
                     "window-aggregate-cumulate-event-time-with-offset",
                     "validates group by using cumulate window with event time with an offset",
@@ -355,7 +357,7 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS);
 
-    static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET =
+    public static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET =
             getTableTestProgram(
                     "window-aggregate-cumulate-event-time-two-phase-with-offset",
                     "validates group by using cumulate window with event time with two phase aggregation with an offset",
@@ -364,7 +366,7 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS);
 
-    static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET_DISTINCT_SPLIT =
+    public static final TableTestProgram CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET_DISTINCT_SPLIT =
             getTableTestProgram(
                     "window-aggregate-cumulate-event-time-with-offset-distinct-split",
                     "validates group by using cumulate window with event time with an offset",
@@ -402,7 +404,7 @@ public class WindowAggregateTestPrograms {
         "+U[d, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 2, 24, 2]"
     };
 
-    static final TableTestProgram SESSION_WINDOW_EVENT_TIME =
+    public static final TableTestProgram SESSION_WINDOW_EVENT_TIME =
             getTableTestProgram(
                     "window-aggregate-session-event-time",
                     "validates group by using session window with event time",
@@ -411,7 +413,7 @@ public class WindowAggregateTestPrograms {
                     SESSION_EVENT_TIME_BEFORE_ROWS,
                     SESSION_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram SESSION_WINDOW_EVENT_TIME_TWO_PHASE =
+    public static final TableTestProgram SESSION_WINDOW_EVENT_TIME_TWO_PHASE =
             getTableTestProgram(
                     "window-aggregate-session-event-time-two-phase",
                     "validates group by using session window with event time with two phase aggregation",
@@ -420,7 +422,7 @@ public class WindowAggregateTestPrograms {
                     SESSION_EVENT_TIME_BEFORE_ROWS,
                     SESSION_EVENT_TIME_AFTER_ROWS);
 
-    static final TableTestProgram SESSION_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+    public static final TableTestProgram SESSION_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
             getTableTestProgram(
                     "window-aggregate-session-event-time-two-phase-distinct-split",
                     "validates group by using session window with event time with two phase aggregation",
@@ -444,7 +446,7 @@ public class WindowAggregateTestPrograms {
         "+I[d, 2020-10-10T00:00:42, 2020-10-10T00:00:49, 2, 24, 2]"
     };
 
-    static final TableTestProgram SESSION_WINDOW_PARTITION_EVENT_TIME =
+    public static final TableTestProgram SESSION_WINDOW_PARTITION_EVENT_TIME =
             getTableTestProgram(
                     "window-aggregate-session-partition-event-time",
                     "validates group by using session window with event time",
@@ -453,7 +455,7 @@ public class WindowAggregateTestPrograms {
                     SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
                     SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS);
 
-    static final TableTestProgram SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE =
+    public static final TableTestProgram SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE =
             getTableTestProgram(
                     "window-aggregate-session-partition-event-time-two-phase",
                     "validates group by using session window with event time with two phase aggregation",
@@ -462,15 +464,16 @@ public class WindowAggregateTestPrograms {
                     SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
                     SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS);
 
-    static final TableTestProgram SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
-            getTableTestProgram(
-                    "window-aggregate-session-partition-event-time-two-phase-distinct-split",
-                    "validates group by using session window with event time with two phase aggregation",
-                    AggregatePhaseStrategy.TWO_PHASE.toString(),
-                    "SESSION(TABLE cdc_window_source_t PARTITION BY name, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
-                    SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
-                    SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS,
-                    DistinctAggSplit.ENABLED);
+    public static final TableTestProgram
+            SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+                    getTableTestProgram(
+                            "window-aggregate-session-partition-event-time-two-phase-distinct-split",
+                            "validates group by using session window with event time with two phase aggregation",
+                            AggregatePhaseStrategy.TWO_PHASE.toString(),
+                            "SESSION(TABLE cdc_window_source_t PARTITION BY name, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                            SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
+                            SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS,
+                            DistinctAggSplit.ENABLED);
 
     private static TableTestProgram getTableTestProgram(
             final String id,

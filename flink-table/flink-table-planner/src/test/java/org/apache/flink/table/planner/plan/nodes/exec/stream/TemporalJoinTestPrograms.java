@@ -117,7 +117,7 @@ public class TemporalJoinTestPrograms {
                     .consumedBeforeRestore("+I[102]", "+I[228]", "+I[348]", "+I[50]")
                     .consumedAfterRestore("+I[103]", "+I[119]")
                     .build();
-    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN =
+    public static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN =
             TableTestProgram.of("temporal-join-table-join", "validates temporal join with a table")
                     .setupTableSource(ORDERS)
                     .setupTableSource(RATES)
@@ -130,7 +130,7 @@ public class TemporalJoinTestPrograms {
                                     + "ON o.currency = r.currency ")
                     .build();
 
-    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_NESTED_KEY =
+    public static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_NESTED_KEY =
             TableTestProgram.of(
                             "temporal-join-table-join-nested-key",
                             "validates temporal join with a table when the join keys comes from a nested row")
@@ -145,7 +145,7 @@ public class TemporalJoinTestPrograms {
                                     + "ON (case when o.nested_row.currency = 'usd' then upper(o.nested_row.currency) ELSE o.nested_row.currency END) = r.currency ")
                     .build();
 
-    static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_KEY_FROM_MAP =
+    public static final TableTestProgram TEMPORAL_JOIN_TABLE_JOIN_KEY_FROM_MAP =
             TableTestProgram.of(
                             "temporal-join-table-join-key-from-map",
                             "validates temporal join with a table when the join key comes from a map value")
@@ -160,7 +160,7 @@ public class TemporalJoinTestPrograms {
                                     + "ON o.nested_map['currency'] = r.currency ")
                     .build();
 
-    static final TableTestProgram TEMPORAL_JOIN_TEMPORAL_FUNCTION =
+    public static final TableTestProgram TEMPORAL_JOIN_TEMPORAL_FUNCTION =
             TableTestProgram.of(
                             "temporal-join-temporal-function",
                             "validates temporal join with a temporal function")

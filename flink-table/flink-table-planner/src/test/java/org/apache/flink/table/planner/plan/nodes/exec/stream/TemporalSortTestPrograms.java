@@ -42,7 +42,7 @@ public class TemporalSortTestPrograms {
     static final Row[] AFTER_DATA = {
         Row.of("2020-10-10 00:00:40", 10, 3d), Row.of("2020-10-10 00:00:42", 11, 4d)
     };
-    static final TableTestProgram TEMPORAL_SORT_PROCTIME =
+    public static final TableTestProgram TEMPORAL_SORT_PROCTIME =
             TableTestProgram.of(
                             "temporal-sort-proctime", "validates temporal sort node with proctime")
                     .setupTableSource(
@@ -69,7 +69,7 @@ public class TemporalSortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a from source_t ORDER BY proctime")
                     .build();
 
-    static final TableTestProgram TEMPORAL_SORT_ROWTIME =
+    public static final TableTestProgram TEMPORAL_SORT_ROWTIME =
             TableTestProgram.of(
                             "temporal-sort-rowtime", "validates temporal sort node with rowtime")
                     .setupTableSource(

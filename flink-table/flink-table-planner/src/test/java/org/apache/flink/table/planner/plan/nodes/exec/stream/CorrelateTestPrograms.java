@@ -36,7 +36,7 @@ public class CorrelateTestPrograms {
 
     static final String[] SOURCE_SCHEMA = {"a BIGINT", "b INT NOT NULL", "c VARCHAR"};
 
-    static final TableTestProgram CORRELATE_CATALOG_FUNC =
+    public static final TableTestProgram CORRELATE_CATALOG_FUNC =
             TableTestProgram.of(
                             "correlate-catalog-func",
                             "validate correlate with temporary catalog function")
@@ -65,7 +65,7 @@ public class CorrelateTestPrograms {
                             "INSERT INTO sink_t SELECT c, s FROM source_t, LATERAL TABLE(func1(c, '$')) AS T(s)")
                     .build();
 
-    static final TableTestProgram CORRELATE_SYSTEM_FUNC =
+    public static final TableTestProgram CORRELATE_SYSTEM_FUNC =
             TableTestProgram.of(
                             "correlate-system-func",
                             "validate correlate with temporary system function")
@@ -94,7 +94,7 @@ public class CorrelateTestPrograms {
                             "INSERT INTO sink_t SELECT c, s FROM source_t, LATERAL TABLE(STRING_SPLIT(c, '#')) AS T(s)")
                     .build();
 
-    static final TableTestProgram CORRELATE_JOIN_FILTER =
+    public static final TableTestProgram CORRELATE_JOIN_FILTER =
             TableTestProgram.of("correlate-join-filter", "validate correlate with join and filter")
                     .setupTemporaryCatalogFunction("func1", TableFunc1.class)
                     .setupTableSource(
@@ -114,7 +114,7 @@ public class CorrelateTestPrograms {
                             "INSERT INTO sink_t SELECT * FROM (SELECT c, s FROM source_t, LATERAL TABLE(func1(c)) AS T(s)) AS T2 WHERE c LIKE '%hello%' OR c LIKE '%fiz%'")
                     .build();
 
-    static final TableTestProgram CORRELATE_LEFT_JOIN =
+    public static final TableTestProgram CORRELATE_LEFT_JOIN =
             TableTestProgram.of("correlate-left-join", "validate correlate with left join")
                     .setupTemporaryCatalogFunction("func1", TableFunc1.class)
                     .setupTableSource(
@@ -141,7 +141,7 @@ public class CorrelateTestPrograms {
                             "INSERT INTO sink_t SELECT c, s FROM source_t LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON TRUE")
                     .build();
 
-    static final TableTestProgram CORRELATE_CROSS_JOIN_UNNEST =
+    public static final TableTestProgram CORRELATE_CROSS_JOIN_UNNEST =
             TableTestProgram.of(
                             "correlate-cross-join-unnest",
                             "validate correlate with cross join and unnest")

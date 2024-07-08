@@ -29,7 +29,7 @@ import org.apache.flink.types.RowKind;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecExpand}. */
 public class ExpandTestPrograms {
 
-    static final TableTestProgram EXPAND =
+    public static final TableTestProgram EXPAND =
             TableTestProgram.of("expand", "validates expand node")
                     .setupConfig(
                             OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,

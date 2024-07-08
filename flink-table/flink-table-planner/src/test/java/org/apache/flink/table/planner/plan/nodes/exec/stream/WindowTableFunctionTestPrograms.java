@@ -110,7 +110,7 @@ public class WindowTableFunctionTestPrograms {
                     + "     %s\n"
                     + " GROUP BY window_start, window_end";
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF =
             TableTestProgram.of(
                             "window-table-function-tumble-tvf",
                             "validates window table function using tumble tvf windows")
@@ -133,7 +133,7 @@ public class WindowTableFunctionTestPrograms {
                     .runSql(String.format(QUERY_TVF, String.format(TUMBLE_TVF, "bid_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_POSITIVE_OFFSET =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_POSITIVE_OFFSET =
             TableTestProgram.of(
                             "window-table-function-tumble-tvf-positive-offset",
                             "validates window table function using tumble tvf windows with positive offset")
@@ -158,7 +158,7 @@ public class WindowTableFunctionTestPrograms {
                                     QUERY_TVF, String.format(TUMBLE_TVF_OFFSET, "bid_time", "6")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_NEGATIVE_OFFSET =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_NEGATIVE_OFFSET =
             TableTestProgram.of(
                             "window-table-function-tumble-tvf-negative-offset",
                             "validates window table function using tumble tvf windows with negative offset")
@@ -183,7 +183,7 @@ public class WindowTableFunctionTestPrograms {
                                     QUERY_TVF, String.format(TUMBLE_TVF_OFFSET, "bid_time", "-6")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG =
             TableTestProgram.of(
                             "window-table-function-tumble-tvf-agg",
                             "validates window table function using tumble tvf windows with aggregation")
@@ -200,7 +200,7 @@ public class WindowTableFunctionTestPrograms {
                     .runSql(String.format(QUERY_TVF_AGG, String.format(TUMBLE_TVF, "bid_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG_PROC_TIME =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG_PROC_TIME =
             TableTestProgram.of(
                             "window-table-function-tumble-tvf-agg-proc-time",
                             "validates window table function using tumble tvf windows with aggregation and processing time")
@@ -217,7 +217,7 @@ public class WindowTableFunctionTestPrograms {
                                     String.format(TUMBLE_TVF, "proc_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_HOP_TVF =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_HOP_TVF =
             TableTestProgram.of(
                             "window-table-function-hop-tvf",
                             "validates window table function using hop tvf windows")
@@ -248,7 +248,7 @@ public class WindowTableFunctionTestPrograms {
                     .runSql(String.format(QUERY_TVF, String.format(HOP_TVF, "bid_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_HOP_TVF_AGG =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_HOP_TVF_AGG =
             TableTestProgram.of(
                             "window-table-function-hop-tvf-agg",
                             "validates window table function using hop tvf windows with aggregation")
@@ -268,7 +268,7 @@ public class WindowTableFunctionTestPrograms {
                     .runSql(String.format(QUERY_TVF_AGG, String.format(HOP_TVF, "bid_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_HOP_TVF_AGG_PROC_TIME =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_HOP_TVF_AGG_PROC_TIME =
             TableTestProgram.of(
                             "window-table-function-hop-tvf-agg-proc-time",
                             "validates window table function using hop tvf windows with aggregation and processing time")
@@ -284,7 +284,7 @@ public class WindowTableFunctionTestPrograms {
                                     QUERY_TVF_AGG_PROC_TIME, String.format(HOP_TVF, "proc_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_CUMULATE_TVF =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_CUMULATE_TVF =
             TableTestProgram.of(
                             "window-table-function-cumulate-tvf",
                             "validates window table function using cumulate tvf windows")
@@ -310,7 +310,7 @@ public class WindowTableFunctionTestPrograms {
                     .runSql(String.format(QUERY_TVF, String.format(CUMULATE_TVF, "bid_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG =
             TableTestProgram.of(
                             "window-table-function-cumulate-tvf-agg",
                             "validates window table function using cumulate tvf windows with aggregation")
@@ -329,7 +329,7 @@ public class WindowTableFunctionTestPrograms {
                     .runSql(String.format(QUERY_TVF_AGG, String.format(CUMULATE_TVF, "bid_time")))
                     .build();
 
-    static final TableTestProgram WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG_PROC_TIME =
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG_PROC_TIME =
             TableTestProgram.of(
                             "window-table-function-cumulate-tvf-agg-proc-time",
                             "validates window table function using cumulate tvf windows with aggregation")

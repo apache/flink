@@ -25,20 +25,20 @@ import org.apache.flink.types.Row;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecJoin}. */
 public class JoinTestPrograms {
-    static final TableTestProgram NON_WINDOW_INNER_JOIN;
-    static final TableTestProgram NON_WINDOW_INNER_JOIN_WITH_NULL;
-    static final TableTestProgram CROSS_JOIN;
-    static final TableTestProgram JOIN_WITH_FILTER;
-    static final TableTestProgram INNER_JOIN_WITH_DUPLICATE_KEY;
-    static final TableTestProgram INNER_JOIN_WITH_NON_EQUI_JOIN;
-    static final TableTestProgram INNER_JOIN_WITH_EQUAL_PK;
-    static final TableTestProgram INNER_JOIN_WITH_PK;
-    static final TableTestProgram LEFT_JOIN;
-    static final TableTestProgram FULL_OUTER;
-    static final TableTestProgram RIGHT_JOIN;
-    static final TableTestProgram SEMI_JOIN;
-    static final TableTestProgram ANTI_JOIN;
-    static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
+    public static final TableTestProgram NON_WINDOW_INNER_JOIN;
+    public static final TableTestProgram NON_WINDOW_INNER_JOIN_WITH_NULL;
+    public static final TableTestProgram CROSS_JOIN;
+    public static final TableTestProgram JOIN_WITH_FILTER;
+    public static final TableTestProgram INNER_JOIN_WITH_DUPLICATE_KEY;
+    public static final TableTestProgram INNER_JOIN_WITH_NON_EQUI_JOIN;
+    public static final TableTestProgram INNER_JOIN_WITH_EQUAL_PK;
+    public static final TableTestProgram INNER_JOIN_WITH_PK;
+    public static final TableTestProgram LEFT_JOIN;
+    public static final TableTestProgram FULL_OUTER;
+    public static final TableTestProgram RIGHT_JOIN;
+    public static final TableTestProgram SEMI_JOIN;
+    public static final TableTestProgram ANTI_JOIN;
+    public static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
