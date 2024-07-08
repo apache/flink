@@ -41,13 +41,10 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
 
@@ -61,9 +58,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause. */
 class MergeTableLikeUtil {
@@ -242,7 +236,7 @@ class MergeTableLikeUtil {
         return options;
     }
 
-    private static class SchemaBuilder {
+    private static class SchemaBuilder extends SchemaBuilderUtil {
 
         Map<String, UnresolvedColumn> columns = new LinkedHashMap<>();
         Map<String, UnresolvedWatermarkSpec> watermarkSpecs = new HashMap<>();
@@ -253,10 +247,7 @@ class MergeTableLikeUtil {
         Map<String, RelDataType> metadataFieldNamesToTypes = new LinkedHashMap<>();
         Map<String, RelDataType> computedFieldNamesToTypes = new LinkedHashMap<>();
 
-        Function<SqlNode, String> escapeExpressions;
         FlinkTypeFactory typeFactory;
-        SqlValidator sqlValidator;
-        DataTypeFactory dataTypeFactory;
 
         SchemaBuilder(
                 Map<FeatureOption, MergingStrategy> mergingStrategies,
@@ -265,10 +256,9 @@ class MergeTableLikeUtil {
                 DataTypeFactory dataTypeFactory,
                 SqlValidator sqlValidator,
                 Function<SqlNode, String> escapeExpressions) {
+            super(sqlValidator, escapeExpressions, dataTypeFactory);
             this.typeFactory = typeFactory;
-            this.dataTypeFactory = dataTypeFactory;
-            this.sqlValidator = sqlValidator;
-            this.escapeExpressions = escapeExpressions;
+
             populateColumnsFromSourceTable(mergingStrategies, sourceSchema);
             populateWatermarksFromSourceTable(mergingStrategies, sourceSchema);
             populatePrimaryKeyFromSourceTable(mergingStrategies, sourceSchema);
@@ -279,10 +269,7 @@ class MergeTableLikeUtil {
             for (UnresolvedColumn sourceColumn : sourceSchema.getColumns()) {
                 if (sourceColumn instanceof UnresolvedPhysicalColumn) {
                     LogicalType columnType =
-                            dataTypeFactory
-                                    .createDataType(
-                                            ((UnresolvedPhysicalColumn) sourceColumn).getDataType())
-                                    .getLogicalType();
+                            getLogicalType((UnresolvedPhysicalColumn) sourceColumn);
                     physicalFieldNamesToTypes.put(
                             sourceColumn.getName(),
                             typeFactory.createFieldTypeFromLogicalType(columnType));
@@ -442,20 +429,10 @@ class MergeTableLikeUtil {
 
             for (SqlNode derivedColumn : derivedColumns) {
                 final String name = ((SqlTableColumn) derivedColumn).getName().getSimple();
-                final String comment =
-                        ((SqlTableColumn) derivedColumn)
-                                .getComment()
-                                .map(c -> ((SqlLiteral) c).getValueAs(String.class))
-                                .orElse(null);
+
                 final UnresolvedColumn column;
                 if (derivedColumn instanceof SqlRegularColumn) {
-                    final LogicalType logicalType =
-                            FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
-                    column =
-                            new UnresolvedPhysicalColumn(
-                                    name,
-                                    TypeConversions.fromLogicalToDataType(logicalType),
-                                    comment);
+                    column = toUnresolvedPhysicalColumn((SqlRegularColumn) derivedColumn);
                 } else if (derivedColumn instanceof SqlComputedColumn) {
                     final SqlComputedColumn computedColumn = (SqlComputedColumn) derivedColumn;
                     if (physicalFieldNamesToTypes.containsKey(name)) {
@@ -494,10 +471,8 @@ class MergeTableLikeUtil {
                     final RelDataType validatedType =
                             sqlValidator.getValidatedNodeType(validatedExpr);
                     column =
-                            new UnresolvedComputedColumn(
-                                    name,
-                                    new SqlCallExpression(escapeExpressions.apply(validatedExpr)),
-                                    comment);
+                            toUnresolvedComputedColumn(
+                                    (SqlComputedColumn) derivedColumn, accessibleFieldNamesToTypes);
                     computedFieldNamesToTypes.put(name, validatedType);
                 } else if (derivedColumn instanceof SqlMetadataColumn) {
                     final SqlMetadataColumn metadataColumn = (SqlMetadataColumn) derivedColumn;
@@ -527,16 +502,8 @@ class MergeTableLikeUtil {
                         }
                     }
 
-                    SqlDataTypeSpec type = metadataColumn.getType();
-                    boolean nullable = type.getNullable() == null || type.getNullable();
-                    RelDataType relType = type.deriveType(sqlValidator, nullable);
-                    column =
-                            new UnresolvedMetadataColumn(
-                                    name,
-                                    fromLogicalToDataType(toLogicalType(relType)),
-                                    metadataColumn.getMetadataAlias().orElse(null),
-                                    metadataColumn.isVirtual(),
-                                    comment);
+                    RelDataType relType = toRelDataType(metadataColumn.getType());
+                    column = toUnresolvedMetadataColumn((SqlMetadataColumn) derivedColumn);
                     metadataFieldNamesToTypes.put(name, relType);
                 } else {
                     throw new ValidationException("Unsupported column type: " + derivedColumn);
@@ -556,9 +523,7 @@ class MergeTableLikeUtil {
                                         "A column named '%s' already exists in the base table.",
                                         name));
                     }
-                    SqlDataTypeSpec type = regularColumn.getType();
-                    boolean nullable = type.getNullable() == null || type.getNullable();
-                    RelDataType relType = type.deriveType(sqlValidator, nullable);
+                    RelDataType relType = toRelDataType(regularColumn.getType());
                     // add field name and field type to physical field list
                     RelDataType oldType = physicalFieldNamesToTypes.put(name, relType);
                     if (oldType != null) {
