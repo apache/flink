@@ -28,7 +28,7 @@ under the License.
 
 Flink SQL supports the following Materialized Table statements for now:
 - [CREATE MATERIALIZED TABLE](#create-materialized-table)
-- [Alter MATERIALIZED TABLE](#alter-materialized-table)
+- [ALTER MATERIALIZED TABLE](#alter-materialized-table)
 - [DROP MATERIALIZED TABLE](#drop-materialized-table)
 
 # CREATE MATERIALIZED TABLE
@@ -60,7 +60,7 @@ AS <select_statement>
 
 ## PARTITIONED BY
 
-`PARTITIONED BY` define an optional list of columns to partition the materialized table. A directory is created for each partition if this materialized table is used as a filesystem sink.
+`PARTITIONED BY` defines an optional list of columns to partition the materialized table. A directory is created for each partition if this materialized table is used as a filesystem sink.
 
 **Example:**
 
@@ -96,12 +96,12 @@ CREATE MATERIALIZED TABLE my_materialized_table
 As shown in the above example, we specified the date-formatter option for the `ds` partition column. During each scheduling, the scheduling time will be converted to the ds partition value. For example, for a scheduling time of `2024-01-01 00:00:00`, only the partition `ds = '2024-01-01'` will be refreshed.
 
 <span class="label label-danger">Note</span>
-- The `partition.fields.#.date-formatter` option only works in full mode.
+- The [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) option only works in full mode.
 - The field in the [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) must be a valid string type partition field.
 
 ## FRESHNESS
 
-`FRESHNESS` define the data freshness of a materialized table.
+`FRESHNESS` defines the data freshness of a materialized table.
 
 **FRESHNESS and Refresh Mode Relationship**
 
