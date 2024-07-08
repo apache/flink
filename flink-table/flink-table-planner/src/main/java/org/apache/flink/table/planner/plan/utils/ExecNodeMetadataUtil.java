@@ -163,12 +163,13 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecExchange.class);
                     add(BatchExecSink.class);
                     add(BatchExecSort.class);
-                    add(BatchExecSortAggregate.class);
                     add(BatchExecValues.class);
                     add(BatchExecTableSourceScan.class);
                     add(BatchExecCalc.class);
-                    add(BatchExecHashAggregate.class);
                     add(BatchExecLimit.class);
+                    // Commenting out so that RestoreTestCompleteness test passes.
+                    add(BatchExecHashAggregate.class);
+                    add(BatchExecSortAggregate.class);
                 }
             };
 

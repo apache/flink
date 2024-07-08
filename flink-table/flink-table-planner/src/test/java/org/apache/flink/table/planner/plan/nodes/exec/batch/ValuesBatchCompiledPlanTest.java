@@ -25,10 +25,10 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.Collections;
 import java.util.List;
 
-/** Restore tests for {@link BatchExecValues}. */
-public class ValuesRestoreTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecValues}. */
+public class ValuesBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
 
-    public ValuesRestoreTest() {
+    public ValuesBatchCompiledPlanTest() {
         super(BatchExecValues.class);
     }
 
