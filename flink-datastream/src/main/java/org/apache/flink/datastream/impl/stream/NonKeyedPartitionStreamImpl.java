@@ -120,7 +120,11 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         Arrays.asList(
                                 StateDeclaration.RedistributionMode.NONE,
                                 StateDeclaration.RedistributionMode.IDENTICAL)));
-
+        other =
+                other instanceof ProcessConfigurableAndNonKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndNonKeyedPartitionStreamImpl) other)
+                                .getNonKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputNonBroadcastProcessFunction(
                         processFunction,

@@ -246,7 +246,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                 processFunction.usesStates(),
                 new HashSet<>(
                         Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
-
+        other =
+                other instanceof ProcessConfigurableAndKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndKeyedPartitionStreamImpl) other)
+                                .getKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputNonBroadcastProcessFunction(
                         processFunction,
@@ -282,7 +286,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                         processFunction,
                         getType(),
                         ((KeyedPartitionStreamImpl<K, T_OTHER>) other).getType());
-
+        other =
+                other instanceof ProcessConfigurableAndKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndKeyedPartitionStreamImpl) other)
+                                .getKeyedPartitionStream()
+                        : other;
         KeyedTwoInputNonBroadcastProcessOperator<K, V, T_OTHER, OUT> processOperator =
                 new KeyedTwoInputNonBroadcastProcessOperator<>(processFunction, newKeySelector);
         Transformation<OUT> outTransformation =

@@ -96,4 +96,8 @@ public class ProcessConfigurableAndNonKeyedPartitionStreamImpl<T>
     public ProcessConfigurable<?> toSink(Sink<T> sink) {
         return stream.toSink(sink);
     }
+
+    public NonKeyedPartitionStreamImpl<T> getNonKeyedPartitionStream() {
+        return stream;
+    }
 }

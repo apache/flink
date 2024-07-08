@@ -127,4 +127,8 @@ public class ProcessConfigurableAndKeyedPartitionStreamImpl<K, T>
     public ProcessConfigurable<?> toSink(Sink<T> sink) {
         return stream.toSink(sink);
     }
+
+    public KeyedPartitionStreamImpl<K, T> getKeyedPartitionStream() {
+        return stream;
+    }
 }
