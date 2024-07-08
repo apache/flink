@@ -18,10 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.configuration.ReadableConfig;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExpand;
 import org.apache.flink.table.types.logical.RowType;
@@ -32,6 +38,12 @@ import java.util.Collections;
 import java.util.List;
 
 /** Batch {@link ExecNode} that can expand one row to multiple rows based on given projects. */
+@ExecNodeMetadata(
+        name = "batch-exec-expand",
+        version = 1,
+        producedTransformations = CommonExecExpand.EXPAND_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<RowData> {
 
     public BatchExecExpand(
@@ -44,6 +56,26 @@ public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<R
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecExpand.class),
                 ExecNodeContext.newPersistedConfig(BatchExecExpand.class, tableConfig),
+                projects,
+                false, // retainHeader
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public BatchExecExpand(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_PROJECTS) List<List<RexNode>> projects,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                persistedConfig,
                 projects,
                 false, // retainHeader
                 Collections.singletonList(inputProperty),
