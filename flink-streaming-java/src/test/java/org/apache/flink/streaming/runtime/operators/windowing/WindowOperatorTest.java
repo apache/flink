@@ -84,6 +84,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -3069,6 +3070,114 @@ public class WindowOperatorTest extends TestLogger {
         testHarness.close();
     }
 
+    @Test
+    public void testCleanupTimerWithEmptyStateNoResultForTumblingWindows() throws Exception {
+        final int windowSize = 2;
+        final long lateness = 1;
+
+        ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
+                new ListStateDescriptor<>(
+                        "window-contents",
+                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+
+        WindowOperator<
+                        String,
+                        Tuple2<String, Integer>,
+                        Iterable<Tuple2<String, Integer>>,
+                        Tuple2<String, Integer>,
+                        TimeWindow>
+                operator =
+                        new WindowOperator<>(
+                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                new TimeWindow.Serializer(),
+                                new TupleKeySelector(),
+                                BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                        new ExecutionConfig()),
+                                windowStateDesc,
+                                new InternalIterableWindowFunction<>(new EmptyReturnFunction()),
+                                new FireEverytimeOnElementAndEventTimeTrigger(),
+                                lateness,
+                                null /* late data output tag */);
+
+        OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
+                testHarness = createTestHarness(operator);
+
+        testHarness.open();
+
+        ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+        // normal element
+        testHarness.processElement(new StreamRecord<>(new Tuple2<>("test_key", 1), 1000));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[(test_key,1)]");
+        testHarness.processWatermark(new Watermark(1599));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[(test_key,1)]");
+        testHarness.processWatermark(new Watermark(1699));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[(test_key,1)]");
+        testHarness.processWatermark(new Watermark(1799));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[(test_key,1)]");
+        testHarness.processWatermark(new Watermark(1999));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[(test_key,1)]");
+        testHarness.processWatermark(new Watermark(2000));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[]");
+        testHarness.processWatermark(new Watermark(5000));
+        assertThat(
+                        operator.processContext
+                                .windowState()
+                                .getListState(windowStateDesc)
+                                .get()
+                                .toString())
+                .isEqualTo("[]");
+
+        expected.add(new Watermark(1599));
+        expected.add(new Watermark(1699));
+        expected.add(new Watermark(1799));
+        expected.add(new Watermark(1999)); // here it fires and purges
+        expected.add(new Watermark(2000)); // here is the cleanup timer
+        expected.add(new Watermark(5000));
+
+        TestHarnessUtil.assertOutputEqualsSorted(
+                "Output was not correct.",
+                expected,
+                testHarness.getOutput(),
+                new Tuple2ResultSortComparator());
+        testHarness.close();
+    }
+
     // ------------------------------------------------------------------------
     //  UDFs
     // ------------------------------------------------------------------------
@@ -3089,6 +3198,20 @@ public class WindowOperatorTest extends TestLogger {
                 out.collect(in);
             }
         }
+    }
+
+    private static class EmptyReturnFunction
+            implements WindowFunction<
+                    Tuple2<String, Integer>, Tuple2<String, Integer>, String, TimeWindow> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void apply(
+                String k,
+                TimeWindow window,
+                Iterable<Tuple2<String, Integer>> input,
+                Collector<Tuple2<String, Integer>> out)
+                throws Exception {}
     }
 
     private static class SumReducer implements ReduceFunction<Tuple2<String, Integer>> {
@@ -3360,5 +3483,33 @@ public class WindowOperatorTest extends TestLogger {
         public String toString() {
             return "EventTimeTrigger()";
         }
+    }
+
+    private static class FireEverytimeOnElementAndEventTimeTrigger
+            extends Trigger<Tuple2<String, Integer>, TimeWindow> {
+        @Override
+        public TriggerResult onElement(
+                Tuple2<String, Integer> element,
+                long timestamp,
+                TimeWindow window,
+                TriggerContext ctx)
+                throws Exception {
+            return TriggerResult.FIRE;
+        }
+
+        @Override
+        public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx)
+                throws Exception {
+            return TriggerResult.FIRE;
+        }
+
+        @Override
+        public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx)
+                throws Exception {
+            return TriggerResult.FIRE;
+        }
+
+        @Override
+        public void clear(TimeWindow window, TriggerContext ctx) throws Exception {}
     }
 }
