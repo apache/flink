@@ -22,6 +22,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
@@ -44,6 +45,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR;
 import static org.apache.flink.test.checkpointing.ResumeCheckpointManuallyITCase.runJobAndGetExternalizedCheckpoint;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -115,7 +118,8 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             firstCluster,
                             restoreMode,
                             config,
-                            consecutiveCheckpoint);
+                            consecutiveCheckpoint,
+                            true);
             assertThat(firstCheckpoint).isNotNull();
             verifyStateHandleType(firstCheckpoint, firstFileMergingSwitch);
         } finally {
@@ -142,7 +146,8 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             secondCluster,
                             restoreMode,
                             config,
-                            consecutiveCheckpoint);
+                            consecutiveCheckpoint,
+                            true);
             assertThat(secondCheckpoint).isNotNull();
             verifyStateHandleType(secondCheckpoint, secondFileMergingSwitch);
         } finally {
@@ -159,20 +164,58 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                                 .setNumberSlotsPerTaskManager(2)
                                 .build());
         thirdCluster.before();
+        String thirdCheckpoint;
         try {
-            String thirdCheckpoint =
+            thirdCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
                             stateBackend3,
                             secondCheckpoint,
                             thirdCluster,
                             restoreMode,
                             config,
-                            consecutiveCheckpoint);
+                            consecutiveCheckpoint,
+                            true);
             assertThat(thirdCheckpoint).isNotNull();
             verifyStateHandleType(thirdCheckpoint, secondFileMergingSwitch);
         } finally {
             thirdCluster.after();
         }
+
+        // We config ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION here.
+        EmbeddedRocksDBStateBackend stateBackend4 = new EmbeddedRocksDBStateBackend();
+        stateBackend4.configure(config, Thread.currentThread().getContextClassLoader());
+        MiniClusterWithClientResource fourthCluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(config)
+                                .setNumberTaskManagers(3)
+                                .setNumberSlotsPerTaskManager(2)
+                                .build());
+        fourthCluster.before();
+        String fourthCheckpoint;
+        try {
+            fourthCheckpoint =
+                    runJobAndGetExternalizedCheckpoint(
+                            stateBackend4,
+                            thirdCheckpoint,
+                            fourthCluster,
+                            restoreMode,
+                            config,
+                            consecutiveCheckpoint,
+                            false);
+            assertThat(fourthCheckpoint).isNotNull();
+        } finally {
+            fourthCluster.after();
+        }
+
+        waitUntilNoJobThreads();
+        verifyCheckpointExist(
+                firstCheckpoint, restoreMode != RestoreMode.CLAIM, firstFileMergingSwitch);
+        verifyCheckpointExist(
+                secondCheckpoint, restoreMode != RestoreMode.CLAIM, secondFileMergingSwitch);
+        verifyCheckpointExist(
+                thirdCheckpoint, restoreMode != RestoreMode.CLAIM, secondFileMergingSwitch);
+        verifyCheckpointExist(fourthCheckpoint, false, secondFileMergingSwitch);
     }
 
     private void verifyStateHandleType(String checkpointPath, boolean fileMergingEnabled)
@@ -204,5 +247,50 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
             }
         }
         assertThat(hasKeyedState).isTrue();
+    }
+
+    private static void waitUntilNoJobThreads() throws InterruptedException {
+        SecurityManager securityManager = System.getSecurityManager();
+        ThreadGroup group =
+                (securityManager != null)
+                        ? securityManager.getThreadGroup()
+                        : Thread.currentThread().getThreadGroup();
+
+        boolean jobThreads = true;
+        while (jobThreads) {
+            jobThreads = false;
+            Thread[] activeThreads = new Thread[group.activeCount() * 2];
+            group.enumerate(activeThreads);
+            for (Thread thread : activeThreads) {
+                if (thread != null
+                        && thread != Thread.currentThread()
+                        && thread.getName().contains("jobmanager")) {
+                    jobThreads = true;
+                    Thread.sleep(500);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void verifyCheckpointExist(
+            String checkpointPath, boolean exist, boolean fileMergingEnabled) throws IOException {
+        org.apache.flink.core.fs.Path checkpointDir =
+                new org.apache.flink.core.fs.Path(checkpointPath);
+        FileSystem fs = checkpointDir.getFileSystem();
+        assertThat(fs.exists(checkpointDir)).isEqualTo(exist);
+        org.apache.flink.core.fs.Path baseDir = checkpointDir.getParent();
+        assertThat(fs.exists(baseDir)).isTrue();
+        org.apache.flink.core.fs.Path sharedFile =
+                new org.apache.flink.core.fs.Path(baseDir, CHECKPOINT_SHARED_STATE_DIR);
+        assertThat(fs.exists(sharedFile)).isTrue();
+        assertThat(fs.listStatus(sharedFile) != null && fs.listStatus(sharedFile).length > 0)
+                .isEqualTo(exist);
+        org.apache.flink.core.fs.Path taskOwnedFile =
+                new org.apache.flink.core.fs.Path(baseDir, CHECKPOINT_TASK_OWNED_STATE_DIR);
+        assertThat(fs.exists(taskOwnedFile)).isTrue();
+        // Since there is no exclusive state, we should consider fileMergingEnabled.
+        assertThat(fs.exists(taskOwnedFile) && fs.listStatus(taskOwnedFile).length > 0)
+                .isEqualTo(exist && fileMergingEnabled);
     }
 }

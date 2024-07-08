@@ -404,7 +404,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             throws Exception {
         // complete at least two checkpoints so that the initial checkpoint can be subsumed
         return runJobAndGetExternalizedCheckpoint(
-                backend, externalCheckpoint, cluster, restoreMode, new Configuration(), 2);
+                backend, externalCheckpoint, cluster, restoreMode, new Configuration(), 2, true);
     }
 
     static String runJobAndGetExternalizedCheckpoint(
@@ -413,9 +413,11 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             MiniClusterWithClientResource cluster,
             RestoreMode restoreMode,
             Configuration jobConfig,
-            int consecutiveCheckpoints)
+            int consecutiveCheckpoints,
+            boolean retainCheckpoints)
             throws Exception {
-        JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint, restoreMode, jobConfig);
+        JobGraph initialJobGraph =
+                getJobGraph(backend, externalCheckpoint, restoreMode, jobConfig, retainCheckpoints);
         NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
         cluster.getClusterClient().submitJob(initialJobGraph).get();
 
@@ -439,7 +441,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             StateBackend backend,
             @Nullable String externalCheckpoint,
             RestoreMode restoreMode,
-            Configuration jobConfig) {
+            Configuration jobConfig,
+            boolean retainCheckpoints) {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(jobConfig);
 
@@ -448,7 +451,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
-                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
+                        retainCheckpoints
+                                ? ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION
+                                : ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         env.addSource(new NotifyingInfiniteTupleSource(10_000))
