@@ -45,8 +45,8 @@ Data freshness is a crucial attribute of a materialized table, serving two main 
     - CONTINUOUS mode: Launches a Flink streaming job that continuously refreshes the materialized table data.
     - FULL mode: The workflow scheduler periodically triggers a Flink batch job to refresh the materialized table data.
 - **Determining the Refresh Frequency**.
-    - In CONTINUOUS mode, data freshness is converted into the `checkpoint` interval of the Flink streaming job currently.
-    - In FULL mode, data freshness is converted into the scheduling cycle of the workflow, e.g. cron expression.
+    - In CONTINUOUS mode, data freshness is converted into the `checkpoint` interval of the Flink streaming job.
+    - In FULL mode, data freshness is converted into the scheduling cycle of the workflow, e.g., a cron expression.
 
 ## Refresh Mode
 
