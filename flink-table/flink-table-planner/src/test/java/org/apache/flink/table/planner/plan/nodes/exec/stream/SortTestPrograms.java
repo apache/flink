@@ -73,6 +73,8 @@ public class SortTestPrograms {
                                             "+I[1, a, 5]",
                                             "-D[4, b, 8]",
                                             "+I[3, b, 7]")
+                                    .expectedBatchStrings(
+                                            "+I[2, a, 6]", "+I[1, a, 5]", "+I[3, b, 7]")
                                     // Since the same data is replayed after restore the heap state
                                     // is restored and updated.
                                     // The final state of the heap is shown below with every
@@ -118,6 +120,8 @@ public class SortTestPrograms {
                                             "+I[3, b, 7]",
                                             "-D[3, b, 7]",
                                             "+I[5, c, 9]")
+                                    .expectedBatchStrings(
+                                            "+I[4, b, 8]", "+I[6, c, 10]", "+I[5, c, 9]")
                                     // heap state
                                     //       [5, c, 9]
                                     // [6, c, 10]  [6, c, 10]

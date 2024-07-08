@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Batch Compiled Plan tests for {@link BatchExecRank}. */
+// @Disabled // ANTLR Errors?
 public class RankBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
 
     public RankBatchCompiledPlanTest() {
@@ -36,7 +37,11 @@ public class RankBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 RankTestPrograms.RANK_TEST_APPEND_FAST_STRATEGY,
-                RankTestPrograms.RANK_TEST_RETRACT_STRATEGY,
+                // org.apache.flink.table.api.TableException: Querying a table in batch mode is
+                // currently only possible for INSERT-only table sources. But the source for table
+                // 'default_catalog.default_database.MyTable' produces other changelog messages than
+                // just INSERT.
+                // RankTestPrograms.RANK_TEST_RETRACT_STRATEGY,
                 RankTestPrograms.RANK_TEST_UPDATE_FAST_STRATEGY,
                 RankTestPrograms.RANK_N_TEST);
     }

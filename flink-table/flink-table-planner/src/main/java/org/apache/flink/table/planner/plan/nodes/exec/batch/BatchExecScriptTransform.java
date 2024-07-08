@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -30,27 +31,48 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.runtime.script.ScriptTransformIOInfo;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.lang.reflect.Constructor;
 import java.util.Collections;
 
+import static org.apache.flink.table.planner.plan.abilities.source.AggregatePushDownSpec.FIELD_NAME_INPUT_TYPE;
+
 /** Batch {@link ExecNode} for ScripTransform. */
+@ExecNodeMetadata(
+        name = "batch-exec-script-transform",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecScriptTransform extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+    public static final String FIELD_NAME_INPUT_INDEXES = "inputIndexes";
+    public static final String FIELD_NAME_SCRIPT = "script";
+    public static final String FIELD_NAME_SCRIPT_TRANSFORM_IO_INFO = "scriptTransformIOInfo";
 
     // currently, only Hive dialect supports ScriptTransform,
     // so make the class name of the operator constructed from this ExecNode a static field
     private static final String HIVE_SCRIPT_TRANSFORM_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.hive.script.HiveScriptTransformOperator";
 
+    @JsonProperty(FIELD_NAME_INPUT_INDEXES)
     private final int[] inputIndexes;
+
+    @JsonProperty(FIELD_NAME_SCRIPT)
     private final String script;
+
+    @JsonProperty(FIELD_NAME_SCRIPT_TRANSFORM_IO_INFO)
     private final ScriptTransformIOInfo scriptTransformIOInfo;
+
+    @JsonProperty(FIELD_NAME_INPUT_TYPE)
     private final LogicalType inputType;
 
     public BatchExecScriptTransform(
@@ -66,6 +88,33 @@ public class BatchExecScriptTransform extends ExecNodeBase<RowData>
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecLimit.class),
                 ExecNodeContext.newPersistedConfig(BatchExecLimit.class, tableConfig),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+        this.inputIndexes = inputIndexes;
+        this.script = script;
+        this.inputType = inputType;
+        this.scriptTransformIOInfo = scriptTransformIOInfo;
+    }
+
+    @JsonCreator
+    public BatchExecScriptTransform(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            // TODO: Unsure import
+            @JsonProperty(FIELD_NAME_INPUT_TYPE) LogicalType inputType,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_INPUT_INDEXES) int[] inputIndexes,
+            @JsonProperty(FIELD_NAME_SCRIPT) String script,
+            @JsonProperty(FIELD_NAME_SCRIPT_TRANSFORM_IO_INFO)
+                    ScriptTransformIOInfo scriptTransformIOInfo) {
+        super(
+                id,
+                context,
+                persistedConfig,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

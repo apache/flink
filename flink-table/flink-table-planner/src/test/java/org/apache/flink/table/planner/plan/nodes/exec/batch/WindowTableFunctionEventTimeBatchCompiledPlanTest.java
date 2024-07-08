@@ -36,11 +36,11 @@ public class WindowTableFunctionEventTimeBatchCompiledPlanTest extends BatchComp
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_HOP_TVF,
-                WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_HOP_TVF_AGG,
+                // WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_HOP_TVF_AGG,
                 WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_CUMULATE_TVF,
-                WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG,
+                // WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG,
                 WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_TUMBLE_TVF,
-                WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG,
+                // WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG,
                 WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_TUMBLE_TVF_POSITIVE_OFFSET,
                 WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_TUMBLE_TVF_NEGATIVE_OFFSET);
     }

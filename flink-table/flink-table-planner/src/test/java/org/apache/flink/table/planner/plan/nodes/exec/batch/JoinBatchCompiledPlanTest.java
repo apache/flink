@@ -37,17 +37,21 @@ public class JoinBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
         return Arrays.asList(
                 JoinTestPrograms.NON_WINDOW_INNER_JOIN,
                 JoinTestPrograms.NON_WINDOW_INNER_JOIN_WITH_NULL,
-                JoinTestPrograms.CROSS_JOIN,
+                // Requires BatchExecMultipleInputNode
+                // JoinTestPrograms.CROSS_JOIN,
                 JoinTestPrograms.JOIN_WITH_FILTER,
                 JoinTestPrograms.INNER_JOIN_WITH_DUPLICATE_KEY,
                 JoinTestPrograms.INNER_JOIN_WITH_NON_EQUI_JOIN,
-                JoinTestPrograms.INNER_JOIN_WITH_EQUAL_PK,
+                // Requires BatchExecMultipleInputNode
+                // JoinTestPrograms.INNER_JOIN_WITH_EQUAL_PK,
                 JoinTestPrograms.INNER_JOIN_WITH_PK,
                 JoinTestPrograms.FULL_OUTER,
                 JoinTestPrograms.LEFT_JOIN,
                 JoinTestPrograms.RIGHT_JOIN,
-                JoinTestPrograms.SEMI_JOIN,
-                JoinTestPrograms.ANTI_JOIN,
-                JoinTestPrograms.JOIN_WITH_STATE_TTL_HINT);
+                JoinTestPrograms.SEMI_JOIN
+                // Requires BatchExecMultipleInputNode
+                // JoinTestPrograms.ANTI_JOIN,
+                // JoinTestPrograms.JOIN_WITH_STATE_TTL_HINT
+                );
     }
 }

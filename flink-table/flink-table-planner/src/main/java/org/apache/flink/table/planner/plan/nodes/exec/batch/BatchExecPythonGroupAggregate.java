@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +38,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
@@ -45,13 +47,25 @@ import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_AGG_CALLS;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_AUX_GROUPING;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_GROUPING;
+
 /** Batch {@link ExecNode} for Python unbounded group aggregate. */
+@ExecNodeMetadata(
+        name = "batch-exec-python-group-aggregate",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -59,9 +73,16 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
             "org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch."
                     + "BatchArrowPythonGroupAggregateFunctionOperator";
 
+    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
+
+    @JsonProperty(FIELD_NAME_AUX_GROUPING)
     private final int[] auxGrouping;
+
+    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
+
+    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
 
     public BatchExecPythonGroupAggregate(
             ReadableConfig tableConfig,
@@ -76,6 +97,30 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                 ExecNodeContext.newContext(BatchExecPythonGroupAggregate.class),
                 ExecNodeContext.newPersistedConfig(
                         BatchExecPythonGroupAggregate.class, tableConfig),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+        this.grouping = grouping;
+        this.auxGrouping = auxGrouping;
+        this.aggCalls = aggCalls;
+    }
+
+    @JsonCreator
+    public BatchExecPythonGroupAggregate(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            // TODO: Wrong imports?
+            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
+            @JsonProperty(FIELD_NAME_AUX_GROUPING) int[] auxGrouping,
+            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                persistedConfig,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

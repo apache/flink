@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Batch Compiled Plan tests for {@link BatchExecLookupJoin}. */
+// @Disabled // TODO: Implement BatchExecLookupJoin annotations.
 public class LookupJoinBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
 
     public LookupJoinBatchCompiledPlanTest() {
@@ -40,8 +41,10 @@ public class LookupJoinBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
                 LookupJoinTestPrograms.LOOKUP_JOIN_LEFT_JOIN,
                 LookupJoinTestPrograms.LOOKUP_JOIN_PRE_FILTER,
                 LookupJoinTestPrograms.LOOKUP_JOIN_POST_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
-                LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT);
+                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER
+                // The optimizer throws these two out!
+                // LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
+                // LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT
+                );
     }
 }

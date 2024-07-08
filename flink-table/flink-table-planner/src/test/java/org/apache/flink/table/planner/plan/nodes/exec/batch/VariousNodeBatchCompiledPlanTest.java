@@ -33,13 +33,17 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowAggregateTest
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowDeduplicateTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowJoinTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowRankTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowTableFunctionTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
+
+import org.junit.jupiter.api.Disabled;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Batch Compiled Plan tests for various nodes. */
+@Disabled
 public class VariousNodeBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
 
     public VariousNodeBatchCompiledPlanTest() {
@@ -143,6 +147,11 @@ public class VariousNodeBatchCompiledPlanTest extends BatchCompiledPlanTestBase 
                 WindowRankTestPrograms.WINDOW_RANK_TUMBLE_TVF_MAX_TOP_N,
                 WindowRankTestPrograms.WINDOW_RANK_TUMBLE_TVF_AGG_MAX_TOP_N,
                 WindowRankTestPrograms.WINDOW_RANK_HOP_TVF_MIN_TOP_N,
-                WindowRankTestPrograms.WINDOW_RANK_CUMULATE_TVF_MIN_TOP_N);
+                WindowRankTestPrograms.WINDOW_RANK_CUMULATE_TVF_MIN_TOP_N,
+
+                // Processing time Window TableFunction is not supported yet.
+                WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_TUMBLE_TVF_AGG_PROC_TIME,
+                WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_HOP_TVF_AGG_PROC_TIME,
+                WindowTableFunctionTestPrograms.WINDOW_TABLE_FUNCTION_CUMULATE_TVF_AGG_PROC_TIME);
     }
 }

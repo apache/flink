@@ -18,21 +18,33 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCorrelate;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexCall;
 
 import java.util.Collections;
 
 /** Batch exec node which matches along with join a Python user defined table function. */
+@ExecNodeMetadata(
+        name = "batch-exec-python-correlate",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
         implements BatchExecNode<RowData> {
+
+    public static final String FIELD_NAME_INVOCATION = "invocation";
 
     public BatchExecPythonCorrelate(
             ReadableConfig tableConfig,
@@ -45,6 +57,27 @@ public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecPythonCorrelate.class),
                 ExecNodeContext.newPersistedConfig(BatchExecPythonCorrelate.class, tableConfig),
+                joinType,
+                invocation,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public BatchExecPythonCorrelate(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
+            @JsonProperty(FIELD_NAME_INVOCATION) RexCall invocation,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                persistedConfig,
                 joinType,
                 invocation,
                 Collections.singletonList(inputProperty),

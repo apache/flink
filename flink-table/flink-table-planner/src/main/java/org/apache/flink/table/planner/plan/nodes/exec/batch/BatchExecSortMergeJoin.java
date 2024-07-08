@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -28,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -41,6 +43,9 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -48,19 +53,46 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin.FIELD_NAME_JOIN_TYPE;
+import static org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec.FIELD_NAME_FILTER_NULLS;
+import static org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec.FIELD_NAME_LEFT_KEYS;
+import static org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec.FIELD_NAME_NON_EQUI_CONDITION;
+import static org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec.FIELD_NAME_RIGHT_KEYS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link BatchExecNode} for Sort Merge Join. */
+@ExecNodeMetadata(
+        name = "batch-exec-sort-merge-join",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    private static final String FIELD_NAME_LEFT_IS_SMALLER = "leftIsSmaller";
+    private static final String FIELD_NAME_LEFT_INPUT_PROPERTY = "leftInputProperty";
+    private static final String FIELD_NAME_RIGHT_INPUT_PROPERTY = "rightInputProperty";
+
+    @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
+
+    @JsonProperty(FIELD_NAME_LEFT_KEYS)
     private final int[] leftKeys;
+
+    @JsonProperty(FIELD_NAME_RIGHT_KEYS)
     private final int[] rightKeys;
+
+    @JsonProperty(FIELD_NAME_FILTER_NULLS)
     private final boolean[] filterNulls;
+
+    @JsonProperty(FIELD_NAME_NON_EQUI_CONDITION)
     private final @Nullable RexNode nonEquiCondition;
+
+    @JsonProperty(FIELD_NAME_LEFT_IS_SMALLER)
     private final boolean leftIsSmaller;
+
+    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
 
     public BatchExecSortMergeJoin(
             ReadableConfig tableConfig,
@@ -78,6 +110,39 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecSortMergeJoin.class),
                 ExecNodeContext.newPersistedConfig(BatchExecSortMergeJoin.class, tableConfig),
+                Arrays.asList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
+        this.joinType = checkNotNull(joinType);
+        this.leftKeys = checkNotNull(leftKeys);
+        this.rightKeys = checkNotNull(rightKeys);
+        this.filterNulls = checkNotNull(filterNulls);
+        checkArgument(leftKeys.length > 0 && leftKeys.length == rightKeys.length);
+        checkArgument(leftKeys.length == filterNulls.length);
+
+        this.nonEquiCondition = nonEquiCondition;
+        this.leftIsSmaller = leftIsSmaller;
+    }
+
+    @JsonCreator
+    public BatchExecSortMergeJoin(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
+            @JsonProperty(FIELD_NAME_LEFT_KEYS) int[] leftKeys,
+            @JsonProperty(FIELD_NAME_RIGHT_KEYS) int[] rightKeys,
+            @JsonProperty(FIELD_NAME_FILTER_NULLS) boolean[] filterNulls,
+            @JsonProperty(FIELD_NAME_NON_EQUI_CONDITION) RexNode nonEquiCondition,
+            @JsonProperty(FIELD_NAME_LEFT_IS_SMALLER) boolean leftIsSmaller,
+            @JsonProperty(FIELD_NAME_LEFT_INPUT_PROPERTY) InputProperty leftInputProperty,
+            @JsonProperty(FIELD_NAME_RIGHT_INPUT_PROPERTY) InputProperty rightInputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                persistedConfig,
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);

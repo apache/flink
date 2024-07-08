@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
@@ -34,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -46,25 +48,66 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 
 import java.util.Arrays;
 import java.util.Collections;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupWindowAggregate.FIELD_NAME_INPUT_TIME_FIELD_INDEX;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_AGG_CALLS;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_AGG_INPUT_ROW_TYPE;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_AUX_GROUPING;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_GROUPING;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_IS_FINAL;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate.FIELD_NAME_IS_MERGE;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortWindowAggregate.FIELD_NAME_ENABLE_ASSIGN_PANE;
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortWindowAggregate.FIELD_NAME_INPUT_TIME_IS_DATE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupWindowAggregate.FIELD_NAME_NAMED_WINDOW_PROPERTIES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupWindowAggregate.FIELD_NAME_WINDOW;
+
 /** Batch {@link ExecNode} for hash-based window aggregate operator. */
+@ExecNodeMetadata(
+        name = "batch-exec-hash-window-aggregate",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
+
+    @JsonProperty(FIELD_NAME_AUX_GROUPING)
     private final int[] auxGrouping;
+
+    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
+
+    @JsonProperty(FIELD_NAME_WINDOW)
     private final LogicalWindow window;
+
+    @JsonProperty(FIELD_NAME_INPUT_TIME_FIELD_INDEX)
     private final int inputTimeFieldIndex;
+
+    @JsonProperty(FIELD_NAME_INPUT_TIME_IS_DATE)
     private final boolean inputTimeIsDate;
+
+    @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final NamedWindowProperty[] namedWindowProperties;
+
+    @JsonProperty(FIELD_NAME_AGG_INPUT_ROW_TYPE)
     private final RowType aggInputRowType;
+
+    @JsonProperty(FIELD_NAME_ENABLE_ASSIGN_PANE)
     private final boolean enableAssignPane;
+
+    @JsonProperty(FIELD_NAME_IS_MERGE)
     private final boolean isMerge;
+
+    @JsonProperty(FIELD_NAME_IS_FINAL)
     private final boolean isFinal;
 
     public BatchExecHashWindowAggregate(
@@ -87,6 +130,46 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashWindowAggregate.class),
                 ExecNodeContext.newPersistedConfig(BatchExecHashWindowAggregate.class, tableConfig),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+        this.grouping = grouping;
+        this.auxGrouping = auxGrouping;
+        this.aggCalls = aggCalls;
+        this.window = window;
+        this.inputTimeFieldIndex = inputTimeFieldIndex;
+        this.inputTimeIsDate = inputTimeIsDate;
+        this.namedWindowProperties = namedWindowProperties;
+        this.aggInputRowType = aggInputRowType;
+        this.enableAssignPane = enableAssignPane;
+        this.isMerge = isMerge;
+        this.isFinal = isFinal;
+    }
+
+    @JsonCreator
+    public BatchExecHashWindowAggregate(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
+            @JsonProperty(FIELD_NAME_AUX_GROUPING) int[] auxGrouping,
+            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
+            @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
+            @JsonProperty(FIELD_NAME_INPUT_TIME_FIELD_INDEX) int inputTimeFieldIndex,
+            @JsonProperty(FIELD_NAME_INPUT_TIME_IS_DATE) boolean inputTimeIsDate,
+            @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
+                    NamedWindowProperty[] namedWindowProperties,
+            @JsonProperty(FIELD_NAME_AGG_INPUT_ROW_TYPE) RowType aggInputRowType,
+            @JsonProperty(FIELD_NAME_ENABLE_ASSIGN_PANE) boolean enableAssignPane,
+            @JsonProperty(FIELD_NAME_IS_MERGE) boolean isMerge,
+            @JsonProperty(FIELD_NAME_IS_FINAL) boolean isFinal,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                persistedConfig,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

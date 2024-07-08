@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
@@ -27,15 +28,30 @@ import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrateg
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecWindowTableFunction;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Batch {@link ExecNode} for window table-valued function. */
+@ExecNodeMetadata(
+        name = "batch-exec-window-table-function",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
         implements BatchExecNode<RowData> {
+    private static final String FIELD_NAME_WINDOW_STRATEGY = "windowStrategy";
+
+    @JsonProperty(FIELD_NAME_WINDOWING)
+    protected final TimeAttributeWindowingStrategy windowingStrategy;
 
     public BatchExecWindowTableFunction(
             ReadableConfig tableConfig,
@@ -51,6 +67,28 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+        checkNotNull(windowingStrategy);
+        this.windowingStrategy = windowingStrategy;
+    }
+
+    @JsonCreator
+    public BatchExecWindowTableFunction(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_WINDOWING) TimeAttributeWindowingStrategy windowingStrategy,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                persistedConfig,
+                windowingStrategy,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+        this.windowingStrategy = windowingStrategy;
     }
 
     @Override

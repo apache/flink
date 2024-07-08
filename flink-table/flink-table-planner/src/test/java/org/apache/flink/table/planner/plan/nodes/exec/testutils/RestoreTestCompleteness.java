@@ -19,6 +19,24 @@
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecInputAdapter;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCorrelate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecScriptTransform;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortLimit;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
@@ -56,6 +74,28 @@ public class RestoreTestCompleteness {
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
+
+                    add(BatchExecPythonCorrelate.class);
+                    add(BatchExecPythonGroupAggregate.class);
+                    add(BatchExecPythonGroupWindowAggregate.class);
+                    add(BatchExecPythonOverAggregate.class);
+
+                    add(BatchExecHashAggregate.class);
+                    add(BatchExecSortAggregate.class);
+                    add(BatchExecScriptTransform.class);
+                    add(BatchExecMultipleInput.class);
+
+                    add(BatchExecNestedLoopJoin.class);
+                    add(BatchExecMatch.class);
+                    add(BatchExecHashWindowAggregate.class);
+                    add(BatchExecInputAdapter.class);
+                    add(BatchExecOverAggregate.class);
+
+                    add(BatchExecRank.class);
+                    add(BatchExecSortLimit.class);
+                    add(BatchExecSortMergeJoin.class);
+                    add(BatchExecSortWindowAggregate.class);
+                    add(BatchExecWindowTableFunction.class);
                 }
             };
 

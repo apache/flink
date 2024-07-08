@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -38,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec;
@@ -66,6 +68,9 @@ import org.apache.flink.table.runtime.operators.over.frame.UnboundedOverWindowFr
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlKind;
@@ -76,7 +81,18 @@ import java.util.Collections;
 import java.util.List;
 
 /** Batch {@link ExecNode} for sort-based over window aggregate. */
+@ExecNodeMetadata(
+        name = "batch-exec-over-aggregate",
+        version = 1,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
+
+    public static final String FIELD_NAME_OVER_SPEC = "overSpec";
+
+    // TODO: Double-check this.
+    @JsonProperty(FIELD_NAME_OVER_SPEC)
+    protected final OverSpec overSpec;
 
     public BatchExecOverAggregate(
             ReadableConfig tableConfig,
@@ -92,6 +108,20 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                 inputProperty,
                 outputType,
                 description);
+        this.overSpec = overSpec;
+    }
+
+    @JsonCreator
+    public BatchExecOverAggregate(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTY) InputProperty inputProperty,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, context, persistedConfig, overSpec, inputProperty, outputType, description);
+        this.overSpec = overSpec;
     }
 
     @SuppressWarnings("unchecked")

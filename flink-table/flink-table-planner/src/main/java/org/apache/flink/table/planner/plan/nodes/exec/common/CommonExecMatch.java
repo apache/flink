@@ -63,6 +63,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.MathUtils;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -77,6 +79,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch.FIELD_NAME_MATCH_SPEC;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -86,7 +89,8 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
 
     public static final String MATCH_TRANSFORMATION = "match";
 
-    private final MatchSpec matchSpec;
+    @JsonProperty(FIELD_NAME_MATCH_SPEC)
+    protected final MatchSpec matchSpec;
 
     public CommonExecMatch(
             int id,
