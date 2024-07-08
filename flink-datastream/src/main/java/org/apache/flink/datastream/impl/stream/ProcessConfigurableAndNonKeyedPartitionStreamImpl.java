@@ -53,7 +53,7 @@ public class ProcessConfigurableAndNonKeyedPartitionStreamImpl<T>
     }
 
     @Override
-    public <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    public <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<T, OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction) {
         return stream.process(processFunction);
     }
