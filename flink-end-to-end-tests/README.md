@@ -15,6 +15,12 @@ $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-nightly-tests.sh
 
 where \<flink dir\> is a Flink distribution directory.
 
+or skip kubernetes tests if environment does not support it
+
+```
+$ FLINK_DIR=<flink dir> SKIP_KUBERNETES_TESTS=true flink-end-to-end-tests/run-nightly-tests.sh
+```
+
 You can also run tests individually via
 
 ```
