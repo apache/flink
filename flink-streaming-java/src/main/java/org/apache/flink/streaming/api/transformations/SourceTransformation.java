@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import javax.annotation.Nullable;
@@ -64,6 +65,7 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
         super(name, outputType, parallelism);
         this.source = source;
         this.watermarkStrategy = watermarkStrategy;
+        this.extractLineageVertex();
     }
 
     public SourceTransformation(
@@ -76,6 +78,7 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
         super(name, outputType, parallelism, parallelismConfigured);
         this.source = source;
         this.watermarkStrategy = watermarkStrategy;
+        this.extractLineageVertex();
     }
 
     public Source<OUT, SplitT, EnumChkT> getSource() {
@@ -117,5 +120,11 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT>
     @Nullable
     public String getCoordinatorListeningID() {
         return coordinatorListeningID;
+    }
+
+    private void extractLineageVertex() {
+        if (source instanceof LineageVertexProvider) {
+            setLineageVertex(((LineageVertexProvider) source).getLineageVertex());
+        }
     }
 }

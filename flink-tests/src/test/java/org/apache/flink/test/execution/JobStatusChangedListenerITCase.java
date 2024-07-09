@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.DefaultJobExecutionStatusEvent;
@@ -36,7 +37,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.DefaultLineageVertex;
+import org.apache.flink.streaming.api.lineage.DefaultSourceLineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageGraph;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
+import org.apache.flink.streaming.runtime.execution.JobCreatedEvent;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
@@ -51,6 +60,7 @@ import org.junit.runners.MethodSorters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.flink.configuration.DeploymentOptions.JOB_STATUS_CHANGED_LISTENERS;
@@ -61,6 +71,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class JobStatusChangedListenerITCase extends TestLogger {
     private static final int PARALLELISM = 4;
+    private static final String SOURCE_DATASET_NAME = "LineageSource";
+    private static final String SOURCE_DATASET_NAMESPACE = "source://LineageSource";
+    private static final String SINK_DATASET_NAME = "LineageSink";
+    private static final String SINK_DATASET_NAMESPACE = "sink://LineageSink";
+
     @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
     @ClassRule
@@ -162,6 +177,7 @@ public class JobStatusChangedListenerITCase extends TestLogger {
             StreamGraph streamGraph = env.getStreamGraph();
             JobGraph jobGraph = streamGraph.getJobGraph();
 
+            verifyLineageGraph(streamGraph.getLineageGraph());
             ClusterClient<?> client = MINI_CLUSTER.getClusterClient();
             JobID jobID = client.submitJob(jobGraph).get();
             waitForAllTaskRunning(MINI_CLUSTER.getMiniCluster(), jobID, false);
@@ -183,7 +199,33 @@ public class JobStatusChangedListenerITCase extends TestLogger {
                                             || (status.oldStatus() == JobStatus.CANCELLING
                                                     && status.newStatus() == JobStatus.CANCELED))
                             .isTrue();
+
+                    if (event instanceof JobCreatedEvent) {
+                        LineageGraph lineageGraph = ((JobCreatedEvent) event).lineageGraph();
+                        assertThat(lineageGraph.sources().size()).isEqualTo(1);
+                        assertThat(lineageGraph.sinks().size()).isEqualTo(1);
+                    }
                 });
+    }
+
+    void verifyLineageGraph(LineageGraph lineageGraph) {
+        assertThat(lineageGraph.sources().size()).isEqualTo(1);
+        assertThat(lineageGraph.sources().get(0).boundedness())
+                .isEqualTo(Boundedness.CONTINUOUS_UNBOUNDED);
+        assertThat(lineageGraph.sources().get(0).datasets().size()).isEqualTo(1);
+        assertThat(lineageGraph.sources().get(0).datasets().get(0).name())
+                .isEqualTo(SOURCE_DATASET_NAME);
+        assertThat(lineageGraph.sources().get(0).datasets().get(0).namespace())
+                .isEqualTo(SOURCE_DATASET_NAMESPACE);
+
+        assertThat(lineageGraph.sinks().size()).isEqualTo(1);
+        assertThat(lineageGraph.sinks().get(0).datasets().size()).isEqualTo(1);
+        assertThat(lineageGraph.sinks().get(0).datasets().get(0).name())
+                .isEqualTo(SINK_DATASET_NAME);
+        assertThat(lineageGraph.sinks().get(0).datasets().get(0).namespace())
+                .isEqualTo(SINK_DATASET_NAMESPACE);
+
+        assertThat(lineageGraph.relations().size()).isEqualTo(1);
     }
 
     void verifyEventMetaData() {
@@ -238,7 +280,8 @@ public class JobStatusChangedListenerITCase extends TestLogger {
         public void cancel() {}
     }
 
-    private static class InfiniteLongSourceFunction implements SourceFunction<Long> {
+    private static class InfiniteLongSourceFunction
+            implements SourceFunction<Long>, LineageVertexProvider {
         private volatile boolean running = true;
 
         @Override
@@ -255,12 +298,33 @@ public class JobStatusChangedListenerITCase extends TestLogger {
         public void cancel() {
             running = false;
         }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            LineageDataset lineageDataset =
+                    new DefaultLineageDataset(
+                            SOURCE_DATASET_NAME, SOURCE_DATASET_NAMESPACE, new HashMap<>());
+            DefaultSourceLineageVertex lineageVertex =
+                    new DefaultSourceLineageVertex(Boundedness.CONTINUOUS_UNBOUNDED);
+            lineageVertex.addDataset(lineageDataset);
+            return lineageVertex;
+        }
     }
 
-    private static class SleepingSink implements SinkFunction<Long> {
+    private static class SleepingSink implements SinkFunction<Long>, LineageVertexProvider {
         @Override
         public void invoke(Long value, Context context) throws Exception {
             Thread.sleep(1_000);
+        }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            LineageDataset lineageDataset =
+                    new DefaultLineageDataset(
+                            SINK_DATASET_NAME, SINK_DATASET_NAMESPACE, new HashMap<>());
+            DefaultLineageVertex lineageVertex = new DefaultLineageVertex();
+            lineageVertex.addLineageDataset(lineageDataset);
+            return lineageVertex;
         }
     }
 }
