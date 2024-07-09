@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.CalcTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecCalc}. */
-public class CalcRestoreTest extends RestoreTestBase {
+/** Restore tests for {@link BatchExecCalc}. */
+public class CalcBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
 
-    public CalcRestoreTest() {
-        super(StreamExecCalc.class);
+    public CalcBatchCompiledPlanTest() {
+        super(BatchExecCalc.class);
     }
 
     @Override

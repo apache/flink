@@ -1,0 +1,89 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 7,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "DOUBLE"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 0,
+            "type" : "BIGINT"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 420,
+            "type" : "BIGINT NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        } ]
+      } ]
+    },
+    "outputType" : "ROW<`a` BIGINT, `b` DOUBLE>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[>(a, 420:BIGINT)]]], fields=[a, b])",
+    "dynamicFilteringDataListenerID" : "6c314731-20a1-48ad-9087-f92a41620338",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 8,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "DOUBLE"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` BIGINT, `b` DOUBLE>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b])"
+  } ],
+  "edges" : [ {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

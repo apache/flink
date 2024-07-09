@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
@@ -29,6 +30,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
@@ -37,6 +39,9 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
 import java.util.UUID;
 
@@ -44,6 +49,12 @@ import java.util.UUID;
  * Batch {@link ExecNode} to read data from an external source defined by a bounded {@link
  * ScanTableSource}.
  */
+@ExecNodeMetadata(
+        name = "batch-exec-table-source-scan",
+        version = 1,
+        producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_0,
+        minStateVersion = FlinkVersion.v2_0)
 public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         implements BatchExecNode<RowData> {
 
@@ -79,6 +90,25 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecTableSourceScan.class),
                 ExecNodeContext.newPersistedConfig(BatchExecTableSourceScan.class, tableConfig),
+                tableSourceSpec,
+                Collections.emptyList(),
+                outputType,
+                description);
+        this.tableConfig = tableConfig;
+    }
+
+    @JsonCreator
+    public BatchExecTableSourceScan(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig tableConfig,
+            @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE) DynamicTableSourceSpec tableSourceSpec,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                tableConfig,
                 tableSourceSpec,
                 Collections.emptyList(),
                 outputType,
