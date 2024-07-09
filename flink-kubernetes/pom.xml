@@ -141,8 +141,30 @@ under the License.
 										<exclude>license.header</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>com.fasterxml.jackson*:*</artifact>
+									<excludes>
+										<exclude>META-INF/**/module-info.class</exclude>
+										<exclude>META-INF/*LICENSE</exclude>
+										<exclude>META-INF/*NOTICE</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<relocations>
+								<!-- When "io.fabric8:kubernetes-client" is bumped, make sure to check JDK-specific Jackson classes,
+								 	 and introduce new versions when necessary. -->
+								<relocation>
+									<pattern>META-INF/versions/11/com/fasterxml/jackson</pattern>
+									<shadedPattern>META-INF/versions/11/org/apache/flink/kubernetes/shaded/com/fasterxml/jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/17/com/fasterxml/jackson</pattern>
+									<shadedPattern>META-INF/versions/17/org/apache/flink/kubernetes/shaded/com/fasterxml/jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/19/com/fasterxml/jackson</pattern>
+									<shadedPattern>META-INF/versions/19/org/apache/flink/kubernetes/shaded/com/fasterxml/jackson</shadedPattern>
+								</relocation>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>

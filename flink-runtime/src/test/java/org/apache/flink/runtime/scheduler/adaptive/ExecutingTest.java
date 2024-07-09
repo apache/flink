@@ -62,6 +62,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
@@ -83,20 +84,25 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -149,8 +155,9 @@ class ExecutingTest {
                     ctx,
                     ClassLoader.getSystemClassLoader(),
                     new ArrayList<>(),
-                    Duration.ZERO,
-                    null,
+                    TestingRescaleManager.Factory.noOpFactory(),
+                    1,
+                    1,
                     Instant.now());
             assertThat(mockExecutionVertex.isDeployCalled()).isFalse();
         }
@@ -176,12 +183,124 @@ class ExecutingTest {
                                         ctx,
                                         ClassLoader.getSystemClassLoader(),
                                         new ArrayList<>(),
-                                        Duration.ZERO,
-                                        null,
+                                        TestingRescaleManager.Factory.noOpFactory(),
+                                        1,
+                                        1,
                                         Instant.now());
                             }
                         })
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void testTriggerRescaleOnCompletedCheckpoint() throws Exception {
+        final AtomicBoolean rescaleTriggered = new AtomicBoolean();
+        final RescaleManager.Factory rescaleManagerFactory =
+                new TestingRescaleManager.Factory(() -> {}, () -> rescaleTriggered.set(true));
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setRescaleManagerFactory(rescaleManagerFactory)
+                            .build(ctx);
+
+            assertThat(rescaleTriggered).isFalse();
+            testInstance.onCompletedCheckpoint();
+            assertThat(rescaleTriggered).isTrue();
+        }
+    }
+
+    @Test
+    public void testTriggerRescaleOnFailedCheckpoint() throws Exception {
+        final AtomicInteger rescaleTriggerCount = new AtomicInteger();
+        final RescaleManager.Factory rescaleManagerFactory =
+                new TestingRescaleManager.Factory(() -> {}, rescaleTriggerCount::incrementAndGet);
+        final int rescaleOnFailedCheckpointsCount = 3;
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setRescaleManagerFactory(rescaleManagerFactory)
+                            .setRescaleOnFailedCheckpointCount(rescaleOnFailedCheckpointsCount)
+                            .build(ctx);
+
+            // do multiple rescale iterations to verify that subsequent failed checkpoints after a
+            // rescale result in the expected behavior
+            for (int rescaleIteration = 1; rescaleIteration <= 3; rescaleIteration++) {
+
+                // trigger an initial failed checkpoint event to show that the counting only starts
+                // with the subsequent change event
+                testInstance.onFailedCheckpoint();
+
+                // trigger change
+                testInstance.onNewResourceRequirements();
+
+                for (int i = 0; i < rescaleOnFailedCheckpointsCount; i++) {
+                    assertThat(rescaleTriggerCount)
+                            .as(
+                                    "No rescale operation should have been triggered for iteration #%d, yet.",
+                                    rescaleIteration)
+                            .hasValue(rescaleIteration - 1);
+                    testInstance.onFailedCheckpoint();
+                }
+
+                assertThat(rescaleTriggerCount)
+                        .as(
+                                "The rescale operation for iteration #%d should have been properly triggered.",
+                                rescaleIteration)
+                        .hasValue(rescaleIteration);
+            }
+        }
+    }
+
+    @Test
+    public void testOnCompletedCheckpointResetsFailedCheckpointCount() throws Exception {
+        final AtomicInteger rescaleTriggeredCount = new AtomicInteger();
+        final RescaleManager.Factory rescaleManagerFactory =
+                new TestingRescaleManager.Factory(() -> {}, rescaleTriggeredCount::incrementAndGet);
+        final int rescaleOnFailedCheckpointsCount = 3;
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setRescaleManagerFactory(rescaleManagerFactory)
+                            .setRescaleOnFailedCheckpointCount(rescaleOnFailedCheckpointsCount)
+                            .build(ctx);
+
+            // trigger an initial failed checkpoint event to show that the counting only starts with
+            // the subsequent change event
+            testInstance.onFailedCheckpoint();
+
+            // trigger change
+            testInstance.onNewResourcesAvailable();
+
+            IntStream.range(0, rescaleOnFailedCheckpointsCount - 1)
+                    .forEach(ignored -> testInstance.onFailedCheckpoint());
+
+            assertThat(rescaleTriggeredCount)
+                    .as("No rescaling should have been trigger, yet.")
+                    .hasValue(0);
+
+            testInstance.onCompletedCheckpoint();
+
+            // trigger change
+            testInstance.onNewResourceRequirements();
+
+            assertThat(rescaleTriggeredCount)
+                    .as("The completed checkpoint should have triggered a rescale.")
+                    .hasValue(1);
+
+            IntStream.range(0, rescaleOnFailedCheckpointsCount - 1)
+                    .forEach(ignored -> testInstance.onFailedCheckpoint());
+
+            assertThat(rescaleTriggeredCount)
+                    .as(
+                            "No additional rescaling should have been trigger by any subsequent failed checkpoint, yet.")
+                    .hasValue(1);
+
+            testInstance.onFailedCheckpoint();
+
+            assertThat(rescaleTriggeredCount)
+                    .as("The previous failed checkpoint should have triggered the rescale.")
+                    .hasValue(2);
+        }
     }
 
     @Test
@@ -265,117 +384,6 @@ class ExecutingTest {
                             assertThat(archivedExecutionGraph.getState())
                                     .isEqualTo(JobStatus.SUSPENDED));
             exec.suspend(new RuntimeException("suspend"));
-        }
-    }
-
-    @Test
-    void testNotifyNewResourcesAvailableBeforeCooldownIsOverScheduledStateChange()
-            throws Exception {
-        try (MockExecutingContext ctx = new MockExecutingContext()) {
-            // do not wait too long in the test
-            final Duration scalingIntervalMin = Duration.ofSeconds(1L);
-            final ExecutingStateBuilder executingStateBuilder =
-                    new ExecutingStateBuilder().setScalingIntervalMin(scalingIntervalMin);
-            Executing exec = executingStateBuilder.build(ctx);
-            // => rescale
-            ctx.setCanScaleUp(true);
-            // scheduled rescale should restart the job after cooldown
-            ctx.setExpectRestarting(
-                    restartingArguments ->
-                            assertThat(restartingArguments.getBackoffTime())
-                                    .isEqualTo(Duration.ZERO));
-            exec.onNewResourcesAvailable();
-        }
-    }
-
-    @Test
-    void testNotifyNewResourcesAvailableAfterCooldownIsOverStateChange() throws Exception {
-        try (MockExecutingContext ctx = new MockExecutingContext()) {
-            final ExecutingStateBuilder executingStateBuilder =
-                    new ExecutingStateBuilder()
-                            .setScalingIntervalMin(Duration.ofSeconds(20L))
-                            .setLastRescale(Instant.now().minus(Duration.ofSeconds(30L)));
-            Executing exec = executingStateBuilder.build(ctx);
-            // => rescale
-            ctx.setCanScaleUp(true);
-            // immediate rescale
-            ctx.setExpectRestarting(
-                    restartingArguments ->
-                            assertThat(restartingArguments.getBackoffTime())
-                                    .isEqualTo(Duration.ZERO));
-            exec.onNewResourcesAvailable();
-        }
-    }
-
-    @Test
-    void testNotifyNewResourcesAvailableWithCanScaleUpWithoutForceTransitionsToRestarting()
-            throws Exception {
-        try (MockExecutingContext ctx = new MockExecutingContext()) {
-            Executing exec = new ExecutingStateBuilder().build(ctx);
-
-            ctx.setExpectRestarting(
-                    restartingArguments ->
-                            // immediate rescale
-                            assertThat(restartingArguments.getBackoffTime())
-                                    .isEqualTo(Duration.ZERO));
-            ctx.setCanScaleUp(true); // => rescale
-            exec.onNewResourcesAvailable();
-        }
-    }
-
-    @Test
-    void testNotifyNewResourcesAvailableWithCantScaleUpWithoutForceAndCantScaleUpWithForce()
-            throws Exception {
-        try (MockExecutingContext ctx = new MockExecutingContext()) {
-            Executing exec =
-                    new ExecutingStateBuilder()
-                            .setScalingIntervalMax(Duration.ofSeconds(1L))
-                            .build(ctx);
-            // => schedule force rescale but resource lost on timeout => no rescale
-            ctx.setCanScaleUp(false, false);
-            exec.onNewResourcesAvailable();
-            ctx.assertNoStateTransition();
-        }
-    }
-
-    @Test
-    void testNotifyNewResourcesAvailableWithCantScaleUpWithoutForceAndCanScaleUpWithForceScheduled()
-            throws Exception {
-        try (MockExecutingContext ctx = new MockExecutingContext()) {
-            final ExecutingStateBuilder executingStateBuilder =
-                    new ExecutingStateBuilder()
-                            .setScalingIntervalMin(Duration.ofSeconds(20L))
-                            .setScalingIntervalMax(Duration.ofSeconds(30L))
-                            .setLastRescale(Instant.now().minus(Duration.ofSeconds(25L)));
-            Executing exec = executingStateBuilder.build(ctx);
-            // => schedule force rescale and resource still there after timeout => rescale
-            ctx.setCanScaleUp(false, true);
-            // rescale after scaling-interval.max
-            ctx.setExpectRestarting(
-                    restartingArguments ->
-                            assertThat(restartingArguments.getBackoffTime())
-                                    .isEqualTo(Duration.ZERO));
-            exec.onNewResourcesAvailable();
-        }
-    }
-
-    @Test
-    void testNotifyNewResourcesAvailableWithCantScaleUpWithoutForceAndCanScaleUpWithForceImmediate()
-            throws Exception {
-        try (MockExecutingContext ctx = new MockExecutingContext()) {
-            final ExecutingStateBuilder executingStateBuilder =
-                    new ExecutingStateBuilder()
-                            .setScalingIntervalMin(Duration.ofSeconds(20L))
-                            .setScalingIntervalMax(Duration.ofSeconds(30L))
-                            .setLastRescale(Instant.now().minus(Duration.ofSeconds(70L)));
-            Executing exec = executingStateBuilder.build(ctx);
-            // => immediate force rescale and resource still there after timeout => rescale
-            ctx.setCanScaleUp(false, true);
-            ctx.setExpectRestarting(
-                    restartingArguments ->
-                            assertThat(restartingArguments.getBackoffTime())
-                                    .isEqualTo(Duration.ZERO));
-            exec.onNewResourcesAvailable();
         }
     }
 
@@ -568,15 +576,22 @@ class ExecutingTest {
 
     @Test
     void testExecutingChecksForNewResourcesWhenBeingCreated() throws Exception {
+        final String onChangeEventLabel = "onChange";
+        final String onTriggerEventLabel = "onTrigger";
+        final Queue<String> actualEvents = new ArrayDeque<>();
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ctx.setCanScaleUp(true);
-            ctx.setExpectRestarting(
-                    restartingArguments ->
-                            // immediate rescale
-                            assertThat(restartingArguments.getBackoffTime())
-                                    .isEqualTo(Duration.ZERO));
+            new ExecutingStateBuilder()
+                    .setRescaleManagerFactory(
+                            new TestingRescaleManager.Factory(
+                                    () -> actualEvents.add(onChangeEventLabel),
+                                    () -> actualEvents.add(onTriggerEventLabel)))
+                    .build(ctx);
 
-            new ExecutingStateBuilder().build(ctx);
+            ctx.triggerExecutors();
+
+            assertThat(actualEvents.poll()).isEqualTo(onChangeEventLabel);
+            assertThat(actualEvents.poll()).isEqualTo(onTriggerEventLabel);
+            assertThat(actualEvents.isEmpty()).isTrue();
         }
     }
 
@@ -591,9 +606,9 @@ class ExecutingTest {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .build(EXECUTOR_EXTENSION.getExecutor());
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
-        private Duration scalingIntervalMin = Duration.ZERO;
-        @Nullable private Duration scalingIntervalMax;
-        private Instant lastRescale = Instant.now();
+        private RescaleManager.Factory rescaleManagerFactory =
+                TestingRescaleManager.Factory.noOpFactory();
+        private int rescaleOnFailedCheckpointCount = 1;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
             operatorCoordinatorHandler = new TestingOperatorCoordinatorHandler();
@@ -610,18 +625,15 @@ class ExecutingTest {
             return this;
         }
 
-        public ExecutingStateBuilder setScalingIntervalMin(Duration scalingIntervalMin) {
-            this.scalingIntervalMin = scalingIntervalMin;
+        public ExecutingStateBuilder setRescaleManagerFactory(
+                RescaleManager.Factory rescaleManagerFactory) {
+            this.rescaleManagerFactory = rescaleManagerFactory;
             return this;
         }
 
-        public ExecutingStateBuilder setScalingIntervalMax(Duration scalingIntervalMax) {
-            this.scalingIntervalMax = scalingIntervalMax;
-            return this;
-        }
-
-        public ExecutingStateBuilder setLastRescale(Instant lastRescale) {
-            this.lastRescale = lastRescale;
+        public ExecutingStateBuilder setRescaleOnFailedCheckpointCount(
+                int rescaleOnFailedCheckpointCount) {
+            this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
             return this;
         }
 
@@ -637,9 +649,11 @@ class ExecutingTest {
                         ctx,
                         ClassLoader.getSystemClassLoader(),
                         new ArrayList<>(),
-                        scalingIntervalMin,
-                        scalingIntervalMax,
-                        lastRescale);
+                        rescaleManagerFactory,
+                        1,
+                        rescaleOnFailedCheckpointCount,
+                        // will be ignored by the TestingRescaleManager.Factory
+                        Instant.now());
             } finally {
                 Preconditions.checkState(
                         !ctx.hadStateTransition,
@@ -665,8 +679,6 @@ class ExecutingTest {
                 new StateValidator<>("cancelling");
 
         private Function<Throwable, FailureResult> howToHandleFailure;
-        private boolean canScaleUpWithoutForce = false;
-        private boolean canScaleUpWithForce = false;
         private StateValidator<StopWithSavepointArguments> stopWithSavepointValidator =
                 new StateValidator<>("stopWithSavepoint");
         private CompletableFuture<String> mockedStopWithSavepointOperationFuture =
@@ -692,15 +704,6 @@ class ExecutingTest {
             this.howToHandleFailure = function;
         }
 
-        public void setCanScaleUp(boolean canScaleUpWithoutForce, boolean canScaleUpWithForce) {
-            this.canScaleUpWithoutForce = canScaleUpWithoutForce;
-            this.canScaleUpWithForce = canScaleUpWithForce;
-        }
-
-        public void setCanScaleUp(boolean canScaleUpWithoutForce) {
-            this.canScaleUpWithoutForce = canScaleUpWithoutForce;
-        }
-
         // --------- Interface Implementations ------- //
 
         @Override
@@ -722,12 +725,8 @@ class ExecutingTest {
         }
 
         @Override
-        public boolean shouldRescale(ExecutionGraph executionGraph, boolean forceRescale) {
-            if (forceRescale) {
-                return canScaleUpWithForce;
-            } else {
-                return canScaleUpWithoutForce;
-            }
+        public Optional<VertexParallelism> getAvailableVertexParallelism() {
+            return Optional.empty();
         }
 
         @Override

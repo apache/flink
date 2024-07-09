@@ -91,11 +91,10 @@ under the License.
 		</dependency>
 
 		<!-- JsonPath -->
-
 		<dependency>
-			<groupId>com.jayway.jsonpath</groupId>
-			<artifactId>json-path</artifactId>
-			<version>${jsonpath.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jsonpath</artifactId>
+			<version>${flink.shaded.jsonpath.version}-${flink.shaded.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -168,22 +167,11 @@ under the License.
 							<keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>com.jayway.jsonpath:json-path</include>
+									<include>org.apache.flink:flink-shaded-jsonpath</include>
 									<include>org.codehaus.janino:*</include>
 									<include>org.apache.flink:flink-table-code-splitter</include>
 								</includes>
 							</artifactSet>
-							<relocations>
-								<!-- Make sure com.jayway and com.fasterxml relocations match the relocations in planner pom  -->
-								<relocation>
-									<pattern>com.jayway</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.fasterxml</pattern>
-									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>

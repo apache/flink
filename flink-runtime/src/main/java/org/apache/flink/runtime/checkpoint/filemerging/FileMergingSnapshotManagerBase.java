@@ -206,7 +206,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             // According
             // to the FLIP-306, we later consider move these files to the new introduced
             // task-manager-owned directory.
-            Path managedExclusivePath = new Path(taskOwnedStateDir, id);
+            Path managedExclusivePath = new Path(taskOwnedStateDir, uriEscape(id));
             boolean newCreated = createManagedDirectory(managedExclusivePath);
             this.managedExclusiveStateDir = managedExclusivePath;
             this.managedExclusiveStateDirHandle =
@@ -219,7 +219,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     @Override
     public void registerSubtaskForSharedStates(SubtaskKey subtaskKey) {
         String managedDirName = subtaskKey.getManagedDirName();
-        Path managedPath = new Path(sharedStateDir, managedDirName);
+        Path managedPath = new Path(sharedStateDir, uriEscape(managedDirName));
         if (!managedSharedStateDir.containsKey(subtaskKey)) {
             boolean newCreated = createManagedDirectory(managedPath);
             managedSharedStateDir.put(subtaskKey, managedPath);
@@ -771,6 +771,13 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         // TODO: Determine whether do file sync more wisely. Add an interface to FileSystem if
         // needed.
         return true;
+    }
+
+    private static String uriEscape(String input) {
+        // All reserved characters (RFC 2396) will be removed. This is enough for flink's resource
+        // id, job id and operator id.
+        // Ref: https://docs.oracle.com/javase/8/docs/api/index.html?java/net/URI.html
+        return input.replaceAll("[;/?:@&=+$,\\[\\]]", "-");
     }
 
     // ------------------------------------------------------------------------

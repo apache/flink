@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
@@ -58,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -747,7 +749,8 @@ public final class ExtractionUtils {
         return fieldNames;
     }
 
-    private static @Nullable List<String> extractExecutableNames(Executable executable) {
+    @VisibleForTesting
+    static @Nullable List<String> extractExecutableNames(Executable executable) {
         final int offset;
         if (!Modifier.isStatic(executable.getModifiers())) {
             // remove "this" as first parameter
@@ -824,6 +827,40 @@ public final class ExtractionUtils {
      *   <localVar:index=2 , name=otherLocal2 , desc=J, sig=null, start=L1, end=L2>
      * }
      * }</pre>
+     *
+     * <p>If a constructor or method has multiple identical local variables that are not initialized
+     * like:
+     *
+     * <pre>{@code
+     * String localVariable;
+     * if (generic == null) {
+     *     localVariable = "null";
+     * } else if (generic < 0) {
+     *     localVariable = "negative";
+     * } else if (generic > 0) {
+     *     localVariable = "positive";
+     * } else {
+     *     localVariable = "zero";
+     * }
+     * }</pre>
+     *
+     * <p>Its local variable table is as follows:
+     *
+     * <pre>{@code
+     * Start  Length  Slot     Name           Signature
+     * 7       3       2     localVariable   Ljava/lang/String;
+     * 22      3       2     localVariable   Ljava/lang/String;
+     * 37      3       2     localVariable   Ljava/lang/String;
+     * 0      69       0     this            ...;
+     * 0      69       1     generic         Ljava/lang/Long;
+     * 43     26       2     localVariable   Ljava/lang/String;
+     * }</pre>
+     *
+     * <p>The method parameters are always at the head in the 'slot' list.
+     *
+     * <p>NOTE: the first parameter may be "this" if the function is not static. See more at <a
+     * href="https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html">3.6. Receiving
+     * Arguments</a>
      */
     private static class ParameterExtractor extends ClassVisitor {
 
@@ -831,7 +868,7 @@ public final class ExtractionUtils {
 
         private final String methodDescriptor;
 
-        private final List<String> parameterNames = new ArrayList<>();
+        private final Map<Integer, String> parameterNamesWithIndex = new TreeMap<>();
 
         ParameterExtractor(Constructor<?> constructor) {
             super(OPCODE);
@@ -844,7 +881,11 @@ public final class ExtractionUtils {
         }
 
         List<String> getParameterNames() {
-            return parameterNames;
+            // method parameters are always at the head in the 'index' list
+            // NOTE: the first parameter may be "this" if the function is not static
+            // See more at Chapter "3.6. Receiving Arguments" in
+            // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html
+            return new ArrayList<>(parameterNamesWithIndex.values());
         }
 
         @Override
@@ -860,7 +901,7 @@ public final class ExtractionUtils {
                             Label start,
                             Label end,
                             int index) {
-                        parameterNames.add(name);
+                        parameterNamesWithIndex.put(index, name);
                     }
                 };
             }

@@ -19,40 +19,52 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.checkpoint.JobInitializationMetrics.SumMaxDuration;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.runtime.checkpoint.JobInitializationMetrics.UNSET;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 class JobInitializationMetricsBuilder {
     private static final Logger LOG =
             LoggerFactory.getLogger(JobInitializationMetricsBuilder.class);
 
-    private final List<SubTaskInitializationMetrics> reportedMetrics = new ArrayList<>();
-    private final int totalNumberOfSubTasks;
+    private final Map<ExecutionAttemptID, SubTaskInitializationMetrics> reportedMetrics =
+            new HashMap<>();
+    private final Set<ExecutionAttemptID> toInitialize;
     private final long startTs;
     private Optional<Long> stateSize = Optional.empty();
     private Optional<Long> checkpointId = Optional.empty();
     private Optional<CheckpointProperties> checkpointProperties = Optional.empty();
     private Optional<String> externalPath = Optional.empty();
 
-    JobInitializationMetricsBuilder(int totalNumberOfSubTasks, long startTs) {
-        checkArgument(totalNumberOfSubTasks > 0);
-        this.totalNumberOfSubTasks = totalNumberOfSubTasks;
+    /**
+     * The {@code JobInitializationMetricsBuilder} handles the initialization metrics for deployed
+     * {@link Execution Executions}. Building the final {@link JobInitializationMetrics} will be
+     * only possible if all the subtasks reported their {@link SubTaskInitializationMetrics} back.
+     *
+     * @param toInitialize The {@link ExecutionAttemptID} of the subtasks that are about to be
+     *     deployed.
+     * @param startTs The time the initialization was started.
+     * @see #isComplete()
+     * @see #reportInitializationMetrics(ExecutionAttemptID, SubTaskInitializationMetrics)
+     */
+    JobInitializationMetricsBuilder(Set<ExecutionAttemptID> toInitialize, long startTs) {
+        this.toInitialize = new HashSet<>(toInitialize);
         this.startTs = startTs;
     }
 
     public boolean isComplete() {
-        return reportedMetrics.size() == totalNumberOfSubTasks;
+        return toInitialize.isEmpty();
     }
 
     public long getStartTs() {
@@ -79,7 +91,7 @@ class JobInitializationMetricsBuilder {
         Map<String, SumMaxDuration> duationMetrics = new HashMap<>();
         InitializationStatus status = InitializationStatus.COMPLETED;
 
-        for (SubTaskInitializationMetrics reportedMetric : reportedMetrics) {
+        for (SubTaskInitializationMetrics reportedMetric : reportedMetrics.values()) {
             initializationEndTimestamp =
                     Math.max(reportedMetric.getEndTs(), initializationEndTimestamp);
             aggregateMetrics(duationMetrics, reportedMetric.getDurationMetrics());
@@ -119,13 +131,30 @@ class JobInitializationMetricsBuilder {
         }
     }
 
-    public void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
-        LOG.debug("Reported SubTaskInitializationMetrics={}", initializationMetrics);
-        if (isComplete()) {
-            LOG.warn("Reported more SubTaskInitializationMetrics than expected!");
-            return;
+    /**
+     * Reports the {@link SubTaskInitializationMetrics} for a currently deployed subtask based on
+     * the provided {@link ExecutionAttemptID}.
+     */
+    public void reportInitializationMetrics(
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        LOG.debug(
+                "Reported SubTaskInitializationMetrics={} for execution attempt {}.",
+                initializationMetrics,
+                executionAttemptId);
+        if (toInitialize.remove(executionAttemptId)) {
+            reportedMetrics.put(executionAttemptId, initializationMetrics);
+        } else {
+            if (reportedMetrics.containsKey(executionAttemptId)) {
+                LOG.warn(
+                        "Reported more than one SubTaskInitializationMetrics instance for execution attempt {}.",
+                        executionAttemptId);
+            } else {
+                LOG.warn(
+                        "Reported SubTaskInitializationMetrics instance for unknown execution attempt {}.",
+                        executionAttemptId);
+            }
         }
-        reportedMetrics.add(initializationMetrics);
     }
 
     public JobInitializationMetricsBuilder setRestoredCheckpointStats(

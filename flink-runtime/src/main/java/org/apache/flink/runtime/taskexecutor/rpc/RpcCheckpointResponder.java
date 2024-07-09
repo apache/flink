@@ -79,7 +79,10 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
-        checkpointCoordinatorGateway.reportInitializationMetrics(jobId, initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        checkpointCoordinatorGateway.reportInitializationMetrics(
+                jobId, executionAttemptId, initializationMetrics);
     }
 }

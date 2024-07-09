@@ -19,8 +19,9 @@
 package org.apache.flink.formats.parquet.utils;
 
 import org.apache.hadoop.conf.Configuration;
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;

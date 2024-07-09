@@ -295,6 +295,15 @@ public class MaterializedTableManager {
         CatalogMaterializedTable materializedTable =
                 getCatalogMaterializedTable(operationExecutor, tableIdentifier);
 
+        // Initialization phase doesn't support resume operation.
+        if (CatalogMaterializedTable.RefreshStatus.INITIALIZING
+                == materializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s is being initialized and does not support suspend operation.",
+                            tableIdentifier));
+        }
+
         if (CatalogMaterializedTable.RefreshMode.CONTINUOUS == materializedTable.getRefreshMode()) {
             suspendContinuousRefreshJob(
                     operationExecutor, handle, tableIdentifier, materializedTable);
@@ -312,6 +321,14 @@ public class MaterializedTableManager {
         try {
             ContinuousRefreshHandler refreshHandler =
                     deserializeContinuousHandler(materializedTable.getSerializedRefreshHandler());
+
+            if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
+                    == materializedTable.getRefreshStatus()) {
+                throw new SqlExecutionException(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been suspended, jobId is %s.",
+                                tableIdentifier, refreshHandler.getJobId()));
+            }
 
             String savepointPath =
                     stopJobWithSavepoint(operationExecutor, handle, refreshHandler.getJobId());
@@ -344,6 +361,14 @@ public class MaterializedTableManager {
             OperationHandle handle,
             ObjectIdentifier tableIdentifier,
             CatalogMaterializedTable materializedTable) {
+        if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
+                == materializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s refresh workflow has been suspended.",
+                            tableIdentifier));
+        }
+
         if (workflowScheduler == null) {
             throw new SqlExecutionException(
                     "The workflow scheduler must be configured when suspending materialized table in full refresh mode.");
@@ -384,6 +409,15 @@ public class MaterializedTableManager {
         CatalogMaterializedTable catalogMaterializedTable =
                 getCatalogMaterializedTable(operationExecutor, tableIdentifier);
 
+        // Initialization phase doesn't support resume operation.
+        if (CatalogMaterializedTable.RefreshStatus.INITIALIZING
+                == catalogMaterializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s is being initialized and does not support resume operation.",
+                            tableIdentifier));
+        }
+
         if (CatalogMaterializedTable.RefreshMode.CONTINUOUS
                 == catalogMaterializedTable.getRefreshMode()) {
             resumeContinuousRefreshJob(
@@ -414,6 +448,18 @@ public class MaterializedTableManager {
                 deserializeContinuousHandler(
                         catalogMaterializedTable.getSerializedRefreshHandler());
 
+        // Repeated resume continuous refresh job is not supported
+        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED
+                == catalogMaterializedTable.getRefreshStatus()) {
+            JobStatus jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
+            if (!jobStatus.isGloballyTerminalState()) {
+                throw new SqlExecutionException(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been resumed, jobId is %s.",
+                                tableIdentifier, refreshHandler.getJobId()));
+            }
+        }
+
         Optional<String> restorePath = refreshHandler.getRestorePath();
         try {
             executeContinuousRefreshJob(
@@ -438,6 +484,15 @@ public class MaterializedTableManager {
             ObjectIdentifier tableIdentifier,
             CatalogMaterializedTable catalogMaterializedTable,
             Map<String, String> dynamicOptions) {
+        // Repeated resume refresh workflow is not supported
+        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED
+                == catalogMaterializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s refresh workflow has been resumed.",
+                            tableIdentifier));
+        }
+
         if (workflowScheduler == null) {
             throw new SqlExecutionException(
                     "The workflow scheduler must be configured when resuming materialized table in full refresh mode.");
@@ -486,10 +541,17 @@ public class MaterializedTableManager {
                         materializedTableIdentifier.asSerializableString());
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, STREAMING);
-        customConfig.set(
-                CheckpointingOptions.CHECKPOINTING_INTERVAL,
-                catalogMaterializedTable.getFreshness());
         restorePath.ifPresent(s -> customConfig.set(SAVEPOINT_PATH, s));
+
+        // Do not override the user-defined checkpoint interval
+        if (!operationExecutor
+                .getSessionContext()
+                .getSessionConf()
+                .contains(CheckpointingOptions.CHECKPOINTING_INTERVAL)) {
+            customConfig.set(
+                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                    catalogMaterializedTable.getFreshness());
+        }
 
         String insertStatement =
                 getInsertStatement(
@@ -566,9 +628,14 @@ public class MaterializedTableManager {
         // Set job name, runtime mode
         Configuration customConfig = new Configuration();
         String jobName =
-                String.format(
-                        "Materialized_table_%s_one_time_refresh_job",
-                        materializedTableIdentifier.asSerializableString());
+                isPeriodic
+                        ? String.format(
+                                "Materialized_table_%s_periodic_refresh_job",
+                                materializedTableIdentifier.asSerializableString())
+                        : String.format(
+                                "Materialized_table_%s_one_time_refresh_job",
+                                materializedTableIdentifier.asSerializableString());
+
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, BATCH);
 
@@ -581,7 +648,7 @@ public class MaterializedTableManager {
 
         try {
             LOG.info(
-                    "Begin to manually refreshing the materialized table {}, statement: {}",
+                    "Begin to refreshing the materialized table {}, statement: {}",
                     materializedTableIdentifier,
                     insertStatement);
             ResultFetcher resultFetcher =
@@ -610,7 +677,7 @@ public class MaterializedTableManager {
         } catch (Exception e) {
             throw new SqlExecutionException(
                     String.format(
-                            "Manually refreshing the materialized table %s occur exception.",
+                            "Refreshing the materialized table %s occur exception.",
                             materializedTableIdentifier),
                     e);
         }
@@ -697,8 +764,8 @@ public class MaterializedTableManager {
         if (!nonStringPartitionKeys.isEmpty()) {
             throw new ValidationException(
                     String.format(
-                            "Currently, manually refreshing materialized table only supports specifying char and string type"
-                                    + " partition keys. All specific partition keys with unsupported types are:\n\n%s",
+                            "Currently, refreshing materialized table only supports referring to char, varchar and string type"
+                                    + " partition keys. All specified partition keys in partition specs with unsupported types are:\n\n%s",
                             String.join("\n", nonStringPartitionKeys)));
         }
     }

@@ -199,8 +199,8 @@ function install_wget() {
 function install_miniconda() {
     local sys_machine=$(uname -m)
     echo "Detected machine: ${sys_machine}"
-    OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-${sys_machine}.sh" \
-        "https://repo.continuum.io/miniconda/Miniconda3-py310_23.5.2-0-Linux-${sys_machine}.sh")
+    OS_TO_CONDA_URL=("https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-${sys_machine}.sh" \
+        "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-${sys_machine}.sh")
     if [ ! -f "$CONDA_INSTALL" ]; then
         print_function "STEP" "download miniconda from ${OS_TO_CONDA_URL[$1]}..."
         download ${OS_TO_CONDA_URL[$1]} $CONDA_INSTALL_SH

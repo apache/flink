@@ -17,8 +17,6 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.scalingpolicy;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 
@@ -30,15 +28,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RescalingController}. */
 class EnforceMinimalIncreaseRescalingControllerTest {
-    private static final Configuration TEST_CONFIG =
-            new Configuration().set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 2);
 
     private static final JobVertexID jobVertexId = new JobVertexID();
 
     @Test
     void testScaleUp() {
         final RescalingController rescalingController =
-                new EnforceMinimalIncreaseRescalingController(TEST_CONFIG);
+                new EnforceMinimalIncreaseRescalingController(2);
         assertThat(rescalingController.shouldRescale(forParallelism(1), forParallelism(4)))
                 .isTrue();
     }
@@ -46,7 +42,7 @@ class EnforceMinimalIncreaseRescalingControllerTest {
     @Test
     void testNoScaleUp() {
         final RescalingController rescalingController =
-                new EnforceMinimalIncreaseRescalingController(TEST_CONFIG);
+                new EnforceMinimalIncreaseRescalingController(2);
         assertThat(rescalingController.shouldRescale(forParallelism(2), forParallelism(3)))
                 .isFalse();
     }
@@ -54,7 +50,7 @@ class EnforceMinimalIncreaseRescalingControllerTest {
     @Test
     void testAlwaysScaleDown() {
         final RescalingController rescalingController =
-                new EnforceMinimalIncreaseRescalingController(TEST_CONFIG);
+                new EnforceMinimalIncreaseRescalingController(2);
         assertThat(rescalingController.shouldRescale(forParallelism(2), forParallelism(1)))
                 .isTrue();
     }
@@ -62,7 +58,7 @@ class EnforceMinimalIncreaseRescalingControllerTest {
     @Test
     void testNoScaleOnSameParallelism() {
         final RescalingController rescalingController =
-                new EnforceMinimalIncreaseRescalingController(TEST_CONFIG);
+                new EnforceMinimalIncreaseRescalingController(2);
         assertThat(rescalingController.shouldRescale(forParallelism(2), forParallelism(2)))
                 .isFalse();
     }

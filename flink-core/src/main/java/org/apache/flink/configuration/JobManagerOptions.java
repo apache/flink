@@ -577,6 +577,36 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
+    public static final ConfigOption<Integer> SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT =
+            key("jobmanager.adaptive-scheduler.scale-on-failed-checkpoints-count")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.")
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_SCALE_TRIGGER =
+            key("jobmanager.adaptive-scheduler.max-delay-for-scale-trigger")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled "
+                                                    + "and the checkpointing interval multiplied by the by-1-incremented parameter value of %s if checkpointing is enabled).",
+                                            text(SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT.key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<Duration> RESOURCE_STABILIZATION_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-stabilization-timeout")
                     .durationType()

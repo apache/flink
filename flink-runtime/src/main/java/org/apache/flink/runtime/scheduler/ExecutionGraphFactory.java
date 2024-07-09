@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -40,6 +41,8 @@ public interface ExecutionGraphFactory {
      * @param completedCheckpointStore completedCheckpointStore to pass to the CheckpointCoordinator
      * @param checkpointsCleaner checkpointsCleaner to pass to the CheckpointCoordinator
      * @param checkpointIdCounter checkpointIdCounter to pass to the CheckpointCoordinator
+     * @param checkpointStatsTracker The {@link CheckpointStatsTracker} that's used for collecting
+     *     the checkpoint-related statistics.
      * @param partitionLocationConstraint partitionLocationConstraint for this job
      * @param initializationTimestamp initializationTimestamp when the ExecutionGraph was created
      * @param vertexAttemptNumberStore vertexAttemptNumberStore keeping information about the vertex
@@ -57,6 +60,7 @@ public interface ExecutionGraphFactory {
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
+            CheckpointStatsTracker checkpointStatsTracker,
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,

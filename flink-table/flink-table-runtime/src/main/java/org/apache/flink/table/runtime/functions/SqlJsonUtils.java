@@ -27,25 +27,25 @@ import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
 
+import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
+import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
+import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
+import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
+import org.apache.flink.shaded.com.jayway.jsonpath.Option;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.MappingProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.InvalidPathException;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.spi.cache.CacheProvider;
-import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
-import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
-import com.jayway.jsonpath.spi.mapper.MappingProvider;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -67,13 +67,16 @@ public class SqlJsonUtils {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final ObjectMapper MAPPER =
             new ObjectMapper(JSON_FACTORY)
-                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                    .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
     private static final Pattern JSON_PATH_BASE =
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.MULTILINE);
-    private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER = new JacksonJsonProvider();
-    private static final MappingProvider JSON_PATH_MAPPING_PROVIDER = new JacksonMappingProvider();
+    private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER =
+            new JacksonJsonProvider(MAPPER);
+    private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
+            new JacksonMappingProvider(MAPPER);
     private static final String JSON_QUERY_FUNCTION_NAME = "JSON_QUERY";
     private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
     private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
@@ -265,7 +268,13 @@ public class SqlJsonUtils {
                             for (int i = 0; i < list.size(); i++) {
                                 final Object el = list.get(i);
                                 if (el != null) {
-                                    arr[i] = StringData.fromString(el.toString());
+                                    final String stringifiedEl;
+                                    if (isScalarObject(el)) {
+                                        stringifiedEl = String.valueOf(el);
+                                    } else {
+                                        stringifiedEl = jsonize(el);
+                                    }
+                                    arr[i] = StringData.fromString(stringifiedEl);
                                 }
                             }
 

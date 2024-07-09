@@ -1257,7 +1257,19 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *     exist.
      */
     public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true);
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
+    }
+
+    /**
+     * Drops a materialized table in a given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the materialized table to drop.
+     * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
+     *     exist.
+     */
+    public void dropMaterializedTable(
+            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, true);
     }
 
     /**
@@ -1268,16 +1280,19 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *     exist.
      */
     public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, false);
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);
     }
 
     private void dropTableInternal(
-            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, boolean isDropTable) {
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists,
+            boolean isDropTable,
+            boolean isDropMaterializedTable) {
         Predicate<CatalogBaseTable> filter =
                 isDropTable
-                        ? table ->
-                                table instanceof CatalogTable
-                                        || table instanceof CatalogMaterializedTable
+                        ? isDropMaterializedTable
+                                ? table -> table instanceof CatalogMaterializedTable
+                                : table -> table instanceof CatalogTable
                         : table -> table instanceof CatalogView;
         // Same name temporary table or view exists.
         if (filter.test(temporaryTables.get(objectIdentifier))) {
@@ -1317,7 +1332,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     ignoreIfNotExists,
                     "DropTable");
         } else if (!ignoreIfNotExists) {
-            String tableOrView = isDropTable ? "Table" : "View";
+            String tableOrView =
+                    isDropTable ? isDropMaterializedTable ? "Materialized Table" : "Table" : "View";
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",
