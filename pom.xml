@@ -1678,6 +1678,7 @@ under the License.
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-sql-client/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
+                                                <exclude>flink-table/flink-table-planner/src/test/resources/batch-compiled-plan-tests/**</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/jsonplan/*.json</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/lineage-graph/*.json</exclude>
