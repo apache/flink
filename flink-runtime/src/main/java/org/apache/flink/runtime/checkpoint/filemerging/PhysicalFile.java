@@ -121,7 +121,7 @@ public class PhysicalFile {
         this.scope = scope;
         this.size = new AtomicLong(0);
         this.dataSize = new AtomicLong(0);
-        this.couldReuse = true;
+        this.couldReuse = owned;
         this.logicalFileRefCount = new AtomicInteger(0);
         this.isOwned = owned;
     }
