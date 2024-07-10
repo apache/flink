@@ -350,6 +350,16 @@ string:
   - sql: LOCATE(string1, string2[, integer])
     table: STRING1.locate(STRING2[, INTEGER])
     description: Returns the position of the first occurrence of string1 in string2 after position integer. Returns 0 if not found. Returns NULL if any of arguments is NULL.
+  - sql: URL_DECODE(string)
+    table: STRING.urlDecode()
+    description:
+      Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme.
+      If the input is NULL, or there is an issue with the decoding process(such as encountering an illegal escape pattern), or the encoding scheme is not supported, the function returns NULL.
+  - sql: URL_ENCODE(string)
+    table: STRING.urlEncode()
+    description:
+      Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme.
+      If the input is NULL, or there is an issue with the encoding process, or the encoding scheme is not supported, will return NULL.
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |

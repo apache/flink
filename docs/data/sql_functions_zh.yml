@@ -448,6 +448,16 @@ string:
     table: STRING1.locate(STRING2[, INTEGER])
     description: |
       返回 string2 中 string1 在位置 integer 之后第一次出现的位置。未找到返回 0。如果有任一参数为 `NULL` 则返回 `NULL`。
+  - sql: URL_DECODE(string)
+    table: STRING.urlDecode()
+    description:
+      使用 UTF-8 编码方案对“application/x-www-form-urlencoded”格式的给定字符串进行解码。
+      如果输入为 NULL，或者解码过程出现问题（例如遇到非法转义模式或者不支持该编码方案），该函数将返回 NULL。
+  - sql: URL_ENCODE(string)
+    table: STRING.urlEncode()
+    description:
+      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式。
+      如果输入为 NULL，或者编码过程出现问题，或者不支持编码方案，则会返回 NULL。
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
