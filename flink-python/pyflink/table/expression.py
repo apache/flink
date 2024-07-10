@@ -1967,7 +1967,7 @@ class Expression(Generic[T]):
 
     def json_unquote(self) -> 'Expression':
         """
-        Unquotes JSON value, escapes spacial characters
+        Unquotes JSON value, unescapes escaped special characters
         ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex) and
         returns the result as a string.
         If the argument is NULL, returns NULL. If the value starts and ends with
