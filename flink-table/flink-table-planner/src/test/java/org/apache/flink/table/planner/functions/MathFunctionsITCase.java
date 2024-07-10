@@ -148,11 +148,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 Long.valueOf("493824"),
                                 DataTypes.BIGINT().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
-                        .onFieldsWithData(Long.valueOf("123456"))
+                        .onFieldsWithData(Long.valueOf("1234"), Long.valueOf("8"))
                         .testResult(
-                                $("f0").shiftleft(2L),
-                                "shiftleft (f0, 2)",
-                                Long.valueOf("493824"),
+                                $("f0").shiftleft($("f1")),
+                                "shiftleft (f0, f1)",
+                                Long.valueOf("315904"),
                                 DataTypes.BIGINT().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
                         .onFieldsWithData(Long.valueOf("123456"), Long.valueOf("2"))
@@ -162,11 +162,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 Long.valueOf("30864"),
                                 DataTypes.BIGINT().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
-                        .onFieldsWithData(Long.valueOf("123456"))
+                        .onFieldsWithData(Long.valueOf("1221312133"))
                         .testResult(
-                                $("f0").shiftright(2L),
-                                "shiftright (f0, 2)",
-                                Long.valueOf("30864"),
+                                $("f0").shiftright(10L),
+                                "shiftright (f0, 10)",
+                                Long.valueOf("1192687"),
                                 DataTypes.BIGINT().notNull()));
     }
 }
