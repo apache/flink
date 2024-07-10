@@ -302,7 +302,13 @@ arithmetic:
       返回截取 integer2 位小数的数字。如果 numeric1 或 integer2 为 `NULL`，则返回 `NULL`。
       如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
       此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
-      例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。
+      例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。\
+  - sql: shiftleft(integer1,integer2)
+    table: INTEGER1.shiftleft(INTEGER2)
+    description: Returns the result of shifting integer1 to the left by integer2 positions. This is equivalent to multiplying integer1 by 2 raised to the power of integer2. Returns NULL if integer1 or integer2 is NULL. If integer2 is 0, the result is integer1 unchanged. E.g. 5.shiftleft(2) results in 20.
+  - sql: shiftright(integer1,integer2)
+    table: INTEGER1.shiftright(INTEGER2)
+    description: Returns the result of shifting integer1 to the right by integer2 positions. This is equivalent to dividing integer1 by 2 raised to the power of integer2 and discarding any remainder. Returns NULL if integer1 or integer2 is NULL. E.g. 20.shiftright(2) results in 5.
 
 string:
   - sql: string1 || string2
