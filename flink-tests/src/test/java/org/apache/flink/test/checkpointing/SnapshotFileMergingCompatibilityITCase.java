@@ -56,6 +56,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
 
+    private static final long DELETE_TIMEOUT_MILLS = 60000;
+
     public static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[][] {
@@ -150,6 +152,8 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             true);
             assertThat(secondCheckpoint).isNotNull();
             verifyStateHandleType(secondCheckpoint, secondFileMergingSwitch);
+            verifyCheckpointExistOrWaitDeleted(
+                    firstCheckpoint, restoreMode != RestoreMode.CLAIM, firstFileMergingSwitch);
         } finally {
             secondCluster.after();
         }
@@ -177,6 +181,8 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             true);
             assertThat(thirdCheckpoint).isNotNull();
             verifyStateHandleType(thirdCheckpoint, secondFileMergingSwitch);
+            verifyCheckpointExistOrWaitDeleted(
+                    secondCheckpoint, restoreMode != RestoreMode.CLAIM, secondFileMergingSwitch);
         } finally {
             thirdCluster.after();
         }
@@ -204,18 +210,12 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             consecutiveCheckpoint,
                             false);
             assertThat(fourthCheckpoint).isNotNull();
+            verifyCheckpointExistOrWaitDeleted(
+                    thirdCheckpoint, restoreMode != RestoreMode.CLAIM, secondFileMergingSwitch);
+            verifyCheckpointExistOrWaitDeleted(fourthCheckpoint, false, secondFileMergingSwitch);
         } finally {
             fourthCluster.after();
         }
-
-        waitUntilNoJobThreads();
-        verifyCheckpointExist(
-                firstCheckpoint, restoreMode != RestoreMode.CLAIM, firstFileMergingSwitch);
-        verifyCheckpointExist(
-                secondCheckpoint, restoreMode != RestoreMode.CLAIM, secondFileMergingSwitch);
-        verifyCheckpointExist(
-                thirdCheckpoint, restoreMode != RestoreMode.CLAIM, secondFileMergingSwitch);
-        verifyCheckpointExist(fourthCheckpoint, false, secondFileMergingSwitch);
     }
 
     private void verifyStateHandleType(String checkpointPath, boolean fileMergingEnabled)
@@ -249,48 +249,53 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         assertThat(hasKeyedState).isTrue();
     }
 
-    private static void waitUntilNoJobThreads() throws InterruptedException {
-        SecurityManager securityManager = System.getSecurityManager();
-        ThreadGroup group =
-                (securityManager != null)
-                        ? securityManager.getThreadGroup()
-                        : Thread.currentThread().getThreadGroup();
-
-        boolean jobThreads = true;
-        while (jobThreads) {
-            jobThreads = false;
-            Thread[] activeThreads = new Thread[group.activeCount() * 2];
-            group.enumerate(activeThreads);
-            for (Thread thread : activeThreads) {
-                if (thread != null
-                        && thread != Thread.currentThread()
-                        && thread.getName().contains("jobmanager")) {
-                    jobThreads = true;
-                    Thread.sleep(500);
-                    break;
-                }
-            }
-        }
-    }
-
-    private void verifyCheckpointExist(
-            String checkpointPath, boolean exist, boolean fileMergingEnabled) throws IOException {
+    private void verifyCheckpointExistOrWaitDeleted(
+            String checkpointPath, boolean exist, boolean fileMergingEnabled) throws Exception {
         org.apache.flink.core.fs.Path checkpointDir =
                 new org.apache.flink.core.fs.Path(checkpointPath);
         FileSystem fs = checkpointDir.getFileSystem();
-        assertThat(fs.exists(checkpointDir)).isEqualTo(exist);
         org.apache.flink.core.fs.Path baseDir = checkpointDir.getParent();
-        assertThat(fs.exists(baseDir)).isTrue();
         org.apache.flink.core.fs.Path sharedFile =
                 new org.apache.flink.core.fs.Path(baseDir, CHECKPOINT_SHARED_STATE_DIR);
-        assertThat(fs.exists(sharedFile)).isTrue();
-        assertThat(fs.listStatus(sharedFile) != null && fs.listStatus(sharedFile).length > 0)
-                .isEqualTo(exist);
         org.apache.flink.core.fs.Path taskOwnedFile =
                 new org.apache.flink.core.fs.Path(baseDir, CHECKPOINT_TASK_OWNED_STATE_DIR);
+        assertThat(fs.exists(baseDir)).isTrue();
+        assertThat(fs.exists(sharedFile)).isTrue();
         assertThat(fs.exists(taskOwnedFile)).isTrue();
-        // Since there is no exclusive state, we should consider fileMergingEnabled.
-        assertThat(fs.exists(taskOwnedFile) && fs.listStatus(taskOwnedFile).length > 0)
-                .isEqualTo(exist && fileMergingEnabled);
+        if (exist) {
+            // should exist, just check
+            assertThat(fs.exists(checkpointDir)).isTrue();
+            assertThat(fs.listStatus(sharedFile) != null && fs.listStatus(sharedFile).length > 0)
+                    .isTrue();
+            // Since there is no exclusive state, we should consider fileMergingEnabled.
+            assertThat(
+                            fs.listStatus(taskOwnedFile) != null
+                                    && fs.listStatus(taskOwnedFile).length > 0)
+                    .isEqualTo(fileMergingEnabled);
+        } else {
+            // should be cleaned, since the job io threads may work slow, we wait.
+            long waited = 0L;
+            boolean fileExist = true;
+            while (fileExist) {
+                try {
+                    fileExist =
+                            (fs.exists(checkpointDir)
+                                    || (fs.listStatus(sharedFile) != null
+                                            && fs.listStatus(sharedFile).length > 0)
+                                    || (fs.listStatus(taskOwnedFile) != null
+                                            && fs.listStatus(taskOwnedFile).length > 0));
+                } catch (IOException e) {
+                    // Sometimes it may happen that the files are being deleted while we list them,
+                    // thus an IOException is raised.
+                }
+                if (fileExist) {
+                    // We wait
+                    Thread.sleep(500L);
+                    waited += 500L;
+                    // Or timeout
+                    assertThat(waited).isLessThan(DELETE_TIMEOUT_MILLS);
+                }
+            }
+        }
     }
 }
