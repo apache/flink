@@ -23,8 +23,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc1
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
 
@@ -36,7 +36,9 @@ class CalcTest extends TableTestBase {
   @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
+    util.addTableSource[(Long, Int, String)]("MyTable_Join", 'd, 'e, 'f)
     util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("length_udtf", new JavaTableFunc1)
   }
 
   @Test
@@ -199,6 +201,21 @@ class CalcTest extends TableTestBase {
   @Test
   def testCalcMergeWithNonDeterministicExpr2(): Unit = {
     val sqlQuery = "SELECT a FROM (SELECT a, b FROM MyTable) t WHERE random_udf(b) > 10"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcMergeWithNonDeterministicExpr3(): Unit = {
+    val sqlUdtfQuery = "SELECT a, b, len FROM MyTable, LATERAL TABLE (length_udtf(c)) AS T(len)"
+    val sqlView1Query = "SELECT a, b, len " +
+      s"FROM ($sqlUdtfQuery) t JOIN MyTable_Join t2 " +
+      "ON t.a = t2.d"
+    val view1 = util.tableEnv.sqlQuery(sqlView1Query)
+    util.tableEnv.createTemporaryView("View1", view1)
+    val sqlView2Query = "SELECT random_udf(b) AS r FROM View1"
+    val view2 = util.tableEnv.sqlQuery(sqlView2Query)
+    util.tableEnv.createTemporaryView("View2", view2)
+    val sqlQuery = "SELECT r FROM View2 WHERE r > 10"
     util.verifyRelPlan(sqlQuery)
   }
 }

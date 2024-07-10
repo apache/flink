@@ -100,6 +100,9 @@ import org.apache.calcite.util.ReflectiveVisitor;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mappings;
 import org.apache.calcite.util.trace.CalciteTrace;
+
+import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
@@ -268,20 +271,20 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                                         .FilterIntoJoinRuleConfig.class)
                                         .toRule())
                         .addRuleInstance(
-                                CoreRules.FILTER_PROJECT_TRANSPOSE
-                                        .config
-                                        .withRelBuilderFactory(f)
-                                        .as(FilterProjectTransposeRule.Config.class)
-                                        .withOperandFor(
-                                                Filter.class,
-                                                filter ->
-                                                        !RexUtil.containsCorrelation(
-                                                                filter.getCondition()),
-                                                Project.class,
-                                                project -> true)
-                                        .withCopyFilter(true)
-                                        .withCopyProject(true)
-                                        .toRule())
+                                FlinkFilterProjectTransposeRule.build(
+                                        CoreRules.FILTER_PROJECT_TRANSPOSE
+                                                .config
+                                                .withRelBuilderFactory(f)
+                                                .as(FilterProjectTransposeRule.Config.class)
+                                                .withOperandFor(
+                                                        Filter.class,
+                                                        filter ->
+                                                                !RexUtil.containsCorrelation(
+                                                                        filter.getCondition()),
+                                                        Project.class,
+                                                        project -> true)
+                                                .withCopyFilter(true)
+                                                .withCopyProject(true)))
                         .addRuleInstance(
                                 FilterCorrelateRule.Config.DEFAULT
                                         .withRelBuilderFactory(f)
