@@ -22,7 +22,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.Duration;
 import java.util.stream.Stream;
 
@@ -146,14 +145,28 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").shiftleft(2L),
                                 "shiftleft (f0, 2)",
-                                new BigInteger("493824"),
+                                Long.valueOf("493824"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
+                        .onFieldsWithData(Long.valueOf("123456"))
+                        .testResult(
+                                $("f0").shiftleft(2L),
+                                "shiftleft (f0, 2)",
+                                Long.valueOf("493824"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
+                        .onFieldsWithData(Long.valueOf("123456"), Long.valueOf("2"))
+                        .testResult(
+                                $("f0").shiftright($("f1")),
+                                "shiftright (f0,f1)",
+                                Long.valueOf("30864"),
                                 DataTypes.BIGINT().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
                         .onFieldsWithData(Long.valueOf("123456"))
                         .testResult(
                                 $("f0").shiftright(2L),
                                 "shiftright (f0, 2)",
-                                new BigInteger("30864"),
+                                Long.valueOf("30864"),
                                 DataTypes.BIGINT().notNull()));
     }
 }

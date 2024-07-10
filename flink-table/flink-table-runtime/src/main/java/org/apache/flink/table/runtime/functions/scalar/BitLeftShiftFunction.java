@@ -32,7 +32,7 @@ public class BitLeftShiftFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.SHIFTLEFT, context);
     }
 
-    public @Nullable Object eval(Object operand, Object shiftBits) {
+    public @Nullable Long eval(Object operand, Object shiftBits) {
         if (operand == null || shiftBits == null) {
             return null;
         }

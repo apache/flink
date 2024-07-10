@@ -1013,6 +1013,40 @@ class Expression(Generic[T]):
         """
         return _binary_op("truncate")(self, n)
 
+    def shiftleft(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
+        """
+        Shifts the bits of a number to the left by a specified number of positions.
+        This operation is equivalent to multiplying the number by 2 raised to the power of the specified number of positions.
+
+        Parameters:
+        - number (int): The number to be shifted.
+        - positions (int): The number of positions to shift the bits to the left.
+
+        Returns:
+        - int: The result of shifting the bits of the number to the left by the specified number of positions.
+
+        Examples:
+        - shiftleft(5, 2) returns 20 (binary 101 shifted left by 2 positions becomes 10100, which is 20 in decimal).
+        """
+        return _binary_op("shiftleft")(self, n)
+
+    def shiftright(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
+        """
+        Shifts the bits of a number to the right by a specified number of positions.
+        This operation is equivalent to dividing the number by 2 raised to the power of the specified number of positions, discarding any remainder.
+
+        Parameters:
+        - number (int): The number to be shifted.
+        - positions (int): The number of positions to shift the bits to the right.
+
+        Returns:
+        - int: The result of shifting the bits of the number to the right by the specified number of positions.
+
+        Examples:
+        - shiftright(20, 2) returns 5 (binary 10100 shifted right by 2 positions becomes 101, which is 5 in decimal).
+        """
+        return _binary_op("shiftright")(self, n)
+
     # ---------------------------- string functions ----------------------------------
 
     def substring(self,
