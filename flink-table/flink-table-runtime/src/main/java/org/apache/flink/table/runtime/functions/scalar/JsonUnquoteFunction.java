@@ -23,7 +23,6 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.runtime.functions.SqlJsonUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -101,21 +100,19 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
     }
 
     public @Nullable Object eval(Object input) {
-
+        if (input == null) {
+            return null;
+        }
+        BinaryStringData bs = (BinaryStringData) input;
+        String inputStr = bs.toString();
         try {
-            if (input == null) {
-                return null;
-            }
-            BinaryStringData bs = (BinaryStringData) input;
-            String inputStr = bs.toString();
             if (isValidJsonVal(inputStr)) {
                 return new BinaryStringData(unquote(inputStr));
-            } else {
-                // return input as is since JSON is invalid
-                return new BinaryStringData(inputStr);
             }
         } catch (Throwable t) {
-            throw new FlinkRuntimeException(t);
+            // ignore
         }
+        // return input as-is, either JSON is invalid or we encountered an exception while unquoting
+        return new BinaryStringData(inputStr);
     }
 }
