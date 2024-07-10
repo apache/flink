@@ -890,9 +890,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "\"[\"\\t\\u0032\"]\"",
                                 "\"[\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"]\"",
                                 "\"\"\"",
-                                "\"\"hg\"",
-                                "\"a unicode \u2260\"")
+                                "\"\"\ufffa\"",
+                                "\"a unicode \u2260\"",
+                                "\"valid unicode literal \\uD801\\uDC00\"")
                         .andDataTypes(
+                                STRING().notNull(),
                                 STRING().notNull(),
                                 STRING().notNull(),
                                 STRING().notNull(),
@@ -949,12 +951,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f10").jsonUnquote(),
                                 "JSON_UNQUOTE(f10)",
-                                "\"hg",
+                                "\"\ufffa",
                                 STRING().notNull())
                         .testResult(
                                 $("f11").jsonUnquote(),
                                 "JSON_UNQUOTE(f11)",
                                 "a unicode ≠",
+                                STRING().notNull())
+                        .testResult(
+                                $("f12").jsonUnquote(),
+                                "JSON_UNQUOTE(f12)",
+                                "valid unicode literal \uD801\uDC00",
                                 STRING().notNull()));
     }
 
@@ -971,9 +978,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_UNQUOTE)
                         .onFieldsWithData(
                                 "\"invalid json string pass through \\u006z\"",
-                                "\"invalid unicode literal pass through \\u23\"",
-                                "\"invalid unicode literal pass through \\u≠FFF\"",
-                                "\"valid unicode literal \\uD801\\uDC00\"")
+                                "\"invalid unicode literal and invalid json through \\u23\"",
+                                "\"invalid unicode literal and invalid json pass through \\u≠FFF\"",
+                                "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"")
                         .andDataTypes(
                                 STRING().notNull(),
                                 STRING().notNull(),
@@ -987,17 +994,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").jsonUnquote(),
                                 "JSON_UNQUOTE(f1)",
-                                "\"invalid unicode literal pass through \\u23\"",
+                                "\"invalid unicode literal and invalid json through \\u23\"",
                                 STRING().notNull())
                         .testResult(
                                 $("f2").jsonUnquote(),
                                 "JSON_UNQUOTE(f2)",
-                                "\"invalid unicode literal pass through \\u≠FFF\"",
+                                "\"invalid unicode literal and invalid json pass through \\u≠FFF\"",
                                 STRING().notNull())
                         .testResult(
                                 $("f3").jsonUnquote(),
                                 "JSON_UNQUOTE(f3)",
-                                "valid unicode literal \uD801\uDC00",
+                                "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"",
                                 STRING().notNull()));
     }
 

@@ -629,6 +629,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testJsonUnquote(): Unit = {
+    // valid cases
     testSqlApi("JSON_UNQUOTE('\"abc\"')", "abc")
     testSqlApi("JSON_UNQUOTE('\"[abc]\"')", "[abc]")
     testSqlApi("JSON_UNQUOTE('\"[abc}\"')", "[abc}")
@@ -645,6 +646,21 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
     testSqlApi("json_unquote(json_quote('\"key\"'))", "\"key\"")
     testSqlApi("json_unquote(json_quote('\"[]\"'))", "\"[]\"")
+    // invalid cases
+    testSqlApi(
+      "json_unquote(json_quote('\"invalid json string pass through \\u006z\"'))",
+      "\"invalid json string pass through \\u006z\"")
+    testSqlApi(
+      "json_unquote(json_quote('\"invalid unicode literal and invalid json through \\u23\"'))",
+      "\"invalid unicode literal and invalid json through \\u23\"")
+    testSqlApi(
+      "json_unquote(json_quote('\"invalid unicode literal and invalid json pass through \\u≠FFF\"'))",
+      "\"invalid unicode literal and invalid json pass through \\u≠FFF\""
+    )
+    testSqlApi(
+      "json_unquote(json_quote('\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"'))",
+      "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\""
+    )
   }
 
   @Test
