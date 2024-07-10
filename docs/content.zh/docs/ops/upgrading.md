@@ -249,21 +249,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
   <thead>
     <tr>
       <th class="text-left" style="width: 25%">创建于 \ 恢复于</th>
-      <th class="text-center">1.1.x</th>
-      <th class="text-center">1.2.x</th>
-      <th class="text-center">1.3.x</th>
-      <th class="text-center">1.4.x</th>
-      <th class="text-center">1.5.x</th>
-      <th class="text-center">1.6.x</th>
-      <th class="text-center">1.7.x</th>
-      <th class="text-center">1.8.x</th>
-      <th class="text-center">1.9.x</th>
-      <th class="text-center">1.10.x</th>
-      <th class="text-center">1.11.x</th>
-      <th class="text-center">1.12.x</th>
-      <th class="text-center">1.13.x</th>
-      <th class="text-center">1.14.x</th>
-      <th class="text-center">1.15.x</th>
       <th class="text-center">1.16.x</th>
       <th class="text-center">1.17.x</th>
       <th class="text-center">1.18.x</th>
@@ -273,172 +258,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
   </thead>
   <tbody>
     <tr>
-          <td class="text-center"><strong>1.1.x</strong></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">从 Flink 1.1.x 迁移到 1.2.x+ 的作业的最大并行度目前固定为作业的并行度。
-这意味着迁移后无法增加并行度。
-在未来的错误修复版本中可能会删除此限制。</td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.2.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">
-         从 Flink 1.2.x 迁移到 Flink 1.3.x+ 时，不支持同时更改并行度。
-            迁移到 Flink 1.3.x+ 后，
-            用户必须先获取一个 Savepoint ，然后再更改并行度。
-          <br/><br/>为 CEP 应用程序创建的 Savepoint 无法在 1.4.x+ 中恢复。
-          <br/><br/>Flink 1.2 中包含 Scala TraversableSerializer 的 Savepoint 不再与 Flink 1.8 兼容，
-            因为此序列化程序中的更新。
-            您可以通过首先升级到 Flink 1.3 和 Flink 1.7 之间的版本，然后更新到 Flink 1.8 来绕过这个限制。
-          </td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.3.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">M如果 Savepoint 包含 Scala 案例类，则从 Flink 1.3.0 迁移到 Flink 1.4.[0,1] 将失败。用户必须直接迁移到 1.4.2+。</td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.4.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left"></td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.5.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">在 1.6.x 到 1.6.2 和 1.7.0 版本中恢复使用 1.5.x 创建的广播状态存在一个已知问题：<a href="https://issues.apache.org/jira/browse/FLINK-11087">FLINK-11087</a>. 
-            升级到 1.6.x 或 1.7.x 系列的用户需要
-            直接迁移到次要版本分别高于 1.6.2 和 1.7.0。</td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.6.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left"></td>
-    </tr>
-    <tr>
           <td class="text-center"><strong>1.7.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center"></td>
           <td class="text-center"></td>
@@ -447,21 +267,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
     </tr>
     <tr>
           <td class="text-center"><strong>1.8.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -470,21 +275,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
     </tr>
     <tr>
           <td class="text-center"><strong>1.9.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -493,21 +283,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
     </tr>
     <tr>
           <td class="text-center"><strong>1.10.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -516,21 +291,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
     </tr>
     <tr>
           <td class="text-center"><strong>1.11.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -539,21 +299,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
     </tr>
     <tr>
           <td class="text-center"><strong>1.12.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -562,21 +307,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
         </tr>
     <tr>
           <td class="text-center"><strong>1.13.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -585,21 +315,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
         </tr>
     <tr>
           <td class="text-center"><strong>1.14.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -608,21 +323,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
         </tr>
     <tr>
           <td class="text-center"><strong>1.15.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -639,21 +339,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
         </tr>
     <tr>
           <td class="text-center"><strong>1.16.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -663,21 +348,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
     <tr>
           <td class="text-center"><strong>1.17.x</strong></td>
           <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -685,21 +355,6 @@ $ bin/flink run -s :savepointPath [:runArgs]
         </tr>
     <tr>
           <td class="text-center"><strong>1.18.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center">O</td>
@@ -711,25 +366,13 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
         </tr>
   </tbody>
 </table>
+
+请参考上一个版本的 [兼容性速查表](https://nightlies.apache.org/flink/flink-docs-release-1.18/zh/docs/ops/upgrading/#%e5%85%bc%e5%ae%b9%e6%80%a7%e9%80%9f%e6%9f%a5%e8%a1%a8)
+来查看 Flink 老版本的 savepoint 兼容性。
 
 {{< top >}}
