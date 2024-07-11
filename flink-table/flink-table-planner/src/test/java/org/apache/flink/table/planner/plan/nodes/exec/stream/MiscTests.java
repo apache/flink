@@ -107,7 +107,7 @@ class MiscTests implements TableTestProgramRunner {
     }
 
     private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
-        if (sinkTestStep.getTestChangelogData()) {
+        if (sinkTestStep.shouldTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
             return TestValuesTableFactory.getResultsAsStrings(tableName);

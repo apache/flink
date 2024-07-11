@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
-import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.PlanReference;
@@ -105,7 +104,6 @@ public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunne
         return EnumSet.of(
                 TestKind.CONFIG,
                 TestKind.FUNCTION,
-                TestKind.TEMPORAL_FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
                 TestKind.SOURCE_WITH_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA,
@@ -148,7 +146,6 @@ public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunne
         }
 
         final EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
-        settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         final TableEnvironment tEnv = TableEnvironment.create(settings);
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
         tEnv.getConfig()
@@ -175,7 +172,6 @@ public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunne
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
-        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final CompiledPlan compiledPlan;
         if (program.runSteps.get(0).getKind() == TestKind.STATEMENT_SET) {
@@ -195,7 +191,6 @@ public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunne
     void loadAndRunCompiledPlan(TableTestProgram program, ExecNodeMetadata metadata)
             throws Exception {
         final EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
-        settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         final TableEnvironment tEnv = TableEnvironment.create(settings);
         tEnv.getConfig()
                 .set(
@@ -225,7 +220,6 @@ public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunne
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
-        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final CompiledPlan compiledPlan =
                 tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
@@ -253,7 +247,7 @@ public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunne
     }
 
     private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
-        if (sinkTestStep.getTestChangelogData()) {
+        if (sinkTestStep.shouldTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
             return TestValuesTableFactory.getResultsAsStrings(tableName);
