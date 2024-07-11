@@ -433,7 +433,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition URL_DECODE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("url_decode")
+                    .name("URL_DECODE")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
@@ -443,7 +443,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition URL_ENCODE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("url_encode")
+                    .name("URL_ENCODE")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
