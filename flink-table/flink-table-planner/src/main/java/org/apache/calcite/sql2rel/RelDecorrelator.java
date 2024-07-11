@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.sql2rel;
 
+import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -100,9 +102,6 @@ import org.apache.calcite.util.ReflectiveVisitor;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mappings;
 import org.apache.calcite.util.trace.CalciteTrace;
-
-import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
-
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
