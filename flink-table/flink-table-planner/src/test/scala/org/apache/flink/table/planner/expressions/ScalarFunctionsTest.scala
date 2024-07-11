@@ -609,7 +609,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("JSON_QUOTE('null')", "\"null\"")
     testSqlApi("JSON_QUOTE('\"null\"')", "\"\\\"null\\\"\"")
     testSqlApi("JSON_QUOTE('[1,2,3]')", "\"[1,2,3]\"")
-    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('[1,2,3]'))", "[1,2,3]")
     testSqlApi(
       "JSON_QUOTE('This is a \\t test \\n with special characters: \" \\ \\b \\f \\r \\u0041')",
       "\"This is a \\\\t test \\\\n with special characters: \\\" \\\\ \\\\b \\\\f \\\\r \\\\u0041\""
@@ -618,47 +617,62 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "JSON_QUOTE('\"special\": \"\\b\\f\\r\"')",
       "\"\\\"special\\\": \\\"\\\\b\\\\f\\\\r\\\"\"")
     testSqlApi(
-      "JSON_QUOTE('skipping backslash \')",
-      "\"skipping backslash \""
+      "JSON_QUOTE('skipping backslash \\')",
+      "\"skipping backslash \\\\\""
     )
     testSqlApi(
-      "JSON_QUOTE('this will be quoted ≠')",
-      "\"this will be quoted \\u2260\""
+      "JSON_QUOTE('≠ will be escaped')",
+      "\"\\u2260 will be escaped\""
     )
+    testSqlApi(
+      "JSON_QUOTE('\\u006z will not be escaped')",
+      "\"\\\\u006z will not be escaped\""
+    )
+    testSqlApi("JSON_QUOTE('1')", "\"1\"")
+    testSqlApi("JSON_QUOTE('\"1\"')", "\"\\\"1\\\"\"")
   }
 
   @Test
-  def testJsonUnquote(): Unit = {
-    // valid cases
+  def testJsonUnquoteWithValidInput(): Unit = {
     testSqlApi("JSON_UNQUOTE('\"abc\"')", "abc")
     testSqlApi("JSON_UNQUOTE('\"[abc]\"')", "[abc]")
-    testSqlApi("JSON_UNQUOTE('\"[abc}\"')", "[abc}")
     testSqlApi("JSON_UNQUOTE('\"[\\u0041]\"')", "[A]")
-    testSqlApi("JSON_UNQUOTE('\"[\\u006z]\"')", "\"[\\u006z]\"")
-    testSqlApi("JSON_UNQUOTE('\"[1,2,3]')", "\"[1,2,3]")
-    testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}')", "\"[1, 2, 3}")
-    testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}\"')", "[1, 2, 3}")
-    testSqlApi("JSON_UNQUOTE('\"')", "\"")
+    testSqlApi("JSON_UNQUOTE('\"\\u0041\"')", "A")
     testSqlApi("JSON_UNQUOTE('\"[\\t\\u0032]\"')", "[\t2]")
     testSqlApi(
       "JSON_UNQUOTE('\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"')",
       "This is a \t test \n with special characters: \b \f \r A"
     )
-    testSqlApi("json_unquote(json_quote('\"key\"'))", "\"key\"")
-    testSqlApi("json_unquote(json_quote('\"[]\"'))", "\"[]\"")
-    // invalid cases
+    testSqlApi("JSON_UNQUOTE('\"\"')", "")
+    testSqlApi("JSON_UNQUOTE('\"\"\"')", "\"")
+    testSqlApi("JSON_UNQUOTE('[]')", "[]")
+    testSqlApi("JSON_UNQUOTE('\"\"\\ufffa\"')", "\"\ufffa")
+    testSqlApi("JSON_UNQUOTE('{\"key\":1}')", "{\"key\":1}")
+    testSqlApi("JSON_UNQUOTE('true')", "true")
+  }
+
+  @Test
+  def testJsonQuoteFollowedByUnquoteReturnsOriginal(): Unit = {
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('test'))", "test")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('3'))", "3")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('[]'))", "[]")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('{}'))", "{}")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('{\"key\":\"value\"}'))", "{\"key\":\"value\"}")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('\"this is not a json'))", "\"this is not a json")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE(''))", "")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('\"'))", "\"")
+  }
+
+  @Test
+  def testJsonUnquoteWithInvalidInput(): Unit = {
+    testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}')", "\"[1, 2, 3}")
+    testSqlApi("JSON_UNQUOTE('\"')", "\"")
+    testSqlApi("JSON_UNQUOTE('[}')", "[}")
+    testSqlApi("JSON_UNQUOTE('1\"')", "1\"")
+    testSqlApi("JSON_UNQUOTE('[')", "[")
+    testSqlApi("JSON_UNQUOTE('')", "")
     testSqlApi(
-      "json_unquote(json_quote('\"invalid json string pass through \\u006z\"'))",
-      "\"invalid json string pass through \\u006z\"")
-    testSqlApi(
-      "json_unquote(json_quote('\"invalid unicode literal and invalid json through \\u23\"'))",
-      "\"invalid unicode literal and invalid json through \\u23\"")
-    testSqlApi(
-      "json_unquote(json_quote('\"invalid unicode literal and invalid json pass through \\u≠FFF\"'))",
-      "\"invalid unicode literal and invalid json pass through \\u≠FFF\""
-    )
-    testSqlApi(
-      "json_unquote(json_quote('\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"'))",
+      "JSON_UNQUOTE('\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"')",
       "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\""
     )
   }

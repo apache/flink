@@ -39,11 +39,10 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
         return SqlJsonUtils.isJsonValue(jsonInString);
     }
 
-    private String unquote(String inputStr) {
-
+    private String unescapeStr(String inputStr) {
         StringBuilder result = new StringBuilder();
-        int i = 1;
-        while (i < inputStr.length() - 1) {
+        int i = 0;
+        while (i < inputStr.length()) {
             if (inputStr.charAt(i) == '\\' && i + 1 < inputStr.length()) {
                 i++; // move to the next char
                 char ch = inputStr.charAt(i++);
@@ -88,6 +87,17 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
         return result.toString();
     }
 
+    private String unescapeValidJson(String inputStr) {
+        // check for a quoted json string val and unescape
+        if (inputStr.charAt(0) == '"' && inputStr.charAt(inputStr.length() - 1) == '"') {
+            // remove quotes, string len is atleast 2 here
+            return unescapeStr(inputStr.substring(1, inputStr.length() - 1));
+        } else {
+            // string representing Json - array, object or unquoted scalar val, return as-is
+            return inputStr;
+        }
+    }
+
     private static String fromUnicodeLiteral(String input, int curPos) {
 
         StringBuilder number = new StringBuilder();
@@ -107,7 +117,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
         String inputStr = bs.toString();
         try {
             if (isValidJsonVal(inputStr)) {
-                return new BinaryStringData(unquote(inputStr));
+                return new BinaryStringData(unescapeValidJson(inputStr));
             }
         } catch (Throwable t) {
             // ignore
