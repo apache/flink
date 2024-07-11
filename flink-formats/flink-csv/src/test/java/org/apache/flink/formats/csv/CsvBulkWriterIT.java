@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.commons.io.FileUtils;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -153,12 +152,12 @@ public class CsvBulkWriterIT {
         }
 
         @Override
-        public void write(byte @NotNull [] b) throws IOException {
+        public void write(byte[] b) throws IOException {
             stream.write(b);
         }
 
         @Override
-        public void write(byte @NotNull [] b, int off, int len) throws IOException {
+        public void write(byte[] b, int off, int len) throws IOException {
             stream.write(b, off, len);
         }
 
