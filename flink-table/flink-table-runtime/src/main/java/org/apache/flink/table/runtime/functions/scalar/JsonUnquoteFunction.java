@@ -23,6 +23,7 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.runtime.functions.SqlJsonUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -44,7 +45,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
             if (isValidJsonVal(inputStr)) {
                 return new BinaryStringData(unescapeValidJson(inputStr));
             }
-        } catch (Throwable t) {
+        } catch (FlinkRuntimeException | IllegalArgumentException t) {
             // ignore
         }
         // return input as-is, either JSON is invalid or we encountered an exception while unquoting
@@ -105,7 +106,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
                         i = i + 4;
                         break;
                     default:
-                        throw new RuntimeException("Illegal escape sequence: \\" + ch);
+                        throw new FlinkRuntimeException("Illegal escape sequence: \\" + ch);
                 }
             } else {
                 result.append(inputStr.charAt(i));
