@@ -116,7 +116,7 @@ class StreamPhysicalWindowAggregate(
 
     if (windowing.isInstanceOf[WindowAttachedWindowingStrategy] && windowing.isProctime) {
       throw new TableException(
-        "Non-mergeable processing time window tvf aggregation is invalid, is should fallback to group " +
+        "Non-mergeable processing time window tvf aggregation is invalid, should fallback to group " +
           "aggregation instead. This is a bug and should not happen. Please file an issue.")
     }
     new StreamExecWindowAggregate(
