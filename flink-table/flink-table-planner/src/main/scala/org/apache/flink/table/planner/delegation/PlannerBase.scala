@@ -205,14 +205,7 @@ abstract class PlannerBase(
         throw new IllegalStateException(
           "Unknown PlanReference. This is a bug, please contact the developers")
     }
-    new ExecNodeGraphInternalPlan(
-      // ensures that the JSON output is always normalized
-      () =>
-        JsonSerdeUtil
-          .createObjectWriter(ctx)
-          .withDefaultPrettyPrinter()
-          .writeValueAsString(execNodeGraph),
-      execNodeGraph)
+    compileExecNodeGraphToInternalPlan(ctx, execNodeGraph)
   }
 
   override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan = {
@@ -221,13 +214,7 @@ abstract class PlannerBase(
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
     afterTranslation()
-
-    val compiledJson = JsonSerdeUtil
-      .createObjectWriter(createSerdeContext)
-      .withDefaultPrettyPrinter()
-      .writeValueAsString(execGraph)
-
-    new ExecNodeGraphInternalPlan(() => compiledJson, execGraph)
+    compileExecNodeGraphToInternalPlan(createSerdeContext, execGraph)
   }
 
   override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
@@ -236,6 +223,18 @@ abstract class PlannerBase(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
     transformations
+  }
+
+  private def compileExecNodeGraphToInternalPlan(
+      ctx: SerdeContext,
+      execNodeGraph: ExecNodeGraph) = {
+    new ExecNodeGraphInternalPlan(
+      () =>
+        JsonSerdeUtil
+          .createObjectWriter(ctx)
+          .withDefaultPrettyPrinter()
+          .writeValueAsString(execNodeGraph),
+      execNodeGraph)
   }
 
   /** Converts a relational tree of [[ModifyOperation]] into a Calcite relational expression. */
