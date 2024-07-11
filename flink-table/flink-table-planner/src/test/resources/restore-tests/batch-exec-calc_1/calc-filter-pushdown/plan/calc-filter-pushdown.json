@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.0",
   "nodes" : [ {
-    "id" : 7,
+    "id" : 14,
     "type" : "batch-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -41,10 +41,10 @@
     },
     "outputType" : "ROW<`a` BIGINT, `b` DOUBLE>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[>(a, 420:BIGINT)]]], fields=[a, b])",
-    "dynamicFilteringDataListenerID" : "6c314731-20a1-48ad-9087-f92a41620338",
+    "dynamicFilteringDataListenerID" : "adb172e8-15d9-46f8-a27d-3373a9ff478f",
     "inputProperties" : [ ]
   }, {
-    "id" : 8,
+    "id" : 15,
     "type" : "batch-exec-sink_1",
     "configuration" : {
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -79,8 +79,8 @@
     "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b])"
   } ],
   "edges" : [ {
-    "source" : 7,
-    "target" : 8,
+    "source" : 14,
+    "target" : 15,
     "shuffle" : {
       "type" : "FORWARD"
     },

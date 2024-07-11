@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.0",
   "nodes" : [ {
-    "id" : 12,
+    "id" : 19,
     "type" : "batch-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -24,10 +24,10 @@
     },
     "outputType" : "ROW<`a` INT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[]]], fields=[a])",
-    "dynamicFilteringDataListenerID" : "022e060f-9f91-44a5-86a1-50e8abbccb29",
+    "dynamicFilteringDataListenerID" : "8e80a89c-3b29-4638-af93-77420a9bc628",
     "inputProperties" : [ ]
   }, {
-    "id" : 13,
+    "id" : 20,
     "type" : "batch-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -80,7 +80,7 @@
     "outputType" : "ROW<`a` INT>",
     "description" : "Calc(select=[a], where=[SEARCH(a, Sarg[1, 2; NULL AS TRUE])])"
   }, {
-    "id" : 14,
+    "id" : 21,
     "type" : "batch-exec-sink_1",
     "configuration" : {
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -112,15 +112,15 @@
     "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a])"
   } ],
   "edges" : [ {
-    "source" : 12,
-    "target" : 13,
+    "source" : 19,
+    "target" : 20,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 13,
-    "target" : 14,
+    "source" : 20,
+    "target" : 21,
     "shuffle" : {
       "type" : "FORWARD"
     },

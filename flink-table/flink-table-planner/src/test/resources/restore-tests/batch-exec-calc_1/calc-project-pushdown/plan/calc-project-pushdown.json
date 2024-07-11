@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.0",
   "nodes" : [ {
-    "id" : 4,
+    "id" : 16,
     "type" : "batch-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -13,13 +13,7 @@
               "dataType" : "BIGINT"
             }, {
               "name" : "b",
-              "dataType" : "INT"
-            }, {
-              "name" : "c",
               "dataType" : "DOUBLE"
-            }, {
-              "name" : "d",
-              "dataType" : "VARCHAR(2147483647)"
             } ],
             "watermarkSpecs" : [ ]
           },
@@ -28,48 +22,54 @@
       },
       "abilities" : [ {
         "type" : "FilterPushDown",
-        "predicates" : [ ]
+        "predicates" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 0,
+            "type" : "BIGINT"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 1,
+            "type" : "BIGINT NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        } ]
+      }, {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ] ],
+        "producedType" : "ROW<`a` BIGINT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`a` BIGINT> NOT NULL"
       } ]
     },
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` DOUBLE, `d` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[]]], fields=[a, b, c, d])",
-    "dynamicFilteringDataListenerID" : "58c7e768-a440-4ebe-b9d8-512fa708b324",
+    "outputType" : "ROW<`a` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[>(a, 1:BIGINT)], project=[a], metadata=[]]], fields=[a])",
+    "dynamicFilteringDataListenerID" : "681c0bb8-b2bb-438f-9cfd-92c61aeba248",
     "inputProperties" : [ ]
   }, {
-    "id" : 5,
+    "id" : 17,
     "type" : "batch-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
-      "type" : "INT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "DOUBLE"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 3,
-      "type" : "VARCHAR(2147483647)"
-    } ],
-    "condition" : {
       "kind" : "CALL",
-      "syntax" : "BINARY",
-      "internalName" : "$>$1",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 1,
-        "type" : "INT"
-      }, {
-        "kind" : "LITERAL",
-        "value" : 0,
-        "type" : "INT NOT NULL"
+        "inputIndex" : 0,
+        "type" : "BIGINT"
       } ],
-      "type" : "BOOLEAN"
-    },
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -77,10 +77,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` DOUBLE, `d` VARCHAR(2147483647)>",
-    "description" : "Calc(select=[a, b, c, d], where=[(b > 0)])"
+    "outputType" : "ROW<`a` BIGINT, `EXPR$1` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[a, CAST(a AS VARCHAR(2147483647)) AS EXPR$1])"
   }, {
-    "id" : 6,
+    "id" : 18,
     "type" : "batch-exec-sink_1",
     "configuration" : {
       "table.exec.sink.not-null-enforcer" : "ERROR",
@@ -95,13 +95,7 @@
               "name" : "a",
               "dataType" : "BIGINT"
             }, {
-              "name" : "b",
-              "dataType" : "INT"
-            }, {
-              "name" : "c",
-              "dataType" : "DOUBLE"
-            }, {
-              "name" : "d",
+              "name" : "a1",
               "dataType" : "VARCHAR(2147483647)"
             } ],
             "watermarkSpecs" : [ ]
@@ -117,19 +111,19 @@
       "damBehavior" : "BLOCKING",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` DOUBLE, `d` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, b, c, d])"
+    "outputType" : "ROW<`a` BIGINT, `EXPR$1` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a, EXPR$1])"
   } ],
   "edges" : [ {
-    "source" : 4,
-    "target" : 5,
+    "source" : 16,
+    "target" : 17,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 17,
+    "target" : 18,
     "shuffle" : {
       "type" : "FORWARD"
     },

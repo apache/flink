@@ -51,7 +51,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -63,8 +62,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Base class for implementing compiled plan tests for {@link BatchExecNode}. You can generate json
  * compiled plan for the latest node version by running {@link
- * CompiledBatchTestBase#generateCompiledPlans(TableTestProgram)}. This method does not recreate
- * the compiled plan if it already exists for the given version of the operator.
+ * BatchRestoreTestBase#generateCompiledPlans(TableTestProgram)}. This method does not recreate the
+ * compiled plan if it already exists for the given version of the operator.
  *
  * <p><b>Note:</b> The test base uses {@link TableConfigOptions.CatalogPlanCompilation#SCHEMA}
  * because it needs to adjust source and sink properties. Therefore, the test base can not be used
@@ -73,16 +72,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(MiniClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
-public abstract class CompiledBatchTestBase implements TableTestProgramRunner {
+public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
     private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
 
-    protected CompiledBatchTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
+    protected BatchRestoreTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
         this(execNodeUnderTest, new ArrayList<>());
     }
 
-    protected CompiledBatchTestBase(
+    protected BatchRestoreTestBase(
             Class<? extends ExecNode<?>> execNodeUnderTest,
             List<Class<? extends ExecNode<?>>> childExecNodesUnderTest) {
         this.execNodeUnderTest = execNodeUnderTest;
@@ -200,7 +199,10 @@ public abstract class CompiledBatchTestBase implements TableTestProgramRunner {
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
 
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
-            final Collection<Row> data = sourceTestStep.dataBeforeRestore;
+
+            List<Row> data = new ArrayList<>();
+            data.addAll(sourceTestStep.dataBeforeRestore);
+            data.addAll(sourceTestStep.dataAfterRestore);
             final String id = TestValuesTableFactory.registerData(data);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
@@ -229,9 +231,7 @@ public abstract class CompiledBatchTestBase implements TableTestProgramRunner {
             List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
             assertThat(expectedResults)
                     .containsExactlyInAnyOrder(
-                            sinkTestStep
-                                    .getExpectedBeforeRestoreAsStrings()
-                                    .toArray(new String[0]));
+                            sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
         }
     }
 
@@ -242,7 +242,7 @@ public abstract class CompiledBatchTestBase implements TableTestProgramRunner {
 
     private String getTestResourceDirectory(TableTestProgram program, ExecNodeMetadata metadata) {
         return String.format(
-                "%s/src/test/resources/batch-compiled-plan-tests/%s/%d/%s",
+                "%s/src/test/resources/restore-tests/%s_%d/%s",
                 System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
     }
 
