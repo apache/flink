@@ -95,6 +95,27 @@ class TieredStorageConsumerClientTest {
     }
 
     @Test
+    void testUpdateTierShuffleDescriptor() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        TestingTierConsumerAgent tierConsumerAgent =
+                new TestingTierConsumerAgent.Builder()
+                        .setUpdateTierShuffleDescriptorRunnable(() -> future.complete(null))
+                        .build();
+        assertThat(future).isNotDone();
+        TieredStorageConsumerClient consumerClient =
+                createTieredStorageConsumerClient(tierConsumerAgent);
+        consumerClient.updateTierShuffleDescriptors(
+                DEFAULT_PARTITION_ID,
+                DEFAULT_INPUT_CHANNEL_ID,
+                DEFAULT_SUBPARTITION_ID,
+                Collections.singletonList(
+                        new TierShuffleDescriptor() {
+                            private static final long serialVersionUID = 1L;
+                        }));
+        assertThat(future).isDone();
+    }
+
+    @Test
     void testClose() throws IOException {
         CompletableFuture<Void> future = new CompletableFuture<>();
         TestingTierConsumerAgent tierConsumerAgent =

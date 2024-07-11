@@ -1182,6 +1182,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "jid" : {
       "type" : "any"
     },
+    "job-type" : {
+      "type" : "string",
+      "enum" : [ "BATCH", "STREAMING" ]
+    },
     "maxParallelism" : {
       "type" : "integer"
     },

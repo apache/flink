@@ -431,6 +431,26 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.SplitFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition URL_DECODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("url_decode")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition URL_ENCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("url_encode")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.UrlEncodeFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")

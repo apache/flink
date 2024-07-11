@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
@@ -183,7 +184,10 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
                             db,
                             columnFamilyOptionsFactory,
                             null,
-                            writeBufferManagerCapacity);
+                            writeBufferManagerCapacity,
+                            // Using ICloseableRegistry.NO_OP here because there is no restore in
+                            // progress; created column families will be closed in dispose()
+                            ICloseableRegistry.NO_OP);
             RocksDBOperationUtils.registerKvStateInformation(
                     kvStateInformation, nativeMetricMonitor, stateName, stateInfo);
         } else {

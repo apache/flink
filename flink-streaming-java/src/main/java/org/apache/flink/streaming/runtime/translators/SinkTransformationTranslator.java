@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
- * org.apache.flink.streaming.api.transformations.SinkTransformation}.
+ * SinkTransformation}.
  */
 @Internal
 public class SinkTransformationTranslator<Input, Output>
@@ -357,7 +357,9 @@ public class SinkTransformationTranslator<Input, Output>
                     // In this case, the subTransformation does not contain any customized
                     // parallelism value and will therefore inherit the parallelism value
                     // from the sinkTransformation.
-                    subTransformation.setParallelism(transformation.getParallelism());
+                    subTransformation.setParallelism(
+                            transformation.getParallelism(),
+                            transformation.isParallelismConfigured());
                 }
 
                 if (subTransformation.getMaxParallelism() < 0

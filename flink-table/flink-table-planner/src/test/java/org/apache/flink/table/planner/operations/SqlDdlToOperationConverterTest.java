@@ -659,9 +659,192 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testMergingCreateTableAsWitDistribution() {
-        Map<String, String> sourceProperties = new HashMap<>();
-        sourceProperties.put("format.type", "json");
+    public void testCreateTableAsWithColumns() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (c0 int, c1 double metadata, c2 as c0 * f0, c3 timestamp(3), "
+                        + "watermark FOR c3 AS c3 - interval '3' second) "
+                        + "AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("c0", DataTypes.INT())
+                                                        .columnByMetadata("c1", DataTypes.DOUBLE())
+                                                        .columnByExpression("c2", "`c0` * `f0`")
+                                                        .column("c3", DataTypes.TIMESTAMP(3))
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .watermark(
+                                                                "c3", "`c3` - INTERVAL '3' SECOND")
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithColumnsOverridden() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (c0 int, f0 bigint not null, f1 double) "
+                        + "AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("c0", DataTypes.INT())
+                                                        .column("f0", DataTypes.BIGINT().notNull())
+                                                        .column("f1", DataTypes.DOUBLE())
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithPrimaryAndPartitionKey() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (PRIMARY KEY (f0) NOT ENFORCED) "
+                        + "PARTITIONED BY (f0) AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        partitionedBy("f0"),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .primaryKey("f0")
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithWatermark() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (WATERMARK FOR f1 AS f1 - INTERVAL '3' SECOND) "
+                        + "AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .watermark(
+                                                                "f1", "`f1` - INTERVAL '3' SECOND")
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithNotNullColumnsAreNotAllowed() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (c0 int not null) " + "AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column 'c0' has no default value and does not allow NULLs.");
+    }
+
+    @Test
+    public void testCreateTableAsWithIncompatibleImplicitCastTypes() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f0 boolean) AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Incompatible types for sink column 'f0' at position 0. "
+                                + "The source column has type 'INT NOT NULL', while the target "
+                                + "column has type 'BOOLEAN'.");
+    }
+
+    @Test
+    public void testMergingCreateTableAsWithDistribution() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -673,18 +856,30 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                         .build())
                         .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
                         .partitionKeys(Arrays.asList("f0", "f1"))
-                        .options(sourceProperties)
                         .build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
         final String sql =
-                "create table derivedTable DISTRIBUTED BY (f0) AS SELECT * FROM sourceTable";
-        assertThatThrownBy(() -> parseAndConvert(sql))
-                .isInstanceOf(SqlValidateException.class)
-                .hasMessageContaining(
-                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
+                "create table derivedTable DISTRIBUTED BY HASH(f0) INTO 2 BUCKETS "
+                        + "AS SELECT * FROM sourceTable";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(
+                                                TableDistribution.ofHash(
+                                                        Collections.singletonList("f0"), 2)),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f2", DataTypes.INT().notNull())
+                                                        .build()))));
     }
 
     @Test

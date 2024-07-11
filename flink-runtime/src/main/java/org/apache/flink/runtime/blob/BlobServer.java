@@ -97,7 +97,8 @@ public class BlobServer extends Thread
     private final AtomicLong tempFileCounter = new AtomicLong(0);
 
     /** The server socket listening for incoming connections. */
-    private final ServerSocket serverSocket;
+    // can be null if BlobServer is shut down before constructor completion
+    @Nullable private final ServerSocket serverSocket;
 
     /** Blob Server configuration. */
     private final Configuration blobServiceConfiguration;
@@ -354,10 +355,12 @@ public class BlobServer extends Thread
         if (shutdownRequested.compareAndSet(false, true)) {
             Exception exception = null;
 
-            try {
-                this.serverSocket.close();
-            } catch (IOException ioe) {
-                exception = ioe;
+            if (serverSocket != null) {
+                try {
+                    this.serverSocket.close();
+                } catch (IOException ioe) {
+                    exception = ioe;
+                }
             }
 
             // wake the thread up, in case it is waiting on some operation
@@ -394,10 +397,14 @@ public class BlobServer extends Thread
             ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
             if (LOG.isInfoEnabled()) {
-                LOG.info(
-                        "Stopped BLOB server at {}:{}",
-                        serverSocket.getInetAddress().getHostAddress(),
-                        getPort());
+                if (serverSocket != null) {
+                    LOG.info(
+                            "Stopped BLOB server at {}:{}",
+                            serverSocket.getInetAddress().getHostAddress(),
+                            getPort());
+                } else {
+                    LOG.info("Stopped BLOB server before initializing the socket");
+                }
             }
 
             ExceptionUtils.tryRethrowIOException(exception);

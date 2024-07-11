@@ -241,7 +241,6 @@ public class EmbeddedQuartzScheduler {
                                 dynamicOptions,
                                 workflowInfo.getInitConfig(),
                                 workflowInfo.getExecutionConfig(),
-                                workflowInfo.getCustomSchedulerTime(),
                                 workflowInfo.getRestEndpointUrl());
 
                 // create a new job

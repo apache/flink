@@ -26,6 +26,7 @@ import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -35,6 +36,11 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
+import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -182,6 +188,16 @@ final class TestValuesRuntimeFunctions {
         }
     }
 
+    static LineageVertex createLineageVertex(String name, String namespace) {
+        return new LineageVertex() {
+
+            @Override
+            public List<LineageDataset> datasets() {
+                return Arrays.asList(new DefaultLineageDataset(name, namespace, new HashMap<>()));
+            }
+        };
+    }
+
     private static String rowToString(Row row) {
         if (RowUtils.USE_LEGACY_TO_STRING) {
             return String.format("%s(%s)", row.getKind().shortString(), row);
@@ -194,7 +210,10 @@ final class TestValuesRuntimeFunctions {
     // Source Function implementations
     // ------------------------------------------------------------------------------------------
 
-    public static class FromElementSourceFunctionWithWatermark implements SourceFunction<RowData> {
+    public static class FromElementSourceFunctionWithWatermark
+            implements SourceFunction<RowData>, LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE =
+                "values://FromElementSourceFunctionWithWatermark";
 
         /** The (de)serializer to be used for the data elements. */
         private final TypeSerializer<RowData> serializer;
@@ -278,6 +297,23 @@ final class TestValuesRuntimeFunctions {
             isRunning = false;
         }
 
+        @Override
+        public LineageVertex getLineageVertex() {
+            return new SourceLineageVertex() {
+                @Override
+                public Boundedness boundedness() {
+                    return Boundedness.BOUNDED;
+                }
+
+                @Override
+                public List<LineageDataset> datasets() {
+                    return Arrays.asList(
+                            new DefaultLineageDataset(
+                                    tableName, LINEAGE_NAMESPACE, new HashMap<>()));
+                }
+            };
+        }
+
         private class TestValuesWatermarkOutput implements WatermarkOutput {
             SourceContext<RowData> ctx;
 
@@ -314,7 +350,7 @@ final class TestValuesRuntimeFunctions {
      * restoring in streaming sql.
      */
     private abstract static class AbstractExactlyOnceSink extends RichSinkFunction<RowData>
-            implements CheckpointedFunction {
+            implements CheckpointedFunction, LineageVertexProvider {
         private static final long serialVersionUID = 1L;
 
         protected final String tableName;
@@ -359,6 +395,13 @@ final class TestValuesRuntimeFunctions {
             }
         }
 
+        @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex(tableName, getNamespace());
+        }
+
+        abstract String getNamespace();
+
         protected void addLocalRawResult(Row row) {
             localRawResult.add(row);
             Optional.ofNullable(localRawResultsObservers.get(tableName))
@@ -374,7 +417,7 @@ final class TestValuesRuntimeFunctions {
     }
 
     static class AppendingSinkFunction extends AbstractExactlyOnceSink {
-
+        private static final String LINEAGE_NAMESPACE = "values://AppendingSinkFunction";
         private static final long serialVersionUID = 1L;
         private final int rowtimeIndex;
 
@@ -407,6 +450,11 @@ final class TestValuesRuntimeFunctions {
                         "AppendingSinkFunction received " + value.getRowKind() + " messages.");
             }
         }
+
+        @Override
+        public String getNamespace() {
+            return LINEAGE_NAMESPACE;
+        }
     }
 
     /**
@@ -414,6 +462,7 @@ final class TestValuesRuntimeFunctions {
      * databases.
      */
     static class KeyedUpsertingSinkFunction extends AbstractExactlyOnceSink {
+        private static final String LINEAGE_NAMESPACE = "values://KeyedUpsertingSinkFunction";
         private static final long serialVersionUID = 1L;
         private final int[] keyIndices;
         private final int[] targetColumnIndices;
@@ -510,9 +559,15 @@ final class TestValuesRuntimeFunctions {
                 return old;
             }
         }
+
+        @Override
+        public String getNamespace() {
+            return LINEAGE_NAMESPACE;
+        }
     }
 
     static class RetractingSinkFunction extends AbstractExactlyOnceSink {
+        private static final String LINEAGE_NAMESPACE = "values://RetractingSinkFunction";
         private static final long serialVersionUID = 1L;
 
         protected transient ListState<Row> retractResultState;
@@ -580,10 +635,16 @@ final class TestValuesRuntimeFunctions {
                 addLocalRawResult(row);
             }
         }
+
+        @Override
+        public String getNamespace() {
+            return LINEAGE_NAMESPACE;
+        }
     }
 
-    static class AppendingOutputFormat extends RichOutputFormat<RowData> {
-
+    static class AppendingOutputFormat extends RichOutputFormat<RowData>
+            implements LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE = "values://AppendingOutputFormat";
         private static final long serialVersionUID = 1L;
         private final String tableName;
         private final DataStructureConverter converter;
@@ -634,6 +695,11 @@ final class TestValuesRuntimeFunctions {
         }
 
         @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex(tableName, LINEAGE_NAMESPACE);
+        }
+
+        @Override
         public void close() throws IOException {
             // nothing to do
         }
@@ -647,8 +713,9 @@ final class TestValuesRuntimeFunctions {
      * A lookup function which find matched rows with the given fields. NOTE: We have to declare it
      * as public because it will be used in code generation.
      */
-    public static class TestValuesLookupFunction extends LookupFunction {
-
+    public static class TestValuesLookupFunction extends LookupFunction
+            implements LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE = "values://TestValuesLookupFunction";
         private static final long serialVersionUID = 1L;
         private final List<Row> data;
         private final int[] lookupIndices;
@@ -704,6 +771,11 @@ final class TestValuesRuntimeFunctions {
         }
 
         @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex("", LINEAGE_NAMESPACE);
+        }
+
+        @Override
         public void close() throws Exception {
             RESOURCE_COUNTER.decrementAndGet();
         }
@@ -740,8 +812,9 @@ final class TestValuesRuntimeFunctions {
      * An async lookup function which find matched rows with the given fields. NOTE: We have to
      * declare it as public because it will be used in code generation.
      */
-    public static class AsyncTestValueLookupFunction extends AsyncLookupFunction {
-
+    public static class AsyncTestValueLookupFunction extends AsyncLookupFunction
+            implements LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE = "values://TestValuesLookupFunction";
         private static final long serialVersionUID = 1L;
         private final List<Row> data;
         private final int[] lookupIndices;
@@ -807,6 +880,11 @@ final class TestValuesRuntimeFunctions {
                         return indexedData.get(keyRow);
                     },
                     executor);
+        }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex("", LINEAGE_NAMESPACE);
         }
 
         @Override

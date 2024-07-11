@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManage
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
 import org.apache.flink.runtime.checkpoint.filemerging.PhysicalFilePool;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -83,6 +84,7 @@ public class TaskExecutorFileMergingManager {
      */
     public @Nullable FileMergingSnapshotManager fileMergingSnapshotManagerForTask(
             @Nonnull JobID jobId,
+            @Nonnull ResourceID tmResourceId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             Configuration clusterConfiguration,
             Configuration jobConfiguration,
@@ -131,7 +133,7 @@ public class TaskExecutorFileMergingManager {
                 fileMergingSnapshotManagerAndRetainedExecutions =
                         Tuple2.of(
                                 new FileMergingSnapshotManagerBuilder(
-                                                jobId.toString(), fileMergingType)
+                                                jobId, tmResourceId, fileMergingType)
                                         .setMaxFileSize(maxFileSize.getBytes())
                                         .setFilePoolType(
                                                 usingBlockingPool

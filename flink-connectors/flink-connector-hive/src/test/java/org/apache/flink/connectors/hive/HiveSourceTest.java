@@ -111,26 +111,7 @@ class HiveSourceTest {
         ObjectPath tablePath2 = new ObjectPath("default", "hiveTbl1");
         createTable(tablePath2, hiveCatalog, true);
 
-        hiveSource =
-                new HiveSourceBuilder(
-                                new JobConf(hiveCatalog.getHiveConf()),
-                                new Configuration(),
-                                HiveShimLoader.getHiveVersion(),
-                                tablePath2.getDatabaseName(),
-                                tablePath2.getObjectName(),
-                                Collections.emptyMap())
-                        .setPartitions(
-                                partitionSpecs.stream()
-                                        .map(
-                                                spec ->
-                                                        HiveTablePartition.ofPartition(
-                                                                hiveCatalog.getHiveConf(),
-                                                                hiveCatalog.getHiveVersion(),
-                                                                tablePath2.getDatabaseName(),
-                                                                tablePath2.getObjectName(),
-                                                                new LinkedHashMap<>(spec)))
-                                        .collect(Collectors.toList()))
-                        .buildWithDefaultBulkFormat();
+        hiveSource = createHiveSourceWithPartition(tablePath2, new Configuration(), -1, null);
 
         // test inferred parallelism less than maxParallelism
         context = genDynamicParallelismContext(10, Collections.emptyList());
@@ -149,26 +130,7 @@ class HiveSourceTest {
         createTable(tablePath, hiveCatalog, true);
 
         HiveSource<RowData> hiveSource =
-                new HiveSourceBuilder(
-                                new JobConf(hiveCatalog.getHiveConf()),
-                                new Configuration(),
-                                HiveShimLoader.getHiveVersion(),
-                                tablePath.getDatabaseName(),
-                                tablePath.getObjectName(),
-                                Collections.emptyMap())
-                        .setPartitions(
-                                partitionSpecs.stream()
-                                        .map(
-                                                spec ->
-                                                        HiveTablePartition.ofPartition(
-                                                                hiveCatalog.getHiveConf(),
-                                                                hiveCatalog.getHiveVersion(),
-                                                                tablePath.getDatabaseName(),
-                                                                tablePath.getObjectName(),
-                                                                new LinkedHashMap<>(spec)))
-                                        .collect(Collectors.toList()))
-                        .setLimit(1L)
-                        .buildWithDefaultBulkFormat();
+                createHiveSourceWithPartition(tablePath, new Configuration(), 1L, null);
 
         // test inferred parallelism less than maxParallelism
         DynamicParallelismInference.Context context =
@@ -184,14 +146,45 @@ class HiveSourceTest {
         createTable(tablePath, hiveCatalog, true);
 
         HiveSource<RowData> hiveSource =
+                createHiveSourceWithPartition(tablePath, new Configuration(), -1, keys);
+
+        DynamicParallelismInference.Context context =
+                genDynamicParallelismContext(10, Arrays.asList(1, 2));
+
+        assertThat(hiveSource.inferParallelism(context)).isEqualTo(2);
+        hiveCatalog.dropTable(tablePath, false);
+    }
+
+    @Test
+    void testDynamicParallelismInferenceWithSettingMaxParallelism() throws Exception {
+        ObjectPath tablePath = new ObjectPath("default", "hiveTbl4");
+        createTable(tablePath, hiveCatalog, true);
+
+        Configuration configuration = new Configuration();
+        configuration.set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX, 1);
+        HiveSource<RowData> hiveSource =
+                createHiveSourceWithPartition(tablePath, configuration, -1, null);
+
+        DynamicParallelismInference.Context context =
+                genDynamicParallelismContext(10, Collections.emptyList());
+        assertThat(hiveSource.inferParallelism(context)).isEqualTo(1);
+
+        hiveCatalog.dropTable(tablePath, false);
+    }
+
+    private HiveSource<RowData> createHiveSourceWithPartition(
+            ObjectPath tablePath,
+            Configuration config,
+            long limit,
+            List<String> dynamicFilterPartitionKeys) {
+        HiveSourceBuilder hiveSourceBuilder =
                 new HiveSourceBuilder(
                                 new JobConf(hiveCatalog.getHiveConf()),
-                                new Configuration(),
+                                config,
                                 HiveShimLoader.getHiveVersion(),
                                 tablePath.getDatabaseName(),
                                 tablePath.getObjectName(),
                                 Collections.emptyMap())
-                        .setDynamicFilterPartitionKeys(keys)
                         .setPartitions(
                                 partitionSpecs.stream()
                                         .map(
@@ -202,14 +195,16 @@ class HiveSourceTest {
                                                                 tablePath.getDatabaseName(),
                                                                 tablePath.getObjectName(),
                                                                 new LinkedHashMap<>(spec)))
-                                        .collect(Collectors.toList()))
-                        .buildWithDefaultBulkFormat();
+                                        .collect(Collectors.toList()));
+        if (limit != -1) {
+            hiveSourceBuilder.setLimit(limit);
+        }
 
-        DynamicParallelismInference.Context context =
-                genDynamicParallelismContext(10, Arrays.asList(1, 2));
+        if (dynamicFilterPartitionKeys != null) {
+            hiveSourceBuilder.setDynamicFilterPartitionKeys(dynamicFilterPartitionKeys);
+        }
 
-        assertThat(hiveSource.inferParallelism(context)).isEqualTo(2);
-        hiveCatalog.dropTable(tablePath, false);
+        return hiveSourceBuilder.buildWithDefaultBulkFormat();
     }
 
     private void createTable(ObjectPath tablePath, HiveCatalog hiveCatalog, boolean isPartitioned)

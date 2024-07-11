@@ -22,6 +22,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SpaceStat;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -40,7 +42,6 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +62,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FileMergingSnapshotManager}. */
@@ -76,6 +79,8 @@ public abstract class FileMergingSnapshotManagerTestBase {
     SubtaskKey subtaskKey2;
 
     Path checkpointBaseDir;
+    Path sharedStateDir;
+    Path taskOwnedStateDir;
 
     int writeBufferSize;
 
@@ -83,13 +88,15 @@ public abstract class FileMergingSnapshotManagerTestBase {
 
     @BeforeEach
     public void setup(@TempDir java.nio.file.Path tempFolder) {
-        // use simplified job ids for the tests
-        long jobId = 1;
         subtaskKey1 =
                 new SubtaskKey(jobID, operatorID, new TaskInfoImpl("TestingTask", 128, 0, 128, 3));
         subtaskKey2 =
                 new SubtaskKey(jobID, operatorID, new TaskInfoImpl("TestingTask", 128, 1, 128, 3));
-        checkpointBaseDir = new Path(tempFolder.toString(), String.valueOf(jobId));
+
+        checkpointBaseDir = new Path(tempFolder.toString(), jobID.toHexString());
+        sharedStateDir = new Path(checkpointBaseDir, CHECKPOINT_SHARED_STATE_DIR);
+        taskOwnedStateDir = new Path(checkpointBaseDir, CHECKPOINT_TASK_OWNED_STATE_DIR);
+
         writeBufferSize = 4096;
     }
 
@@ -99,21 +106,42 @@ public abstract class FileMergingSnapshotManagerTestBase {
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(checkpointBaseDir)) {
             fmsm.registerSubtaskForSharedStates(subtaskKey1);
+
+            String expectManagerId = String.format("job_%s_tm_%s", jobID, tmId);
             assertThat(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE))
-                    .isEqualTo(
-                            new Path(
-                                    checkpointBaseDir,
-                                    AbstractFsCheckpointStorageAccess
-                                                    .CHECKPOINT_TASK_OWNED_STATE_DIR
-                                            + "/"
-                                            + tmId));
+                    .isEqualTo(new Path(taskOwnedStateDir, expectManagerId));
             assertThat(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED))
-                    .isEqualTo(
-                            new Path(
-                                    checkpointBaseDir,
-                                    AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR
-                                            + "/"
-                                            + subtaskKey1.getManagedDirName()));
+                    .isEqualTo(new Path(sharedStateDir, subtaskKey1.getManagedDirName()));
+        }
+    }
+
+    @Test
+    public void testSpecialCharactersInPath() throws IOException {
+        FileSystem fs = LocalFileSystem.getSharedInstance();
+        if (!fs.exists(checkpointBaseDir)) {
+            fs.mkdirs(checkpointBaseDir);
+            fs.mkdirs(sharedStateDir);
+            fs.mkdirs(taskOwnedStateDir);
+        }
+        // No exception will throw.
+        try (FileMergingSnapshotManager fmsm =
+                new FileMergingSnapshotManagerBuilder(
+                                jobID,
+                                new ResourceID("localhost:53424-,;:$&+=?/[]@#qqq"),
+                                getFileMergingType())
+                        .setMetricGroup(
+                                new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup())
+                        .build()) {
+            fmsm.initFileSystem(
+                    LocalFileSystem.getSharedInstance(),
+                    checkpointBaseDir,
+                    sharedStateDir,
+                    taskOwnedStateDir,
+                    writeBufferSize);
+            assertThat(fmsm).isNotNull();
+            fmsm.registerSubtaskForSharedStates(
+                    new SubtaskKey(jobID.toString(), ",;:$&+=?/[]@#www", 0, 1));
         }
     }
 
@@ -460,11 +488,16 @@ public abstract class FileMergingSnapshotManagerTestBase {
                         (FileMergingSnapshotManagerBase)
                                 createFileMergingSnapshotManager(checkpointBaseDir);
                 CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+
+            fmsm.notifyCheckpointStart(subtaskKey1, checkpointId);
+
             Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID = new HashMap<>();
             subtaskStatesByOperatorID.put(
                     operatorID, buildOperatorSubtaskState(checkpointId, fmsm, closeableRegistry));
             taskStateSnapshot = new TaskStateSnapshot(subtaskStatesByOperatorID);
             oldSpaceStat = fmsm.spaceStat;
+
+            fmsm.notifyCheckpointComplete(subtaskKey1, checkpointId);
         }
 
         assertThat(taskStateSnapshot).isNotNull();
@@ -509,6 +542,107 @@ public abstract class FileMergingSnapshotManagerTestBase {
             fmsm.notifyCheckpointSubsumed(subtaskKey1, checkpointId);
             for (Path path : physicalFileSet) {
                 assertThat(path.getFileSystem().exists(path)).isFalse();
+            }
+        }
+    }
+
+    @Test
+    public void testManagedDirCleanup() throws Exception {
+        FileSystem fs = LocalFileSystem.getSharedInstance();
+
+        Path sharedDirOfSubtask1 = new Path(sharedStateDir, subtaskKey1.getManagedDirName());
+        Path sharedDirOfSubtask2 = new Path(sharedStateDir, subtaskKey2.getManagedDirName());
+        Path exclusiveDir;
+
+        // 1. Test clean up managed dir after non checkpoint triggered
+        emptyCheckpointBaseDir();
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(
+                                checkpointBaseDir,
+                                32,
+                                PhysicalFilePool.Type.BLOCKING,
+                                Float.MAX_VALUE)) {
+
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+            fmsm.registerSubtaskForSharedStates(subtaskKey2);
+
+            assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
+            assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
+            exclusiveDir = new Path(taskOwnedStateDir, fmsm.getId());
+            assertThat(fs.exists(exclusiveDir)).isTrue();
+        }
+        assertThat(fs.exists(sharedDirOfSubtask1)).isFalse();
+        assertThat(fs.exists(sharedDirOfSubtask2)).isFalse();
+        assertThat(fs.exists(exclusiveDir)).isFalse();
+
+        // 2. Test clean up managed dir after all checkpoint abort
+        emptyCheckpointBaseDir();
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(
+                                checkpointBaseDir,
+                                32,
+                                PhysicalFilePool.Type.BLOCKING,
+                                Float.MAX_VALUE)) {
+
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+            fmsm.registerSubtaskForSharedStates(subtaskKey2);
+
+            // record reference from checkpoint 1
+            fmsm.notifyCheckpointStart(subtaskKey1, 1L);
+            fmsm.notifyCheckpointStart(subtaskKey2, 1L);
+
+            // checkpoint 1 aborted
+            fmsm.notifyCheckpointAborted(subtaskKey1, 1L);
+            fmsm.notifyCheckpointAborted(subtaskKey2, 1L);
+
+            assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
+            assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
+            exclusiveDir = new Path(taskOwnedStateDir, fmsm.getId());
+            assertThat(fs.exists(exclusiveDir)).isTrue();
+        }
+        assertThat(fs.exists(sharedDirOfSubtask1)).isFalse();
+        assertThat(fs.exists(sharedDirOfSubtask2)).isFalse();
+        assertThat(fs.exists(exclusiveDir)).isFalse();
+
+        // 3. Test not clean up managed dir after checkpoint complete
+        emptyCheckpointBaseDir();
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(
+                                checkpointBaseDir,
+                                32,
+                                PhysicalFilePool.Type.BLOCKING,
+                                Float.MAX_VALUE)) {
+
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+            fmsm.registerSubtaskForSharedStates(subtaskKey2);
+
+            // record reference from checkpoint 1
+            fmsm.notifyCheckpointStart(subtaskKey1, 1L);
+            fmsm.notifyCheckpointStart(subtaskKey2, 1L);
+
+            // checkpoint 1 complete
+            fmsm.notifyCheckpointComplete(subtaskKey1, 1L);
+            fmsm.notifyCheckpointComplete(subtaskKey2, 1L);
+
+            assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
+            assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
+            exclusiveDir = new Path(taskOwnedStateDir, fmsm.getId());
+            assertThat(fs.exists(exclusiveDir)).isTrue();
+        }
+        assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
+        assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
+        assertThat(fs.exists(exclusiveDir)).isTrue();
+    }
+
+    private void emptyCheckpointBaseDir() throws IOException {
+        FileSystem fs = checkpointBaseDir.getFileSystem();
+        FileStatus[] sub = fs.listStatus(checkpointBaseDir);
+        if (sub != null) {
+            for (FileStatus subFile : sub) {
+                fs.delete(subFile.getPath(), true);
             }
         }
     }
@@ -577,21 +711,14 @@ public abstract class FileMergingSnapshotManagerTestBase {
             float spaceAmplification)
             throws IOException {
         FileSystem fs = LocalFileSystem.getSharedInstance();
-        Path sharedStateDir =
-                new Path(
-                        checkpointBaseDir,
-                        AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR);
-        Path taskOwnedStateDir =
-                new Path(
-                        checkpointBaseDir,
-                        AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
         if (!fs.exists(checkpointBaseDir)) {
             fs.mkdirs(checkpointBaseDir);
             fs.mkdirs(sharedStateDir);
             fs.mkdirs(taskOwnedStateDir);
         }
         FileMergingSnapshotManager fmsm =
-                new FileMergingSnapshotManagerBuilder(tmId, getFileMergingType())
+                new FileMergingSnapshotManagerBuilder(
+                                jobID, new ResourceID(tmId), getFileMergingType())
                         .setMaxFileSize(maxFileSize)
                         .setFilePoolType(filePoolType)
                         .setMaxSpaceAmplification(spaceAmplification)

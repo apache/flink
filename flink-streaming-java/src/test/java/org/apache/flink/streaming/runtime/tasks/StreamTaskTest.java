@@ -1300,7 +1300,7 @@ public class StreamTaskTest {
             } catch (InterruptedException e) {
                 asyncException = e;
             }
-            executor.submit(
+            executor.execute(
                     () -> {
                         if (asyncException != null) {
                             throw asyncException;
@@ -1345,7 +1345,7 @@ public class StreamTaskTest {
                             sleepTimeOutsideMail,
                             ioMetricGroup.getSoftBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
-            executor.submit(
+            executor.execute(
                     waitingThread::start,
                     "This task will submit another task to execute after processing input once.");
 
@@ -1398,7 +1398,7 @@ public class StreamTaskTest {
                             sleepTimeOutsideMail,
                             ioMetricGroup.getIdleTimeMsPerSecond());
             // Make sure WaitingThread is started after Task starts processing.
-            executor.submit(
+            executor.execute(
                     waitingThread::start,
                     "Start WaitingThread after Task starts processing input.");
 
@@ -1500,7 +1500,7 @@ public class StreamTaskTest {
                     // 'afterInvoke' won't finish until this execution won't finish so it is
                     // impossible to wait on latch or something else.
                     Thread.sleep(5);
-                    mainMailboxExecutor.submit(() -> {}, "test");
+                    mainMailboxExecutor.execute(() -> {}, "test");
                 });
 
         // when: Calling the quiesce for mailbox and finishing the timer service.

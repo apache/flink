@@ -33,10 +33,11 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.Testing
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk.DiskIOScheduler;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -305,7 +306,7 @@ class DiskIOSchedulerTest {
     private static class TestingScheduledExecutorService
             extends ManuallyTriggeredScheduledExecutorService {
         @Override
-        @NotNull
+        @Nonnull
         public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
             if (super.isTerminated()) {
                 throw new RejectedExecutionException();

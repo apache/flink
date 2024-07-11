@@ -617,8 +617,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
-        schedulerNG.reportInitializationMetrics(jobId, initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        schedulerNG.reportInitializationMetrics(jobId, executionAttemptId, initializationMetrics);
     }
 
     // TODO: This method needs a leader session ID

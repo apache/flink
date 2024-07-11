@@ -79,6 +79,7 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
         return new EmbeddedExecutor(
                 submittedJobIds,
                 dispatcherGateway,
+                configuration,
                 (jobId, userCodeClassloader) -> {
                     final Time timeout =
                             Time.milliseconds(

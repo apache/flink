@@ -297,21 +297,21 @@ to be completed.
 The unified file merging mechanism for checkpointing is introduced to Flink 1.20 as an MVP ("minimum viable product") feature, 
 which allows scattered small checkpoint files to be written into larger files, reducing the number of file creations 
 and file deletions, which alleviates the pressure of file system metadata management raised by the file flooding problem during checkpoints.
-The mechanism can be enabled by setting `state.checkpoints.file-merging.enabled` to `true`.
+The mechanism can be enabled by setting `execution.checkpointing.file-merging.enabled` to `true`.
 **Note** that as a trade-off, enabling this mechanism may lead to space amplification, that is, the actual occupation on the file system
-will be larger than actual state size. `state.checkpoints.file-merging.max-space-amplification` 
+will be larger than actual state size. `execution.checkpointing.file-merging.max-space-amplification` 
 can be used to limit the upper bound of space amplification.
 
 This mechanism is applicable to keyed state, operator state and channel state in Flink. Merging at subtask level is 
 provided for shared scope state; Merging at TaskManager level is provided for private scope state. The maximum number of subtasks
-allowed to be written to a single file can be configured through the `state.checkpoints.file-merging.max-subtasks-per-file` option.
+allowed to be written to a single file can be configured through the `execution.checkpointing.file-merging.max-subtasks-per-file` option.
 
 This feature also supports merging files across checkpoints. To enable this, set
-`state.checkpoints.file-merging.across-checkpoint-boundary` to `true`.
+`execution.checkpointing.file-merging.across-checkpoint-boundary` to `true`.
 
 This mechanism introduces a file pool to handle concurrent writing scenarios. There are two modes, the non-blocking mode will 
 always provide usable physical file without blocking when receive a file request, it may create many physical files if poll 
 file frequently; while the blocking mode will be blocked until there are returned files available in the file pool. This can be configured via
-setting `state.checkpoints.file-merging.pool-blocking` as `true` for blocking or `false` for non-blocking.
+setting `execution.checkpointing.file-merging.pool-blocking` as `true` for blocking or `false` for non-blocking.
 
 {{< top >}}

@@ -237,6 +237,47 @@ public class WindowRankTestPrograms {
                     .runSql(String.format(QUERY_TVF_TOP_N, "ASC", HOP_TVF))
                     .build();
 
+    static final TableTestProgram WINDOW_RANK_HOP_TVF_NAMED_MIN_TOP_1 =
+            TableTestProgram.of(
+                            "window-rank-hop-tvf-named-min-top-n",
+                            "validates window min top-n follows after hop window")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("bid_t")
+                                    .addSchema(
+                                            "ts STRING",
+                                            "price DECIMAL(10,2)",
+                                            "supplier_id STRING",
+                                            "`bid_time` AS TO_TIMESTAMP(`ts`)",
+                                            "WATERMARK for `bid_time` AS `bid_time` - INTERVAL '1' SECOND")
+                                    .producedValues(
+                                            Row.of(
+                                                    "2020-04-15 08:00:05",
+                                                    new BigDecimal(4.00),
+                                                    "supplier1"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("bid_time TIMESTAMP(3)", "supplier_id STRING")
+                                    .consumedValues(
+                                            "+I[2020-04-15T08:00:05, supplier1]",
+                                            "+I[2020-04-15T08:00:05, supplier1]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t(bid_time, supplier_id) "
+                                    + "SELECT bid_time, supplier_id\n"
+                                    + "  FROM (\n"
+                                    + "    SELECT\n"
+                                    + "         bid_time,\n"
+                                    + "         supplier_id,\n"
+                                    + "         ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price ASC) AS row_num\n"
+                                    + "    FROM TABLE(HOP(\n"
+                                    + "      DATA => TABLE bid_t,\n"
+                                    + "      TIMECOL => DESCRIPTOR(`bid_time`),\n"
+                                    + "      SLIDE => INTERVAL '5' SECOND,\n"
+                                    + "      SIZE => INTERVAL '10' SECOND))\n"
+                                    + "  ) WHERE row_num <= 3")
+                    .build();
+
     static final TableTestProgram WINDOW_RANK_CUMULATE_TVF_MIN_TOP_N =
             TableTestProgram.of(
                             "window-rank-cumulate-tvf-min-top-n",

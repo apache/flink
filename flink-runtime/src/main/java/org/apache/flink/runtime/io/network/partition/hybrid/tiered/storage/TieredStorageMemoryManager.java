@@ -146,9 +146,6 @@ public interface TieredStorageMemoryManager {
      */
     void transferBufferOwnership(Object oldOwner, Object newOwner, Buffer buffer);
 
-    /** @return the size of the local buffer pool or -1 if the buffer pool is not initialized. */
-    int getBufferPoolSize();
-
     /**
      * Release all the resources(if exists) and check the state of the {@link
      * TieredStorageMemoryManager}.

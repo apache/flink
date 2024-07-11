@@ -58,7 +58,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;

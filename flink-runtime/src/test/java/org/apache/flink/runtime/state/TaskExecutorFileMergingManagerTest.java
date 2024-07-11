@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
@@ -37,6 +38,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TaskExecutorFileMergingManagerTest {
     @Test
     public void testCheckpointScope(@TempDir java.nio.file.Path testBaseDir) throws IOException {
+        ResourceID tmResourceId1 = ResourceID.generate();
+        ResourceID tmResourceId2 = ResourceID.generate();
+        ResourceID tmResourceId3 = ResourceID.generate();
+        ResourceID tmResourceId4 = ResourceID.generate();
+
         TaskExecutorFileMergingManager taskExecutorFileMergingManager =
                 new TaskExecutorFileMergingManager();
         JobID job1 = new JobID(1234L, 4321L);
@@ -53,6 +59,7 @@ public class TaskExecutorFileMergingManagerTest {
         FileMergingSnapshotManager manager1 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
                         job1,
+                        tmResourceId1,
                         executionID1,
                         clusterConfig,
                         jobConfig,
@@ -68,6 +75,7 @@ public class TaskExecutorFileMergingManagerTest {
         FileMergingSnapshotManager manager2 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
                         job1,
+                        tmResourceId2,
                         executionID2,
                         clusterConfig,
                         jobConfig,
@@ -83,6 +91,7 @@ public class TaskExecutorFileMergingManagerTest {
         FileMergingSnapshotManager manager3 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
                         job2,
+                        tmResourceId3,
                         executionID3,
                         clusterConfig,
                         jobConfig,
@@ -123,6 +132,7 @@ public class TaskExecutorFileMergingManagerTest {
         FileMergingSnapshotManager manager4 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
                         job1,
+                        tmResourceId4,
                         executionID4,
                         clusterConfig,
                         jobConfig,

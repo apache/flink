@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -55,6 +56,11 @@ public final class FactoryMocks {
 
     public static DynamicTableSource createTableSource(
             ResolvedSchema schema, Map<String, String> options) {
+        return createTableSource(schema, options, new Configuration());
+    }
+
+    public static DynamicTableSource createTableSource(
+            ResolvedSchema schema, Map<String, String> options, ReadableConfig readableConfig) {
         return FactoryUtil.createDynamicTableSource(
                 null,
                 IDENTIFIER,
@@ -66,7 +72,7 @@ public final class FactoryMocks {
                                 options),
                         schema),
                 Collections.emptyMap(),
-                new Configuration(),
+                readableConfig,
                 FactoryMocks.class.getClassLoader(),
                 false);
     }

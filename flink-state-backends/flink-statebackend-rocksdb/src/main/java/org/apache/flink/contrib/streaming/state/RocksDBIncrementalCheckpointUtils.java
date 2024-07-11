@@ -23,7 +23,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.LiveFileMetaData;

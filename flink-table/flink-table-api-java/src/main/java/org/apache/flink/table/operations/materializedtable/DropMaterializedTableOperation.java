@@ -19,10 +19,12 @@
 package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
-import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.ddl.DropOperation;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -30,11 +32,22 @@ import java.util.Map;
 
 /** Operation to describe a DROP MATERIALIZED TABLE statement. */
 @Internal
-public class DropMaterializedTableOperation extends DropTableOperation
-        implements MaterializedTableOperation {
+public class DropMaterializedTableOperation implements DropOperation, MaterializedTableOperation {
+
+    private final ObjectIdentifier tableIdentifier;
+    private final boolean ifExists;
 
     public DropMaterializedTableOperation(ObjectIdentifier tableIdentifier, boolean ifExists) {
-        super(tableIdentifier, ifExists, false);
+        this.tableIdentifier = tableIdentifier;
+        this.ifExists = ifExists;
+    }
+
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
+
+    public boolean isIfExists() {
+        return ifExists;
     }
 
     @Override
@@ -48,5 +61,11 @@ public class DropMaterializedTableOperation extends DropTableOperation
                 params,
                 Collections.emptyList(),
                 Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        ctx.getCatalogManager().dropMaterializedTable(getTableIdentifier(), isIfExists());
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

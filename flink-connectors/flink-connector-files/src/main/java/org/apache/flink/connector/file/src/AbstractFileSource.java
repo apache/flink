@@ -147,7 +147,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
             throw new FlinkRuntimeException("Could not enumerate file splits", e);
         }
 
-        return createSplitEnumerator(getBoundedness(), enumContext, enumerator, splits, null);
+        return createSplitEnumerator(enumContext, enumerator, splits, null);
     }
 
     @Override
@@ -164,11 +164,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
                 (Collection<FileSourceSplit>) checkpoint.getSplits();
 
         return createSplitEnumerator(
-                getBoundedness(),
-                enumContext,
-                enumerator,
-                splits,
-                checkpoint.getAlreadyProcessedPaths());
+                enumContext, enumerator, splits, checkpoint.getAlreadyProcessedPaths());
     }
 
     @Override
@@ -190,7 +186,6 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
     // ------------------------------------------------------------------------
 
     private SplitEnumerator<SplitT, PendingSplitsCheckpoint<SplitT>> createSplitEnumerator(
-            Boundedness boundedness,
             SplitEnumeratorContext<SplitT> context,
             FileEnumerator enumerator,
             Collection<FileSourceSplit> splits,
@@ -204,7 +199,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
 
         final FileSplitAssigner splitAssigner = assignerFactory.create(splits);
 
-        if (Boundedness.BOUNDED == boundedness) {
+        if (continuousEnumerationSettings == null) {
             // bounded case
             return castGeneric(new StaticFileSplitEnumerator(fileSplitContext, splitAssigner));
         } else {

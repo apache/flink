@@ -41,6 +41,7 @@ import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -167,7 +168,10 @@ public class CliFrontend {
     //  Execute Actions
     // --------------------------------------------------------------------------------------------
 
+    @Deprecated
     protected void runApplication(String[] args) throws Exception {
+        LOG.warn(
+                "DEPRECATION WARNING: The 'run-application' option is deprecated and will be removed in the future. Please use 'run' instead.");
         LOG.info("Running 'run-application' command.");
 
         final Options commandOptions = CliFrontendParser.getRunCommandOptions();
@@ -178,40 +182,7 @@ public class CliFrontend {
             return;
         }
 
-        final CustomCommandLine activeCommandLine =
-                validateAndGetActiveCommandLine(checkNotNull(commandLine));
-
-        final ApplicationDeployer deployer =
-                new ApplicationClusterDeployer(clusterClientServiceLoader);
-
-        final ProgramOptions programOptions;
-        final Configuration effectiveConfiguration;
-
-        // No need to set a jarFile path for Pyflink job.
-        if (ProgramOptionsUtils.isPythonEntryPoint(commandLine)) {
-            programOptions = ProgramOptionsUtils.createPythonProgramOptions(commandLine);
-            effectiveConfiguration =
-                    getEffectiveConfiguration(
-                            activeCommandLine,
-                            commandLine,
-                            programOptions,
-                            Collections.emptyList());
-        } else {
-            programOptions = new ProgramOptions(commandLine);
-            programOptions.validate();
-            final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
-            effectiveConfiguration =
-                    getEffectiveConfiguration(
-                            activeCommandLine,
-                            commandLine,
-                            programOptions,
-                            Collections.singletonList(uri.toString()));
-        }
-
-        final ApplicationConfiguration applicationConfiguration =
-                new ApplicationConfiguration(
-                        programOptions.getProgramArgs(), programOptions.getEntryPointClassName());
-        deployer.run(effectiveConfiguration, applicationConfiguration);
+        run(args);
     }
 
     /**
@@ -234,18 +205,74 @@ public class CliFrontend {
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
-        final ProgramOptions programOptions = ProgramOptions.create(commandLine);
+        if (isDeploymentTargetApplication(activeCommandLine, commandLine)) {
+            final ApplicationDeployer deployer =
+                    new ApplicationClusterDeployer(clusterClientServiceLoader);
 
-        final List<URL> jobJars = getJobJarAndDependencies(programOptions);
+            final ProgramOptions programOptions;
+            final Configuration effectiveConfiguration;
 
-        final Configuration effectiveConfiguration =
-                getEffectiveConfiguration(activeCommandLine, commandLine, programOptions, jobJars);
+            // No need to set a jarFile path for PyFlink job.
+            if (ProgramOptionsUtils.isPythonEntryPoint(commandLine)) {
+                programOptions = ProgramOptionsUtils.createPythonProgramOptions(commandLine);
+                effectiveConfiguration =
+                        getEffectiveConfiguration(
+                                activeCommandLine,
+                                commandLine,
+                                programOptions,
+                                Collections.emptyList());
+            } else {
+                programOptions = new ProgramOptions(commandLine);
+                programOptions.validate();
+                final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
+                effectiveConfiguration =
+                        getEffectiveConfiguration(
+                                activeCommandLine,
+                                commandLine,
+                                programOptions,
+                                Collections.singletonList(uri.toString()));
+            }
 
-        LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+            final ApplicationConfiguration applicationConfiguration =
+                    new ApplicationConfiguration(
+                            programOptions.getProgramArgs(),
+                            programOptions.getEntryPointClassName());
+            deployer.run(effectiveConfiguration, applicationConfiguration);
+        } else {
+            final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-        try (PackagedProgram program = getPackagedProgram(programOptions, effectiveConfiguration)) {
-            executeProgram(effectiveConfiguration, program);
+            final List<URL> jobJars = getJobJarAndDependencies(programOptions);
+
+            final Configuration effectiveConfiguration =
+                    getEffectiveConfiguration(
+                            activeCommandLine, commandLine, programOptions, jobJars);
+
+            LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+
+            try (PackagedProgram program =
+                    getPackagedProgram(programOptions, effectiveConfiguration)) {
+                executeProgram(effectiveConfiguration, program);
+            }
         }
+    }
+
+    protected boolean isDeploymentTargetApplication(
+            final CustomCommandLine activeCustomCommandLine, final CommandLine commandLine)
+            throws FlinkException {
+        final Configuration effectiveConfiguration =
+                getEffectiveConfiguration(activeCustomCommandLine, commandLine);
+
+        final String executionTarget =
+                effectiveConfiguration
+                        .getOptional(DeploymentOptions.TARGET)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                String.format(
+                                                        "Config '%s' has to be set.",
+                                                        DeploymentOptions.TARGET.key())));
+
+        return executionTarget.trim().endsWith("application");
     }
 
     /** Get all provided libraries needed to run the program from the ProgramOptions. */
@@ -277,7 +304,7 @@ public class CliFrontend {
         return program;
     }
 
-    private <T> Configuration getEffectiveConfiguration(
+    private Configuration getEffectiveConfiguration(
             final CustomCommandLine activeCustomCommandLine, final CommandLine commandLine)
             throws FlinkException {
 
@@ -1308,7 +1335,7 @@ public class CliFrontend {
                     System.out.printf("\"%s\" is not a valid action.\n", action);
                     System.out.println();
                     System.out.println(
-                            "Valid actions are \"run\", \"run-application\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
+                            "Valid actions are \"run\", \"run-application\" (deprecated), \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
                     System.out.println();
                     System.out.println(
                             "Specify the version option (-v or --version) to print Flink version.");

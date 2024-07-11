@@ -221,7 +221,6 @@ class ResultPartitionFactoryTest {
                         0,
                         256,
                         Long.MAX_VALUE,
-                        false,
                         tieredStorage);
 
         final ResultPartitionDeploymentDescriptor descriptor =
