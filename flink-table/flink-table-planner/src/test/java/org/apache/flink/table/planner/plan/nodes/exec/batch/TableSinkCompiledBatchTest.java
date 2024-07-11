@@ -18,29 +18,31 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.CalcTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.TableSinkTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link BatchExecCalc}. */
-public class CalcBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecSink}. */
+public class TableSinkCompiledBatchTest extends CompiledBatchTestBase {
 
-    public CalcBatchCompiledPlanTest() {
-        super(BatchExecCalc.class);
+    public TableSinkCompiledBatchTest() {
+        super(BatchExecSink.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                CalcTestPrograms.SIMPLE_CALC,
-                CalcTestPrograms.CALC_FILTER,
-                CalcTestPrograms.CALC_FILTER_PUSHDOWN,
-                CalcTestPrograms.CALC_PROJECT_PUSHDOWN,
-                CalcTestPrograms.CALC_SARG,
-                CalcTestPrograms.CALC_UDF_SIMPLE,
-                CalcTestPrograms.CALC_UDF_COMPLEX);
+                TableSinkTestPrograms.SINK_BUCKETING_WITH_COUNT,
+                TableSinkTestPrograms.SINK_BUCKETING_WITH_KEYS_AND_COUNT,
+                TableSinkTestPrograms.SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT,
+                TableSinkTestPrograms.SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT,
+                TableSinkTestPrograms.SINK_PARTITION,
+                TableSinkTestPrograms.SINK_OVERWRITE,
+                TableSinkTestPrograms.SINK_WRITING_METADATA,
+                TableSinkTestPrograms.SINK_NDF_PRIMARY_KEY,
+                TableSinkTestPrograms.SINK_PARTIAL_INSERT);
     }
 }

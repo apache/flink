@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.SortTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
@@ -27,9 +27,9 @@ import java.util.Collections;
 import java.util.List;
 
 /** Restore tests for {@link BatchExecSort}. */
-public class SortBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+public class SortCompiledBatchTest extends CompiledBatchTestBase {
 
-    public SortBatchCompiledPlanTest() {
+    public SortCompiledBatchTest() {
         // TODO: Verify `requiredExchangeMode` is serialized correctly.
         super(BatchExecSort.class, Collections.singletonList(BatchExecExchange.class));
     }

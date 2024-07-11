@@ -18,23 +18,22 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.SortTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ExpandTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecSortLimit}. */
-// @Disabled // ANTLR Errors?
-public class SortLimitBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecExpand}. */
+public class ExpandCompiledBatchTest extends CompiledBatchTestBase {
 
-    public SortLimitBatchCompiledPlanTest() {
-        super(BatchExecSortLimit.class);
+    public ExpandCompiledBatchTest() {
+        super(BatchExecExpand.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(SortTestPrograms.SORT_LIMIT_ASC, SortTestPrograms.SORT_LIMIT_DESC);
+        return Collections.singletonList(ExpandTestPrograms.EXPAND);
     }
 }

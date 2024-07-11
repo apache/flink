@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.JoinTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Batch Compiled Plan tests for {@link BatchExecHashJoin}. */
-public class JoinBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+public class JoinCompiledBatchTest extends CompiledBatchTestBase {
 
-    public JoinBatchCompiledPlanTest() {
+    public JoinCompiledBatchTest() {
         super(BatchExecHashJoin.class);
     }
 

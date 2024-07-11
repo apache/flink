@@ -18,22 +18,22 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ValuesTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.LimitTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecValues}. */
-public class ValuesBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Restore tests for {@link BatchExecLimit}. */
+public class LimitCompiledBatchTest extends CompiledBatchTestBase {
 
-    public ValuesBatchCompiledPlanTest() {
-        super(BatchExecValues.class);
+    public LimitCompiledBatchTest() {
+        super(BatchExecLimit.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
-        return Collections.singletonList(ValuesTestPrograms.VALUES_TEST);
+        return Arrays.asList(LimitTestPrograms.LIMIT);
     }
 }

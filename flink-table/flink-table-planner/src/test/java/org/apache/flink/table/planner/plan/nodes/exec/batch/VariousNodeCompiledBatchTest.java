@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowDeduplicateTe
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowJoinTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowRankTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowTableFunctionTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import org.junit.jupiter.api.Disabled;
@@ -44,9 +44,9 @@ import java.util.List;
 
 /** Batch Compiled Plan tests for various nodes. */
 @Disabled
-public class VariousNodeBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+public class VariousNodeCompiledBatchTest extends CompiledBatchTestBase {
 
-    public VariousNodeBatchCompiledPlanTest() {
+    public VariousNodeCompiledBatchTest() {
         super(
                 BatchExecCalc
                         .class); // Just naming some node.  This test is running lots of programs.

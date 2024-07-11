@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowTableFunctionTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Batch Compiled Plan tests for {@link BatchExecWindowTableFunction}. */
-public class WindowTableFunctionEventTimeBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+public class WindowTableFunctionEventTimeCompiledBatchTest extends CompiledBatchTestBase {
 
-    public WindowTableFunctionEventTimeBatchCompiledPlanTest() {
+    public WindowTableFunctionEventTimeCompiledBatchTest() {
         super(BatchExecWindowTableFunction.class);
     }
 

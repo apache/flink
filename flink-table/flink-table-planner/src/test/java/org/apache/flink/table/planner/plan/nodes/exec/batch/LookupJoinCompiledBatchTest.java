@@ -18,32 +18,33 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.LookupJoinTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
-
-import org.junit.jupiter.api.Disabled;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecOverAggregate}. */
-@Disabled
-public class OverAggregateBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecLookupJoin}. */
+// @Disabled // TODO: Implement BatchExecLookupJoin annotations.
+public class LookupJoinCompiledBatchTest extends CompiledBatchTestBase {
 
-    public OverAggregateBatchCompiledPlanTest() {
-        super(BatchExecOverAggregate.class);
+    public LookupJoinCompiledBatchTest() {
+        super(BatchExecLookupJoin.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                // TODO: Think about these.  Looks like there is a 10 second window.
-                // The test is timing out.
-                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
-                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS
-                // TODO: Figure out why these fail in batch mode.
-                // OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
-                // OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS
+                LookupJoinTestPrograms.LOOKUP_JOIN_PROJECT_PUSHDOWN,
+                LookupJoinTestPrograms.LOOKUP_JOIN_FILTER_PUSHDOWN,
+                LookupJoinTestPrograms.LOOKUP_JOIN_LEFT_JOIN,
+                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_FILTER,
+                LookupJoinTestPrograms.LOOKUP_JOIN_POST_FILTER,
+                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER
+                // The optimizer throws these two out!
+                // LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
+                // LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT
                 );
     }
 }

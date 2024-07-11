@@ -18,33 +18,29 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.LookupJoinTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.CalcTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecLookupJoin}. */
-// @Disabled // TODO: Implement BatchExecLookupJoin annotations.
-public class LookupJoinBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Restore tests for {@link BatchExecCalc}. */
+public class CalcCompiledBatchTest extends CompiledBatchTestBase {
 
-    public LookupJoinBatchCompiledPlanTest() {
-        super(BatchExecLookupJoin.class);
+    public CalcCompiledBatchTest() {
+        super(BatchExecCalc.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                LookupJoinTestPrograms.LOOKUP_JOIN_PROJECT_PUSHDOWN,
-                LookupJoinTestPrograms.LOOKUP_JOIN_FILTER_PUSHDOWN,
-                LookupJoinTestPrograms.LOOKUP_JOIN_LEFT_JOIN,
-                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_POST_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER
-                // The optimizer throws these two out!
-                // LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
-                // LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT
-                );
+                CalcTestPrograms.SIMPLE_CALC,
+                CalcTestPrograms.CALC_FILTER,
+                CalcTestPrograms.CALC_FILTER_PUSHDOWN,
+                CalcTestPrograms.CALC_PROJECT_PUSHDOWN,
+                CalcTestPrograms.CALC_SARG,
+                CalcTestPrograms.CALC_UDF_SIMPLE,
+                CalcTestPrograms.CALC_UDF_COMPLEX);
     }
 }

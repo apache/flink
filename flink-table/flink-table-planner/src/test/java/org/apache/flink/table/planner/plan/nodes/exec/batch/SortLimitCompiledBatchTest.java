@@ -18,27 +18,23 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.CorrelateTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.SortTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecCorrelate}. */
-public class CorrelateBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecSortLimit}. */
+// @Disabled // ANTLR Errors?
+public class SortLimitCompiledBatchTest extends CompiledBatchTestBase {
 
-    public CorrelateBatchCompiledPlanTest() {
-        super(BatchExecCorrelate.class);
+    public SortLimitCompiledBatchTest() {
+        super(BatchExecSortLimit.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(
-                CorrelateTestPrograms.CORRELATE_CATALOG_FUNC,
-                CorrelateTestPrograms.CORRELATE_SYSTEM_FUNC,
-                CorrelateTestPrograms.CORRELATE_JOIN_FILTER,
-                CorrelateTestPrograms.CORRELATE_LEFT_JOIN,
-                CorrelateTestPrograms.CORRELATE_CROSS_JOIN_UNNEST);
+        return Arrays.asList(SortTestPrograms.SORT_LIMIT_ASC, SortTestPrograms.SORT_LIMIT_DESC);
     }
 }

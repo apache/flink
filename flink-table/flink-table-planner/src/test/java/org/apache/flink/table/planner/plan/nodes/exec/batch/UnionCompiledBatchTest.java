@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ExpandTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.UnionTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecExpand}. */
-public class ExpandBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecUnion}. */
+public class UnionCompiledBatchTest extends CompiledBatchTestBase {
 
-    public ExpandBatchCompiledPlanTest() {
-        super(BatchExecExpand.class);
+    public UnionCompiledBatchTest() {
+        super(BatchExecUnion.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
-        return Collections.singletonList(ExpandTestPrograms.EXPAND);
+        return Arrays.asList(
+                //                UnionTestPrograms.UNION_TWO_SOURCES, // TODO Fix ANTLR errors?
+                UnionTestPrograms.UNION_ALL_TWO_SOURCES, UnionTestPrograms.UNION_ALL_WITH_FILTER);
     }
 }

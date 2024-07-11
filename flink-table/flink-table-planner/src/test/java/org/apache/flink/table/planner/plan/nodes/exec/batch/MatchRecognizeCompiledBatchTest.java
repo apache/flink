@@ -18,31 +18,32 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.RankTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.MatchRecognizeTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecRank}. */
-// @Disabled // ANTLR Errors?
-public class RankBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecMatch}. */
+// @Disabled
+public class MatchRecognizeCompiledBatchTest extends CompiledBatchTestBase {
 
-    public RankBatchCompiledPlanTest() {
-        super(BatchExecRank.class);
+    public MatchRecognizeCompiledBatchTest() {
+        super(BatchExecMatch.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                RankTestPrograms.RANK_TEST_APPEND_FAST_STRATEGY,
-                // org.apache.flink.table.api.TableException: Querying a table in batch mode is
-                // currently only possible for INSERT-only table sources. But the source for table
-                // 'default_catalog.default_database.MyTable' produces other changelog messages than
-                // just INSERT.
-                // RankTestPrograms.RANK_TEST_RETRACT_STRATEGY,
-                RankTestPrograms.RANK_TEST_UPDATE_FAST_STRATEGY,
-                RankTestPrograms.RANK_N_TEST);
+                MatchRecognizeTestPrograms.MATCH_SIMPLE,
+                MatchRecognizeTestPrograms.MATCH_COMPLEX,
+                // TODO: Figure out if these *should* fail in batch mode!
+                // MatchRecognizeTestPrograms.MATCH_ORDER_BY_EVENT_TIME,
+                // MatchRecognizeTestPrograms.MATCH_ORDER_BY_INT_COLUMN,
+                MatchRecognizeTestPrograms.MATCH_SKIP_TO_FIRST,
+                MatchRecognizeTestPrograms.MATCH_SKIP_TO_LAST,
+                MatchRecognizeTestPrograms.MATCH_SKIP_TO_NEXT_ROW,
+                MatchRecognizeTestPrograms.MATCH_SKIP_PAST_LAST_ROW);
     }
 }

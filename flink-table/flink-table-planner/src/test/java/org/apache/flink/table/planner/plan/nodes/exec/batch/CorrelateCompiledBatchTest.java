@@ -18,31 +18,27 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.TableSinkTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.CorrelateTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Batch Compiled Plan tests for {@link BatchExecSink}. */
-public class TableSinkBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecCorrelate}. */
+public class CorrelateCompiledBatchTest extends CompiledBatchTestBase {
 
-    public TableSinkBatchCompiledPlanTest() {
-        super(BatchExecSink.class);
+    public CorrelateCompiledBatchTest() {
+        super(BatchExecCorrelate.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                TableSinkTestPrograms.SINK_BUCKETING_WITH_COUNT,
-                TableSinkTestPrograms.SINK_BUCKETING_WITH_KEYS_AND_COUNT,
-                TableSinkTestPrograms.SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT,
-                TableSinkTestPrograms.SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT,
-                TableSinkTestPrograms.SINK_PARTITION,
-                TableSinkTestPrograms.SINK_OVERWRITE,
-                TableSinkTestPrograms.SINK_WRITING_METADATA,
-                TableSinkTestPrograms.SINK_NDF_PRIMARY_KEY,
-                TableSinkTestPrograms.SINK_PARTIAL_INSERT);
+                CorrelateTestPrograms.CORRELATE_CATALOG_FUNC,
+                CorrelateTestPrograms.CORRELATE_SYSTEM_FUNC,
+                CorrelateTestPrograms.CORRELATE_JOIN_FILTER,
+                CorrelateTestPrograms.CORRELATE_LEFT_JOIN,
+                CorrelateTestPrograms.CORRELATE_CROSS_JOIN_UNNEST);
     }
 }

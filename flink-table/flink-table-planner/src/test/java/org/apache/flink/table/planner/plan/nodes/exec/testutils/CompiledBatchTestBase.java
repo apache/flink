@@ -64,7 +64,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Base class for implementing compiled plan tests for {@link BatchExecNode}. You can generate json
  * compiled plan and a savepoint for the latest node version by running {@link
- * BatchCompiledPlanTestBase#generateTestSetupFiles(TableTestProgram)} which is disabled by default.
+ * CompiledBatchTestBase#generateTestSetupFiles(TableTestProgram)} which is disabled by default.
  *
  * <p><b>Note:</b> The test base uses {@link TableConfigOptions.CatalogPlanCompilation#SCHEMA}
  * because it needs to adjust source and sink properties before and after the restore. Therefore,
@@ -73,16 +73,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(MiniClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
-public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunner {
+public abstract class CompiledBatchTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
     private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
 
-    protected BatchCompiledPlanTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
+    protected CompiledBatchTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
         this(execNodeUnderTest, new ArrayList<>());
     }
 
-    protected BatchCompiledPlanTestBase(
+    protected CompiledBatchTestBase(
             Class<? extends ExecNode<?>> execNodeUnderTest,
             List<Class<? extends ExecNode<?>>> childExecNodesUnderTest) {
         this.execNodeUnderTest = execNodeUnderTest;

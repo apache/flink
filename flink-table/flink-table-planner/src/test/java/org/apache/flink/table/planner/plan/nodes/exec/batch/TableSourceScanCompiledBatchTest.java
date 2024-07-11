@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.TableSourceScanTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Restore tests for {@link BatchExecTableSourceScan}. */
-public class TableSourceScanBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+public class TableSourceScanCompiledBatchTest extends CompiledBatchTestBase {
 
-    public TableSourceScanBatchCompiledPlanTest() {
+    public TableSourceScanCompiledBatchTest() {
         super(BatchExecTableSourceScan.class);
     }
 
