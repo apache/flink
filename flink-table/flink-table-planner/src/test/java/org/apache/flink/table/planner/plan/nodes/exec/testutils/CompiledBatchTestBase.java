@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Base class for implementing compiled plan tests for {@link BatchExecNode}. You can generate json
  * compiled plan for the latest node version by running {@link
- * BatchCompiledPlanTestBase#generateCompiledPlans(TableTestProgram)}. This method does not recreate
+ * CompiledBatchTestBase#generateCompiledPlans(TableTestProgram)}. This method does not recreate
  * the compiled plan if it already exists for the given version of the operator.
  *
  * <p><b>Note:</b> The test base uses {@link TableConfigOptions.CatalogPlanCompilation#SCHEMA}
@@ -73,16 +73,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(MiniClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
-public abstract class BatchCompiledPlanTestBase implements TableTestProgramRunner {
+public abstract class CompiledBatchTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
     private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
 
-    protected BatchCompiledPlanTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
+    protected CompiledBatchTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
         this(execNodeUnderTest, new ArrayList<>());
     }
 
-    protected BatchCompiledPlanTestBase(
+    protected CompiledBatchTestBase(
             Class<? extends ExecNode<?>> execNodeUnderTest,
             List<Class<? extends ExecNode<?>>> childExecNodesUnderTest) {
         this.execNodeUnderTest = execNodeUnderTest;

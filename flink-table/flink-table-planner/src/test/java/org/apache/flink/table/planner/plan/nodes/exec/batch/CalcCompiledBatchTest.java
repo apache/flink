@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.CalcTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchCompiledPlanTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.CompiledBatchTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Restore tests for {@link BatchExecCalc}. */
-public class CalcBatchCompiledPlanTest extends BatchCompiledPlanTestBase {
+public class CalcCompiledBatchTest extends CompiledBatchTestBase {
 
-    public CalcBatchCompiledPlanTest() {
+    public CalcCompiledBatchTest() {
         super(BatchExecCalc.class);
     }
 
