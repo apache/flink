@@ -33,6 +33,16 @@ public class JsonQuoteFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.JSON_QUOTE, context);
     }
 
+    public @Nullable Object eval(Object input) {
+        if (input == null) {
+            return null;
+        }
+        BinaryStringData bs = (BinaryStringData) input;
+        String stringWithoutQuotes = quote(bs.toString());
+        String outputVal = String.format("\"%s\"", stringWithoutQuotes);
+        return new BinaryStringData(outputVal);
+    }
+
     private static String quote(String input) {
         StringBuilder outputStr = new StringBuilder();
 
@@ -76,15 +86,5 @@ public class JsonQuoteFunction extends BuiltInScalarFunction {
             default:
                 outputStr.append(ch);
         }
-    }
-
-    public @Nullable Object eval(Object input) {
-        if (input == null) {
-            return null;
-        }
-        BinaryStringData bs = (BinaryStringData) input;
-        String stringWithoutQuotes = quote(bs.toString());
-        String outputVal = String.format("\"%s\"", stringWithoutQuotes);
-        return new BinaryStringData(outputVal);
     }
 }

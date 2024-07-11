@@ -34,9 +34,37 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.JSON_UNQUOTE, context);
     }
 
+    public @Nullable Object eval(Object input) {
+        if (input == null) {
+            return null;
+        }
+        BinaryStringData bs = (BinaryStringData) input;
+        String inputStr = bs.toString();
+        try {
+            if (isValidJsonVal(inputStr)) {
+                return new BinaryStringData(unescapeValidJson(inputStr));
+            }
+        } catch (Throwable t) {
+            // ignore
+        }
+        // return input as-is, either JSON is invalid or we encountered an exception while unquoting
+        return new BinaryStringData(inputStr);
+    }
+
     private static boolean isValidJsonVal(String jsonInString) {
         // See also BuiltInMethods.scala, IS_JSON_VALUE
         return SqlJsonUtils.isJsonValue(jsonInString);
+    }
+
+    private static String fromUnicodeLiteral(String input, int curPos) {
+
+        StringBuilder number = new StringBuilder();
+        // isValidJsonVal will already check for unicode literal validity
+        for (char ch : input.substring(curPos, curPos + 4).toCharArray()) {
+            number.append(Character.toLowerCase(ch));
+        }
+        int code = Integer.parseInt(number.toString(), 16);
+        return String.valueOf((char) code);
     }
 
     private String unescapeStr(String inputStr) {
@@ -96,33 +124,5 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
             // string representing Json - array, object or unquoted scalar val, return as-is
             return inputStr;
         }
-    }
-
-    private static String fromUnicodeLiteral(String input, int curPos) {
-
-        StringBuilder number = new StringBuilder();
-        // isValidJsonVal will already check for unicode literal validity
-        for (char ch : input.substring(curPos, curPos + 4).toCharArray()) {
-            number.append(Character.toLowerCase(ch));
-        }
-        int code = Integer.parseInt(number.toString(), 16);
-        return String.valueOf((char) code);
-    }
-
-    public @Nullable Object eval(Object input) {
-        if (input == null) {
-            return null;
-        }
-        BinaryStringData bs = (BinaryStringData) input;
-        String inputStr = bs.toString();
-        try {
-            if (isValidJsonVal(inputStr)) {
-                return new BinaryStringData(unescapeValidJson(inputStr));
-            }
-        } catch (Throwable t) {
-            // ignore
-        }
-        // return input as-is, either JSON is invalid or we encountered an exception while unquoting
-        return new BinaryStringData(inputStr);
     }
 }
