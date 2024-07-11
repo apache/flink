@@ -1,0 +1,444 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 186,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`EMPLOYEE`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "deptno",
+              "dataType" : "INT"
+            }, {
+              "name" : "salary",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`deptno` INT, `salary` BIGINT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`deptno` INT, `salary` BIGINT> NOT NULL"
+      }, {
+        "type" : "AggregatePushDown",
+        "inputType" : "ROW<`deptno` INT, `salary` BIGINT>",
+        "groupingSets" : [ [ 0 ] ],
+        "aggregateCalls" : [ {
+          "name" : "salary",
+          "internalName" : "$MIN$1",
+          "argList" : [ 1 ],
+          "filterArg" : -1,
+          "distinct" : false,
+          "approximate" : false,
+          "ignoreNulls" : false,
+          "type" : "BIGINT"
+        } ],
+        "producedType" : "ROW<`deptno` INT, `min$0` BIGINT>"
+      } ]
+    },
+    "outputType" : "ROW<`deptno` INT, `min$0` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, EMPLOYEE, project=[deptno, salary], metadata=[], aggregates=[grouping=[deptno], aggFunctions=[LongMinAggFunction(salary)]]]], fields=[deptno, min$0])",
+    "dynamicFilteringDataListenerID" : "6e557cdd-f363-45b5-914a-4b2d20f65deb",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 187,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `min$0` BIGINT>",
+    "description" : "Exchange(distribution=[hash[deptno]])",
+    "requiredExchangeMode" : null
+  }, {
+    "id" : 188,
+    "type" : "batch-exec-hash-aggregate_1",
+    "grouping" : [ 0 ],
+    "auxGrouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "salary",
+      "internalName" : "$MIN$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    } ],
+    "aggInputRowType" : "ROW<`deptno` INT, `salary` BIGINT>",
+    "isMerge" : true,
+    "isFinal" : true,
+    "supportAdaptiveLocalHashAgg" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `salary` BIGINT>",
+    "description" : "HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_MIN(min$0) AS salary])"
+  }, {
+    "id" : 189,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`salary` BIGINT, `deptno` INT>",
+    "description" : "Calc(select=[salary, deptno])"
+  }, {
+    "id" : 190,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`salary` BIGINT, `deptno` INT>",
+    "description" : "Exchange(distribution=[hash[salary]])",
+    "requiredExchangeMode" : null
+  }, {
+    "id" : 191,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`DEPARTMENT`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "department_num",
+              "dataType" : "INT"
+            }, {
+              "name" : "b2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b3",
+              "dataType" : "INT"
+            }, {
+              "name" : "department_name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`department_num` INT, `b2` BIGINT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`department_num` INT, `b2` BIGINT> NOT NULL"
+      }, {
+        "type" : "AggregatePushDown",
+        "inputType" : "ROW<`department_num` INT, `b2` BIGINT>",
+        "groupingSets" : [ [ 0 ] ],
+        "aggregateCalls" : [ {
+          "name" : "b2",
+          "internalName" : "$MIN$1",
+          "argList" : [ 1 ],
+          "filterArg" : -1,
+          "distinct" : false,
+          "approximate" : false,
+          "ignoreNulls" : false,
+          "type" : "BIGINT"
+        } ],
+        "producedType" : "ROW<`department_num` INT, `min$0` BIGINT>"
+      } ]
+    },
+    "outputType" : "ROW<`department_num` INT, `min$0` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, DEPARTMENT, project=[department_num, b2], metadata=[], aggregates=[grouping=[department_num], aggFunctions=[LongMinAggFunction(b2)]]]], fields=[department_num, min$0])",
+    "dynamicFilteringDataListenerID" : "26089b8a-01f7-4362-b97e-b258229e0cd2",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 192,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`department_num` INT, `min$0` BIGINT>",
+    "description" : "Exchange(distribution=[hash[department_num]])",
+    "requiredExchangeMode" : null
+  }, {
+    "id" : 193,
+    "type" : "batch-exec-hash-aggregate_1",
+    "grouping" : [ 0 ],
+    "auxGrouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "b2",
+      "internalName" : "$MIN$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    } ],
+    "aggInputRowType" : "ROW<`department_num` INT, `b2` BIGINT>",
+    "isMerge" : true,
+    "isFinal" : true,
+    "supportAdaptiveLocalHashAgg" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`department_num` INT, `b2` BIGINT>",
+    "description" : "HashAggregate(isMerge=[true], groupBy=[department_num], select=[department_num, Final_MIN(min$0) AS b2])"
+  }, {
+    "id" : 194,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b2` BIGINT, `department_num` INT>",
+    "description" : "Calc(select=[b2, department_num])"
+  }, {
+    "id" : 195,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b2` BIGINT, `department_num` INT>",
+    "description" : "Exchange(distribution=[hash[b2]])",
+    "requiredExchangeMode" : null
+  }, {
+    "id" : 196,
+    "type" : "batch-exec-join_1",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "estimatedLeftAvgRowSize" : 12,
+    "estimatedRightAvgRowSize" : 12,
+    "estimatedLeftRowCount" : 100000000,
+    "estimatedRightRowCount" : 100000000,
+    "isBroadcast" : false,
+    "leftIsBuild" : true,
+    "tryDistinctBuildRow" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    } ],
+    "outputType" : "ROW<`salary` BIGINT, `deptno` INT, `b2` BIGINT, `department_num` INT>",
+    "description" : "HashJoin(joinType=[InnerJoin], where=[(salary = b2)], select=[salary, deptno, b2, department_num], build=[left])"
+  }, {
+    "id" : 197,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `department_num` INT>",
+    "description" : "Calc(select=[deptno, department_num])"
+  }, {
+    "id" : 198,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "deptno",
+              "dataType" : "INT"
+            }, {
+              "name" : "department_num",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `department_num` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[deptno, department_num])"
+  } ],
+  "edges" : [ {
+    "source" : 186,
+    "target" : 187,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 187,
+    "target" : 188,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 188,
+    "target" : 189,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 189,
+    "target" : 190,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 191,
+    "target" : 192,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 192,
+    "target" : 193,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 193,
+    "target" : 194,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 194,
+    "target" : 195,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 190,
+    "target" : 196,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 195,
+    "target" : 196,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 196,
+    "target" : 197,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 197,
+    "target" : 198,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

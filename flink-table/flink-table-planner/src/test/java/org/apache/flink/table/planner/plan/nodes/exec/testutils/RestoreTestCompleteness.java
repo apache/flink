@@ -155,7 +155,7 @@ public class RestoreTestCompleteness {
                         .getTopLevelClassesRecursive(
                                 "org.apache.flink.table.planner.plan.nodes.exec.batch")
                         .stream()
-                        .filter(x -> CompiledBatchTestBase.class.isAssignableFrom(x.load()))
+                        .filter(x -> BatchRestoreTestBase.class.isAssignableFrom(x.load()))
                         .collect(Collectors.toSet());
 
         //        Set<Class<? extends ExecNode<?>>> execNodesWithRestoreTests = new HashSet<>();
