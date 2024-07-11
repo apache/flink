@@ -433,20 +433,20 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition URL_DECODE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("url_decode")
+                    .name("URL_DECODE")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition URL_ENCODE =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("url_encode")
+                    .name("URL_ENCODE")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.UrlEncodeFunction")
                     .build();
