@@ -24,32 +24,34 @@
 package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.util.StringUtils;
 
 /**
- * A tuple with 2 fields. Tuples are strongly typed; each field may be of a separate type. The
+ * A tuple with 5 fields. Tuples are strongly typed; each field may be of a separate type. The
  * fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
  * through the {@link #getField(int)} method. The tuple field positions start at zero.
  *
  * <p>Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions
  * that work with Tuples to reuse objects in order to reduce pressure on the garbage collector.
  *
- * <p>Warning: If you subclass Tuple2, then be sure to either
+ * <p>Warning: If you subclass Tuple5, then be sure to either
  *
  * <ul>
  *   <li>not add any new fields, or
  *   <li>make it a POJO, and always declare the element type of your DataStreams/DataSets to your
- *       descendant type. (That is, if you have a "class Foo extends Tuple2", then don't use
- *       instances of Foo in a DataStream&lt;Tuple2&gt; / DataSet&lt;Tuple2&gt;, but declare it as
+ *       descendant type. (That is, if you have a "class Foo extends Tuple5", then don't use
+ *       instances of Foo in a DataStream&lt;Tuple5&gt; / DataSet&lt;Tuple5&gt;, but declare it as
  *       DataStream&lt;Foo&gt; / DataSet&lt;Foo&gt;.)
  * </ul>
  *
  * @see Tuple
  * @param <T0> The type of field 0
  * @param <T1> The type of field 1
+ * @param <T2> The type of field 2
+ * @param <T3> The type of field 3
+ * @param <T4> The type of field 4
  */
 @Public
-public class Tuple2<T0, T1> extends Tuple {
+public class Tuple5<T0, T1, T2, T3, T4> extends Tuple {
 
     private static final long serialVersionUID = 1L;
 
@@ -57,24 +59,36 @@ public class Tuple2<T0, T1> extends Tuple {
     public T0 f0;
     /** Field 1 of the tuple. */
     public T1 f1;
+    /** Field 2 of the tuple. */
+    public T2 f2;
+    /** Field 3 of the tuple. */
+    public T3 f3;
+    /** Field 4 of the tuple. */
+    public T4 f4;
 
     /** Creates a new tuple where all fields are null. */
-    public Tuple2() {}
+    public Tuple5() {}
 
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
      *
      * @param f0 The value for field 0
      * @param f1 The value for field 1
+     * @param f2 The value for field 2
+     * @param f3 The value for field 3
+     * @param f4 The value for field 4
      */
-    public Tuple2(T0 f0, T1 f1) {
+    public Tuple5(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4) {
         this.f0 = f0;
         this.f1 = f1;
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
     }
 
     @Override
     public int getArity() {
-        return 2;
+        return 5;
     }
 
     @Override
@@ -85,6 +99,12 @@ public class Tuple2<T0, T1> extends Tuple {
                 return (T) this.f0;
             case 1:
                 return (T) this.f1;
+            case 2:
+                return (T) this.f2;
+            case 3:
+                return (T) this.f3;
+            case 4:
+                return (T) this.f4;
             default:
                 throw new IndexOutOfBoundsException(String.valueOf(pos));
         }
@@ -100,6 +120,15 @@ public class Tuple2<T0, T1> extends Tuple {
             case 1:
                 this.f1 = (T1) value;
                 break;
+            case 2:
+                this.f2 = (T2) value;
+                break;
+            case 3:
+                this.f3 = (T3) value;
+                break;
+            case 4:
+                this.f4 = (T4) value;
+                break;
             default:
                 throw new IndexOutOfBoundsException(String.valueOf(pos));
         }
@@ -110,19 +139,16 @@ public class Tuple2<T0, T1> extends Tuple {
      *
      * @param f0 The value for field 0
      * @param f1 The value for field 1
+     * @param f2 The value for field 2
+     * @param f3 The value for field 3
+     * @param f4 The value for field 4
      */
-    public void setFields(T0 f0, T1 f1) {
+    public void setFields(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4) {
         this.f0 = f0;
         this.f1 = f1;
-    }
-
-    /**
-     * Returns a shallow copy of the tuple with swapped values.
-     *
-     * @return shallow copy of the tuple with swapped values
-     */
-    public Tuple2<T1, T0> swap() {
-        return new Tuple2<T1, T0>(f1, f0);
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -130,17 +156,23 @@ public class Tuple2<T0, T1> extends Tuple {
     // -------------------------------------------------------------------------------------------------
 
     /**
-     * Creates a string representation of the tuple in the form (f0, f1), where the individual
-     * fields are the value returned by calling {@link Object#toString} on that field.
+     * Creates a string representation of the tuple in the form (f0, f1, f2, f3, f4), where the
+     * individual fields are the value returned by calling {@link Object#toString} on that field.
      *
      * @return The string representation of the tuple.
      */
     @Override
     public String toString() {
         return "("
-                + StringUtils.arrayAwareToString(this.f0)
+                + arrayAwareToString(this.f0)
                 + ","
-                + StringUtils.arrayAwareToString(this.f1)
+                + arrayAwareToString(this.f1)
+                + ","
+                + arrayAwareToString(this.f2)
+                + ","
+                + arrayAwareToString(this.f3)
+                + ","
+                + arrayAwareToString(this.f4)
                 + ")";
     }
 
@@ -155,15 +187,24 @@ public class Tuple2<T0, T1> extends Tuple {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Tuple2)) {
+        if (!(o instanceof Tuple5)) {
             return false;
         }
         @SuppressWarnings("rawtypes")
-        Tuple2 tuple = (Tuple2) o;
+        Tuple5 tuple = (Tuple5) o;
         if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
             return false;
         }
         if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+            return false;
+        }
+        if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) {
+            return false;
+        }
+        if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) {
+            return false;
+        }
+        if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) {
             return false;
         }
         return true;
@@ -173,6 +214,9 @@ public class Tuple2<T0, T1> extends Tuple {
     public int hashCode() {
         int result = f0 != null ? f0.hashCode() : 0;
         result = 31 * result + (f1 != null ? f1.hashCode() : 0);
+        result = 31 * result + (f2 != null ? f2.hashCode() : 0);
+        result = 31 * result + (f3 != null ? f3.hashCode() : 0);
+        result = 31 * result + (f4 != null ? f4.hashCode() : 0);
         return result;
     }
 
@@ -183,8 +227,8 @@ public class Tuple2<T0, T1> extends Tuple {
      */
     @Override
     @SuppressWarnings("unchecked")
-    public Tuple2<T0, T1> copy() {
-        return new Tuple2<>(this.f0, this.f1);
+    public Tuple5<T0, T1, T2, T3, T4> copy() {
+        return new Tuple5<>(this.f0, this.f1, this.f2, this.f3, this.f4);
     }
 
     /**
@@ -193,7 +237,8 @@ public class Tuple2<T0, T1> extends Tuple {
      * arguments implicitly. For example: {@code Tuple3.of(n, x, s)} instead of {@code new
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
-    public static <T0, T1> Tuple2<T0, T1> of(T0 f0, T1 f1) {
-        return new Tuple2<>(f0, f1);
+    public static <T0, T1, T2, T3, T4> Tuple5<T0, T1, T2, T3, T4> of(
+            T0 f0, T1 f1, T2 f2, T3 f3, T4 f4) {
+        return new Tuple5<>(f0, f1, f2, f3, f4);
     }
 }

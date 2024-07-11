@@ -35,7 +35,7 @@ class TupleGenerator {
 
     // Parameters for tuple classes
 
-    private static final String ROOT_DIRECTORY = "./flink-core/src/main/java";
+    private static final String ROOT_DIRECTORY = "./flink-core-api/src/main/java";
 
     private static final String PACKAGE = "org.apache.flink.api.java.tuple";
 

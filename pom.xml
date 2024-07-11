@@ -2393,6 +2393,9 @@ under the License.
 								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#createInputSerializer()</exclude>
 								<!-- SinkV1 is deprecated but relies on an Experimental interface. Keeping this for legacy purposes  -->
 								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#metadataConsumer()</exclude>
+								<!-- FLINK-35812 move tuple interfaces into flink-core-api -->
+								<exclude>org.apache.flink.api.java.tuple.*</exclude>
+								<exclude>org.apache.flink.types.NullFieldException</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

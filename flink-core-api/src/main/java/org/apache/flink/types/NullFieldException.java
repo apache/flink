@@ -60,7 +60,7 @@ public class NullFieldException extends RuntimeException {
 
     /**
      * Constructs an {@code NullFieldException} with a default message, referring to given field
-     * number as the null field and a cause (Throwable)
+     * number as the null field and a cause (Throwable).
      *
      * @param fieldIdx The index of the field that was null, but expected to hold a value.
      * @param cause Pass the root cause of the error
