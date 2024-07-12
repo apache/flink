@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{JavaTableFunc1, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
 
