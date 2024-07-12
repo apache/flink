@@ -169,7 +169,7 @@ JAR 将被下载到镜像中的 [user.artifacts.base-dir]({{< ref "docs/deployme
 
 `kubernetes.container.image.ref` 选项指定了启动Pod所使用的镜像。
 
-一旦应用程序集群部署完成，您就可以与其进行交互：
+一旦应用程序集群部署完成，你就可以与其进行交互：
 
 ```bash
 # List running job on the cluster
@@ -234,48 +234,63 @@ containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
 env.java.opts.jobmanager: "-Dkubernetes.max.concurrent.requests=200"
 ```
 
-### Accessing Flink's Web UI
+### 访问 Flink 的 Web UI
 
-Flink's Web UI and REST endpoint can be exposed in several ways via the [kubernetes.rest-service.exposed.type]({{< ref "docs/deployment/config" >}}#kubernetes-rest-service-exposed-type) configuration option.
+可以通过 [kubernetes.rest-service.exposed.type]({{< ref "docs/deployment/config" >}}#kubernetes-rest-service-exposed-type) 配置选项以多种方式开放 Flink 的 Web UI 和 REST 端点。
 
-- **ClusterIP**: Exposes the service on a cluster-internal IP.
-  The Service is only reachable within the cluster.
-  If you want to access the JobManager UI or submit job to the existing session, you need to start a local proxy.
-  You can then use `localhost:8081` to submit a Flink job to the session or view the dashboard.
+- **ClusterIP**：在集群内部 IP 上公开服务。
+  服务只能在集群内访问。
+  如果要访问 JobManager UI 或向现有会话提交作业，需要启动本地代理。
+  然后你可以使用 `localhost:8081` 向会话提交 Flink 作业或查看仪表板。
 
 ```bash
 $ kubectl port-forward service/<ServiceName> 8081
 ```
+- **NodePort**：在每个节点的 IP 上的静态端口（`NodePort`）上公开服务。可以通过
+  `<NodeIP>:<NodePort>` 联系 JobManager 服务。
 
-- **NodePort**: Exposes the service on each Node’s IP at a static port (the `NodePort`).
-  `<NodeIP>:<NodePort>` can be used to contact the JobManager service.
+- **LoadBalancer**：使用云提供商的负载均衡器外部公开服务。
+  由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，你可能会在客户端日志中看到一个 `NodePort` JobManager Web 界面。
+  你可以使用 `kubectl get services/<cluster-id>-rest` 获取 EXTERNAL-IP，并手动构造负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
 
-- **LoadBalancer**: Exposes the service externally using a cloud provider’s load balancer.
-  Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
-  You can use `kubectl get services/<cluster-id>-rest` to get EXTERNAL-IP and construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
-
-Please refer to the official documentation on [publishing services in Kubernetes](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for more information.
+更多信息，请参阅 Kubernetes 的官方文档 [在 Kubernetes 中发布服务](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)。
 
 {{< hint warning >}}
-Depending on your environment, starting a Flink cluster with `LoadBalancer` REST service exposed type might make the cluster accessible publicly (usually with the ability to execute arbitrary code).
+根据你的环境，使用 `LoadBalancer` 类型的 REST 服务公开的 Flink 集群可能会使集群对外部公开（通常具有执行任意代码的能力）。
 {{< /hint >}}
 
-### Logging
+### 日志记录
 
-The Kubernetes integration exposes `conf/log4j-console.properties` and `conf/logback-console.xml` as a ConfigMap to the pods.
-Changes to these files will be visible to a newly started cluster.
+Kubernetes 集成将 `conf/log4j-console.properties` 和 `conf/logback-console.xml` 作为 ConfigMap 映射到各个 Pod。
+对这些文件的更改将在新启动的集群中可见。
 
-#### Accessing the Logs
+#### 访问日志
 
-By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
-The `STDOUT` and `STDERR` output will only be redirected to the console.
-You can access them via
+默认情况下，JobManager 和 TaskManager 将日志同时输出到控制台和每个 Pod 中的 `/opt/flink/log`。
+STDOUT 和 STDERR 输出只会重定向到控制台。
+可以通过以下方式访问它们：
 
 ```bash
 $ kubectl logs <pod-name>
 ```
 
-If the pod is running, you can also use `kubectl exec -it <pod-name> bash` to tunnel in and view the logs or debug the process.
+如果 Pod 正在运行，也可以使用 `kubectl exec -it <pod-name> bash` 进行隧道连接并查看日志或调试进程。
+
+```bash
+$ kubectl logs <pod-name>
+```
+#### 访问 TaskManager 的日志
+
+为了不浪费资源，Flink 会自动释放空闲的 TaskManagers。这可能使得访问相应 Pod 的日志变得更加困难。通过配置 [resourcemanager.taskmanager-timeout]({{< ref "docs/deployment/config" >}}#resourcemanager-taskmanager-timeout)，可以增加释放空闲 TaskManager 之前的时间，以便有更多时间检查日志文件。
+
+#### 动态更改日志级别
+
+如果已配置日志记录器以 [自动检测配置更改]({{< ref "docs/deployment/advanced/logging" >}})，则可以通过更改相应的 ConfigMap（假设集群 ID 为 `my-first-flink-cluster`）来动态调整日志级别：
+
+```bash
+$ kubectl edit cm flink-config-my-first-flink-cluster
+```
+
 
 #### Accessing the Logs of the TaskManagers
 
@@ -291,63 +306,63 @@ If you have configured your logger to [detect configuration changes automaticall
 $ kubectl edit cm flink-config-my-first-flink-cluster
 ```
 
-### Using Plugins
+### 使用插件
 
-In order to use [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}), you must copy them to the correct location in the Flink JobManager/TaskManager pod.
-You can use the [built-in plugins]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-plugins) without mounting a volume or building a custom Docker image.
-For example, use the following command to enable the S3 plugin for your Flink session cluster.
+要使用[插件]({{< ref "docs/deployment/filesystems/plugins" >}})，必须将它们复制到Flink JobManager/TaskManager pod的正确位置。
+你可以在不挂载卷或构建自定义Docker镜像的情况下使用[内置插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-plugins)。
+例如，要为你的Flink会话集群启用S3插件，请使用以下命令：
 
 ```bash
-$ ./bin/kubernetes-session.sh
-    -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar \
+$ ./bin/kubernetes-session.sh \
+    -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar \ 
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar
 ```
 
-### Custom Docker Image
+### 自定义Docker镜像
 
-If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image.ref`.
-The Flink community provides a rich [Flink Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}) which can be a good starting point.
-See [how to customize Flink's Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image) for how to enable plugins, add dependencies and other options.
+如果你想使用自定义Docker镜像，可以通过配置选项`kubernetes.container.image.ref`指定。Flink社区提供了一个丰富的[Flink Docker镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}})，这可能是一个很好的起点。
+有关如何启用插件、添加依赖项和其他选项的更多信息，请参阅[如何定制Flink的Docker镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image)。
 
-### Using Secrets
+### 使用Secrets
 
-[Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) is an object that contains a small amount of sensitive data such as a password, a token, or a key.
-Such information might otherwise be put in a pod specification or in an image.
-Flink on Kubernetes can use Secrets in two ways:
+[Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) 是一个包含少量敏感数据（如密码、令牌或密钥）的对象。
+这些信息可能会放在pod规范或镜像中。在Kubernetes上的Flink可以以两种方式使用Secrets：
 
-* Using Secrets as files from a pod;
+* 从pod中作为文件使用Secrets；
+  
+* 作为环境变量使用Secrets。
 
-* Using Secrets as environment variables;
+#### 从Pod中作为文件使用Secrets
 
-#### Using Secrets as Files From a Pod
-
-The following command will mount the secret `mysecret` under the path `/path/to/secret` in the started pods:
+以下命令将在启动的pod中将秘密`mysecret`挂载到路径`/path/to/secret`下：
 
 ```bash
 $ ./bin/kubernetes-session.sh -Dkubernetes.secrets=mysecret:/path/to/secret
 ```
 
-The username and password of the secret `mysecret` can then be found stored in the files `/path/to/secret/username` and `/path/to/secret/password`.
-For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod).
+然后，可以在文件`/path/to/secret/username`和`/path/to/secret/password`中找到秘密`mysecret`的用户名和密码。
+更多详细信息，请参阅[官方Kubernetes文档](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod)。
 
-#### Using Secrets as Environment Variables
+#### 作为环境变量使用Secrets
 
-The following command will expose the secret `mysecret` as environment variable in the started pods:
+以下命令将在启动的pod中将秘密`mysecret`作为环境变量暴露：
 
 ```bash
-$ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\
-    env:SECRET_USERNAME,secret:mysecret,key:username;\
+$ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\\
+    env:SECRET_USERNAME,secret:mysecret,key:username;\\
     env:SECRET_PASSWORD,secret:mysecret,key:password
 ```
 
-The env variable `SECRET_USERNAME` contains the username and the env variable `SECRET_PASSWORD` contains the password of the secret `mysecret`.
-For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables).
+环境变量`SECRET_USERNAME`包含`mysecret`秘密的用户名，而环境变量`SECRET_PASSWORD`包含`mysecret`秘密的密码。
+更多详细信息，请参阅[官方Kubernetes文档](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables)。
 
-### High-Availability on Kubernetes
+### 在Kubernetes上的高可用性
 
-For high availability on Kubernetes, you can use the [existing high availability services]({{< ref "docs/deployment/ha/overview" >}}).
+为了在Kubernetes上实现高可用性，你可以使用[现有的高可用性服务]({{< ref "docs/deployment/ha/overview" >}})。
 
-Configure the value of <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-replicas">kubernetes.jobmanager.replicas</a> to greater than 1 to start standby JobManagers.
+将<a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-replicas">kubernetes.jobmanager.replicas</a>的值设置为大于1，以启动备用JobManagers。
+这有助于实现更快的恢复。请注意，在启动备用JobManagers时应启用高可用性。
+
 It will help to achieve faster recovery.
 Notice that high availability should be enabled when starting standby JobManagers.
 
