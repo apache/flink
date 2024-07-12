@@ -20,12 +20,13 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import java.time.Instant;
 
-public class TestingRescaleManager implements RescaleManager {
+/** Testing implementation for {@link StateTransitionManager}. */
+public class TestingStateTransitionManager implements StateTransitionManager {
 
     private final Runnable onChangeRunnable;
     private final Runnable onTriggerRunnable;
 
-    private TestingRescaleManager(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
+    private TestingStateTransitionManager(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
         this.onChangeRunnable = onChangeRunnable;
         this.onTriggerRunnable = onTriggerRunnable;
     }
@@ -40,12 +41,15 @@ public class TestingRescaleManager implements RescaleManager {
         this.onTriggerRunnable.run();
     }
 
-    public static class Factory implements RescaleManager.Factory {
+    /**
+     * {@code Factory} implementation for creating {@code TestingStateTransitionManager} instances.
+     */
+    public static class Factory implements StateTransitionManager.Factory {
 
         private final Runnable onChangeRunnable;
         private final Runnable onTriggerRunnable;
 
-        public static TestingRescaleManager.Factory noOpFactory() {
+        public static TestingStateTransitionManager.Factory noOpFactory() {
             return new Factory(() -> {}, () -> {});
         }
 
@@ -55,8 +59,8 @@ public class TestingRescaleManager implements RescaleManager {
         }
 
         @Override
-        public RescaleManager create(Context ignoredContext, Instant ignoredLastRescale) {
-            return new TestingRescaleManager(onChangeRunnable, onTriggerRunnable);
+        public StateTransitionManager create(Context ignoredContext, Instant ignoredLastRescale) {
+            return new TestingStateTransitionManager(onChangeRunnable, onTriggerRunnable);
         }
     }
 }
