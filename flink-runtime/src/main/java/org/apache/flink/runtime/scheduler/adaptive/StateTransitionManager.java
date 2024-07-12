@@ -20,21 +20,30 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.ScheduledFuture;
 
-/** The {@code RescaleManager} decides on whether rescaling should happen or not. */
-public interface RescaleManager {
+/**
+ * The {@code StateTransitionManager} decides on whether {@link AdaptiveScheduler} state transition
+ * should happen or not.
+ */
+public interface StateTransitionManager {
 
-    /** Is called if the environment changed in a way that a rescaling could be considered. */
+    /**
+     * Is called if the environment changed in a way that a state transition could be considered.
+     */
     void onChange();
 
     /**
      * Is called when any previous observed environment changes shall be verified possibly
-     * triggering a rescale operation.
+     * triggering a state transition operation.
      */
     void onTrigger();
 
+    /** Is called when the state transition manager should be closed. */
+    default void close() {}
+
     /**
-     * The interface that can be used by the {@code RescaleManager} to communicate with the
+     * The interface that can be used by the {@code StateTransitionManager} to communicate with the
      * underlying system.
      */
     interface Context {
@@ -51,20 +60,24 @@ public interface RescaleManager {
          */
         boolean hasDesiredResources();
 
-        /** Triggers the rescaling of the job. */
-        void rescale();
+        /** Triggers the transition to the subsequent state of the {@link AdaptiveScheduler}. */
+        void transitionToSubsequentState();
 
-        /** Runs operation with a given delay in the underlying main thread. */
-        void scheduleOperation(Runnable callback, Duration delay);
+        /**
+         * Runs operation with a given delay in the underlying main thread.
+         *
+         * @return a ScheduledFuture representing pending completion of the operation.
+         */
+        ScheduledFuture<?> scheduleOperation(Runnable callback, Duration delay);
     }
 
-    /** Interface for creating {@code RescaleManager} instances. */
+    /** Interface for creating {@code StateTransitionManager} instances. */
     interface Factory {
 
         /**
-         * Creates a {@code RescaleManager} instance for the given {@code rescaleContext} and
-         * previous rescale time.
+         * Creates a {@code StateTransitionManager} instance for the given {@code Context} and
+         * previous state transition time.
          */
-        RescaleManager create(Context rescaleContext, Instant lastRescale);
+        StateTransitionManager create(Context context, Instant lastStateTransition);
     }
 }

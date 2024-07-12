@@ -58,13 +58,13 @@ import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
 class Executing extends StateWithExecutionGraph
-        implements ResourceListener, RescaleManager.Context, CheckpointStatsListener {
+        implements ResourceListener, StateTransitionManager.Context, CheckpointStatsListener {
 
     private final Context context;
 
     private final RescalingController sufficientResourcesController;
     private final RescalingController desiredResourcesController;
-    private final RescaleManager rescaleManager;
+    private final StateTransitionManager stateTransitionManager;
     private final int rescaleOnFailedCheckpointCount;
     // null indicates that there was no change event observed, yet
     @Nullable private AtomicInteger failedCheckpointCountdown;
@@ -77,7 +77,7 @@ class Executing extends StateWithExecutionGraph
             Context context,
             ClassLoader userCodeClassLoader,
             List<ExceptionHistoryEntry> failureCollection,
-            RescaleManager.Factory rescaleManagerFactory,
+            StateTransitionManager.Factory stateTransitionManagerFactory,
             int minParallelismChangeForRescale,
             int rescaleOnFailedCheckpointCount,
             Instant lastRescale) {
@@ -96,7 +96,7 @@ class Executing extends StateWithExecutionGraph
         this.sufficientResourcesController = new EnforceParallelismChangeRescalingController();
         this.desiredResourcesController =
                 new EnforceMinimalIncreaseRescalingController(minParallelismChangeForRescale);
-        this.rescaleManager = rescaleManagerFactory.create(this, lastRescale);
+        this.stateTransitionManager = stateTransitionManagerFactory.create(this, lastRescale);
 
         Preconditions.checkArgument(
                 rescaleOnFailedCheckpointCount > 0,
@@ -110,8 +110,8 @@ class Executing extends StateWithExecutionGraph
         context.runIfState(
                 this,
                 () -> {
-                    rescaleManager.onChange();
-                    rescaleManager.onTrigger();
+                    stateTransitionManager.onChange();
+                    stateTransitionManager.onTrigger();
                 },
                 Duration.ZERO);
     }
@@ -147,12 +147,12 @@ class Executing extends StateWithExecutionGraph
     }
 
     @Override
-    public void scheduleOperation(Runnable callback, Duration delay) {
-        context.runIfState(this, callback, delay);
+    public ScheduledFuture<?> scheduleOperation(Runnable callback, Duration delay) {
+        return context.runIfState(this, callback, delay);
     }
 
     @Override
-    public void rescale() {
+    public void transitionToSubsequentState() {
         context.goToRestarting(
                 getExecutionGraph(),
                 getExecutionGraphHandler(),
@@ -186,6 +186,12 @@ class Executing extends StateWithExecutionGraph
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
     }
 
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        stateTransitionManager.close();
+        super.onLeave(newState);
+    }
+
     private void deploy() {
         for (ExecutionJobVertex executionJobVertex :
                 getExecutionGraph().getVerticesTopologically()) {
@@ -212,13 +218,13 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void onNewResourcesAvailable() {
-        rescaleManager.onChange();
+        stateTransitionManager.onChange();
         initializeFailedCheckpointCountdownIfUnset();
     }
 
     @Override
     public void onNewResourceRequirements() {
-        rescaleManager.onChange();
+        stateTransitionManager.onChange();
         initializeFailedCheckpointCountdownIfUnset();
     }
 
@@ -236,7 +242,7 @@ class Executing extends StateWithExecutionGraph
     }
 
     private void triggerPotentialRescale() {
-        rescaleManager.onTrigger();
+        stateTransitionManager.onTrigger();
         this.failedCheckpointCountdown = null;
     }
 
@@ -322,7 +328,7 @@ class Executing extends StateWithExecutionGraph
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
-        private final RescaleManager.Factory rescaleManagerFactory;
+        private final StateTransitionManager.Factory stateTransitionManagerFactory;
         private final int minParallelismChangeForRescale;
         private final int rescaleOnFailedCheckpointCount;
 
@@ -334,7 +340,7 @@ class Executing extends StateWithExecutionGraph
                 Context context,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection,
-                RescaleManager.Factory rescaleManagerFactory,
+                StateTransitionManager.Factory stateTransitionManagerFactory,
                 int minParallelismChangeForRescale,
                 int rescaleOnFailedCheckpointCount) {
             this.context = context;
@@ -344,7 +350,7 @@ class Executing extends StateWithExecutionGraph
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
-            this.rescaleManagerFactory = rescaleManagerFactory;
+            this.stateTransitionManagerFactory = stateTransitionManagerFactory;
             this.minParallelismChangeForRescale = minParallelismChangeForRescale;
             this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
@@ -362,7 +368,7 @@ class Executing extends StateWithExecutionGraph
                     context,
                     userCodeClassLoader,
                     failureCollection,
-                    rescaleManagerFactory,
+                    stateTransitionManagerFactory,
                     minParallelismChangeForRescale,
                     rescaleOnFailedCheckpointCount,
                     Instant.now());
