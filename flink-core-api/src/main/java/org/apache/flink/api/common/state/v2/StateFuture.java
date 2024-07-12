@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state.v2;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -74,4 +75,100 @@ public interface StateFuture<T> {
     <U, V> StateFuture<V> thenCombine(
             StateFuture<? extends U> other,
             BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception> fn);
+
+    /**
+     * Apply a condition test on the result of this StateFuture, and try to perform one action out
+     * of two based on the result. Gather the results of the condition test and the selected action
+     * into a StateFuture of tuple. The relationship between the action result and the returned new
+     * StateFuture are just like the {@link #thenApply(FunctionWithException)}.
+     *
+     * @param condition the condition test.
+     * @param actionIfTrue the function to apply if the condition returns true.
+     * @param actionIfFalse the function to apply if the condition returns false.
+     * @param <U> the type of the output from actionIfTrue.
+     * @param <V> the type of the output from actionIfFalse.
+     * @return the new StateFuture with the result of condition test, and result of action.
+     */
+    <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
+            FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse);
+
+    /**
+     * Apply a condition test on the result of this StateFuture, and try to perform the action if
+     * test result is true. Gather the results of the condition test and the action (if applied)
+     * into a StateFuture of tuple. The relationship between the action result and the returned new
+     * StateFuture are just like the {@link #thenApply(FunctionWithException)}.
+     *
+     * @param condition the condition test.
+     * @param actionIfTrue the function to apply if the condition returns true.
+     * @param <U> the type of the output from actionIfTrue.
+     * @return the new StateFuture with the result of condition test, and result of action.
+     */
+    <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue);
+
+    /**
+     * Apply a condition test on the result of this StateFuture, and try to perform one action out
+     * of two based on the result. Gather the results of the condition test StateFuture.
+     *
+     * @param condition the condition test.
+     * @param actionIfTrue the function to apply if the condition returns true.
+     * @param actionIfFalse the function to apply if the condition returns false.
+     * @return the new StateFuture.
+     */
+    StateFuture<Boolean> thenConditionallyAccept(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfFalse);
+
+    /**
+     * Apply a condition test on the result of this StateFuture, and try to perform the action if
+     * test result is true. Gather the results of the condition test StateFuture.
+     *
+     * @param condition the condition test.
+     * @param actionIfTrue the function to apply if the condition returns true.
+     * @return the new StateFuture.
+     */
+    StateFuture<Boolean> thenConditionallyAccept(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfTrue);
+
+    /**
+     * Apply a condition test on the result of this StateFuture, and try to perform one action out
+     * of two based on the result. Gather the results of the condition test and the selected action
+     * into a StateFuture of tuple. The relationship between the action result and the returned new
+     * StateFuture are just like the {@link #thenCompose(FunctionWithException)}.
+     *
+     * @param condition the condition test.
+     * @param actionIfTrue the function to apply if the condition returns true.
+     * @param actionIfFalse the function to apply if the condition returns false.
+     * @param <U> the type of the output from actionIfTrue.
+     * @param <V> the type of the output from actionIfFalse.
+     * @return the new StateFuture with the result of condition test, and result of action.
+     */
+    <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    actionIfTrue,
+            FunctionWithException<? super T, ? extends StateFuture<V>, ? extends Exception>
+                    actionIfFalse);
+
+    /**
+     * Apply a condition test on the result of this StateFuture, and try to perform the action if
+     * test result is true. Gather the results of the condition test and the action (if applied)
+     * into a StateFuture of tuple. The relationship between the action result and the returned new
+     * StateFuture are just like the {@link #thenCompose(FunctionWithException)}
+     * (FunctionWithException)}.
+     *
+     * @param condition the condition test.
+     * @param actionIfTrue the function to apply if the condition returns true.
+     * @param <U> the type of the output from actionIfTrue.
+     * @return the new StateFuture with the result of condition test, and result of action.
+     */
+    <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    actionIfTrue);
 }

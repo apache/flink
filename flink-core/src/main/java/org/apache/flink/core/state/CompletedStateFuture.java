@@ -20,6 +20,7 @@ package org.apache.flink.core.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -72,6 +73,85 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
                     V v = fn.apply(result, u);
                     return StateFutureUtils.completedFuture(v);
                 });
+    }
+
+    @Override
+    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
+            FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse) {
+        boolean test = FunctionWithException.unchecked(condition).apply(result);
+        Object r =
+                test
+                        ? FunctionWithException.unchecked(actionIfTrue).apply(result)
+                        : FunctionWithException.unchecked(actionIfFalse).apply(result);
+        return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+    }
+
+    @Override
+    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue) {
+        boolean test = FunctionWithException.unchecked(condition).apply(result);
+        U r = test ? FunctionWithException.unchecked(actionIfTrue).apply(result) : null;
+        return StateFutureUtils.completedFuture(Tuple2.of(test, r));
+    }
+
+    @Override
+    public StateFuture<Boolean> thenConditionallyAccept(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfFalse) {
+        boolean test = FunctionWithException.unchecked(condition).apply(result);
+        if (test) {
+            ThrowingConsumer.unchecked(actionIfTrue).accept(result);
+        } else {
+            ThrowingConsumer.unchecked(actionIfFalse).accept(result);
+        }
+        return StateFutureUtils.completedFuture(test);
+    }
+
+    @Override
+    public StateFuture<Boolean> thenConditionallyAccept(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            ThrowingConsumer<? super T, ? extends Exception> actionIfTrue) {
+        boolean test = FunctionWithException.unchecked(condition).apply(result);
+        if (test) {
+            ThrowingConsumer.unchecked(actionIfTrue).accept(result);
+        }
+        return StateFutureUtils.completedFuture(test);
+    }
+
+    @Override
+    public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    actionIfTrue,
+            FunctionWithException<? super T, ? extends StateFuture<V>, ? extends Exception>
+                    actionIfFalse) {
+        boolean test = FunctionWithException.unchecked(condition).apply(result);
+        StateFuture<?> actionResult;
+        if (test) {
+            actionResult = FunctionWithException.unchecked(actionIfTrue).apply(result);
+        } else {
+            actionResult = FunctionWithException.unchecked(actionIfFalse).apply(result);
+        }
+        return actionResult.thenApply((e) -> Tuple2.of(test, e));
+    }
+
+    @Override
+    public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+            FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    actionIfTrue) {
+        boolean test = FunctionWithException.unchecked(condition).apply(result);
+        if (test) {
+            StateFuture<U> actionResult =
+                    FunctionWithException.unchecked(actionIfTrue).apply(result);
+            return actionResult.thenApply((e) -> Tuple2.of(true, e));
+        } else {
+            return StateFutureUtils.completedFuture(Tuple2.of(false, null));
+        }
     }
 
     @Override
