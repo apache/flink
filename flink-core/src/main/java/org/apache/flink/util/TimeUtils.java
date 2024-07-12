@@ -20,7 +20,6 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.time.Time;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -41,9 +40,7 @@ public class TimeUtils {
     private static final Map<String, ChronoUnit> LABEL_TO_UNIT_MAP =
             Collections.unmodifiableMap(initMap());
 
-    private static final BigInteger NANOS_PER_SECOND = BigInteger.valueOf(1000_000_000L);
-
-    private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
+    private static final BigInteger NANOS_PER_SECOND = BigInteger.valueOf(1_000_000_000L);
 
     /**
      * Parse the given string to a java {@link Duration}. The string is in format "{length
@@ -90,7 +87,7 @@ public class TimeUtils {
             value = new BigInteger(number); // this throws a NumberFormatException
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
-                    "The value '" + number + "' cannot be re represented as an integer number.", e);
+                    "The value '" + number + "' cannot be represented as an integer number.", e);
         }
 
         final ChronoUnit unit;
@@ -113,7 +110,7 @@ public class TimeUtils {
             throw new IllegalArgumentException(
                     "The value '"
                             + number
-                            + "' cannot be re represented as java.time.Duration (numeric overflow).",
+                            + "' cannot be represented as java.time.Duration (numeric overflow).",
                     e);
         }
     }
@@ -167,7 +164,7 @@ public class TimeUtils {
     }
 
     /**
-     * Converted from {@link Duration#toNanos()}, but produces {@link BigDecimal} and does not throw
+     * Converted from {@link Duration#toNanos()}, but produces {@link BigInteger} and does not throw
      * an exception on overflow.
      */
     private static BigInteger toNanos(Duration duration) {
