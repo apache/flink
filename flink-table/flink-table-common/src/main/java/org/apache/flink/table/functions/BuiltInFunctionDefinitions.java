@@ -2042,7 +2042,6 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP(3))))
                     .build();
 
-    // TODO add support for python
     public static final BuiltInFunctionDefinition DATE_ADD =
             BuiltInFunctionDefinition.newBuilder()
                     .name("DATE_ADD")
