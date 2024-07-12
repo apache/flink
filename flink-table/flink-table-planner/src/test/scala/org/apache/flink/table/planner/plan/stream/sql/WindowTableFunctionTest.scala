@@ -331,7 +331,7 @@ class WindowTableFunctionTest extends TableTestBase {
     val sql =
       """
         |SELECT *
-        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
@@ -342,7 +342,7 @@ class WindowTableFunctionTest extends TableTestBase {
     val sql =
       """
         |SELECT *
-        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
