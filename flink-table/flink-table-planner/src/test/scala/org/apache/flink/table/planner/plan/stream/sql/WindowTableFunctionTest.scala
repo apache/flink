@@ -18,10 +18,13 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+
+import java.time.Duration
 
 /** Tests for window table-valued function. */
 class WindowTableFunctionTest extends TableTestBase {
@@ -320,6 +323,40 @@ class WindowTableFunctionTest extends TableTestBase {
       .hasMessage("fieldList must not be null, type = INTERVAL MINUTE")
       .isInstanceOf[AssertionError]
 
+  }
+
+  @Test
+  def testProctimeWindowTVFWithMiniBatch(): Unit = {
+    enableMiniBatch()
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testRowtimeWindowTVFWithMiniBatch(): Unit = {
+    enableMiniBatch()
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  private def enableMiniBatch(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
+      java.lang.Boolean.TRUE)
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE,
+      java.lang.Long.valueOf(5L))
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
+      Duration.ofSeconds(5L))
   }
 
 }
