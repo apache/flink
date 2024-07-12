@@ -2386,6 +2386,9 @@ under the License.
 								<exclude>org.apache.flink.types.DoubleValue</exclude>
 								<exclude>org.apache.flink.types.FloatValue</exclude>
 								<exclude>org.apache.flink.types.NormalizableKey</exclude>
+								<!-- FLINK-35566 promote API in flink-core -->
+								<exclude>org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility</exclude>
+								<exclude>org.apache.flink.api.common.typeutils.TypeSerializerSnapshot#readVersionedSnapshot(org.apache.flink.core.memory.DataInputView,java.lang.ClassLoader)</exclude>
 								<!-- FLINK-36366 Remove deprecate API in flink-core -->
 								<exclude>org.apache.flink.api.common.io.SerializedOutputFormat</exclude>
 								<exclude>org.apache.flink.api.common.io.OutputFormat</exclude>

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -68,7 +68,7 @@ import java.io.IOException;
  *
  * @param <T> The data type that the originating serializer of this configuration serializes.
  */
-@PublicEvolving
+@Public
 public interface TypeSerializerSnapshot<T> {
 
     /**
