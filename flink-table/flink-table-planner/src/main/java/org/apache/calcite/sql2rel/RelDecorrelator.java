@@ -127,7 +127,7 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * Copied to fix calcite issues. FLINK modifications are at lines
  *
  * <ol>
- *   <li>Was changed within FLINK-29280, FLINK-28682: Line 216 ~ 223
+ *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 216 ~ 223, Line 273 ~ 288
  *   <li>Should be removed after fix of FLINK-29540: Line 289 ~ 295
  *   <li>Should be removed after fix of FLINK-29540: Line 307 ~ 313
  * </ol>
@@ -270,6 +270,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                                         .FilterIntoJoinRuleConfig.class)
                                         .toRule())
                         .addRuleInstance(
+                                // ----- FLINK MODIFICATION BEGIN -----
                                 FlinkFilterProjectTransposeRule.build(
                                         CoreRules.FILTER_PROJECT_TRANSPOSE
                                                 .config
@@ -284,6 +285,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                                         project -> true)
                                                 .withCopyFilter(true)
                                                 .withCopyProject(true)))
+                        // ----- FLINK MODIFICATION END -----
                         .addRuleInstance(
                                 FilterCorrelateRule.Config.DEFAULT
                                         .withRelBuilderFactory(f)
