@@ -61,6 +61,7 @@ import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.operation.OperationValidator;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.environment.SqlGatewayStreamExecutionEnvironment;
@@ -125,6 +126,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
+import static org.apache.flink.table.gateway.api.operation.OperationValidatorUtils.discoverOperationValidators;
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_NAME;
@@ -223,6 +225,14 @@ public class OperationExecutor {
                                 + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
             }
             op = parsedOperations.get(0);
+        }
+        Configuration conf = tableEnv.getConfig().getConfiguration();
+        Set<OperationValidator> operationValidators = discoverOperationValidators(conf);
+        for (OperationValidator validator : operationValidators) {
+            final Optional<String> validationError = validator.validate(op);
+            if (validationError.isPresent()) {
+                throw new UnsupportedOperationException(validationError.get());
+            }
         }
 
         if (op instanceof CallProcedureOperation) {
