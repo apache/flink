@@ -45,11 +45,7 @@ import org.apache.calcite.util.{TimestampString, Util}
 
 import java.time.{ZoneId, ZoneOffset}
 import java.util
-<<<<<<< HEAD
-import java.util.{List => JList, TimeZone}
-=======
-import java.util.{Collections, List => JList}
->>>>>>> 94c48f428be ([FLINK-35318][table-planner] Use UTC time zone for TIMESTAMP_LTZ type in RexNodeToExpressionConverter)
+import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
