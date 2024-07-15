@@ -20,6 +20,7 @@ package org.apache.flink.runtime.asyncprocessing.declare;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -85,10 +86,19 @@ public class DeclarationContext {
      * @param <IN> the in type of the first block
      * @param <T> the out type of the state future given by the first block
      */
-    public <IN, T> DeclarationChain<IN, T>.DeclarationStage<T> declareChain(
-            FunctionWithException<IN, StateFuture<T>, Exception> first)
-            throws DeclarationException {
+    public <IN, T> DeclarationChain<IN>.DeclarationStage<T> declareChain(
+            FunctionWithException<IN, StateFuture, Exception> first) throws DeclarationException {
         return new DeclarationChain<>(this, first).firstStage();
+    }
+
+    /**
+     * Declaring a processing chain starting from a given record.
+     *
+     * @return the chain itself.
+     * @param <IN> the in type of starting record
+     */
+    public <IN> DeclarationChain<IN>.DeclarationStage<IN> withRecord() throws DeclarationException {
+        return new DeclarationChain<IN>(this, StateFutureUtils::completedFuture).firstStage();
     }
 
     /**

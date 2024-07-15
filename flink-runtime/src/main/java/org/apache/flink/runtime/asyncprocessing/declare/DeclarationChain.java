@@ -30,27 +30,24 @@ import java.util.LinkedList;
  * A chain-style declaration that could execute in serial.
  *
  * @param <IN> The input type of this chain.
- * @param <FIRST> The output type of the first block of this chain.
  */
-public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Exception> {
+public class DeclarationChain<IN> {
 
     private final DeclarationContext context;
 
-    private final FunctionWithException<IN, StateFuture<FIRST>, Exception> first;
+    private final FunctionWithException<IN, StateFuture, Exception> first;
 
     private final Deque<Transformation<?, ?>> transformations;
 
     private DeclarationStage<?> currentStage;
 
     DeclarationChain(
-            DeclarationContext context,
-            FunctionWithException<IN, StateFuture<FIRST>, Exception> first) {
+            DeclarationContext context, FunctionWithException<IN, StateFuture, Exception> first) {
         this.context = context;
         this.first = first;
         this.transformations = new LinkedList<>();
     }
 
-    @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void accept(IN in) throws Exception {
         StateFuture future = first.apply(in);
@@ -59,7 +56,16 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
         }
     }
 
-    public DeclarationStage<FIRST> firstStage() throws DeclarationException {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public <T> StateFuture<T> acceptWithReturn(IN in) throws Exception {
+        StateFuture future = first.apply(in);
+        for (Transformation trans : transformations) {
+            future = trans.apply(future);
+        }
+        return future;
+    }
+
+    public <FIRST> DeclarationStage<FIRST> firstStage() throws DeclarationException {
         if (currentStage != null) {
             throw new DeclarationException(
                     "Diverged declaration. Please make sure you call firstStage() once.");
@@ -73,7 +79,9 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
         return transformations.getLast();
     }
 
-    public class DeclarationStage<T> {
+    public class DeclarationStage<T>
+            implements FunctionWithException<IN, StateFuture<T>, Exception>,
+                    ThrowingConsumer<IN, Exception> {
 
         private boolean afterThen = false;
 
@@ -219,10 +227,20 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
             return this;
         }
 
-        public DeclarationChain<IN, FIRST> finish() throws DeclarationException {
+        public DeclarationStage<T> finish() throws DeclarationException {
             preCheck();
             getLastTransformation().declare();
-            return DeclarationChain.this;
+            return this;
+        }
+
+        @Override
+        public StateFuture<T> apply(IN value) throws Exception {
+            return DeclarationChain.this.acceptWithReturn(value);
+        }
+
+        @Override
+        public void accept(IN in) throws Exception {
+            DeclarationChain.this.accept(in);
         }
     }
 

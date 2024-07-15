@@ -164,7 +164,7 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
                     RecordProcessorUtils.getRecordProcessor(testOperator);
             processor.accept(new StreamRecord<>(Tuple2.of(-5, "-5")));
-            assertThat(testOperator.getValue()).isEqualTo(-60);
+            assertThat(testOperator.getValue()).isEqualTo(-80);
         }
     }
 
@@ -255,10 +255,10 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
         public ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> declareProcess(
                 DeclarationContext context) throws DeclarationException {
 
-            return context.<StreamRecord<Tuple2<Integer, String>>, Void>declareChain(
+            return context.<StreamRecord<Tuple2<Integer, String>>>withRecord()
+                    .thenAccept(
                             e -> {
                                 value.addAndGet(e.getValue().f0);
-                                return StateFutureUtils.completedVoidFuture();
                             })
                     .thenCompose(v -> StateFutureUtils.completedFuture(value.incrementAndGet()))
                     .withName("adder")
@@ -282,10 +282,10 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             DeclaredVariable<Integer> local =
                     context.declareVariable(BasicTypeInfo.INT_TYPE_INFO, "local count", () -> 0);
 
-            return context.<StreamRecord<Tuple2<Integer, String>>, Void>declareChain(
+            return context.<StreamRecord<Tuple2<Integer, String>>>withRecord()
+                    .thenAccept(
                             e -> {
                                 local.set(e.getValue().f0);
-                                return StateFutureUtils.completedVoidFuture();
                             })
                     .thenCompose(
                             v -> {
@@ -311,20 +311,21 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
         public ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> declareProcess(
                 DeclarationContext context) throws DeclarationException {
 
-            return context.<StreamRecord<Tuple2<Integer, String>>, Integer>declareChain(
-                            e -> {
-                                return StateFutureUtils.completedFuture(e.getValue().f0);
-                            })
-                    .thenConditionallyApply(e -> e > 0, value::addAndGet, t -> value.addAndGet(-t))
+            return context.<StreamRecord<Tuple2<Integer, String>>>withRecord()
+                    .thenConditionallyApply(
+                            e -> e.getValue().f0 > 0,
+                            e -> value.addAndGet(e.getValue().f0),
+                            e -> value.addAndGet(-e.getValue().f0))
                     .withName("stage1")
                     .thenConditionallyCompose(
                             t -> !t.f0,
+                            context.<Tuple2<Boolean, Object>>withRecord()
+                                    .thenApply(e -> value.addAndGet((Integer) e.f1))
+                                    .thenApply(value::addAndGet)
+                                    .finish(),
                             t ->
                                     StateFutureUtils.completedFuture(
-                                            value.addAndGet(((Integer) t.f1) * 2)),
-                            t ->
-                                    StateFutureUtils.completedFuture(
-                                            value.addAndGet(-((Integer) t.f1) * 2)))
+                                            value.addAndGet(-((Integer) t.f1) * 3)))
                     .withName("stage2")
                     .thenConditionallyAccept(
                             t -> !t.f0,
