@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.asyncprocessing.declare;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -89,7 +90,7 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
         }
 
         public <U> DeclarationStage<U> thenCompose(
-                FunctionWithException<T, StateFuture<U>, Exception> action)
+                FunctionWithException<T, StateFuture<U>, ? extends Exception> action)
                 throws DeclarationException {
             preCheck();
             DeclarationStage<U> next = new DeclarationStage<>();
@@ -100,7 +101,7 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
             return next;
         }
 
-        public DeclarationStage<Void> thenAccept(ThrowingConsumer<T, Exception> action)
+        public DeclarationStage<Void> thenAccept(ThrowingConsumer<T, ? extends Exception> action)
                 throws DeclarationException {
             preCheck();
             DeclarationStage<Void> next = new DeclarationStage<>();
@@ -111,11 +112,102 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
             return next;
         }
 
-        public <U> DeclarationStage<U> thenApply(FunctionWithException<T, U, Exception> action)
+        public <U> DeclarationStage<U> thenApply(
+                FunctionWithException<T, U, ? extends Exception> action)
                 throws DeclarationException {
             preCheck();
             DeclarationStage<U> next = new DeclarationStage<>();
             ApplyTransformation<T, U> trans = new ApplyTransformation<>(action, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
+        public <U, V> DeclarationStage<Tuple2<Boolean, Object>> thenConditionallyApply(
+                FunctionWithException<T, Boolean, Exception> condition,
+                FunctionWithException<T, U, Exception> actionIfTrue,
+                FunctionWithException<T, V, Exception> actionIfFalse)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<Tuple2<Boolean, Object>> next = new DeclarationStage<>();
+            ConditionalBiApplyTransformation<T, U, V> trans =
+                    new ConditionalBiApplyTransformation<>(
+                            condition, actionIfTrue, actionIfFalse, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
+        public <U> DeclarationStage<Tuple2<Boolean, U>> thenConditionallyApply(
+                FunctionWithException<T, Boolean, ? extends Exception> condition,
+                FunctionWithException<T, U, ? extends Exception> actionIfTrue)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<Tuple2<Boolean, U>> next = new DeclarationStage<>();
+            ConditionalApplyTransformation<T, U> trans =
+                    new ConditionalApplyTransformation<>(condition, actionIfTrue, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
+        public DeclarationStage<Boolean> thenConditionallyAccept(
+                FunctionWithException<T, Boolean, ? extends Exception> condition,
+                ThrowingConsumer<T, ? extends Exception> actionIfTrue,
+                ThrowingConsumer<T, ? extends Exception> actionIfFalse)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<Boolean> next = new DeclarationStage<>();
+            ConditionalBiAcceptTransformation<T> trans =
+                    new ConditionalBiAcceptTransformation<>(
+                            condition, actionIfTrue, actionIfFalse, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
+        public DeclarationStage<Boolean> thenConditionallyAccept(
+                FunctionWithException<T, Boolean, ? extends Exception> condition,
+                ThrowingConsumer<T, ? extends Exception> actionIfTrue)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<Boolean> next = new DeclarationStage<>();
+            ConditionalAcceptTransformation<T> trans =
+                    new ConditionalAcceptTransformation<>(condition, actionIfTrue, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
+        public <U, V> DeclarationStage<Tuple2<Boolean, Object>> thenConditionallyCompose(
+                FunctionWithException<T, Boolean, ? extends Exception> condition,
+                FunctionWithException<T, StateFuture<U>, ? extends Exception> actionIfTrue,
+                FunctionWithException<T, StateFuture<V>, ? extends Exception> actionIfFalse)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<Tuple2<Boolean, Object>> next = new DeclarationStage<>();
+            ConditionalBiComposeTransformation<T, U, V> trans =
+                    new ConditionalBiComposeTransformation<>(
+                            condition, actionIfTrue, actionIfFalse, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
+        public <U> DeclarationStage<Tuple2<Boolean, U>> thenConditionallyCompose(
+                FunctionWithException<T, Boolean, ? extends Exception> condition,
+                FunctionWithException<T, StateFuture<U>, ? extends Exception> actionIfTrue)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<Tuple2<Boolean, U>> next = new DeclarationStage<>();
+            ConditionalComposeTransformation<T, U> trans =
+                    new ConditionalComposeTransformation<>(condition, actionIfTrue, next);
             transformations.add(trans);
             currentStage = next;
             getLastTransformation().declare();
@@ -165,7 +257,7 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
         NamedFunction<FROM, StateFuture<TO>> namedFunction;
 
         ComposeTransformation(
-                FunctionWithException<FROM, StateFuture<TO>, Exception> action,
+                FunctionWithException<FROM, StateFuture<TO>, ? extends Exception> action,
                 DeclarationStage<TO> to) {
             this.action = action;
             this.to = to;
@@ -192,11 +284,12 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
 
         DeclarationStage<Void> to;
 
-        ThrowingConsumer<FROM, Exception> action;
+        ThrowingConsumer<FROM, ? extends Exception> action;
 
         NamedConsumer<FROM> namedFunction;
 
-        AcceptTransformation(ThrowingConsumer<FROM, Exception> action, DeclarationStage<Void> to) {
+        AcceptTransformation(
+                ThrowingConsumer<FROM, ? extends Exception> action, DeclarationStage<Void> to) {
             this.action = action;
             this.to = to;
         }
@@ -227,7 +320,8 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
         NamedFunction<FROM, TO> namedFunction;
 
         ApplyTransformation(
-                FunctionWithException<FROM, TO, Exception> action, DeclarationStage<TO> to) {
+                FunctionWithException<FROM, TO, ? extends Exception> action,
+                DeclarationStage<TO> to) {
             this.action = action;
             this.to = to;
         }
@@ -244,6 +338,265 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
                     namedFunction = context.declare(action);
                 } else {
                     namedFunction = context.declare(name, action);
+                }
+            }
+        }
+    }
+
+    static final String CONDITION = "%_COND_%";
+    static final String TRUE_ACTION = "%_AC_T_%";
+    static final String FALSE_ACTION = "%_AC_F_%";
+
+    class ConditionalBiApplyTransformation<FROM, U, V>
+            extends AbstractTransformation<FROM, Tuple2<Boolean, Object>> {
+
+        DeclarationStage<Tuple2<Boolean, Object>> to;
+
+        FunctionWithException<FROM, Boolean, ? extends Exception> condition;
+        FunctionWithException<FROM, U, ? extends Exception> actionIfTrue;
+        FunctionWithException<FROM, V, ? extends Exception> actionIfFalse;
+
+        NamedFunction<FROM, Boolean> namedCondition;
+        NamedFunction<FROM, U> namedActionIfTrue;
+        NamedFunction<FROM, V> namedActionIfFalse;
+
+        ConditionalBiApplyTransformation(
+                FunctionWithException<FROM, Boolean, ? extends Exception> condition,
+                FunctionWithException<FROM, U, ? extends Exception> actionIfTrue,
+                FunctionWithException<FROM, V, ? extends Exception> actionIfFalse,
+                DeclarationStage<Tuple2<Boolean, Object>> to) {
+            this.condition = condition;
+            this.actionIfTrue = actionIfTrue;
+            this.actionIfFalse = actionIfFalse;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<Tuple2<Boolean, Object>> apply(StateFuture<FROM> upstream)
+                throws Exception {
+            return upstream.thenConditionallyApply(
+                    namedCondition, namedActionIfTrue, namedActionIfFalse);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedCondition == null) {
+                if (name == null) {
+                    namedCondition = context.declare(condition);
+                    namedActionIfTrue = context.declare(actionIfTrue);
+                    namedActionIfFalse = context.declare(actionIfFalse);
+                } else {
+                    namedCondition = context.declare(name + CONDITION, condition);
+                    namedActionIfTrue = context.declare(name + TRUE_ACTION, actionIfTrue);
+                    namedActionIfFalse = context.declare(name + FALSE_ACTION, actionIfFalse);
+                }
+            }
+        }
+    }
+
+    class ConditionalApplyTransformation<FROM, U>
+            extends AbstractTransformation<FROM, Tuple2<Boolean, U>> {
+
+        DeclarationStage<Tuple2<Boolean, U>> to;
+
+        FunctionWithException<FROM, Boolean, ? extends Exception> condition;
+        FunctionWithException<FROM, U, ? extends Exception> actionIfTrue;
+
+        NamedFunction<FROM, Boolean> namedCondition;
+        NamedFunction<FROM, U> namedActionIfTrue;
+
+        ConditionalApplyTransformation(
+                FunctionWithException<FROM, Boolean, ? extends Exception> condition,
+                FunctionWithException<FROM, U, ? extends Exception> actionIfTrue,
+                DeclarationStage<Tuple2<Boolean, U>> to) {
+            this.condition = condition;
+            this.actionIfTrue = actionIfTrue;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<Tuple2<Boolean, U>> apply(StateFuture<FROM> upstream) throws Exception {
+            return upstream.thenConditionallyApply(namedCondition, namedActionIfTrue);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedCondition == null) {
+                if (name == null) {
+                    namedCondition = context.declare(condition);
+                    namedActionIfTrue = context.declare(actionIfTrue);
+                } else {
+                    namedCondition = context.declare(name + CONDITION, condition);
+                    namedActionIfTrue = context.declare(name + TRUE_ACTION, actionIfTrue);
+                }
+            }
+        }
+    }
+
+    class ConditionalBiAcceptTransformation<FROM> extends AbstractTransformation<FROM, Boolean> {
+
+        DeclarationStage<Boolean> to;
+
+        FunctionWithException<FROM, Boolean, ? extends Exception> condition;
+        ThrowingConsumer<FROM, ? extends Exception> actionIfTrue;
+        ThrowingConsumer<FROM, ? extends Exception> actionIfFalse;
+
+        NamedFunction<FROM, Boolean> namedCondition;
+        NamedConsumer<FROM> namedActionIfTrue;
+        NamedConsumer<FROM> namedActionIfFalse;
+
+        ConditionalBiAcceptTransformation(
+                FunctionWithException<FROM, Boolean, ? extends Exception> condition,
+                ThrowingConsumer<FROM, ? extends Exception> actionIfTrue,
+                ThrowingConsumer<FROM, ? extends Exception> actionIfFalse,
+                DeclarationStage<Boolean> to) {
+            this.condition = condition;
+            this.actionIfTrue = actionIfTrue;
+            this.actionIfFalse = actionIfFalse;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<Boolean> apply(StateFuture<FROM> upstream) throws Exception {
+            return upstream.thenConditionallyAccept(
+                    namedCondition, namedActionIfTrue, namedActionIfFalse);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedCondition == null) {
+                if (name == null) {
+                    namedCondition = context.declare(condition);
+                    namedActionIfTrue = context.declare(actionIfTrue);
+                    namedActionIfFalse = context.declare(actionIfFalse);
+                } else {
+                    namedCondition = context.declare(name + CONDITION, condition);
+                    namedActionIfTrue = context.declare(name + TRUE_ACTION, actionIfTrue);
+                    namedActionIfFalse = context.declare(name + FALSE_ACTION, actionIfFalse);
+                }
+            }
+        }
+    }
+
+    class ConditionalAcceptTransformation<FROM> extends AbstractTransformation<FROM, Boolean> {
+
+        DeclarationStage<Boolean> to;
+
+        FunctionWithException<FROM, Boolean, ? extends Exception> condition;
+        ThrowingConsumer<FROM, ? extends Exception> actionIfTrue;
+
+        NamedFunction<FROM, Boolean> namedCondition;
+        NamedConsumer<FROM> namedActionIfTrue;
+
+        ConditionalAcceptTransformation(
+                FunctionWithException<FROM, Boolean, ? extends Exception> condition,
+                ThrowingConsumer<FROM, ? extends Exception> actionIfTrue,
+                DeclarationStage<Boolean> to) {
+            this.condition = condition;
+            this.actionIfTrue = actionIfTrue;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<Boolean> apply(StateFuture<FROM> upstream) throws Exception {
+            return upstream.thenConditionallyAccept(namedCondition, namedActionIfTrue);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedCondition == null) {
+                if (name == null) {
+                    namedCondition = context.declare(condition);
+                    namedActionIfTrue = context.declare(actionIfTrue);
+                } else {
+                    namedCondition = context.declare(name + CONDITION, condition);
+                    namedActionIfTrue = context.declare(name + TRUE_ACTION, actionIfTrue);
+                }
+            }
+        }
+    }
+
+    class ConditionalBiComposeTransformation<FROM, U, V>
+            extends AbstractTransformation<FROM, Tuple2<Boolean, Object>> {
+
+        DeclarationStage<Tuple2<Boolean, Object>> to;
+
+        FunctionWithException<FROM, Boolean, ? extends Exception> condition;
+        FunctionWithException<FROM, StateFuture<U>, ? extends Exception> actionIfTrue;
+        FunctionWithException<FROM, StateFuture<V>, ? extends Exception> actionIfFalse;
+
+        NamedFunction<FROM, Boolean> namedCondition;
+        NamedFunction<FROM, StateFuture<U>> namedActionIfTrue;
+        NamedFunction<FROM, StateFuture<V>> namedActionIfFalse;
+
+        ConditionalBiComposeTransformation(
+                FunctionWithException<FROM, Boolean, ? extends Exception> condition,
+                FunctionWithException<FROM, StateFuture<U>, ? extends Exception> actionIfTrue,
+                FunctionWithException<FROM, StateFuture<V>, ? extends Exception> actionIfFalse,
+                DeclarationStage<Tuple2<Boolean, Object>> to) {
+            this.condition = condition;
+            this.actionIfTrue = actionIfTrue;
+            this.actionIfFalse = actionIfFalse;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<Tuple2<Boolean, Object>> apply(StateFuture<FROM> upstream)
+                throws Exception {
+            return upstream.thenConditionallyCompose(
+                    namedCondition, namedActionIfTrue, namedActionIfFalse);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedCondition == null) {
+                if (name == null) {
+                    namedCondition = context.declare(condition);
+                    namedActionIfTrue = context.declare(actionIfTrue);
+                    namedActionIfFalse = context.declare(actionIfFalse);
+                } else {
+                    namedCondition = context.declare(name + CONDITION, condition);
+                    namedActionIfTrue = context.declare(name + TRUE_ACTION, actionIfTrue);
+                    namedActionIfFalse = context.declare(name + FALSE_ACTION, actionIfFalse);
+                }
+            }
+        }
+    }
+
+    class ConditionalComposeTransformation<FROM, U>
+            extends AbstractTransformation<FROM, Tuple2<Boolean, U>> {
+
+        DeclarationStage<Tuple2<Boolean, U>> to;
+
+        FunctionWithException<FROM, Boolean, ? extends Exception> condition;
+        FunctionWithException<FROM, StateFuture<U>, ? extends Exception> actionIfTrue;
+
+        NamedFunction<FROM, Boolean> namedCondition;
+        NamedFunction<FROM, StateFuture<U>> namedActionIfTrue;
+
+        ConditionalComposeTransformation(
+                FunctionWithException<FROM, Boolean, ? extends Exception> condition,
+                FunctionWithException<FROM, StateFuture<U>, ? extends Exception> actionIfTrue,
+                DeclarationStage<Tuple2<Boolean, U>> to) {
+            this.condition = condition;
+            this.actionIfTrue = actionIfTrue;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<Tuple2<Boolean, U>> apply(StateFuture<FROM> upstream) throws Exception {
+            return upstream.thenConditionallyCompose(namedCondition, namedActionIfTrue);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedCondition == null) {
+                if (name == null) {
+                    namedCondition = context.declare(condition);
+                    namedActionIfTrue = context.declare(actionIfTrue);
+                } else {
+                    namedCondition = context.declare(name + CONDITION, condition);
+                    namedActionIfTrue = context.declare(name + TRUE_ACTION, actionIfTrue);
                 }
             }
         }

@@ -91,6 +91,21 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                 subtaskIndex);
     }
 
+    protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+            createTestHarnessWithConditionalChain(
+                    int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
+                    throws Exception {
+        TestDeclarationChainWithConditionOperator testOperator =
+                new TestDeclarationChainWithConditionOperator(elementOrder);
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                testOperator,
+                new TestKeySelector(),
+                BasicTypeInfo.INT_TYPE_INFO,
+                maxParalelism,
+                numSubtasks,
+                subtaskIndex);
+    }
+
     @Test
     public void testRecordProcessor() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
@@ -134,6 +149,22 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             processor.accept(new StreamRecord<>(Tuple2.of(6, "6")));
             // += (6+1) , *= 2, => 38
             assertThat(testOperator.getValue()).isEqualTo(38);
+        }
+    }
+
+    @Test
+    public void testRecordProcessorWithConditionalChain() throws Exception {
+        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        createTestHarnessWithConditionalChain(
+                                128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            TestDeclarationChainWithConditionOperator testOperator =
+                    (TestDeclarationChainWithConditionOperator) testHarness.getOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator);
+            processor.accept(new StreamRecord<>(Tuple2.of(-5, "-5")));
+            assertThat(testOperator.getValue()).isEqualTo(-60);
         }
     }
 
@@ -266,6 +297,44 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                     .withName("doubler1")
                     .thenAccept(value::addAndGet)
                     .withName("doubler2")
+                    .finish();
+        }
+    }
+
+    private static class TestDeclarationChainWithConditionOperator extends TestDeclarationOperator {
+
+        TestDeclarationChainWithConditionOperator(ElementOrder elementOrder) {
+            super(elementOrder);
+        }
+
+        @Override
+        public ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> declareProcess(
+                DeclarationContext context) throws DeclarationException {
+
+            return context.<StreamRecord<Tuple2<Integer, String>>, Integer>declareChain(
+                            e -> {
+                                return StateFutureUtils.completedFuture(e.getValue().f0);
+                            })
+                    .thenConditionallyApply(e -> e > 0, value::addAndGet, t -> value.addAndGet(-t))
+                    .withName("stage1")
+                    .thenConditionallyCompose(
+                            t -> !t.f0,
+                            t ->
+                                    StateFutureUtils.completedFuture(
+                                            value.addAndGet(((Integer) t.f1) * 2)),
+                            t ->
+                                    StateFutureUtils.completedFuture(
+                                            value.addAndGet(-((Integer) t.f1) * 2)))
+                    .withName("stage2")
+                    .thenConditionallyAccept(
+                            t -> !t.f0,
+                            t -> {
+                                value.addAndGet(((Integer) t.f1) * 5);
+                            },
+                            t -> {
+                                value.addAndGet(-((Integer) t.f1) * 5);
+                            })
+                    .withName("stage3")
                     .finish();
         }
     }
