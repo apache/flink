@@ -101,7 +101,7 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
                     RecordProcessorUtils.getRecordProcessor(testOperator);
             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-            assertThat(testOperator.getValue()).isEqualTo(12);
+            assertThat(testOperator.getValue()).isEqualTo(24);
         }
     }
 
@@ -115,7 +115,7 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
                     RecordProcessorUtils.getRecordProcessor(testOperator);
             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-            assertThat(testOperator.getValue()).isEqualTo(12);
+            assertThat(testOperator.getValue()).isEqualTo(24);
         }
     }
 
@@ -129,9 +129,11 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
                     RecordProcessorUtils.getRecordProcessor(testOperator);
             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-            assertThat(testOperator.getValue()).isEqualTo(6);
+            // += (5+1) , *= 2, => 12
+            assertThat(testOperator.getValue()).isEqualTo(12);
             processor.accept(new StreamRecord<>(Tuple2.of(6, "6")));
-            assertThat(testOperator.getValue()).isEqualTo(13);
+            // += (6+1) , *= 2, => 38
+            assertThat(testOperator.getValue()).isEqualTo(38);
         }
     }
 
@@ -166,17 +168,27 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                             (i) -> {
                                 return StateFutureUtils.completedFuture(value.incrementAndGet());
                             });
-            NamedConsumer<Integer> doubler =
+            NamedFunction<Integer, Integer> doubler1 =
                     context.declare(
-                            "doubler",
+                            "doubler1",
+                            (v) -> {
+                                return value.addAndGet(v);
+                            });
+            NamedConsumer<Integer> doubler2 =
+                    context.declare(
+                            "doubler2",
                             (v) -> {
                                 value.addAndGet(v);
                             });
             assertThat(adder).isInstanceOf(NamedCallback.class);
-            assertThat(doubler).isInstanceOf(NamedCallback.class);
+            assertThat(doubler1).isInstanceOf(NamedCallback.class);
+            assertThat(doubler2).isInstanceOf(NamedCallback.class);
             return (e) -> {
                 value.addAndGet(e.getValue().f0);
-                StateFutureUtils.<Void>completedVoidFuture().thenCompose(adder).thenAccept(doubler);
+                StateFutureUtils.<Void>completedVoidFuture()
+                        .thenCompose(adder)
+                        .thenApply(doubler1)
+                        .thenAccept(doubler2);
             };
         }
 
@@ -219,8 +231,10 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                             })
                     .thenCompose(v -> StateFutureUtils.completedFuture(value.incrementAndGet()))
                     .withName("adder")
+                    .thenApply(value::addAndGet)
+                    .withName("doubler1")
                     .thenAccept(value::addAndGet)
-                    .withName("doubler")
+                    .withName("doubler2")
                     .finish();
         }
     }
@@ -248,8 +262,10 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                                 return StateFutureUtils.completedFuture(local.get());
                             })
                     .withName("adder")
+                    .thenApply(value::addAndGet)
+                    .withName("doubler1")
                     .thenAccept(value::addAndGet)
-                    .withName("aggregate")
+                    .withName("doubler2")
                     .finish();
         }
     }

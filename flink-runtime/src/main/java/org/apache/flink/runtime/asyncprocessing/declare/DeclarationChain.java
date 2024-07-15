@@ -111,6 +111,17 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
             return next;
         }
 
+        public <U> DeclarationStage<U> thenApply(FunctionWithException<T, U, Exception> action)
+                throws DeclarationException {
+            preCheck();
+            DeclarationStage<U> next = new DeclarationStage<>();
+            ApplyTransformation<T, U> trans = new ApplyTransformation<>(action, next);
+            transformations.add(trans);
+            currentStage = next;
+            getLastTransformation().declare();
+            return next;
+        }
+
         public DeclarationStage<T> withName(String name) throws DeclarationException {
             getLastTransformation().withName(name);
             return this;
@@ -193,6 +204,37 @@ public class DeclarationChain<IN, FIRST> implements ThrowingConsumer<IN, Excepti
         @Override
         public StateFuture<Void> apply(StateFuture<FROM> upstream) throws Exception {
             return upstream.thenAccept(namedFunction);
+        }
+
+        @Override
+        public void declare() throws DeclarationException {
+            if (namedFunction == null) {
+                if (name == null) {
+                    namedFunction = context.declare(action);
+                } else {
+                    namedFunction = context.declare(name, action);
+                }
+            }
+        }
+    }
+
+    class ApplyTransformation<FROM, TO> extends AbstractTransformation<FROM, TO> {
+
+        DeclarationStage<TO> to;
+
+        FunctionWithException<FROM, TO, ? extends Exception> action;
+
+        NamedFunction<FROM, TO> namedFunction;
+
+        ApplyTransformation(
+                FunctionWithException<FROM, TO, Exception> action, DeclarationStage<TO> to) {
+            this.action = action;
+            this.to = to;
+        }
+
+        @Override
+        public StateFuture<TO> apply(StateFuture<FROM> upstream) throws Exception {
+            return upstream.thenApply(namedFunction);
         }
 
         @Override
