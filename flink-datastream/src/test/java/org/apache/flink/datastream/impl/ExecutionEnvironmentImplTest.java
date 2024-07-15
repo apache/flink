@@ -93,8 +93,11 @@ class ExecutionEnvironmentImplTest {
         Collection<StreamNode> nodes = streamGraph.getStreamNodes();
         assertThat(nodes).hasSize(2);
         Collection<Integer> sourceIDs = streamGraph.getSourceIDs();
-        StreamNode sourceNode = nodes.iterator().next();
-        assertThat(sourceIDs).containsExactly(sourceNode.getId());
+        for (StreamNode node : nodes) {
+            if (node.getOperatorName().contains("source")) {
+                assertThat(sourceIDs).containsExactly(node.getId());
+            }
+        }
     }
 
     @Test
@@ -118,7 +121,10 @@ class ExecutionEnvironmentImplTest {
         StreamGraph streamGraph = StreamTestUtils.getStreamGraph(env);
         Collection<StreamNode> nodes = streamGraph.getStreamNodes();
         Collection<Integer> sourceIDs = streamGraph.getSourceIDs();
-        StreamNode sourceNode = nodes.iterator().next();
-        assertThat(sourceIDs).containsExactly(sourceNode.getId());
+        for (StreamNode node : nodes) {
+            if (node.getOperatorName().contains("source")) {
+                assertThat(sourceIDs).containsExactly(node.getId());
+            }
+        }
     }
 }
