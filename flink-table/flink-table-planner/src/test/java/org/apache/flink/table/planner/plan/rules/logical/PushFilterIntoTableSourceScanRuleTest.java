@@ -33,6 +33,8 @@ import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.ZoneId;
+
 /** Test for {@link PushFilterIntoTableSourceScanRule}. */
 public class PushFilterIntoTableSourceScanRuleTest
         extends PushFilterIntoTableSourceScanRuleTestBase {
@@ -117,5 +119,57 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ")";
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();
+    }
+
+    @Test
+    public void testWithTimestampWithTimeZone() {
+        String ddl =
+                "CREATE TABLE MTable (\n"
+                        + "a TIMESTAMP_LTZ(3),\n"
+                        + "b TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'filterable-fields' = 'a',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        ZoneId preZoneId = util.tableEnv().getConfig().getLocalTimeZone();
+        util.tableEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
+        try {
+            super.testWithTimestampWithTimeZone();
+        } finally {
+            util.tableEnv().getConfig().setLocalTimeZone(preZoneId);
+        }
+    }
+
+    @Test
+    void testBasicNestedFilter() {
+        util.verifyRelPlan("SELECT * FROM NestedTable WHERE deepNested.nested1.`value` > 2");
+    }
+
+    @Test
+    void testNestedFilterWithDotInTheName() {
+        util.verifyRelPlan(
+                "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.`.value` > 5");
+    }
+
+    @Test
+    void testNestedFilterWithBacktickInTheName() {
+        util.verifyRelPlan(
+                "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.```name` = 'foo'");
+    }
+
+    @Test
+    void testNestedFilterOnMapKey() {
+        util.verifyRelPlan(
+                "SELECT * FROM NestedItemTable WHERE"
+                        + " `Result`.`Mid`.data_map['item'].`value` = 3");
+    }
+
+    @Test
+    void testNestedFilterOnArrayField() {
+        util.verifyRelPlan(
+                "SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_arr[2].`value` = 3");
     }
 }

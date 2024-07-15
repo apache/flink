@@ -43,8 +43,13 @@ import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{TimestampString, Util}
 
+import java.time.{ZoneId, ZoneOffset}
 import java.util
+<<<<<<< HEAD
 import java.util.{List => JList, TimeZone}
+=======
+import java.util.{Collections, List => JList}
+>>>>>>> 94c48f428be ([FLINK-35318][table-planner] Use UTC time zone for TIMESTAMP_LTZ type in RexNodeToExpressionConverter)
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -107,15 +112,10 @@ object RexNodeExtractor extends Logging {
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
       functionCatalog: FunctionCatalog,
-      catalogManager: CatalogManager,
-      timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
+      catalogManager: CatalogManager): (Array[Expression], Array[RexNode]) = {
     val inputNames = inputFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(
-      rexBuilder,
-      inputNames,
-      functionCatalog,
-      catalogManager,
-      timeZone)
+    val converter =
+      new RexNodeToExpressionConverter(rexBuilder, inputNames, functionCatalog, catalogManager)
     val (convertibleRexNodes, unconvertedRexNodes) =
       extractConjunctiveConditions(expr, maxCnfNodeCount, rexBuilder, converter)
     val convertedExpressions = convertibleRexNodes.map(_.accept(converter).get)
@@ -396,8 +396,16 @@ class RexNodeToExpressionConverter(
     inputNames: Array[String],
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
-    timeZone: TimeZone)
+    relDataType: Option[RelDataType] = None)
   extends RexVisitor[Option[ResolvedExpression]] {
+
+  def this(
+      rexBuilder: RexBuilder,
+      inputNames: Array[String],
+      functionCatalog: FunctionCatalog,
+      catalogManager: CatalogManager) = {
+    this(rexBuilder, inputNames, functionCatalog, catalogManager, None)
+  }
 
   override def visitInputRef(inputRef: RexInputRef): Option[ResolvedExpression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
@@ -442,7 +450,7 @@ class RexNodeToExpressionConverter(
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
-        toLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
+        toLocalDateTime(v).atZone(ZoneId.of(ZoneOffset.UTC.getId)).toInstant
 
       case INTERVAL_DAY_TIME =>
         val v = literal.getValueAs(classOf[java.lang.Long])

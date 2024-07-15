@@ -129,8 +129,12 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
                         + "TIMESTAMPADD(YEAR, 2, b) >= a");
     }
 
+    public void testWithTimestampWithTimeZone() {
+        util.verifyRelPlan("SELECT * FROM MTable WHERE a > '2024-05-13 08:00:00'");
+    }
+
     @Test
-    public void testCannotPushDownIn() {
+    void testCannotPushDownIn() {
         // this test is to avoid filter push down rules throwing exceptions
         // when dealing with IN expressions, this is because Filter in calcite
         // requires its condition to be "flat"
