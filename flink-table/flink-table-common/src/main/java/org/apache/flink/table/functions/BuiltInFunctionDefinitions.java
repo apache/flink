@@ -2050,7 +2050,15 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     Arrays.asList("startDate", "numDays"),
                                     Arrays.asList(
-                                            logical(LogicalTypeRoot.DATE),
+                                            or(
+                                                    logical(LogicalTypeRoot.DATE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITHOUT_TIME_ZONE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)),
                                             or(
                                                     logical(LogicalTypeRoot.TINYINT),
                                                     logical(LogicalTypeRoot.SMALLINT),

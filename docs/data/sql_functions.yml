@@ -551,7 +551,7 @@ temporal:
   - sql: DATE_ADD(startDate, numDays)
     table: startDate.dateAdd(numDays)
     description: |
-      startDate <DATE>, numDays <TINYINT | SMALLINT | INTEGER>
+      startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], numDays [<TINYINT> | <SMALLINT> | <INTEGER>]
       Returns a DATE, null if any of arguments are null.
       Returns the date numDays after startDate.
       If numDays is negative, -numDays are subtracted from startDate.

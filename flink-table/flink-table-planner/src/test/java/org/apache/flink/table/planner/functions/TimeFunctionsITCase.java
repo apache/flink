@@ -38,6 +38,7 @@ import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.SECOND;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
@@ -740,8 +741,13 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
     private Stream<TestSetSpec> dateAddTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATE_ADD)
-                        .onFieldsWithData(null, LocalDate.of(2024, 6, 26))
-                        .andDataTypes(DATE(), DATE())
+                        .onFieldsWithData(
+                                null,
+                                LocalDate.of(2024, 6, 26),
+                                LocalDateTime.of(2024, 6, 26, 1, 1, 1),
+                                Instant.parse("2024-06-26T01:01:01Z"),
+                                "2024-06-26 01:01:01")
+                        .andDataTypes(DATE(), DATE(), TIMESTAMP(), TIMESTAMP_LTZ(), STRING())
                         // null
                         .testResult($("f0").dateAdd(1), "DATE_ADD(f0, 1)", null, DATE().nullable())
                         .testResult(
@@ -766,6 +772,22 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "DATE_ADD(f1, 9999999)",
                                 DateTimeException.class,
                                 "Date result overflows, the valid range is from '0000-01-01' to '9999-12-31'.")
+                        // input cast
+                        .testResult(
+                                $("f2").dateAdd(2),
+                                "DATE_ADD(f2, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").dateAdd(2),
+                                "DATE_ADD(f3, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
+                        .testResult(
+                                $("f4").dateAdd(2),
+                                "DATE_ADD(f4, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
                         // normal
                         .testResult(
                                 $("f1").dateAdd(2),
@@ -808,10 +830,10 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").dateAdd(21474836470L),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "DATE_ADD(startDate <DATE>, numDays [<TINYINT> | <SMALLINT> | <INTEGER>])")
+                                        + "DATE_ADD(startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], numDays [<TINYINT> | <SMALLINT> | <INTEGER>])")
                         .testSqlValidationError(
                                 "DATE_ADD(f0, 21474836470)",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "DATE_ADD(startDate <DATE>, numDays [<TINYINT> | <SMALLINT> | <INTEGER>])"));
+                                        + "DATE_ADD(startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], numDays [<TINYINT> | <SMALLINT> | <INTEGER>])"));
     }
 }
