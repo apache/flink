@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc1;
@@ -36,7 +36,7 @@ import java.time.LocalDateTime;
  */
 public class CalcTestPrograms {
 
-    static final TableTestProgram SIMPLE_CALC =
+    public static final TableTestProgram SIMPLE_CALC =
             TableTestProgram.of("calc-simple", "validates basic calc node")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
@@ -53,7 +53,7 @@ public class CalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a + 1, b FROM t")
                     .build();
 
-    static final TableTestProgram CALC_PROJECT_PUSHDOWN =
+    public static final TableTestProgram CALC_PROJECT_PUSHDOWN =
             TableTestProgram.of(
                             "calc-project-pushdown", "validates calc node with project pushdown")
                     .setupTableSource(
@@ -73,7 +73,7 @@ public class CalcTestPrograms {
                             "INSERT INTO sink_t SELECT a, CAST(a AS VARCHAR) FROM source_t WHERE a > CAST(1 AS BIGINT)")
                     .build();
 
-    static final TableTestProgram CALC_FILTER =
+    public static final TableTestProgram CALC_FILTER =
             TableTestProgram.of("calc-filter", "validates calc node with filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -90,7 +90,7 @@ public class CalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * FROM source_t WHERE b > 0")
                     .build();
 
-    static final TableTestProgram CALC_FILTER_PUSHDOWN =
+    public static final TableTestProgram CALC_FILTER_PUSHDOWN =
             TableTestProgram.of("calc-filter-pushdown", "validates calc node with filter pushdown")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -109,7 +109,7 @@ public class CalcTestPrograms {
                             "INSERT INTO sink_t SELECT a, b FROM source_t WHERE a > CAST(420 AS BIGINT)")
                     .build();
 
-    static final TableTestProgram CALC_SARG =
+    public static final TableTestProgram CALC_SARG =
             TableTestProgram.of("calc-sarg", "validates calc node with Sarg")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -128,7 +128,7 @@ public class CalcTestPrograms {
                             "INSERT INTO sink_t SELECT a FROM source_t WHERE a = 1 or a = 2 or a is null")
                     .build();
 
-    static final TableTestProgram CALC_UDF_SIMPLE =
+    public static final TableTestProgram CALC_UDF_SIMPLE =
             TableTestProgram.of("calc-udf-simple", "validates calc node with simple UDF")
                     .setupTemporaryCatalogFunction("udf1", JavaFunc0.class)
                     .setupTableSource(
@@ -146,7 +146,7 @@ public class CalcTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, udf1(a) FROM source_t")
                     .build();
 
-    static final TableTestProgram CALC_UDF_COMPLEX =
+    public static final TableTestProgram CALC_UDF_COMPLEX =
             TableTestProgram.of("calc-udf-complex", "validates calc node with complex UDFs")
                     .setupTemporaryCatalogFunction("udf1", JavaFunc0.class)
                     .setupTemporaryCatalogFunction("udf2", JavaFunc1.class)

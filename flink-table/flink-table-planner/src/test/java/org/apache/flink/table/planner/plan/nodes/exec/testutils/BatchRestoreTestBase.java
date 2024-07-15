@@ -18,22 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
-import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.execution.RestoreMode;
-import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -45,86 +38,54 @@ import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.net.URI;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Base class for implementing restore tests for {@link ExecNode}.You can generate json compiled
- * plan and a savepoint for the latest node version by running {@link
- * RestoreTestBase#generateTestSetupFiles(TableTestProgram)} which is disabled by default.
+ * Base class for implementing compiled plan tests for {@link BatchExecNode}. You can generate json
+ * compiled plan for the latest node version by running {@link
+ * BatchRestoreTestBase#generateCompiledPlans(TableTestProgram)}. This method does not recreate the
+ * compiled plan if it already exists for the given version of the operator.
  *
  * <p><b>Note:</b> The test base uses {@link TableConfigOptions.CatalogPlanCompilation#SCHEMA}
- * because it needs to adjust source and sink properties before and after the restore. Therefore,
- * the test base can not be used for testing storing table options in the compiled plan.
+ * because it needs to adjust source and sink properties. Therefore, the test base can not be used
+ * for testing storing table options in the compiled plan.
  */
 @ExtendWith(MiniClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(OrderAnnotation.class)
-public abstract class RestoreTestBase implements TableTestProgramRunner {
+public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
     private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
-    private final AfterRestoreSource afterRestoreSource;
 
-    protected RestoreTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
-        this(execNodeUnderTest, new ArrayList<>(), AfterRestoreSource.FINITE);
+    protected BatchRestoreTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
+        this(execNodeUnderTest, new ArrayList<>());
     }
 
-    protected RestoreTestBase(
+    protected BatchRestoreTestBase(
             Class<? extends ExecNode<?>> execNodeUnderTest,
             List<Class<? extends ExecNode<?>>> childExecNodesUnderTest) {
-        this(execNodeUnderTest, childExecNodesUnderTest, AfterRestoreSource.FINITE);
-    }
-
-    protected RestoreTestBase(
-            Class<? extends ExecNode<?>> execNodeUnderTest, AfterRestoreSource state) {
-        this(execNodeUnderTest, new ArrayList<>(), state);
-    }
-
-    protected RestoreTestBase(
-            Class<? extends ExecNode<?>> execNodeUnderTest,
-            List<Class<? extends ExecNode<?>>> childExecNodesUnderTest,
-            AfterRestoreSource state) {
         this.execNodeUnderTest = execNodeUnderTest;
         this.childExecNodesUnderTest = childExecNodesUnderTest;
-        this.afterRestoreSource = state;
-    }
-
-    /**
-     * AfterRestoreSource defines the source behavior while running {@link
-     * RestoreTestBase#testRestore}.
-     */
-    protected enum AfterRestoreSource {
-        FINITE,
-        INFINITE,
-        NO_RESTORE
     }
 
     // Used for testing Restore Test Completeness
@@ -142,7 +103,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         return EnumSet.of(
                 TestKind.CONFIG,
                 TestKind.FUNCTION,
-                TestKind.TEMPORAL_FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
                 TestKind.SOURCE_WITH_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA,
@@ -159,8 +119,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         TestValuesTableFactory.clearAllData();
     }
 
-    private @TempDir Path tmpDir;
-
     private List<ExecNodeMetadata> getAllMetadata() {
         return ExecNodeMetadataUtil.extractMetadataFromAnnotation(execNodeUnderTest);
     }
@@ -176,41 +134,17 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                                 supportedPrograms().stream().map(p -> Arguments.of(p, metadata)));
     }
 
-    private void registerSinkObserver(
-            final List<CompletableFuture<?>> futures,
-            final SinkTestStep sinkTestStep,
-            final boolean ignoreAfter) {
-        final CompletableFuture<Object> future = new CompletableFuture<>();
-        futures.add(future);
-        final String tableName = sinkTestStep.name;
-        TestValuesTableFactory.registerLocalRawResultsObserver(
-                tableName,
-                (integer, strings) -> {
-                    List<String> results =
-                            new ArrayList<>(sinkTestStep.getExpectedBeforeRestoreAsStrings());
-                    if (!ignoreAfter) {
-                        results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
-                    }
-                    List<String> expectedResults = getExpectedResults(sinkTestStep, tableName);
-                    final boolean shouldComplete =
-                            CollectionUtils.isEqualCollection(expectedResults, results);
-                    if (shouldComplete) {
-                        future.complete(null);
-                    }
-                });
-    }
-
-    /**
-     * Execute this test to generate test files. Remember to be using the correct branch when
-     * generating the test files.
-     */
-    @Disabled
+    /** Generates compiled plans for a given TableTestProgram. */
     @ParameterizedTest
     @MethodSource("supportedPrograms")
     @Order(0)
-    public void generateTestSetupFiles(TableTestProgram program) throws Exception {
-        final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-        settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+    public void generateCompiledPlans(TableTestProgram program) {
+        Path path = getPlanPath(program, getLatestMetadata());
+        if (path.toFile().exists()) {
+            return;
+        }
+
+        final EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
         final TableEnvironment tEnv = TableEnvironment.create(settings);
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
         tEnv.getConfig()
@@ -223,14 +157,13 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
-            options.put("terminating", "false");
+            options.put("bounded", "true");
+            options.put("terminating", "true");
             options.put("runtime-source", "NewSource");
             sourceTestStep.apply(tEnv, options);
         }
 
-        final List<CompletableFuture<?>> futures = new ArrayList<>();
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-            registerSinkObserver(futures, sinkTestStep, true);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("sink-insert-only", "false");
@@ -238,7 +171,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
-        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final CompiledPlan compiledPlan;
         if (program.runSteps.get(0).getKind() == TestKind.STATEMENT_SET) {
@@ -249,39 +181,15 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             compiledPlan = tEnv.compilePlanSql(sqlTestStep.sql);
         }
 
-        compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
-
-        final TableResult tableResult = compiledPlan.execute();
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-        final JobClient jobClient = tableResult.getJobClient().get();
-        final String savepoint =
-                jobClient
-                        .stopWithSavepoint(false, tmpDir.toString(), SavepointFormatType.DEFAULT)
-                        .get();
-        CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
-        final Path savepointPath = Paths.get(new URI(savepoint));
-        final Path savepointDirPath = getSavepointPath(program, getLatestMetadata());
-        Files.createDirectories(savepointDirPath);
-        Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
+        compiledPlan.writeToFile(path);
     }
 
     @ParameterizedTest
     @MethodSource("createSpecs")
     @Order(1)
-    void testRestore(TableTestProgram program, ExecNodeMetadata metadata) throws Exception {
-        final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-        final SavepointRestoreSettings restoreSettings;
-        if (afterRestoreSource == AfterRestoreSource.NO_RESTORE) {
-            restoreSettings = SavepointRestoreSettings.none();
-        } else {
-            restoreSettings =
-                    SavepointRestoreSettings.forPath(
-                            getSavepointPath(program, metadata).toString(),
-                            false,
-                            RestoreMode.NO_CLAIM);
-        }
-        SavepointRestoreSettings.toConfiguration(restoreSettings, settings.getConfiguration());
-        settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+    void loadAndRunCompiledPlan(TableTestProgram program, ExecNodeMetadata metadata)
+            throws Exception {
+        final EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
         final TableEnvironment tEnv = TableEnvironment.create(settings);
         tEnv.getConfig()
                 .set(
@@ -291,27 +199,21 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
 
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
-            final Collection<Row> data =
-                    afterRestoreSource == AfterRestoreSource.NO_RESTORE
-                            ? sourceTestStep.dataBeforeRestore
-                            : sourceTestStep.dataAfterRestore;
+
+            List<Row> data = new ArrayList<>();
+            data.addAll(sourceTestStep.dataBeforeRestore);
+            data.addAll(sourceTestStep.dataAfterRestore);
             final String id = TestValuesTableFactory.registerData(data);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
             options.put("runtime-source", "NewSource");
-            if (afterRestoreSource == AfterRestoreSource.INFINITE) {
-                options.put("terminating", "false");
-            }
+            options.put("terminating", "true");
+            options.put("bounded", "true");
             sourceTestStep.apply(tEnv, options);
         }
 
-        final List<CompletableFuture<?>> futures = new ArrayList<>();
-
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-            if (afterRestoreSource == AfterRestoreSource.INFINITE) {
-                registerSinkObserver(futures, sinkTestStep, false);
-            }
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("disable-lookup", "true");
@@ -320,38 +222,22 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
-        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final CompiledPlan compiledPlan =
                 tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
 
-        if (afterRestoreSource == AfterRestoreSource.INFINITE) {
-            final TableResult tableResult = compiledPlan.execute();
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-            tableResult.getJobClient().get().cancel().get();
-        } else {
-            compiledPlan.execute().await();
-            for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-                List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
-                assertThat(expectedResults)
-                        .containsExactlyInAnyOrder(
-                                Stream.concat(
-                                                sinkTestStep.getExpectedBeforeRestoreAsStrings()
-                                                        .stream(),
-                                                sinkTestStep.getExpectedAfterRestoreAsStrings()
-                                                        .stream())
-                                        .toArray(String[]::new));
-            }
+        compiledPlan.execute().await();
+        for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
+            List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
+            assertThat(expectedResults)
+                    .containsExactlyInAnyOrder(
+                            sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
         }
     }
 
     private Path getPlanPath(TableTestProgram program, ExecNodeMetadata metadata) {
         return Paths.get(
                 getTestResourceDirectory(program, metadata) + "/plan/" + program.id + ".json");
-    }
-
-    private Path getSavepointPath(TableTestProgram program, ExecNodeMetadata metadata) {
-        return Paths.get(getTestResourceDirectory(program, metadata) + "/savepoint/");
     }
 
     private String getTestResourceDirectory(TableTestProgram program, ExecNodeMetadata metadata) {
