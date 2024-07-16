@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Lega
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, RexNodeExtractor}
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTableConfig}
-import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.sources.FilterableTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -35,7 +34,6 @@ import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
 
 import java.util
-import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
@@ -92,8 +90,7 @@ class PushFilterIntoLegacyTableSourceScanRule
         filter.getInput.getRowType.getFieldNames,
         relBuilder.getRexBuilder,
         context.getFunctionCatalog,
-        context.getCatalogManager,
-        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(unwrapTableConfig(scan)))
+        context.getCatalogManager
       )
 
     if (predicates.isEmpty) {
