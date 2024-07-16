@@ -52,6 +52,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCa
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ADD_MONTHS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_APPEND;
@@ -1530,6 +1531,22 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType ceil(TimeIntervalUnit timeIntervalUnit) {
         return toApiSpecificExpression(
                 unresolvedCall(CEIL, toExpr(), valueLiteral(timeIntervalUnit)));
+    }
+
+    /**
+     * Returns the date {@code numMonths} after {@code startDate}. <br>
+     * If {@code numMonths} is negative, {@code -numMonths} are subtracted from {@code startDate}.
+     * <br>
+     * If the resulting month has fewer days than the day component of {@code startDate}, then the
+     * result is the last day of the resulting month.<br>
+     * null if any of the arguments are null or result overflows or date string invalid.
+     *
+     * @param numMonths An INTEGER expression.
+     * @return A DATE.
+     */
+    public OutType addMonths(InType numMonths) {
+        return toApiSpecificExpression(
+                unresolvedCall(ADD_MONTHS, toExpr(), objectToExpression(numMonths)));
     }
 
     // Advanced type helper functions

@@ -190,6 +190,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('extract(YEAR, a)', str(expr1.extract(TimeIntervalUnit.YEAR)))
         self.assertEqual('floor(a, YEAR)', str(expr1.floor(TimeIntervalUnit.YEAR)))
         self.assertEqual('ceil(a)', str(expr1.ceil()))
+        self.assertEqual('ADD_MONTHS(a, 3)', str(expr1.add_months(3)))
 
         # advanced type helper functions
         self.assertEqual("get(a, 'col')", str(expr1.get('col')))

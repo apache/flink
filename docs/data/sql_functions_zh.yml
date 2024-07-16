@@ -781,6 +781,16 @@ temporal:
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
       ```
+  - sql: ADD_MONTHS(startDate, numMonths)
+    table: startDate.addMonths(numMonths)
+    description: |
+      返回起始日期 startDate 之后 numMonths 个月的日期。
+      如果 numMonths 为负数，则从 startDate 中减去 -numMonths 个月。
+      如果结果月份的天数少于 startDate 的日期部分，则结果日期为月份的最后一天。
+      
+      `startDate <DATE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE | CHAR | VARCHAR>, numMonths <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      返回一个 `DATE`，如果任何参数为 'NULL' 或结果溢出或日期字符串非法，则返回 'NULL'。
 
 conditional:
   - sql: |

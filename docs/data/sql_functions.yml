@@ -653,6 +653,16 @@ temporal:
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
       ```
+  - sql: ADD_MONTHS(startDate, numMonths)
+    table: startDate.addMonths(numMonths)
+    description: |
+      Returns the date numMonths after startDate.
+      If numMonths is negative, -numMonths are subtracted from startDate.
+      If the resulting month has fewer days than the day component of startDate, then the result is the last day of the resulting month.
+      
+      `startDate <DATE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE | CHAR | VARCHAR>, numMonths <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      Returns a `DATE`, `NULL` if any of the arguments are `NULL` or result overflows or date string invalid.
 
 conditional:
   - sql: |

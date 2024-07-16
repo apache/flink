@@ -1530,6 +1530,20 @@ class Expression(Generic[T]):
         return _binary_op("extract")(
             self, time_interval_unit._to_j_time_interval_unit())
 
+    def add_months(self, num_months) -> 'Expression':
+        """
+        Returns the date numMonths after startDate.
+        If numMonths is negative, -numMonths are subtracted from startDate.
+        If the resulting month has fewer days than the day component of startDate, then the result
+        is the last day of the resulting month.
+
+        null if any of the arguments are null or result overflows or date string invalid.
+
+        :param num_months: An INTEGER expression.
+        :return: A DATE.
+        """
+        return _binary_op("addMonths")(self, num_months)
+
     def floor(self, time_interval_unit: TimeIntervalUnit = None) -> 'Expression':
         """
         If time_interval_unit is specified, it rounds down a time point to the given

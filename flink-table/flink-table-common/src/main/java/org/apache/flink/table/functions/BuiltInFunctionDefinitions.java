@@ -2130,6 +2130,29 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition ADD_MONTHS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ADD_MONTHS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("startDate", "numMonths"),
+                                    Arrays.asList(
+                                            or(
+                                                    logical(LogicalTypeRoot.DATE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITHOUT_TIME_ZONE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC))))
+                    .outputTypeStrategy(explicit(DATE()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.AddMonthsFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")
