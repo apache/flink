@@ -51,7 +51,7 @@ integrate_connector_docs hbase v3.0
 integrate_connector_docs jdbc v3.2
 integrate_connector_docs kafka v3.2
 integrate_connector_docs mongodb v1.2
-integrate_connector_docs opensearch v2.0
+integrate_connector_docs opensearch v1.2
 integrate_connector_docs pulsar v4.1
 integrate_connector_docs rabbitmq v3.0
 
