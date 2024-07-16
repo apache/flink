@@ -45,6 +45,10 @@ public class OnMainThreadJobManagerRunnerRegistry
             JobManagerRunnerRegistry delegate, ComponentMainThreadExecutor mainThreadExecutor) {
         this.delegate = delegate;
         this.mainThreadExecutor = mainThreadExecutor;
+
+        if (delegate instanceof DefaultJobManagerRunnerRegistry) {
+            ((DefaultJobManagerRunnerRegistry) delegate).setMainThreadExecutor(mainThreadExecutor);
+        }
     }
 
     @Override
