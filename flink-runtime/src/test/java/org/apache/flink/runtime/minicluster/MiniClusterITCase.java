@@ -50,7 +50,9 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,6 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -679,6 +682,27 @@ public class MiniClusterITCase extends TestLogger {
         }
     }
 
+    @Test
+    public void testNoShutdownHookLeak() throws Exception {
+        int shutdownHookSizeBefore = obtainRegisteredShutdownHookSize();
+
+        final MiniClusterConfiguration cfg =
+                new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
+                        .setNumTaskManagers(1)
+                        .setNumSlotsPerTaskManager(1)
+                        .setRpcServiceSharing(RpcServiceSharing.SHARED)
+                        .build();
+
+        try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+            miniCluster.start();
+        }
+
+        int shutdownHookSizeAfter = obtainRegisteredShutdownHookSize();
+
+        assertEquals(shutdownHookSizeBefore, shutdownHookSizeAfter);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -746,5 +770,12 @@ public class MiniClusterITCase extends TestLogger {
         public void initializeOnMaster(InitializeOnMasterContext context) {
             throw new OutOfMemoryError("Java heap space");
         }
+    }
+
+    private static int obtainRegisteredShutdownHookSize()
+            throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
+        Field field = Class.forName("java.lang.ApplicationShutdownHooks").getDeclaredField("hooks");
+        field.setAccessible(true);
+        return ((Map<?, ?>) field.get(null)).size();
     }
 }
