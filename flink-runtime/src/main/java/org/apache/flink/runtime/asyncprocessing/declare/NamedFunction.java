@@ -29,7 +29,7 @@ public class NamedFunction<T, R> extends NamedCallback
     FunctionWithException<T, R, ? extends Exception> function;
 
     NamedFunction(String name, FunctionWithException<T, R, ? extends Exception> function) {
-        super(name);
+        super(name, detectFunctionVariables(function));
         this.function = function;
     }
 

@@ -18,17 +18,53 @@
 
 package org.apache.flink.runtime.asyncprocessing.declare;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.stream.Stream;
+
 /** A named callback that can be identified and checkpoint. */
 public abstract class NamedCallback {
 
-    private String name;
+    private final String name;
 
-    NamedCallback(String name) {
+    private final boolean safeVariables;
+
+    NamedCallback(String name, boolean safeVariables) {
         this.name = name;
+        this.safeVariables = safeVariables;
     }
 
     /** Get the name of this callback. */
     public String getName() {
         return name;
+    }
+
+    public boolean isSafeVariables() {
+        return safeVariables;
+    }
+
+    /**
+     * Detect captured variables of a function and determine whether it can be snapshot.
+     *
+     * @param function the function to detect.
+     * @return true if all the captured variables are safe.
+     */
+    public static boolean detectFunctionVariables(Object function) {
+        Class<?> clazz = function.getClass();
+        Field[] fields1 = clazz.getFields();
+        // returns inherited members but not private members.
+        Field[] fields2 = clazz.getDeclaredFields();
+        // returns all members including private members but not inherited members.
+        return Stream.concat(Stream.of(fields1), Stream.of(fields2))
+                .allMatch(NamedCallback::detectSingleField);
+    }
+
+    private static boolean detectSingleField(Field field) {
+        Class<?> type = field.getType();
+        return DeclaredVariable.class.isAssignableFrom(type)
+                || (type.isPrimitive() && Modifier.isFinal(field.getModifiers()))
+                || Arrays.stream(field.getAnnotations())
+                        .anyMatch(e -> e instanceof DeclarationSafe);
     }
 }

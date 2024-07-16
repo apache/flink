@@ -18,23 +18,15 @@
 
 package org.apache.flink.runtime.asyncprocessing.declare;
 
-import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.annotation.Experimental;
 
-import java.util.function.BiFunction;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 
-/** A named version of {@link BiFunction}. */
-public class NamedBiFunction<T, U, V> extends NamedCallback
-        implements BiFunctionWithException<T, U, V, Exception> {
-
-    BiFunctionWithException<T, U, V, ? extends Exception> function;
-
-    NamedBiFunction(String name, BiFunctionWithException<T, U, V, ? extends Exception> function) {
-        super(name, detectFunctionVariables(function));
-        this.function = function;
-    }
-
-    @Override
-    public V apply(T t, U u) throws Exception {
-        return function.apply(t, u);
-    }
-}
+/**
+ * Mark one field is provided during runtime and safe for capturing in declaration of async
+ * processing.
+ */
+@Target({ElementType.FIELD})
+@Experimental
+public @interface DeclarationSafe {}

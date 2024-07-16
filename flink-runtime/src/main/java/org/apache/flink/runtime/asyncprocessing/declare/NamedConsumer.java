@@ -28,7 +28,7 @@ public class NamedConsumer<T> extends NamedCallback implements ThrowingConsumer<
     ThrowingConsumer<? super T, ? extends Exception> consumer;
 
     NamedConsumer(String name, ThrowingConsumer<? super T, ? extends Exception> consumer) {
-        super(name);
+        super(name, detectFunctionVariables(consumer));
         this.consumer = consumer;
     }
 
