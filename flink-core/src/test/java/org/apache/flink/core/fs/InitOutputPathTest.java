@@ -33,9 +33,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -55,12 +52,8 @@ class InitOutputPathTest {
     @Test
     void testErrorOccursUnSynchronized() throws Exception {
         // deactivate the lock to produce the original un-synchronized state
-        Field lock = FileSystem.class.getDeclaredField("OUTPUT_DIRECTORY_INIT_LOCK");
+        Field lock = FileSystem.class.getDeclaredField("outputDirectoryInitLock");
         lock.setAccessible(true);
-
-        Field modifiers = getModifiersField();
-        modifiers.setAccessible(true);
-        modifiers.setInt(lock, lock.getModifiers() & ~Modifier.FINAL);
 
         lock.set(null, new NoOpLock());
         // in the original un-synchronized state, we can force the race to occur by using
@@ -79,37 +72,6 @@ class InitOutputPathTest {
         // is in fact pathological (see testErrorOccursUnSynchronized()), this gives
         // a rather confident guard
         runTest(false);
-    }
-
-    private Field getModifiersField() throws IllegalAccessException, NoSuchFieldException {
-        // this is copied from https://github.com/powermock/powermock/pull/1010/files to work around
-        // JDK 12+
-        Field modifiersField = null;
-        try {
-            modifiersField = Field.class.getDeclaredField("modifiers");
-        } catch (NoSuchFieldException e) {
-            try {
-                Method getDeclaredFields0 =
-                        Class.class.getDeclaredMethod("getDeclaredFields0", boolean.class);
-                boolean accessibleBeforeSet = getDeclaredFields0.isAccessible();
-                getDeclaredFields0.setAccessible(true);
-                Field[] fields = (Field[]) getDeclaredFields0.invoke(Field.class, false);
-                getDeclaredFields0.setAccessible(accessibleBeforeSet);
-                for (Field field : fields) {
-                    if ("modifiers".equals(field.getName())) {
-                        modifiersField = field;
-                        break;
-                    }
-                }
-                if (modifiersField == null) {
-                    throw e;
-                }
-            } catch (NoSuchMethodException | InvocationTargetException ex) {
-                e.addSuppressed(ex);
-                throw e;
-            }
-        }
-        return modifiersField;
     }
 
     private void runTest(final boolean useAwaits) throws Exception {
