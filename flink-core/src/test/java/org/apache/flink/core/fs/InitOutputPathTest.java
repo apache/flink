@@ -28,15 +28,16 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import sun.misc.Unsafe;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.FileAlreadyExistsException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -54,19 +55,14 @@ class InitOutputPathTest {
      */
     @Test
     void testErrorOccursUnSynchronized() throws Exception {
-        // deactivate the lock to produce the original un-synchronized state
-        Field lock = FileSystem.class.getDeclaredField("OUTPUT_DIRECTORY_INIT_LOCK");
-        lock.setAccessible(true);
+        // deactivate the lockField to produce the original un-synchronized state
+        Field lockField = FileSystem.class.getDeclaredField("OUTPUT_DIRECTORY_INIT_LOCK");
 
-        Field modifiers = getModifiersField();
-        modifiers.setAccessible(true);
-        modifiers.setInt(lock, lock.getModifiers() & ~Modifier.FINAL);
-
-        lock.set(null, new NoOpLock());
+        setStaticFieldUsingUnsafe(lockField, new NoOpLock());
         // in the original un-synchronized state, we can force the race to occur by using
         // the proper latch order to control the process of the concurrent threads
         assertThatThrownBy(() -> runTest(true)).isInstanceOf(FileNotFoundException.class);
-        lock.set(null, new ReentrantLock(true));
+        setStaticFieldUsingUnsafe(lockField, new ReentrantLock(true));
     }
 
     @Test
@@ -81,35 +77,117 @@ class InitOutputPathTest {
         runTest(false);
     }
 
-    private Field getModifiersField() throws IllegalAccessException, NoSuchFieldException {
-        // this is copied from https://github.com/powermock/powermock/pull/1010/files to work around
-        // JDK 12+
-        Field modifiersField = null;
-        try {
-            modifiersField = Field.class.getDeclaredField("modifiers");
-        } catch (NoSuchFieldException e) {
-            try {
-                Method getDeclaredFields0 =
-                        Class.class.getDeclaredMethod("getDeclaredFields0", boolean.class);
-                boolean accessibleBeforeSet = getDeclaredFields0.isAccessible();
-                getDeclaredFields0.setAccessible(true);
-                Field[] fields = (Field[]) getDeclaredFields0.invoke(Field.class, false);
-                getDeclaredFields0.setAccessible(accessibleBeforeSet);
-                for (Field field : fields) {
-                    if ("modifiers".equals(field.getName())) {
-                        modifiersField = field;
-                        break;
-                    }
-                }
-                if (modifiersField == null) {
-                    throw e;
-                }
-            } catch (NoSuchMethodException | InvocationTargetException ex) {
-                e.addSuppressed(ex);
-                throw e;
-            }
+    // Line 82~ Line 191 are copied from
+    // https://github.com/powermock/powermock/blob/release/2.x/powermock-reflect/src/main/java/org/powermock/reflect/internal/WhiteboxImpl.java
+    private static void setField(Object object, Object value, Field foundField) {
+        boolean isStatic = (foundField.getModifiers() & Modifier.STATIC) == Modifier.STATIC;
+        if (isStatic) {
+            setStaticFieldUsingUnsafe(foundField, value);
+        } else {
+            setFieldUsingUnsafe(foundField, object, value);
         }
-        return modifiersField;
+    }
+
+    private static void setStaticFieldUsingUnsafe(final Field field, final Object newValue) {
+        try {
+            field.setAccessible(true);
+            int fieldModifiersMask = field.getModifiers();
+            boolean isFinalModifierPresent =
+                    (fieldModifiersMask & Modifier.FINAL) == Modifier.FINAL;
+            if (isFinalModifierPresent) {
+                AccessController.doPrivileged(
+                        new PrivilegedAction<Object>() {
+                            @Override
+                            public Object run() {
+                                try {
+                                    Unsafe unsafe = getUnsafe();
+                                    long offset = unsafe.staticFieldOffset(field);
+                                    Object base = unsafe.staticFieldBase(field);
+                                    setFieldUsingUnsafe(
+                                            base, field.getType(), offset, newValue, unsafe);
+                                    return null;
+                                } catch (Throwable t) {
+                                    throw new RuntimeException(t);
+                                }
+                            }
+                        });
+            } else {
+                field.set(null, newValue);
+            }
+        } catch (SecurityException ex) {
+            throw new RuntimeException(ex);
+        } catch (IllegalAccessException ex) {
+            throw new RuntimeException(ex);
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static void setFieldUsingUnsafe(
+            final Field field, final Object object, final Object newValue) {
+        try {
+            field.setAccessible(true);
+            int fieldModifiersMask = field.getModifiers();
+            boolean isFinalModifierPresent =
+                    (fieldModifiersMask & Modifier.FINAL) == Modifier.FINAL;
+            if (isFinalModifierPresent) {
+                AccessController.doPrivileged(
+                        new PrivilegedAction<Object>() {
+                            @Override
+                            public Object run() {
+                                try {
+                                    Unsafe unsafe = getUnsafe();
+                                    long offset = unsafe.objectFieldOffset(field);
+                                    setFieldUsingUnsafe(
+                                            object, field.getType(), offset, newValue, unsafe);
+                                    return null;
+                                } catch (Throwable t) {
+                                    throw new RuntimeException(t);
+                                }
+                            }
+                        });
+            } else {
+                try {
+                    field.set(object, newValue);
+                } catch (IllegalAccessException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        } catch (SecurityException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static Unsafe getUnsafe()
+            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException,
+                    SecurityException {
+        Field field1 = Unsafe.class.getDeclaredField("theUnsafe");
+        field1.setAccessible(true);
+        Unsafe unsafe = (Unsafe) field1.get(null);
+        return unsafe;
+    }
+
+    private static void setFieldUsingUnsafe(
+            Object base, Class type, long offset, Object newValue, Unsafe unsafe) {
+        if (type == Integer.TYPE) {
+            unsafe.putInt(base, offset, ((Integer) newValue));
+        } else if (type == Short.TYPE) {
+            unsafe.putShort(base, offset, ((Short) newValue));
+        } else if (type == Long.TYPE) {
+            unsafe.putLong(base, offset, ((Long) newValue));
+        } else if (type == Byte.TYPE) {
+            unsafe.putByte(base, offset, ((Byte) newValue));
+        } else if (type == Boolean.TYPE) {
+            unsafe.putBoolean(base, offset, ((Boolean) newValue));
+        } else if (type == Float.TYPE) {
+            unsafe.putFloat(base, offset, ((Float) newValue));
+        } else if (type == Double.TYPE) {
+            unsafe.putDouble(base, offset, ((Double) newValue));
+        } else if (type == Character.TYPE) {
+            unsafe.putChar(base, offset, ((Character) newValue));
+        } else {
+            unsafe.putObject(base, offset, newValue);
+        }
     }
 
     private void runTest(final boolean useAwaits) throws Exception {
