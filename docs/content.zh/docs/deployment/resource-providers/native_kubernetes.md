@@ -291,16 +291,15 @@ $ kubectl logs <pod-name>
 $ kubectl edit cm flink-config-my-first-flink-cluster
 ```
 
+#### 访问TaskManager日志
 
-#### Accessing the Logs of the TaskManagers
+为避免浪费资源，Flink会自动释放空闲的TaskManagers。
+这种行为可能使得访问相应Pod的日志变得困难。
+你可以通过配置[resourcemanager.taskmanager-timeout]({{< ref "docs/deployment/config" >}}#resourcemanager-taskmanager-timeout)来延长空闲TaskManager被释放之前的时间，以便有更多时间检查日志文件。
 
-Flink will automatically de-allocate idling TaskManagers in order to not waste resources.
-This behaviour can make it harder to access the logs of the respective pods.
-You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({{< ref "docs/deployment/config" >}}#resourcemanager-taskmanager-timeout) so that you have more time to inspect the log files.
+#### 动态更改日志级别
 
-#### Changing the Log Level Dynamically
-
-If you have configured your logger to [detect configuration changes automatically]({{< ref "docs/deployment/advanced/logging" >}}), then you can dynamically adapt the log level by changing the respective ConfigMap (assuming that the cluster id is `my-first-flink-cluster`):
+如果你已经配置了日志器以[自动检测配置变化]({{< ref "docs/deployment/advanced/logging" >}})，则可以通过修改相应的ConfigMap（假设集群ID为`my-first-flink-cluster`）来动态调整日志级别：
 
 ```bash
 $ kubectl edit cm flink-config-my-first-flink-cluster
@@ -361,75 +360,75 @@ $ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\\
 为了在Kubernetes上实现高可用性，你可以使用[现有的高可用性服务]({{< ref "docs/deployment/ha/overview" >}})。
 
 将<a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-replicas">kubernetes.jobmanager.replicas</a>的值设置为大于1，以启动备用JobManagers。
-这有助于实现更快的恢复。请注意，在启动备用JobManagers时应启用高可用性。
 
-It will help to achieve faster recovery.
-Notice that high availability should be enabled when starting standby JobManagers.
+这将有助于实现更快的恢复。
+请注意，启动备用 JobManagers 时应启用高可用性。
 
-### Manual Resource Cleanup
+### 手动资源清理
 
-Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to clean up all cluster components.
-All the Flink created resources, including `ConfigMap`, `Service`, and `Pod`, have the `OwnerReference` being set to `deployment/<cluster-id>`.
-When the deployment is deleted, all related resources will be deleted automatically.
+Flink 使用 [Kubernetes OwnerReferences](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) 清理所有集群组件。
+所有由 Flink 创建的资源，包括 `ConfigMap`、`Service` 和 `Pod`，都将 `OwnerReference` 设置为 `deployment/<cluster-id>`。
+当部署被删除时，所有相关资源将自动删除。
 
 ```bash
 $ kubectl delete deployment/<cluster-id>
 ```
 
-### Supported Kubernetes Versions
+### 支持的 Kubernetes 版本
 
-Currently, all Kubernetes versions `>= 1.9` are supported.
+目前，支持所有 `>= 1.9` 的 Kubernetes 版本。
 
-### Namespaces
+### 命名空间
 
-[Namespaces in Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) divide cluster resources between multiple users via [resource quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/).
-Flink on Kubernetes can use namespaces to launch Flink clusters.
-The namespace can be configured via [kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace).
+[ Kubernetes 中命名空间](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) 通过 [资源配额](https://kubernetes.io/docs/concepts/policy/resource-quotas/) 将集群资源划分为多个用户。
+在 Kubernetes 上运行的 Flink 可以使用命名空间来启动 Flink 集群。
+命名空间可以通过 [kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace) 进行配置。
 
 ### RBAC
 
-Role-based access control ([RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)) is a method of regulating access to compute or network resources based on the roles of individual users within an enterprise.
-Users can configure RBAC roles and service accounts used by JobManager to access the Kubernetes API server within the Kubernetes cluster.
+基于角色的访问控制([RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/))是一种根据企业内部个人用户的角色来限制对计算或网络资源访问的方法。
 
-Every namespace has a default service account. However, the `default` service account may not have the permission to create or delete pods within the Kubernetes cluster.
-Users may need to update the permission of the `default` service account or specify another service account that has the right role bound.
+用户可以配置 RBAC 角色和服务账户，以便 JobManager 在 Kubernetes 集群内访问 Kubernetes API 服务器。
+
+每个命名空间都有一个默认服务账户。但是，`default` 服务账户可能没有在 Kubernetes 集群中创建或删除 Pods 的权限。
+用户可能需要更新 `default` 服务账户的权限，或者指定另一个具有正确角色绑定的其他服务账户。
 
 ```bash
 $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edit --serviceaccount=default:default
 ```
 
-If you do not want to use the `default` service account, use the following command to create a new `flink-service-account` service account and set the role binding.
-Then use the config option `-Dkubernetes.service-account=flink-service-account` to configure the JobManager pod's service account used to create and delete TaskManager pods and leader ConfigMaps.
-Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager.
+如果不希望使用 `default` 服务账户，可以使用以下命令创建新的 `flink-service-account` 服务账户并设置角色绑定。
+然后使用配置选项 `-Dkubernetes.service-account=flink-service-account` 来配置用于创建和删除 TaskManager Pods 以及 leader ConfigMaps 的 JobManager Pod 的服务账户。
+这还将允许 TaskManager 监视 leader ConfigMaps 以获取 JobManager 和 ResourceManager 的地址。
 
 ```bash
 $ kubectl create serviceaccount flink-service-account
 $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit --serviceaccount=default:flink-service-account
 ```
 
-Please refer to the official Kubernetes documentation on [RBAC Authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) for more information.
+有关更多信息，请参阅 Kubernetes 官方文档中的 [RBAC 授权](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)。
 
-### Pod Template
+### Pod 模板
 
-Flink allows users to define the JobManager and TaskManager pods via template files. This allows to support advanced features
-that are not supported by Flink [Kubernetes config options]({{< ref "docs/deployment/config" >}}#kubernetes) directly.
-Use [`kubernetes.pod-template-file.default`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file-default)
-to specify a local file that contains the pod definition. It will be used to initialize the JobManager and TaskManager.
-The main container should be defined with name `flink-main-container`.
-Please refer to the [pod template example](#example-of-pod-template) for more information.
+Flink 允许用户通过模板文件定义 JobManager 和 TaskManager 的 Pod。
+这使得支持 Flink [Kubernetes 配置选项]({{< ref "docs/deployment/config" >}}#kubernetes) 直接不支持的高级功能成为可能。
+使用 `kubernetes.pod-template-file.default`({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file-default) 指定包含 Pod 定义的本地文件。它将用于初始化 JobManager 和 TaskManager。
+主要容器应命名为 `flink-main-container`。
+有关更多信息，请参阅 [Pod 模板示例](#pod-template 示例)。
 
-#### Fields Overwritten by Flink
 
-Some fields of the pod template will be overwritten by Flink.
-The mechanism for resolving effective field values can be categorized as follows:
-* **Defined by Flink:** User cannot configure it.
-* **Defined by the user:** User can freely specify this value. Flink framework won't set any additional values and the effective value derives from the config option and the template.
+#### Flink 覆盖的字段
 
-  Precedence order: First an explicit config option value is taken, then the value in pod template and at last the default value of a config option if nothing is specified.
-* **Merged with Flink:** Flink will merge values for a setting with a user defined value (see precedence order for "Defined by the user"). Flink values have precedence in case of same name fields.
+Pod 模板的某些字段将被 Flink 覆盖。
+解决有效字段值的机制可以归类如下：
 
-Refer to the following tables for the full list of pod fields that will be overwritten.
-All the fields defined in the pod template that are not listed in the tables will be unaffected.
+* **由 Flink 定义：** 用户无法配置。
+* **由用户定义：** 用户可以自由指定此值。Flink 框架不会设置任何额外值，有效值源自配置选项和模板。
+   优先顺序：首先采用显式配置选项值，然后是 Pod 模板中的值，最后如果未指定，则采用配置选项的默认值。
+* **与 Flink 合并：** Flink 将与用户定义的值合并设置（参见“由用户定义”的优先顺序）。具有相同名称的字段中，Flink 值具有优先级。
+
+以下表格列出了将被覆盖的完整 Pod 字段列表。
+在 Pod 模板中定义的所有未列出字段都将不受影响。
 
 **Pod Metadata**
 <table class="table table-bordered">
@@ -645,12 +644,13 @@ spec:
       emptyDir: { }
 ```
 
-### User jars & Classpath
+### 用户 jars 和类路径
 
-When deploying Flink natively on Kubernetes, the following jars will be recognized as user-jars and included into user classpath:
-- Session Mode: The JAR file specified in startup command.
-- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+当在Kubernetes上原生部署Flink时，以下jar文件将被视为用户jar并包含在用户类路径中：
 
-Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
+- 会话模式：启动命令中指定的jar文件。
+- 应用程序模式：启动命令中指定的jar文件以及Flink的`usrlib`文件夹中的所有JAR文件。
+
+有关详细信息，请参阅[调试类加载文档]({{< ref "docs/ops/debugging/debugging_classloading" >}}#flink中的类加载概述)。
 
 {{< top >}}
