@@ -24,23 +24,22 @@
 package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.util.StringUtils;
 
 /**
- * A tuple with 19 fields. Tuples are strongly typed; each field may be of a separate type. The
+ * A tuple with 17 fields. Tuples are strongly typed; each field may be of a separate type. The
  * fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
  * through the {@link #getField(int)} method. The tuple field positions start at zero.
  *
  * <p>Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions
  * that work with Tuples to reuse objects in order to reduce pressure on the garbage collector.
  *
- * <p>Warning: If you subclass Tuple19, then be sure to either
+ * <p>Warning: If you subclass Tuple17, then be sure to either
  *
  * <ul>
  *   <li>not add any new fields, or
  *   <li>make it a POJO, and always declare the element type of your DataStreams/DataSets to your
- *       descendant type. (That is, if you have a "class Foo extends Tuple19", then don't use
- *       instances of Foo in a DataStream&lt;Tuple19&gt; / DataSet&lt;Tuple19&gt;, but declare it as
+ *       descendant type. (That is, if you have a "class Foo extends Tuple17", then don't use
+ *       instances of Foo in a DataStream&lt;Tuple17&gt; / DataSet&lt;Tuple17&gt;, but declare it as
  *       DataStream&lt;Foo&gt; / DataSet&lt;Foo&gt;.)
  * </ul>
  *
@@ -62,12 +61,9 @@ import org.apache.flink.util.StringUtils;
  * @param <T14> The type of field 14
  * @param <T15> The type of field 15
  * @param <T16> The type of field 16
- * @param <T17> The type of field 17
- * @param <T18> The type of field 18
  */
 @Public
-public class Tuple19<
-                T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>
+public class Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>
         extends Tuple {
 
     private static final long serialVersionUID = 1L;
@@ -106,13 +102,9 @@ public class Tuple19<
     public T15 f15;
     /** Field 16 of the tuple. */
     public T16 f16;
-    /** Field 17 of the tuple. */
-    public T17 f17;
-    /** Field 18 of the tuple. */
-    public T18 f18;
 
     /** Creates a new tuple where all fields are null. */
-    public Tuple19() {}
+    public Tuple17() {}
 
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
@@ -134,10 +126,8 @@ public class Tuple19<
      * @param f14 The value for field 14
      * @param f15 The value for field 15
      * @param f16 The value for field 16
-     * @param f17 The value for field 17
-     * @param f18 The value for field 18
      */
-    public Tuple19(
+    public Tuple17(
             T0 f0,
             T1 f1,
             T2 f2,
@@ -154,9 +144,7 @@ public class Tuple19<
             T13 f13,
             T14 f14,
             T15 f15,
-            T16 f16,
-            T17 f17,
-            T18 f18) {
+            T16 f16) {
         this.f0 = f0;
         this.f1 = f1;
         this.f2 = f2;
@@ -174,13 +162,11 @@ public class Tuple19<
         this.f14 = f14;
         this.f15 = f15;
         this.f16 = f16;
-        this.f17 = f17;
-        this.f18 = f18;
     }
 
     @Override
     public int getArity() {
-        return 19;
+        return 17;
     }
 
     @Override
@@ -221,10 +207,6 @@ public class Tuple19<
                 return (T) this.f15;
             case 16:
                 return (T) this.f16;
-            case 17:
-                return (T) this.f17;
-            case 18:
-                return (T) this.f18;
             default:
                 throw new IndexOutOfBoundsException(String.valueOf(pos));
         }
@@ -285,12 +267,6 @@ public class Tuple19<
             case 16:
                 this.f16 = (T16) value;
                 break;
-            case 17:
-                this.f17 = (T17) value;
-                break;
-            case 18:
-                this.f18 = (T18) value;
-                break;
             default:
                 throw new IndexOutOfBoundsException(String.valueOf(pos));
         }
@@ -316,8 +292,6 @@ public class Tuple19<
      * @param f14 The value for field 14
      * @param f15 The value for field 15
      * @param f16 The value for field 16
-     * @param f17 The value for field 17
-     * @param f18 The value for field 18
      */
     public void setFields(
             T0 f0,
@@ -336,9 +310,7 @@ public class Tuple19<
             T13 f13,
             T14 f14,
             T15 f15,
-            T16 f16,
-            T17 f17,
-            T18 f18) {
+            T16 f16) {
         this.f0 = f0;
         this.f1 = f1;
         this.f2 = f2;
@@ -356,8 +328,6 @@ public class Tuple19<
         this.f14 = f14;
         this.f15 = f15;
         this.f16 = f16;
-        this.f17 = f17;
-        this.f18 = f18;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -366,51 +336,47 @@ public class Tuple19<
 
     /**
      * Creates a string representation of the tuple in the form (f0, f1, f2, f3, f4, f5, f6, f7, f8,
-     * f9, f10, f11, f12, f13, f14, f15, f16, f17, f18), where the individual fields are the value
-     * returned by calling {@link Object#toString} on that field.
+     * f9, f10, f11, f12, f13, f14, f15, f16), where the individual fields are the value returned by
+     * calling {@link Object#toString} on that field.
      *
      * @return The string representation of the tuple.
      */
     @Override
     public String toString() {
         return "("
-                + StringUtils.arrayAwareToString(this.f0)
+                + arrayAwareToString(this.f0)
                 + ","
-                + StringUtils.arrayAwareToString(this.f1)
+                + arrayAwareToString(this.f1)
                 + ","
-                + StringUtils.arrayAwareToString(this.f2)
+                + arrayAwareToString(this.f2)
                 + ","
-                + StringUtils.arrayAwareToString(this.f3)
+                + arrayAwareToString(this.f3)
                 + ","
-                + StringUtils.arrayAwareToString(this.f4)
+                + arrayAwareToString(this.f4)
                 + ","
-                + StringUtils.arrayAwareToString(this.f5)
+                + arrayAwareToString(this.f5)
                 + ","
-                + StringUtils.arrayAwareToString(this.f6)
+                + arrayAwareToString(this.f6)
                 + ","
-                + StringUtils.arrayAwareToString(this.f7)
+                + arrayAwareToString(this.f7)
                 + ","
-                + StringUtils.arrayAwareToString(this.f8)
+                + arrayAwareToString(this.f8)
                 + ","
-                + StringUtils.arrayAwareToString(this.f9)
+                + arrayAwareToString(this.f9)
                 + ","
-                + StringUtils.arrayAwareToString(this.f10)
+                + arrayAwareToString(this.f10)
                 + ","
-                + StringUtils.arrayAwareToString(this.f11)
+                + arrayAwareToString(this.f11)
                 + ","
-                + StringUtils.arrayAwareToString(this.f12)
+                + arrayAwareToString(this.f12)
                 + ","
-                + StringUtils.arrayAwareToString(this.f13)
+                + arrayAwareToString(this.f13)
                 + ","
-                + StringUtils.arrayAwareToString(this.f14)
+                + arrayAwareToString(this.f14)
                 + ","
-                + StringUtils.arrayAwareToString(this.f15)
+                + arrayAwareToString(this.f15)
                 + ","
-                + StringUtils.arrayAwareToString(this.f16)
-                + ","
-                + StringUtils.arrayAwareToString(this.f17)
-                + ","
-                + StringUtils.arrayAwareToString(this.f18)
+                + arrayAwareToString(this.f16)
                 + ")";
     }
 
@@ -425,11 +391,11 @@ public class Tuple19<
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Tuple19)) {
+        if (!(o instanceof Tuple17)) {
             return false;
         }
         @SuppressWarnings("rawtypes")
-        Tuple19 tuple = (Tuple19) o;
+        Tuple17 tuple = (Tuple17) o;
         if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
             return false;
         }
@@ -481,12 +447,6 @@ public class Tuple19<
         if (f16 != null ? !f16.equals(tuple.f16) : tuple.f16 != null) {
             return false;
         }
-        if (f17 != null ? !f17.equals(tuple.f17) : tuple.f17 != null) {
-            return false;
-        }
-        if (f18 != null ? !f18.equals(tuple.f18) : tuple.f18 != null) {
-            return false;
-        }
         return true;
     }
 
@@ -509,8 +469,6 @@ public class Tuple19<
         result = 31 * result + (f14 != null ? f14.hashCode() : 0);
         result = 31 * result + (f15 != null ? f15.hashCode() : 0);
         result = 31 * result + (f16 != null ? f16.hashCode() : 0);
-        result = 31 * result + (f17 != null ? f17.hashCode() : 0);
-        result = 31 * result + (f18 != null ? f18.hashCode() : 0);
         return result;
     }
 
@@ -521,31 +479,11 @@ public class Tuple19<
      */
     @Override
     @SuppressWarnings("unchecked")
-    public Tuple19<
-                    T0,
-                    T1,
-                    T2,
-                    T3,
-                    T4,
-                    T5,
-                    T6,
-                    T7,
-                    T8,
-                    T9,
-                    T10,
-                    T11,
-                    T12,
-                    T13,
-                    T14,
-                    T15,
-                    T16,
-                    T17,
-                    T18>
+    public Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>
             copy() {
-        return new Tuple19<>(
+        return new Tuple17<>(
                 this.f0, this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8,
-                this.f9, this.f10, this.f11, this.f12, this.f13, this.f14, this.f15, this.f16,
-                this.f17, this.f18);
+                this.f9, this.f10, this.f11, this.f12, this.f13, this.f14, this.f15, this.f16);
     }
 
     /**
@@ -554,68 +492,26 @@ public class Tuple19<
      * arguments implicitly. For example: {@code Tuple3.of(n, x, s)} instead of {@code new
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
-    public static <
-                    T0,
-                    T1,
-                    T2,
-                    T3,
-                    T4,
-                    T5,
-                    T6,
-                    T7,
-                    T8,
-                    T9,
-                    T10,
-                    T11,
-                    T12,
-                    T13,
-                    T14,
-                    T15,
-                    T16,
-                    T17,
-                    T18>
-            Tuple19<
-                            T0,
-                            T1,
-                            T2,
-                            T3,
-                            T4,
-                            T5,
-                            T6,
-                            T7,
-                            T8,
-                            T9,
-                            T10,
-                            T11,
-                            T12,
-                            T13,
-                            T14,
-                            T15,
-                            T16,
-                            T17,
-                            T18>
-                    of(
-                            T0 f0,
-                            T1 f1,
-                            T2 f2,
-                            T3 f3,
-                            T4 f4,
-                            T5 f5,
-                            T6 f6,
-                            T7 f7,
-                            T8 f8,
-                            T9 f9,
-                            T10 f10,
-                            T11 f11,
-                            T12 f12,
-                            T13 f13,
-                            T14 f14,
-                            T15 f15,
-                            T16 f16,
-                            T17 f17,
-                            T18 f18) {
-        return new Tuple19<>(
-                f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17,
-                f18);
+    public static <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>
+            Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> of(
+                    T0 f0,
+                    T1 f1,
+                    T2 f2,
+                    T3 f3,
+                    T4 f4,
+                    T5 f5,
+                    T6 f6,
+                    T7 f7,
+                    T8 f8,
+                    T9 f9,
+                    T10 f10,
+                    T11 f11,
+                    T12 f12,
+                    T13 f13,
+                    T14 f14,
+                    T15 f15,
+                    T16 f16) {
+        return new Tuple17<>(
+                f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16);
     }
 }

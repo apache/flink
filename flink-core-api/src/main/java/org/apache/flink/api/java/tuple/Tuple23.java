@@ -24,7 +24,6 @@
 package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.util.StringUtils;
 
 /**
  * A tuple with 23 fields. Tuples are strongly typed; each field may be of a separate type. The
@@ -452,51 +451,51 @@ public class Tuple23<
     @Override
     public String toString() {
         return "("
-                + StringUtils.arrayAwareToString(this.f0)
+                + arrayAwareToString(this.f0)
                 + ","
-                + StringUtils.arrayAwareToString(this.f1)
+                + arrayAwareToString(this.f1)
                 + ","
-                + StringUtils.arrayAwareToString(this.f2)
+                + arrayAwareToString(this.f2)
                 + ","
-                + StringUtils.arrayAwareToString(this.f3)
+                + arrayAwareToString(this.f3)
                 + ","
-                + StringUtils.arrayAwareToString(this.f4)
+                + arrayAwareToString(this.f4)
                 + ","
-                + StringUtils.arrayAwareToString(this.f5)
+                + arrayAwareToString(this.f5)
                 + ","
-                + StringUtils.arrayAwareToString(this.f6)
+                + arrayAwareToString(this.f6)
                 + ","
-                + StringUtils.arrayAwareToString(this.f7)
+                + arrayAwareToString(this.f7)
                 + ","
-                + StringUtils.arrayAwareToString(this.f8)
+                + arrayAwareToString(this.f8)
                 + ","
-                + StringUtils.arrayAwareToString(this.f9)
+                + arrayAwareToString(this.f9)
                 + ","
-                + StringUtils.arrayAwareToString(this.f10)
+                + arrayAwareToString(this.f10)
                 + ","
-                + StringUtils.arrayAwareToString(this.f11)
+                + arrayAwareToString(this.f11)
                 + ","
-                + StringUtils.arrayAwareToString(this.f12)
+                + arrayAwareToString(this.f12)
                 + ","
-                + StringUtils.arrayAwareToString(this.f13)
+                + arrayAwareToString(this.f13)
                 + ","
-                + StringUtils.arrayAwareToString(this.f14)
+                + arrayAwareToString(this.f14)
                 + ","
-                + StringUtils.arrayAwareToString(this.f15)
+                + arrayAwareToString(this.f15)
                 + ","
-                + StringUtils.arrayAwareToString(this.f16)
+                + arrayAwareToString(this.f16)
                 + ","
-                + StringUtils.arrayAwareToString(this.f17)
+                + arrayAwareToString(this.f17)
                 + ","
-                + StringUtils.arrayAwareToString(this.f18)
+                + arrayAwareToString(this.f18)
                 + ","
-                + StringUtils.arrayAwareToString(this.f19)
+                + arrayAwareToString(this.f19)
                 + ","
-                + StringUtils.arrayAwareToString(this.f20)
+                + arrayAwareToString(this.f20)
                 + ","
-                + StringUtils.arrayAwareToString(this.f21)
+                + arrayAwareToString(this.f21)
                 + ","
-                + StringUtils.arrayAwareToString(this.f22)
+                + arrayAwareToString(this.f22)
                 + ")";
     }
 

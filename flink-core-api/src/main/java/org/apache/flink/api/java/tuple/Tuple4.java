@@ -24,23 +24,22 @@
 package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.util.StringUtils;
 
 /**
- * A tuple with 9 fields. Tuples are strongly typed; each field may be of a separate type. The
+ * A tuple with 4 fields. Tuples are strongly typed; each field may be of a separate type. The
  * fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
  * through the {@link #getField(int)} method. The tuple field positions start at zero.
  *
  * <p>Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions
  * that work with Tuples to reuse objects in order to reduce pressure on the garbage collector.
  *
- * <p>Warning: If you subclass Tuple9, then be sure to either
+ * <p>Warning: If you subclass Tuple4, then be sure to either
  *
  * <ul>
  *   <li>not add any new fields, or
  *   <li>make it a POJO, and always declare the element type of your DataStreams/DataSets to your
- *       descendant type. (That is, if you have a "class Foo extends Tuple9", then don't use
- *       instances of Foo in a DataStream&lt;Tuple9&gt; / DataSet&lt;Tuple9&gt;, but declare it as
+ *       descendant type. (That is, if you have a "class Foo extends Tuple4", then don't use
+ *       instances of Foo in a DataStream&lt;Tuple4&gt; / DataSet&lt;Tuple4&gt;, but declare it as
  *       DataStream&lt;Foo&gt; / DataSet&lt;Foo&gt;.)
  * </ul>
  *
@@ -49,14 +48,9 @@ import org.apache.flink.util.StringUtils;
  * @param <T1> The type of field 1
  * @param <T2> The type of field 2
  * @param <T3> The type of field 3
- * @param <T4> The type of field 4
- * @param <T5> The type of field 5
- * @param <T6> The type of field 6
- * @param <T7> The type of field 7
- * @param <T8> The type of field 8
  */
 @Public
-public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
+public class Tuple4<T0, T1, T2, T3> extends Tuple {
 
     private static final long serialVersionUID = 1L;
 
@@ -68,19 +62,9 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
     public T2 f2;
     /** Field 3 of the tuple. */
     public T3 f3;
-    /** Field 4 of the tuple. */
-    public T4 f4;
-    /** Field 5 of the tuple. */
-    public T5 f5;
-    /** Field 6 of the tuple. */
-    public T6 f6;
-    /** Field 7 of the tuple. */
-    public T7 f7;
-    /** Field 8 of the tuple. */
-    public T8 f8;
 
     /** Creates a new tuple where all fields are null. */
-    public Tuple9() {}
+    public Tuple4() {}
 
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
@@ -89,27 +73,17 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
      * @param f1 The value for field 1
      * @param f2 The value for field 2
      * @param f3 The value for field 3
-     * @param f4 The value for field 4
-     * @param f5 The value for field 5
-     * @param f6 The value for field 6
-     * @param f7 The value for field 7
-     * @param f8 The value for field 8
      */
-    public Tuple9(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7, T8 f8) {
+    public Tuple4(T0 f0, T1 f1, T2 f2, T3 f3) {
         this.f0 = f0;
         this.f1 = f1;
         this.f2 = f2;
         this.f3 = f3;
-        this.f4 = f4;
-        this.f5 = f5;
-        this.f6 = f6;
-        this.f7 = f7;
-        this.f8 = f8;
     }
 
     @Override
     public int getArity() {
-        return 9;
+        return 4;
     }
 
     @Override
@@ -124,16 +98,6 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
                 return (T) this.f2;
             case 3:
                 return (T) this.f3;
-            case 4:
-                return (T) this.f4;
-            case 5:
-                return (T) this.f5;
-            case 6:
-                return (T) this.f6;
-            case 7:
-                return (T) this.f7;
-            case 8:
-                return (T) this.f8;
             default:
                 throw new IndexOutOfBoundsException(String.valueOf(pos));
         }
@@ -155,21 +119,6 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
             case 3:
                 this.f3 = (T3) value;
                 break;
-            case 4:
-                this.f4 = (T4) value;
-                break;
-            case 5:
-                this.f5 = (T5) value;
-                break;
-            case 6:
-                this.f6 = (T6) value;
-                break;
-            case 7:
-                this.f7 = (T7) value;
-                break;
-            case 8:
-                this.f8 = (T8) value;
-                break;
             default:
                 throw new IndexOutOfBoundsException(String.valueOf(pos));
         }
@@ -182,22 +131,12 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
      * @param f1 The value for field 1
      * @param f2 The value for field 2
      * @param f3 The value for field 3
-     * @param f4 The value for field 4
-     * @param f5 The value for field 5
-     * @param f6 The value for field 6
-     * @param f7 The value for field 7
-     * @param f8 The value for field 8
      */
-    public void setFields(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7, T8 f8) {
+    public void setFields(T0 f0, T1 f1, T2 f2, T3 f3) {
         this.f0 = f0;
         this.f1 = f1;
         this.f2 = f2;
         this.f3 = f3;
-        this.f4 = f4;
-        this.f5 = f5;
-        this.f6 = f6;
-        this.f7 = f7;
-        this.f8 = f8;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -205,32 +144,21 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
     // -------------------------------------------------------------------------------------------------
 
     /**
-     * Creates a string representation of the tuple in the form (f0, f1, f2, f3, f4, f5, f6, f7,
-     * f8), where the individual fields are the value returned by calling {@link Object#toString} on
-     * that field.
+     * Creates a string representation of the tuple in the form (f0, f1, f2, f3), where the
+     * individual fields are the value returned by calling {@link Object#toString} on that field.
      *
      * @return The string representation of the tuple.
      */
     @Override
     public String toString() {
         return "("
-                + StringUtils.arrayAwareToString(this.f0)
+                + arrayAwareToString(this.f0)
                 + ","
-                + StringUtils.arrayAwareToString(this.f1)
+                + arrayAwareToString(this.f1)
                 + ","
-                + StringUtils.arrayAwareToString(this.f2)
+                + arrayAwareToString(this.f2)
                 + ","
-                + StringUtils.arrayAwareToString(this.f3)
-                + ","
-                + StringUtils.arrayAwareToString(this.f4)
-                + ","
-                + StringUtils.arrayAwareToString(this.f5)
-                + ","
-                + StringUtils.arrayAwareToString(this.f6)
-                + ","
-                + StringUtils.arrayAwareToString(this.f7)
-                + ","
-                + StringUtils.arrayAwareToString(this.f8)
+                + arrayAwareToString(this.f3)
                 + ")";
     }
 
@@ -245,11 +173,11 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Tuple9)) {
+        if (!(o instanceof Tuple4)) {
             return false;
         }
         @SuppressWarnings("rawtypes")
-        Tuple9 tuple = (Tuple9) o;
+        Tuple4 tuple = (Tuple4) o;
         if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
             return false;
         }
@@ -262,21 +190,6 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
         if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) {
             return false;
         }
-        if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) {
-            return false;
-        }
-        if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) {
-            return false;
-        }
-        if (f6 != null ? !f6.equals(tuple.f6) : tuple.f6 != null) {
-            return false;
-        }
-        if (f7 != null ? !f7.equals(tuple.f7) : tuple.f7 != null) {
-            return false;
-        }
-        if (f8 != null ? !f8.equals(tuple.f8) : tuple.f8 != null) {
-            return false;
-        }
         return true;
     }
 
@@ -286,11 +199,6 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
         result = 31 * result + (f1 != null ? f1.hashCode() : 0);
         result = 31 * result + (f2 != null ? f2.hashCode() : 0);
         result = 31 * result + (f3 != null ? f3.hashCode() : 0);
-        result = 31 * result + (f4 != null ? f4.hashCode() : 0);
-        result = 31 * result + (f5 != null ? f5.hashCode() : 0);
-        result = 31 * result + (f6 != null ? f6.hashCode() : 0);
-        result = 31 * result + (f7 != null ? f7.hashCode() : 0);
-        result = 31 * result + (f8 != null ? f8.hashCode() : 0);
         return result;
     }
 
@@ -301,9 +209,8 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
      */
     @Override
     @SuppressWarnings("unchecked")
-    public Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> copy() {
-        return new Tuple9<>(
-                this.f0, this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8);
+    public Tuple4<T0, T1, T2, T3> copy() {
+        return new Tuple4<>(this.f0, this.f1, this.f2, this.f3);
     }
 
     /**
@@ -312,9 +219,7 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
      * arguments implicitly. For example: {@code Tuple3.of(n, x, s)} instead of {@code new
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
-    public static <T0, T1, T2, T3, T4, T5, T6, T7, T8>
-            Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> of(
-                    T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7, T8 f8) {
-        return new Tuple9<>(f0, f1, f2, f3, f4, f5, f6, f7, f8);
+    public static <T0, T1, T2, T3> Tuple4<T0, T1, T2, T3> of(T0 f0, T1 f1, T2 f2, T3 f3) {
+        return new Tuple4<>(f0, f1, f2, f3);
     }
 }
