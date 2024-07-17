@@ -32,6 +32,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -45,6 +46,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.RocksDB;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.nio.file.Path;
@@ -84,6 +86,12 @@ public class ForStDBOperationTestBase {
                     @Nullable State state, StateRequestType type, @Nullable IN payload) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public <N> void setCurrentNamespaceForState(
+                    @Nonnull InternalPartitionedState<N> state, N namespace) {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 
@@ -94,7 +102,7 @@ public class ForStDBOperationTestBase {
         return new ContextKey<>(recordContext);
     }
 
-    protected ForStValueState<Integer, String> buildForStValueState(String stateName)
+    protected ForStValueState<Integer, Void, String> buildForStValueState(String stateName)
             throws Exception {
         ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
         ValueStateDescriptor<String> valueStateDescriptor =

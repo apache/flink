@@ -33,7 +33,7 @@ public class InternalReducingStateTest extends InternalKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
-        InternalReducingState<String, Integer> reducingState =
+        InternalReducingState<String, Void, Integer> reducingState =
                 new InternalReducingState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 

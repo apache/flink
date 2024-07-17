@@ -34,8 +34,10 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
     public void testValueStateWriteBatch() throws Exception {
-        ForStValueState<Integer, String> valueState1 = buildForStValueState("test-write-batch-1");
-        ForStValueState<Integer, String> valueState2 = buildForStValueState("test-write-batch-2");
+        ForStValueState<Integer, Void, String> valueState1 =
+                buildForStValueState("test-write-batch-1");
+        ForStValueState<Integer, Void, String> valueState2 =
+                buildForStValueState("test-write-batch-2");
         List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
         int keyNum = 100;
         for (int i = 0; i < keyNum; i++) {
@@ -62,7 +64,8 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
     public void testWriteBatchWithNullValue() throws Exception {
-        ForStValueState<Integer, String> valueState = buildForStValueState("test-write-batch");
+        ForStValueState<Integer, Void, String> valueState =
+                buildForStValueState("test-write-batch");
         List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
         // 1. write some data without null value
         int keyNum = 100;

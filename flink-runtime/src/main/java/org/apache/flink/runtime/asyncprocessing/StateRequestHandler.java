@@ -21,7 +21,9 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** The handler which can process {@link StateRequest}. */
@@ -39,4 +41,10 @@ public interface StateRequestHandler {
      */
     <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload);
+
+    /**
+     * Set current namespace for a state. See {@link
+     * InternalPartitionedState#setCurrentNamespace(Object)}.
+     */
+    <N> void setCurrentNamespaceForState(@Nonnull InternalPartitionedState<N> state, N namespace);
 }

@@ -30,7 +30,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalValueState<K, V> extends InternalKeyedState<K, V> implements ValueState<V> {
+public class InternalValueState<K, N, V> extends InternalKeyedState<K, N, V>
+        implements ValueState<V> {
 
     public InternalValueState(
             StateRequestHandler stateRequestHandler, ValueStateDescriptor<V> valueStateDescriptor) {

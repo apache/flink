@@ -30,7 +30,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalReducingState<K, V> extends InternalKeyedState<K, V>
+public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
         implements ReducingState<V> {
 
     protected final ReduceFunction<V> reduceFunction;
