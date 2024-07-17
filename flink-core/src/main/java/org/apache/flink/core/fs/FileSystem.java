@@ -223,7 +223,7 @@ public abstract class FileSystem implements IFileSystem {
      * This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and {@link
      * #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races.
      */
-    private static ReentrantLock outputDirectoryInitLock = new ReentrantLock(true);
+    private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
 
     /** Object used to protect calls to specific methods. */
     private static final ReentrantLock LOCK = new ReentrantLock(true);
@@ -709,7 +709,7 @@ public abstract class FileSystem implements IFileSystem {
         // we acquire the lock interruptibly here, to make sure that concurrent threads waiting
         // here can cancel faster
         try {
-            outputDirectoryInitLock.lockInterruptibly();
+            OUTPUT_DIRECTORY_INIT_LOCK.lockInterruptibly();
         } catch (InterruptedException e) {
             // restore the interruption state
             Thread.currentThread().interrupt();
@@ -802,7 +802,7 @@ public abstract class FileSystem implements IFileSystem {
                 return !exists(outPath);
             }
         } finally {
-            outputDirectoryInitLock.unlock();
+            OUTPUT_DIRECTORY_INIT_LOCK.unlock();
         }
     }
 
@@ -822,7 +822,7 @@ public abstract class FileSystem implements IFileSystem {
         // we acquire the lock interruptibly here, to make sure that concurrent threads waiting
         // here can cancel faster
         try {
-            outputDirectoryInitLock.lockInterruptibly();
+            OUTPUT_DIRECTORY_INIT_LOCK.lockInterruptibly();
         } catch (InterruptedException e) {
             // restore the interruption state
             Thread.currentThread().interrupt();
@@ -883,7 +883,7 @@ public abstract class FileSystem implements IFileSystem {
                 return !exists(outPath);
             }
         } finally {
-            outputDirectoryInitLock.unlock();
+            OUTPUT_DIRECTORY_INIT_LOCK.unlock();
         }
     }
 
