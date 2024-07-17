@@ -32,7 +32,8 @@ import java.util.List;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalListState<K, V> extends InternalKeyedState<K, V> implements ListState<V> {
+public class InternalListState<K, N, V> extends InternalKeyedState<K, N, V>
+        implements ListState<V> {
 
     public InternalListState(
             StateRequestHandler stateRequestHandler, ListStateDescriptor<V> stateDescriptor) {

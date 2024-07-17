@@ -37,7 +37,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <V> The type of values kept internally in state.
  */
 @Internal
-public abstract class InternalKeyedState<K, V> implements State {
+public abstract class InternalKeyedState<K, N, V> implements InternalPartitionedState<N> {
 
     private final StateRequestHandler stateRequestHandler;
 
@@ -62,6 +62,11 @@ public abstract class InternalKeyedState<K, V> implements State {
     protected final <IN, OUT> StateFuture<OUT> handleRequest(
             StateRequestType stateRequestType, IN payload) {
         return stateRequestHandler.handleRequest(this, stateRequestType, payload);
+    }
+
+    @Override
+    public void setCurrentNamespace(N namespace) {
+        stateRequestHandler.setCurrentNamespaceForState(this, namespace);
     }
 
     @Override

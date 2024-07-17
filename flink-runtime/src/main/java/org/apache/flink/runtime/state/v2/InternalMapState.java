@@ -34,7 +34,7 @@ import java.util.Map;
  * @param <UK> The type of user key of this state.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalMapState<K, UK, V> extends InternalKeyedState<K, V>
+public class InternalMapState<K, N, UK, V> extends InternalKeyedState<K, N, V>
         implements MapState<UK, V> {
 
     public InternalMapState(

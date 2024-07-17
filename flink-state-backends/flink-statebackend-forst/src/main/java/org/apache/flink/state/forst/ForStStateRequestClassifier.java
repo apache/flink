@@ -56,23 +56,23 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         switch (stateRequestType) {
             case VALUE_GET:
                 {
-                    ForStValueState<?, ?> forStValueState =
-                            (ForStValueState<?, ?>) stateRequest.getState();
+                    ForStValueState<?, ?, ?> forStValueState =
+                            (ForStValueState<?, ?, ?>) stateRequest.getState();
                     dbGetRequests.add(forStValueState.buildDBGetRequest(stateRequest));
                     return;
                 }
             case VALUE_UPDATE:
                 {
-                    ForStValueState<?, ?> forStValueState =
-                            (ForStValueState<?, ?>) stateRequest.getState();
+                    ForStValueState<?, ?, ?> forStValueState =
+                            (ForStValueState<?, ?, ?>) stateRequest.getState();
                     dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
                     return;
                 }
             case CLEAR:
                 {
                     if (stateRequest.getState() instanceof ForStValueState) {
-                        ForStValueState<?, ?> forStValueState =
-                                (ForStValueState<?, ?>) stateRequest.getState();
+                        ForStValueState<?, ?, ?> forStValueState =
+                                (ForStValueState<?, ?, ?>) stateRequest.getState();
                         dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
                         return;
                     } else {

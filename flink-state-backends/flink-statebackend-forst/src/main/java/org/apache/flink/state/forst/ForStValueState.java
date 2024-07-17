@@ -42,7 +42,7 @@ import java.util.function.Supplier;
  * @param <K> The type of the key.
  * @param <V> The type of the value.
  */
-public class ForStValueState<K, V> extends InternalValueState<K, V>
+public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
         implements ValueState<V>, ForStInnerTable<ContextKey<K>, V> {
 
     /** The column family which this internal value state belongs to. */
