@@ -29,7 +29,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-/** Type strategy specific for avoiding nulls. */
+/**
+ * Type strategy specific for avoiding nulls. <br>
+ * If arg0 is non-nullable, output datatype is exactly the datatype of arg0. Otherwise, output
+ * datatype is the common type of arg0 and arg1. In the second case, output type is nullable only if
+ * both args are nullable.
+ */
 @Internal
 class IfNullTypeStrategy implements TypeStrategy {
 
@@ -38,6 +43,7 @@ class IfNullTypeStrategy implements TypeStrategy {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
         final DataType inputDataType = argumentDataTypes.get(0);
         final DataType nullReplacementDataType = argumentDataTypes.get(1);
+
         if (!inputDataType.getLogicalType().isNullable()) {
             return Optional.of(inputDataType);
         }
