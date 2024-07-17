@@ -22,7 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +42,15 @@ class IfNullTypeStrategy implements TypeStrategy {
             return Optional.of(inputDataType);
         }
 
-        return Optional.of(nullReplacementDataType);
+        return LogicalTypeMerging.findCommonType(
+                        Arrays.asList(
+                                inputDataType.getLogicalType(),
+                                nullReplacementDataType.getLogicalType()))
+                .map(
+                        commonType ->
+                                nullReplacementDataType.getLogicalType().isNullable()
+                                        ? commonType
+                                        : commonType.copy(false))
+                .map(TypeConversions::fromLogicalToDataType);
     }
 }
