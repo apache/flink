@@ -634,6 +634,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testJsonUnquoteWithValidInput(): Unit = {
+    testSqlApi("JSON_UNQUOTE('\"\\\\u00aa\"')", "\\u00aa")
+    testSqlApi("JSON_UNQUOTE('\"\\u00aa\"')", "\u00aa")
+    testSqlApi("JSON_UNQUOTE('\"\\u00aa\"')", "ª")
     testSqlApi("JSON_UNQUOTE('\"abc\"')", "abc")
     testSqlApi("JSON_UNQUOTE('\"[abc]\"')", "[abc]")
     testSqlApi("JSON_UNQUOTE('\"[\\u0041]\"')", "[A]")
