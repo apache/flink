@@ -612,6 +612,32 @@ env.execute()
 {{< /tab >}}
 {{< /tabs>}}
 
+### Full Window Partition
+#### DataStream &rarr; PartitionWindowedStream
+
+将所有的数据记录收集到一个Window中，然后在输入数据流结束时按 partition 进行处理。本方法特别适用于批处理场景。
+对于非 Keyed DataStream，一个 partition 包含一个并行子任务的所有数据记录。
+对于 Keyed DataStream，一个 partition 包含所有具有相同 key 的数据记录。
+
+```java
+DataStream<Integer> dataStream = //...
+PartitionWindowedStream<Integer> partitionWindowedDataStream = dataStream.fullWindowPartition();
+// do full window partition processing with PartitionWindowedStream
+DataStream<Integer> resultStream = partitionWindowedDataStream.mapPartition(
+    new MapPartitionFunction<Integer, Integer>() {
+        @Override
+        public void mapPartition(
+                Iterable<Integer> values, Collector<Integer> out) {
+            int result = 0;
+            for (Integer value : values) {
+                result += value;
+            }
+            out.collect(result);
+        }
+    }
+);
+```
+
 ## 物理分区
 
 Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。
