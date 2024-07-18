@@ -2079,8 +2079,6 @@ components:
     ExecutionConfigInfo:
       type: object
       properties:
-        execution-mode:
-          type: string
         job-parallelism:
           type: integer
           format: int32
