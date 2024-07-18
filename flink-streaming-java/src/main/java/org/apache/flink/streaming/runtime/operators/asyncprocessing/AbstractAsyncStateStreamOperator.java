@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -173,6 +175,13 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                 String.format(
                         "Unsupported operator type %s with input id %d",
                         getClass().getName(), inputId));
+    }
+
+    /** Create new state (v2) based on new state descriptor. */
+    protected <N, S extends State, T> S getOrCreateKeyedState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<T> stateDescriptor)
+            throws Exception {
+        return stateHandler.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
     }
 
     @Override
