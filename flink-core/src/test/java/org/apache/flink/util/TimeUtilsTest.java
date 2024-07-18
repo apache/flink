@@ -40,6 +40,8 @@ class TimeUtilsTest {
         assertThat(TimeUtils.parseDuration("424562nanosecond").getNano()).isEqualTo(424562);
         assertThat(TimeUtils.parseDuration("424562nanoseconds").getNano()).isEqualTo(424562);
         assertThat(TimeUtils.parseDuration("424562 ns").getNano()).isEqualTo(424562);
+        assertThat(TimeUtils.parseDuration("9223372036854775807000001 ns"))
+                .isEqualByComparingTo(Duration.ofMillis(9223372036854775807L).plusNanos(1));
     }
 
     @Test

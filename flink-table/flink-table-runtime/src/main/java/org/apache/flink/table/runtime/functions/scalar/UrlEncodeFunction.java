@@ -23,9 +23,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.io.UnsupportedEncodingException;
@@ -36,7 +33,6 @@ import java.nio.charset.StandardCharsets;
 /** Implementation of {@link BuiltInFunctionDefinitions#URL_ENCODE}. */
 @Internal
 public class UrlEncodeFunction extends BuiltInScalarFunction {
-    private static final Logger LOG = LoggerFactory.getLogger(UrlEncodeFunction.class);
 
     public UrlEncodeFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.URL_ENCODE, context);
@@ -50,11 +46,6 @@ public class UrlEncodeFunction extends BuiltInScalarFunction {
         try {
             return StringData.fromString(URLEncoder.encode(url.toString(), charset.name()));
         } catch (UnsupportedEncodingException e) {
-            LOG.error(
-                    "Failed to encode the input: {} with charset: {}, and the exception details: ",
-                    url,
-                    charset.name(),
-                    e);
             return null;
         }
     }

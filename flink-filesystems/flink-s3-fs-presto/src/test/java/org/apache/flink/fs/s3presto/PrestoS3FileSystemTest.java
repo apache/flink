@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3presto;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.fs.s3.common.token.DynamicTemporaryAWSCredentialsProvider;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
@@ -46,8 +47,9 @@ public class PrestoS3FileSystemTest {
     @Test
     public void testConfigPropagation() throws Exception {
         final Configuration conf = new Configuration();
-        conf.setString("s3.access-key", "test_access_key_id");
-        conf.setString("s3.secret-key", "test_secret_access_key");
+
+        conf.set(AbstractS3FileSystemFactory.ACCESS_KEY, "test_access_key_id");
+        conf.set(AbstractS3FileSystemFactory.SECRET_KEY, "test_secret_access_key");
 
         FileSystem.initialize(conf);
 
