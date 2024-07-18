@@ -305,10 +305,10 @@ arithmetic:
       例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。\
   - sql: shiftleft(integer1,integer2)
     table: INTEGER1.shiftleft(INTEGER2)
-    description: Returns the result of shifting integer1 to the left by integer2 positions. This is equivalent to multiplying integer1 by 2 raised to the power of integer2. Returns NULL if integer1 or integer2 is NULL. If integer2 is 0, the result is integer1 unchanged. E.g. 5.shiftleft(2) results in 20.
+    description: 返回将 integer1 向左移动 integer2 个位置的结果。这相当于将 integer1 乘以 2 的 integer2 次幂。如果 integer1 或 integer2 为 NULL，则返回 NULL。如果 integer2 为 0，则结​​果为 integer1 不变。如果 integer2 为负数，则执行右移。例如，5.shiftleft(2) 的结果为 20。
   - sql: shiftright(integer1,integer2)
     table: INTEGER1.shiftright(INTEGER2)
-    description: Returns the result of shifting integer1 to the right by integer2 positions. This is equivalent to dividing integer1 by 2 raised to the power of integer2 and discarding any remainder. Returns NULL if integer1 or integer2 is NULL. E.g. 20.shiftright(2) results in 5.
+    description: 返回将 integer1 向右移动 integer2 个位置的结果。这相当于将 integer1 除以 2 的 integer2 次幂并丢弃余数。如果 integer1 或 integer2 为 NULL，则返回 NULL。如果 integer2 为负数，则执行左移。例如，20.shiftright(2) 的结果为 5。
 
 string:
   - sql: string1 || string2

@@ -243,10 +243,10 @@ arithmetic:
     description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
   - sql: shiftleft(integer1,integer2)
     table: INTEGER1.shiftleft(INTEGER2)
-    description: Returns the result of shifting integer1 to the left by integer2 positions. This is equivalent to multiplying integer1 by 2 raised to the power of integer2. Returns NULL if integer1 or integer2 is NULL. If integer2 is 0, the result is integer1 unchanged. E.g. 5.shiftleft(2) results in 20.
+    description: Returns the result of shifting integer1 to the left by integer2 positions. This is equivalent to multiplying integer1 by 2 raised to the power of integer2. Returns NULL if integer1 or integer2 is NULL. If integer2 is 0, the result is integer1 unchanged. If integer2 is negative, then a shiftright is performed. E.g. 5.shiftleft(2) results in 20.
   - sql: shiftright(integer1,integer2)
     table: INTEGER1.shiftright(INTEGER2)
-    description: Returns the result of shifting integer1 to the right by integer2 positions. This is equivalent to dividing integer1 by 2 raised to the power of integer2 and discarding any remainder. Returns NULL if integer1 or integer2 is NULL. E.g. 20.shiftright(2) results in 5.
+    description: Returns the result of shifting integer1 to the right by integer2 positions. This is equivalent to dividing integer1 by 2 raised to the power of integer2 and discarding any remainder. Returns NULL if integer1 or integer2 is NULL. If integer2 is negative, then a shiftleft is performed. E.g. 20.shiftright(2) results in 5.
 string:
   - sql: string1 || string2
     table: STRING1 + STRING2

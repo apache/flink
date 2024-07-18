@@ -38,6 +38,9 @@ public class BitRightShiftFunction extends BuiltInScalarFunction {
         }
         Number operandNumber = (Number) operand;
         Number shiftBitsNumber = (Number) shiftBits;
+        if (shiftBitsNumber.longValue()<0L){
+            return operandNumber.longValue() << -shiftBitsNumber.longValue();
+        }
         return operandNumber.longValue() >> shiftBitsNumber.longValue();
     }
 }
