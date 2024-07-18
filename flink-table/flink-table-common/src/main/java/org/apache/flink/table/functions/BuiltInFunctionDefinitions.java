@@ -1816,8 +1816,8 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
-                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
-                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC, true),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC, true)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BIGINT())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.BitLeftShiftFunction")
@@ -1829,9 +1829,9 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
-                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
-                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BIGINT())))
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC, true),
+                                    logical(LogicalTypeFamily.INTEGER_NUMERIC, true)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BIGINT().nullable())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.BitRightShiftFunction")
                     .build();
