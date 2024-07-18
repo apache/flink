@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+
 import org.junit.jupiter.api.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {

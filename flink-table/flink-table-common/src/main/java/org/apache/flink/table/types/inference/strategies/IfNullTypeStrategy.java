@@ -52,11 +52,7 @@ class IfNullTypeStrategy implements TypeStrategy {
                         Arrays.asList(
                                 inputDataType.getLogicalType(),
                                 nullReplacementDataType.getLogicalType()))
-                .map(
-                        commonType ->
-                                nullReplacementDataType.getLogicalType().isNullable()
-                                        ? commonType
-                                        : commonType.copy(false))
+                .map(t -> t.copy(nullReplacementDataType.getLogicalType().isNullable()))
                 .map(TypeConversions::fromLogicalToDataType);
     }
 }
