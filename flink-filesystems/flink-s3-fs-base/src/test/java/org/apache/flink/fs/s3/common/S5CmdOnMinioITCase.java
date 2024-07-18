@@ -258,7 +258,8 @@ public abstract class S5CmdOnMinioITCase {
         }
     }
 
-    private static class Record {
+    /** Test record. */
+    public static class Record {
 
         public Record() {
             this(0, 0);
