@@ -38,7 +38,7 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
                 buildForStValueState("test-multiGet-1");
         ForStValueState<Integer, Void, String> valueState2 =
                 buildForStValueState("test-multiGet-2");
-        List<ForStDBGetRequest<?, ?>> batchGetRequest = new ArrayList<>();
+        List<ForStDBGetRequest<?, ?, ?>> batchGetRequest = new ArrayList<>();
         List<Tuple2<String, TestStateFuture<String>>> resultCheckList = new ArrayList<>();
 
         int keyNum = 1000;
@@ -46,7 +46,7 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
             TestStateFuture<String> future = new TestStateFuture<>();
             ForStValueState<Integer, Void, String> table =
                     ((i % 2 == 0) ? valueState1 : valueState2);
-            ForStDBGetRequest<ContextKey<Integer>, String> request =
+            ForStDBGetRequest<Integer, Void, String> request =
                     ForStDBGetRequest.of(buildContextKey(i), table, future);
             batchGetRequest.add(request);
 
