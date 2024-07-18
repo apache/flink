@@ -110,4 +110,8 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
     public int hashCode() {
         return Objects.hash(rowType, resultTypeInfo, formatConfig);
     }
+
+    public ProtoToRowConverter getProtoToRowConverter() {
+        return protoToRowConverter;
+    }
 }
