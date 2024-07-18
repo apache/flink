@@ -367,6 +367,22 @@ public class StreamOperatorStateHandler {
         }
     }
 
+    /** Create new state (v2) based on new state descriptor. */
+    public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
+            TypeSerializer<N> namespaceSerializer,
+            org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
+            throws Exception {
+
+        if (asyncKeyedStateBackend != null) {
+            return asyncKeyedStateBackend.createState(namespaceSerializer, stateDescriptor);
+        } else {
+            throw new IllegalStateException(
+                    "Cannot create partitioned state. "
+                            + "The keyed state backend has not been set."
+                            + "This indicates that the operator is not partitioned/keyed.");
+        }
+    }
+
     /**
      * Creates a partitioned state handle, using the state backend configured for this task.
      *
