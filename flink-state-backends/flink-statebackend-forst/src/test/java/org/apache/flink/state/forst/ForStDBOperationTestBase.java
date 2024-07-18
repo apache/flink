@@ -32,6 +32,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -56,9 +57,12 @@ public class ForStDBOperationTestBase {
     @TempDir private Path tmpDbDir;
     protected RocksDB db;
 
+    protected StateRequestHandler stateRequestHandler;
+
     @BeforeEach
     public void setUp() throws Exception {
         db = RocksDB.open(tmpDbDir.toAbsolutePath().toString());
+        stateRequestHandler = buildMockStateRequestHandler();
     }
 
     @AfterEach
@@ -87,7 +91,7 @@ public class ForStDBOperationTestBase {
         };
     }
 
-    protected ContextKey<Integer> buildContextKey(int i) {
+    protected static ContextKey<Integer> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
                 new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
@@ -105,12 +109,36 @@ public class ForStDBOperationTestBase {
         Supplier<DataInputDeserializer> valueDeserializerView =
                 () -> new DataInputDeserializer(new byte[128]);
         return new ForStValueState<>(
-                buildMockStateRequestHandler(),
+                stateRequestHandler,
                 cf,
                 valueStateDescriptor,
                 serializedKeyBuilder,
                 valueSerializerView,
                 valueDeserializerView);
+    }
+
+    protected ForStMapState<Integer, String, String> buildForStMapState(String stateName)
+            throws Exception {
+        ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
+        MapStateDescriptor<String, String> mapStateDescriptor =
+                new MapStateDescriptor<>(
+                        stateName, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+        Supplier<SerializedCompositeKeyBuilder<Integer>> serializedKeyBuilder =
+                () -> new SerializedCompositeKeyBuilder<>(IntSerializer.INSTANCE, 2, 32);
+        Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);
+        Supplier<DataInputDeserializer> keyDeserializerView =
+                () -> new DataInputDeserializer(new byte[128]);
+        Supplier<DataInputDeserializer> valueDeserializerView =
+                () -> new DataInputDeserializer(new byte[128]);
+        return new ForStMapState<>(
+                stateRequestHandler,
+                cf,
+                mapStateDescriptor,
+                serializedKeyBuilder,
+                valueSerializerView,
+                keyDeserializerView,
+                valueDeserializerView,
+                1);
     }
 
     static class TestStateFuture<T> implements InternalStateFuture<T> {
