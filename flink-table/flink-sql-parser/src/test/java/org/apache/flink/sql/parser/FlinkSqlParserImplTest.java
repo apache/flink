@@ -2853,23 +2853,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableAsSelectWithExplicitColumns() {
         sql("CREATE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithWatermark() {
-        sql("CREATE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+        sql("CREATE TABLE t (watermark FOR col1 AS col1 - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithConstraints() {
+        sql("CREATE TABLE t (PRIMARY KEY (col1) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
         sql("CREATE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
@@ -2888,19 +2885,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableAsSelectWithDistribution() {
         sql("CREATE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithPartitionKey() {
         sql("CREATE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
@@ -3279,6 +3270,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     private static class ValidationMatcher extends BaseMatcher<SqlNode> {
         private String expectedColumnSql;
         private String failMsg;
+        private boolean ok;
 
         public ValidationMatcher expectColumnSql(String s) {
             this.expectedColumnSql = s;
@@ -3287,6 +3279,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         public ValidationMatcher fails(String failMsg) {
             this.failMsg = failMsg;
+            this.ok = false;
+            return this;
+        }
+
+        public ValidationMatcher ok() {
+            this.failMsg = null;
+            this.ok = true;
             return this;
         }
 
@@ -3299,7 +3298,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         public boolean matches(Object item) {
             if (item instanceof ExtendedSqlNode) {
                 ExtendedSqlNode createTable = (ExtendedSqlNode) item;
-                if (failMsg != null) {
+
+                if (ok) {
+                    try {
+                        createTable.validate();
+                    } catch (SqlValidateException e) {
+                        fail("unexpected exception", e);
+                    }
+                } else if (failMsg != null) {
                     try {
                         createTable.validate();
                         fail("expected exception");
@@ -3307,6 +3313,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         assertThat(e).hasMessage(failMsg);
                     }
                 }
+
                 if (expectedColumnSql != null && item instanceof SqlCreateTable) {
                     assertThat(((SqlCreateTable) createTable).getColumnSqlString())
                             .isEqualTo(expectedColumnSql);

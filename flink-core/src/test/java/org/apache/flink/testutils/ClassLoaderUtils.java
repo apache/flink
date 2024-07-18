@@ -260,8 +260,7 @@ public class ClassLoaderUtils {
     public static ObjectAndClassLoader<Serializable> createSerializableObjectFromNewClassLoader() {
 
         final String classSource =
-                ""
-                        + "import java.io.Serializable;"
+                "import java.io.Serializable;"
                         + "import java.util.Random;"
                         + "public class TestSerializable implements Serializable {"
                         + "  private static final long serialVersionUID = -3L;"

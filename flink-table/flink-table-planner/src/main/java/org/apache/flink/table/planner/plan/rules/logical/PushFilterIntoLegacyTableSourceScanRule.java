@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.sources.FilterableTableSource;
 import org.apache.flink.table.sources.TableSource;
 
@@ -46,7 +45,6 @@ import org.immutables.value.Value;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import scala.Tuple2;
@@ -120,9 +118,7 @@ public class PushFilterIntoLegacyTableSourceScanRule
                         filter.getInput().getRowType().getFieldNames(),
                         relBuilder.getRexBuilder(),
                         context.getFunctionCatalog(),
-                        context.getCatalogManager(),
-                        TimeZone.getTimeZone(
-                                TableConfigUtils.getLocalTimeZone(unwrapTableConfig(scan))));
+                        context.getCatalogManager());
 
         Expression[] predicates = extracted._1;
         RexNode[] unconvertedRexNodes = extracted._2;

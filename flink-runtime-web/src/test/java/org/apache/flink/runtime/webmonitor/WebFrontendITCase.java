@@ -355,7 +355,7 @@ class WebFrontendITCase {
                             "{\"jid\":\""
                                     + jid
                                     + "\",\"name\":\"Stoppable streaming test job\","
-                                    + "\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\","
+                                    + "\"execution-config\":{\"restart-strategy\":\"Cluster level default restart strategy\","
                                     + "\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}");
         }
 

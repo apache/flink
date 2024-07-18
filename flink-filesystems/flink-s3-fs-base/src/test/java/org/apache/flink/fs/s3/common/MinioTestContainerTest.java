@@ -93,8 +93,8 @@ public class MinioTestContainerTest {
 
         assertThat(config.containsKey("s3.endpoint")).isTrue();
         assertThat(config.containsKey("s3.path.style.access")).isTrue();
-        assertThat(config.containsKey("s3.access.key")).isTrue();
-        assertThat(config.containsKey("s3.secret.key")).isTrue();
+        assertThat(config.containsKey("s3.access-key")).isTrue();
+        assertThat(config.containsKey("s3.secret-key")).isTrue();
     }
 
     @Test

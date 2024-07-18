@@ -80,7 +80,7 @@ class MailboxOperatorTest {
             int numRecords, StreamTaskMailboxTestHarness<Integer> testHarness, int priority) {
         final MailboxExecutor mailboxExecutor = testHarness.getExecutor(priority);
         final ReplicatingMail mail1 = new ReplicatingMail(mailboxExecutor, numRecords + 1);
-        mailboxExecutor.submit(mail1, "Initial mail");
+        mailboxExecutor.execute(mail1, "Initial mail");
         return mail1;
     }
 

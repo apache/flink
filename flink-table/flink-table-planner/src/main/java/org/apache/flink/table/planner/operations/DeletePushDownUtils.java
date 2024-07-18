@@ -38,7 +38,6 @@ import org.apache.flink.table.planner.plan.rules.logical.SimplifyFilterCondition
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -56,7 +55,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import scala.Option;
@@ -229,9 +227,7 @@ public class DeletePushDownUtils {
                         filter.getCluster().getRexBuilder(),
                         filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
                         context.getFunctionCatalog(),
-                        context.getCatalogManager(),
-                        TimeZone.getTimeZone(
-                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+                        context.getCatalogManager());
         List<Expression> filters =
                 Arrays.stream(convertiblePredicates)
                         .map(

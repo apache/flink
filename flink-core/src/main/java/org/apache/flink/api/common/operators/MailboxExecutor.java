@@ -191,6 +191,10 @@ public interface MailboxExecutor {
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
      *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
+     *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
      * using {@link java.util.Formatter} syntax. The actual description is only formatted on demand.
@@ -217,6 +221,10 @@ public interface MailboxExecutor {
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
      *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
+     *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
      * using {@link java.util.Formatter} syntax. The actual description is only formatted on demand.
@@ -239,6 +247,10 @@ public interface MailboxExecutor {
      * Submits the given command for execution in the future in the mailbox thread and returns a
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
+     *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
      *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
@@ -263,6 +275,10 @@ public interface MailboxExecutor {
      * Submits the given command for execution in the future in the mailbox thread and returns a
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
+     *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
      *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments

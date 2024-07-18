@@ -43,7 +43,11 @@ class TimeUtilsPrettyPrintingTest {
                 Arguments.of(Duration.ofHours(23), "23 h"),
                 Arguments.of(Duration.ofMillis(-1), "-1 ms"),
                 Arguments.of(Duration.ofMillis(TimeUnit.DAYS.toMillis(1)), "1 d"),
-                Arguments.of(Duration.ofHours(24), "1 d"));
+                Arguments.of(Duration.ofHours(24), "1 d"),
+                Arguments.of(Duration.ofMillis(9223372036854775807L), "9223372036854775807 ms"),
+                Arguments.of(
+                        Duration.ofMillis(9223372036854775807L).plusNanos(1),
+                        "9223372036854775807000001 ns"));
     }
 
     @ParameterizedTest
