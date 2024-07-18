@@ -34,7 +34,7 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
 
     private final RocksDB db;
 
-    private final List<ForStDBPutRequest<?, ?>> batchRequest;
+    private final List<ForStDBPutRequest<?, ?, ?>> batchRequest;
 
     private final WriteOptions writeOptions;
 
@@ -42,7 +42,7 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
 
     ForStWriteBatchOperation(
             RocksDB db,
-            List<ForStDBPutRequest<?, ?>> batchRequest,
+            List<ForStDBPutRequest<?, ?, ?>> batchRequest,
             WriteOptions writeOptions,
             Executor executor) {
         this.db = db;
@@ -57,7 +57,7 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
                 () -> {
                     try (WriteBatch writeBatch =
                             new WriteBatch(batchRequest.size() * PER_RECORD_ESTIMATE_BYTES)) {
-                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                        for (ForStDBPutRequest<?, ?, ?> request : batchRequest) {
                             if (request.valueIsNull()) {
                                 // put(key, null) == delete(key)
                                 writeBatch.delete(
@@ -71,12 +71,12 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
                             }
                         }
                         db.write(writeOptions, writeBatch);
-                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                        for (ForStDBPutRequest<?, ?, ?> request : batchRequest) {
                             request.completeStateFuture();
                         }
                     } catch (Exception e) {
                         String msg = "Error while write batch data to ForStDB.";
-                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                        for (ForStDBPutRequest<?, ?, ?> request : batchRequest) {
                             // fail every state request in this batch
                             request.completeStateFutureExceptionally(msg, e);
                         }

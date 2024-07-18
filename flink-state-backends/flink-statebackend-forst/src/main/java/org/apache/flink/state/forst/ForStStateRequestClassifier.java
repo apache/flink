@@ -31,9 +31,9 @@ import java.util.List;
  */
 public class ForStStateRequestClassifier implements StateRequestContainer {
 
-    private final List<ForStDBGetRequest<?, ?>> dbGetRequests;
+    private final List<ForStDBGetRequest<?, ?, ?>> dbGetRequests;
 
-    private final List<ForStDBPutRequest<?, ?>> dbPutRequests;
+    private final List<ForStDBPutRequest<?, ?, ?>> dbPutRequests;
 
     public ForStStateRequestClassifier() {
         this.dbGetRequests = new ArrayList<>();
@@ -88,11 +88,11 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         }
     }
 
-    public List<ForStDBGetRequest<?, ?>> pollDbGetRequests() {
+    public List<ForStDBGetRequest<?, ?, ?>> pollDbGetRequests() {
         return dbGetRequests;
     }
 
-    public List<ForStDBPutRequest<?, ?>> pollDbPutRequests() {
+    public List<ForStDBPutRequest<?, ?, ?>> pollDbPutRequests() {
         return dbPutRequests;
     }
 }

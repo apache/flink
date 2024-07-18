@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -95,7 +96,7 @@ public class ForStDBOperationTestBase {
         };
     }
 
-    protected ContextKey<Integer> buildContextKey(int i) {
+    protected ContextKey<Integer, Void> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
                 new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
@@ -117,6 +118,7 @@ public class ForStDBOperationTestBase {
                 cf,
                 valueStateDescriptor,
                 serializedKeyBuilder,
+                () -> VoidSerializer.INSTANCE,
                 valueSerializerView,
                 valueDeserializerView);
     }
