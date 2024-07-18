@@ -159,7 +159,7 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").shiftleft($("f1")),
                                 "shiftleft (f0, f1)",
-                                Long.valueOf("4"),
+                                Long.valueOf("0"),
                                 DataTypes.BIGINT().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
                         .onFieldsWithData(Long.valueOf("123456"), Long.valueOf("2"))
@@ -173,7 +173,7 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").shiftright(-10L),
                                 "shiftright (f0, -10)",
-                                Long.valueOf("1250623624192"),
+                                Long.valueOf("0"),
                                 DataTypes.BIGINT().notNull()));
     }
 }

@@ -303,12 +303,12 @@ arithmetic:
       如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
       此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
       例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。\
-  - sql: shiftleft(integer1,integer2)
+  - sql: SHIFTLEFT(integer1,integer2)
     table: INTEGER1.shiftleft(INTEGER2)
-    description: 返回将 integer1 向左移动 integer2 个位置的结果。这相当于将 integer1 乘以 2 的 integer2 次幂。如果 integer1 或 integer2 为 NULL，则返回 NULL。如果 integer2 为 0，则结​​果为 integer1 不变。如果 integer2 为负数，则执行右移。例如，5.shiftleft(2) 的结果为 20。
-  - sql: shiftright(integer1,integer2)
+    description: 返回将 integer1 向左移动 integer2 个位置的结果。这相当于将 integer1 乘以 2 的 integer2 次幂。如果 integer1 或 integer2 为 NULL，则返回 NULL。如果 integer2 为 0，则结​​果为 integer1 不变。例如，5.shiftleft(2) 的结果为 20。
+  - sql: SHIFTRIGHT(integer1,integer2)
     table: INTEGER1.shiftright(INTEGER2)
-    description: 返回将 integer1 向右移动 integer2 个位置的结果。这相当于将 integer1 除以 2 的 integer2 次幂并丢弃余数。如果 integer1 或 integer2 为 NULL，则返回 NULL。如果 integer2 为负数，则执行左移。例如，20.shiftright(2) 的结果为 5。
+    description: 返回将 integer1 向右移动 integer2 个位置的结果。这相当于将 integer1 除以 2 的 integer2 次幂并丢弃余数。如果 integer1 或 integer2 为 NULL，则返回 NULL。例如，20.shiftright(2) 的结果为 5。
 
 string:
   - sql: string1 || string2
