@@ -97,7 +97,8 @@ public class AdaptiveSchedulerBuilder {
     /**
      * {@code null} indicates that the default factory will be used based on the set configuration.
      */
-    @Nullable private StateTransitionManager.Factory stateTransitionManagerFactory = null;
+    @Nullable
+    private AdaptiveScheduler.StateTransitionManagerFactory stateTransitionManagerFactory = null;
 
     private BiFunction<JobManagerJobMetricGroup, CheckpointStatsListener, CheckpointStatsTracker>
             checkpointStatsTrackerFactory =
@@ -225,7 +226,8 @@ public class AdaptiveSchedulerBuilder {
     }
 
     public AdaptiveSchedulerBuilder setStateTransitionManagerFactory(
-            @Nullable StateTransitionManager.Factory stateTransitionManagerFactory) {
+            @Nullable
+                    AdaptiveScheduler.StateTransitionManagerFactory stateTransitionManagerFactory) {
         this.stateTransitionManagerFactory = stateTransitionManagerFactory;
         return this;
     }
@@ -260,7 +262,7 @@ public class AdaptiveSchedulerBuilder {
         return new AdaptiveScheduler(
                 settings,
                 stateTransitionManagerFactory == null
-                        ? DefaultStateTransitionManager.Factory.fromSettings(settings)
+                        ? DefaultStateTransitionManager::new
                         : stateTransitionManagerFactory,
                 checkpointStatsTrackerFactory,
                 jobGraph,

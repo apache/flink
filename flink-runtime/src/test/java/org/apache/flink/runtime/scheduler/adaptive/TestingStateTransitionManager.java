@@ -18,15 +18,25 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import java.time.Instant;
-
 /** Testing implementation for {@link StateTransitionManager}. */
 public class TestingStateTransitionManager implements StateTransitionManager {
 
     private final Runnable onChangeRunnable;
     private final Runnable onTriggerRunnable;
 
-    private TestingStateTransitionManager(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
+    public static TestingStateTransitionManager withNoOp() {
+        return withOnTriggerEventOnly(() -> {});
+    }
+
+    public static TestingStateTransitionManager withOnChangeEventOnly(Runnable onChangeCallback) {
+        return new TestingStateTransitionManager(onChangeCallback, () -> {});
+    }
+
+    public static TestingStateTransitionManager withOnTriggerEventOnly(Runnable onTriggerCallback) {
+        return new TestingStateTransitionManager(() -> {}, onTriggerCallback);
+    }
+
+    public TestingStateTransitionManager(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
         this.onChangeRunnable = onChangeRunnable;
         this.onTriggerRunnable = onTriggerRunnable;
     }
@@ -39,28 +49,5 @@ public class TestingStateTransitionManager implements StateTransitionManager {
     @Override
     public void onTrigger() {
         this.onTriggerRunnable.run();
-    }
-
-    /**
-     * {@code Factory} implementation for creating {@code TestingStateTransitionManager} instances.
-     */
-    public static class Factory implements StateTransitionManager.Factory {
-
-        private final Runnable onChangeRunnable;
-        private final Runnable onTriggerRunnable;
-
-        public static TestingStateTransitionManager.Factory noOpFactory() {
-            return new Factory(() -> {}, () -> {});
-        }
-
-        public Factory(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
-            this.onChangeRunnable = onChangeRunnable;
-            this.onTriggerRunnable = onTriggerRunnable;
-        }
-
-        @Override
-        public StateTransitionManager create(Context ignoredContext, Instant ignoredLastRescale) {
-            return new TestingStateTransitionManager(onChangeRunnable, onTriggerRunnable);
-        }
     }
 }

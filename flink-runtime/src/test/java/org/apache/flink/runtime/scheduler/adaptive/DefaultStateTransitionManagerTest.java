@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransitionManager.Idling;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
@@ -49,31 +46,6 @@ import static org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransition
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultStateTransitionManagerTest {
-
-    @Test
-    void testProperConfiguration() throws ConfigurationException {
-        final Duration cooldownTimeout = Duration.ofMillis(1337);
-        final Duration resourceStabilizationTimeout = Duration.ofMillis(7331);
-        final Duration maximumDelayForRescaleTrigger = Duration.ofMillis(4242);
-
-        final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, cooldownTimeout);
-        configuration.set(
-                JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, resourceStabilizationTimeout);
-        configuration.set(
-                JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTrigger);
-
-        final DefaultStateTransitionManager testInstance =
-                DefaultStateTransitionManager.Factory.fromSettings(
-                                AdaptiveScheduler.Settings.of(configuration))
-                        .create(
-                                TestingStateTransitionManagerContext.stableContext(),
-                                Instant.now());
-        assertThat(testInstance.cooldownTimeout).isEqualTo(cooldownTimeout);
-        assertThat(testInstance.resourceStabilizationTimeout)
-                .isEqualTo(resourceStabilizationTimeout);
-        assertThat(testInstance.maxTriggerDelay).isEqualTo(maximumDelayForRescaleTrigger);
-    }
 
     @Test
     void testTriggerWithoutChangeEventNoopInCooldownPhase() {
@@ -623,13 +595,13 @@ class DefaultStateTransitionManagerTest {
                 @Nullable Duration resourceStabilizationTimeout) {
             final DefaultStateTransitionManager testInstance =
                     new DefaultStateTransitionManager(
-                            initializationTime,
                             // clock that returns the time based on the configured elapsedTime
                             () -> Objects.requireNonNull(initializationTime).plus(elapsedTime),
                             this,
-                            TestingStateTransitionManagerContext.COOLDOWN_TIMEOUT,
+                            COOLDOWN_TIMEOUT,
                             resourceStabilizationTimeout,
-                            TestingStateTransitionManagerContext.MAX_TRIGGER_DELAY) {
+                            MAX_TRIGGER_DELAY,
+                            initializationTime) {
                         @Override
                         public void onChange() {
                             super.onChange();
