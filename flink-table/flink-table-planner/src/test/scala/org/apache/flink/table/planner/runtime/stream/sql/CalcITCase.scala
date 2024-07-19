@@ -28,7 +28,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
-import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
+import org.apache.flink.table.data.{GenericRowData, MapData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -808,6 +808,18 @@ class CalcITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("2.0", "2.0", "2.0")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testIfNull(): Unit = {
+    // reported in FLINK-35832
+    val result = tEnv.sqlQuery("SELECT IFNULL(JSON_VALUE('{\"a\":16}','$.a'),'0')")
+    var sink = new TestingAppendSink
+    tEnv.toDataStream(result, DataTypes.ROW(DataTypes.STRING())).addSink(sink)
+    env.execute()
+
+    val expected = List("16")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
