@@ -28,6 +28,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.TestingFailureEnricher;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -130,6 +131,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -149,6 +151,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -2247,9 +2250,125 @@ public class AdaptiveSchedulerTest {
         assertThat(eventQueue.take()).as("Only one event should have been observed.").isEqualTo(1);
     }
 
+    @Test
+    void testGoToWaitingForResourcesConfiguresStateTransitionManagerFactory() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
+        final TestingStateTransitionManagerFactory factory =
+                new TestingStateTransitionManagerFactory(
+                        ctx ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            if (ctx instanceof WaitingForResources) {
+                                                latch.trigger();
+                                            }
+                                        }));
+
+        final Configuration configuration = new Configuration();
+        final Duration resourceStabilizationTimeout = Duration.ofMillis(10L);
+        configuration.set(
+                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, resourceStabilizationTimeout);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setStateTransitionManagerFactory(factory)
+                        .setJobMasterConfiguration(configuration)
+                        .build();
+
+        // start scheduling to reach Executing state
+        singleThreadMainThreadExecutor.execute(scheduler::startScheduling);
+
+        // let's wait for the onChange event in Executing state.
+        latch.await();
+
+        assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
+        assertThat(factory.cooldownTimeout).isEqualTo(Duration.ZERO);
+        assertThat(factory.maximumDelayForTrigger).isEqualTo(Duration.ZERO);
+        assertThat(factory.resourceStabilizationTimeout).isEqualTo(resourceStabilizationTimeout);
+    }
+
+    @Test
+    void testGoToExecutingConfiguresStateTransitionManagerFactory() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
+        final TestingStateTransitionManagerFactory factory =
+                new TestingStateTransitionManagerFactory(
+                        ctx ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            if (ctx instanceof WaitingForResources) {
+                                                ctx.transitionToSubsequentState();
+                                            }
+                                            if (ctx instanceof Executing) {
+                                                latch.trigger();
+                                            }
+                                        }));
+
+        final Configuration configuration = new Configuration();
+        final Duration scalingIntervalMin = Duration.ofMillis(1L);
+        final Duration scalingIntervalMax = Duration.ofMillis(5L);
+        final Duration maxDelayForTrigger = Duration.ofMillis(10L);
+
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
+        configuration.set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maxDelayForTrigger);
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(getSlotPoolWithFreeSlots(PARALLELISM))
+                        .setStateTransitionManagerFactory(factory)
+                        .build();
+
+        // start scheduling to reach Executing state
+        singleThreadMainThreadExecutor.execute(scheduler::startScheduling);
+
+        // let's wait for the onChange event in Executing state.
+        latch.await();
+
+        assertThat(scheduler.getState()).isInstanceOf(Executing.class);
+        assertThat(factory.cooldownTimeout).isEqualTo(scalingIntervalMin);
+        assertThat(factory.maximumDelayForTrigger).isEqualTo(maxDelayForTrigger);
+        assertThat(factory.resourceStabilizationTimeout).isEqualTo(scalingIntervalMax);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Utils
     // ---------------------------------------------------------------------------------------------
+
+    private static class TestingStateTransitionManagerFactory
+            implements AdaptiveScheduler.StateTransitionManagerFactory {
+
+        private final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerCreator;
+
+        private Duration cooldownTimeout;
+        private Duration resourceStabilizationTimeout;
+        private Duration maximumDelayForTrigger;
+
+        public TestingStateTransitionManagerFactory(
+                Function<StateTransitionManager.Context, StateTransitionManager>
+                        stateTransitionManagerCreator) {
+            this.stateTransitionManagerCreator = stateTransitionManagerCreator;
+        }
+
+        public StateTransitionManager create(
+                StateTransitionManager.Context context,
+                Duration cooldownTimeout,
+                @Nullable Duration resourceStabilizationTimeout,
+                Duration maximumDelayForTrigger,
+                Temporal ignoredTimestamp) {
+            this.cooldownTimeout = cooldownTimeout;
+            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+            this.maximumDelayForTrigger = maximumDelayForTrigger;
+
+            return stateTransitionManagerCreator.apply(context);
+        }
+    }
 
     private AdaptiveScheduler createSchedulerThatReachesExecutingState(
             int parallelism,
@@ -2274,30 +2393,7 @@ public class AdaptiveSchedulerTest {
                         .build();
         SchedulerTestingUtils.enableCheckpointing(jobGraph);
 
-        // testing SlotPool instance that would allow for the scheduler to transition to Executing
-        // state
-        final DeclarativeSlotPool slotPool =
-                new TestingDeclarativeSlotPoolBuilder()
-                        .setContainsFreeSlotFunction(allocationID -> true)
-                        .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) ->
-                                        TestingPhysicalSlot.builder()
-                                                .withAllocationID(allocationId)
-                                                .build())
-                        .setGetFreeSlotTrackerSupplier(
-                                () ->
-                                        TestingFreeSlotTracker.newBuilder()
-                                                .setGetFreeSlotsInformationSupplier(
-                                                        () ->
-                                                                IntStream.range(0, parallelism)
-                                                                        .mapToObj(
-                                                                                v ->
-                                                                                        new TestingSlot())
-                                                                        .collect(
-                                                                                Collectors.toSet()))
-                                                .build())
-                        .build();
-
+        final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(parallelism);
         final AtomicInteger eventCounter = new AtomicInteger();
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2307,14 +2403,23 @@ public class AdaptiveSchedulerTest {
                         .setJobMasterConfiguration(config)
                         .setDeclarativeSlotPool(slotPool)
                         .setStateTransitionManagerFactory(
-                                new TestingStateTransitionManager.Factory(
-                                        () -> {},
-                                        () -> {
-                                            singleThreadMainThreadExecutor
-                                                    .assertRunningInMainThread();
+                                (context,
+                                        ignoredCooldown,
+                                        ignoredResourceStabilizationTimeout,
+                                        ignoredMaxTriggerDelay,
+                                        ignoredTimestamp) ->
+                                        TestingStateTransitionManager.withOnTriggerEventOnly(
+                                                () -> {
+                                                    singleThreadMainThreadExecutor
+                                                            .assertRunningInMainThread();
 
-                                            eventQueue.offer(eventCounter.getAndIncrement());
-                                        }))
+                                                    if (context instanceof WaitingForResources) {
+                                                        context.transitionToSubsequentState();
+                                                    } else if (context instanceof Executing) {
+                                                        eventQueue.offer(
+                                                                eventCounter.getAndIncrement());
+                                                    }
+                                                }))
                         .setCheckpointStatsTrackerFactory(
                                 (metricGroup, listener) -> {
                                     assertThat(statsListenerInstantiatedFuture)
@@ -2364,6 +2469,30 @@ public class AdaptiveSchedulerTest {
                 DEFAULT_TIMEOUT,
                 Duration.ZERO,
                 forMainThread());
+    }
+
+    /**
+     * Creates a testing SlotPool instance that would allow for the scheduler to transition to
+     * Executing state.
+     */
+    private static DeclarativeSlotPool getSlotPoolWithFreeSlots(int freeSlots) {
+        return new TestingDeclarativeSlotPoolBuilder()
+                .setContainsFreeSlotFunction(allocationID -> true)
+                .setReserveFreeSlotFunction(
+                        (allocationId, resourceProfile) ->
+                                TestingPhysicalSlot.builder()
+                                        .withAllocationID(allocationId)
+                                        .build())
+                .setGetFreeSlotTrackerSupplier(
+                        () ->
+                                TestingFreeSlotTracker.newBuilder()
+                                        .setGetFreeSlotsInformationSupplier(
+                                                () ->
+                                                        IntStream.range(0, freeSlots)
+                                                                .mapToObj(v -> new TestingSlot())
+                                                                .collect(Collectors.toSet()))
+                                        .build())
+                .build();
     }
 
     private static JobGraph createJobGraph() {

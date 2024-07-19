@@ -136,6 +136,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -184,6 +186,24 @@ public class AdaptiveScheduler
                 StopWithSavepoint.Context {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
+
+    /**
+     * Named callback interface for creating {@code StateTransitionManager} instances. This internal
+     * interface allows for easier testing of the parameter injection in a unit test.
+     *
+     * @see
+     *     DefaultStateTransitionManager#DefaultStateTransitionManager(StateTransitionManager.Context,
+     *     Duration, Duration, Duration, Temporal)
+     */
+    @FunctionalInterface
+    interface StateTransitionManagerFactory {
+        StateTransitionManager create(
+                StateTransitionManager.Context context,
+                Duration cooldownTimeout,
+                @Nullable Duration resourceStabilizationTimeout,
+                Duration maximumDelayForTrigger,
+                Temporal lastStateTransition);
+    }
 
     /**
      * Consolidated settings for the adaptive scheduler. This class is used to avoid passing around
@@ -349,7 +369,7 @@ public class AdaptiveScheduler
     }
 
     private final Settings settings;
-    private final StateTransitionManager.Factory stateTransitionManagerFactory;
+    private final StateTransitionManagerFactory stateTransitionManagerFactory;
 
     private final JobGraph jobGraph;
 
@@ -427,7 +447,7 @@ public class AdaptiveScheduler
             throws JobExecutionException {
         this(
                 settings,
-                DefaultStateTransitionManager.Factory.fromSettings(settings),
+                DefaultStateTransitionManager::new,
                 (metricGroup, checkpointStatsListener) ->
                         new DefaultCheckpointStatsTracker(
                                 configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
@@ -455,7 +475,7 @@ public class AdaptiveScheduler
     @VisibleForTesting
     AdaptiveScheduler(
             Settings settings,
-            StateTransitionManager.Factory stateTransitionManagerFactory,
+            StateTransitionManagerFactory stateTransitionManagerFactory,
             BiFunction<JobManagerJobMetricGroup, CheckpointStatsListener, CheckpointStatsTracker>
                     checkpointStatsTrackerFactory,
             JobGraph jobGraph,
@@ -1143,8 +1163,18 @@ public class AdaptiveScheduler
                         this,
                         LOG,
                         settings.getInitialResourceAllocationTimeout(),
-                        settings.getResourceStabilizationTimeout(),
+                        this::createWaitingForResourceStateTransitionManager,
                         previousExecutionGraph));
+    }
+
+    private StateTransitionManager createWaitingForResourceStateTransitionManager(
+            StateTransitionManager.Context ctx) {
+        return stateTransitionManagerFactory.create(
+                ctx,
+                Duration.ZERO, // skip cooldown phase
+                settings.getResourceStabilizationTimeout(),
+                Duration.ZERO, // trigger immediately once the stabilization phase is over
+                Instant.now());
     }
 
     private void declareDesiredResources() {
@@ -1175,9 +1205,19 @@ public class AdaptiveScheduler
                         this,
                         userCodeClassLoader,
                         failureCollection,
-                        stateTransitionManagerFactory,
+                        this::createExecutingStateTransitionManager,
                         settings.getMinParallelismChangeForDesiredRescale(),
                         settings.getRescaleOnFailedCheckpointCount()));
+    }
+
+    private StateTransitionManager createExecutingStateTransitionManager(
+            StateTransitionManager.Context ctx, Instant lastRescaleTimestamp) {
+        return stateTransitionManagerFactory.create(
+                ctx,
+                settings.getScalingIntervalMin(),
+                settings.getScalingIntervalMax(),
+                settings.getMaximumDelayForTriggeringRescale(),
+                lastRescaleTimestamp);
     }
 
     @Override

@@ -69,42 +69,60 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
     private final StateTransitionManager.Context transitionContext;
     private Phase phase;
     private final List<ScheduledFuture<?>> scheduledFutures;
+    @Nullable private final Duration resourceStabilizationTimeout;
+    private final Duration maxTriggerDelay;
 
-    @VisibleForTesting final Duration cooldownTimeout;
-    @Nullable @VisibleForTesting final Duration resourceStabilizationTimeout;
-    @VisibleForTesting final Duration maxTriggerDelay;
-
+    /**
+     * Creates a {@code DefaultStateTransitionManager} instance with the given parameters.
+     *
+     * @param transitionContext The context for the {@code StateTransitionManager}.
+     * @param cooldownTimeout The timeout for the cooldown phase.
+     * @param resourceStabilizationTimeout The timeout for the resource stabilization phase.
+     * @param maxTriggerDelay The maximum delay for triggering a {@link AdaptiveScheduler}'s state
+     *     transition if only sufficient resources are available.
+     * @param initializationTime The last state transition timestamp of {@link AdaptiveScheduler}'s
+     *     state machine.
+     */
     DefaultStateTransitionManager(
-            Temporal initializationTime,
-            StateTransitionManager.Context transitionContext,
+            Context transitionContext,
             Duration cooldownTimeout,
             @Nullable Duration resourceStabilizationTimeout,
-            Duration maxTriggerDelay) {
+            Duration maxTriggerDelay,
+            Temporal initializationTime) {
         this(
-                initializationTime,
                 Instant::now,
                 transitionContext,
                 cooldownTimeout,
                 resourceStabilizationTimeout,
-                maxTriggerDelay);
+                maxTriggerDelay,
+                initializationTime);
     }
 
     @VisibleForTesting
     DefaultStateTransitionManager(
-            Temporal initializationTime,
             Supplier<Temporal> clock,
-            StateTransitionManager.Context transitionContext,
+            Context transitionContext,
             Duration cooldownTimeout,
             @Nullable Duration resourceStabilizationTimeout,
-            Duration maxTriggerDelay) {
+            Duration maxTriggerDelay,
+            Temporal initializationTime) {
 
         this.clock = clock;
+        Preconditions.checkArgument(
+                !maxTriggerDelay.isNegative(), "Max trigger delay must not be negative");
         this.maxTriggerDelay = maxTriggerDelay;
-        this.cooldownTimeout = cooldownTimeout;
+        Preconditions.checkArgument(
+                resourceStabilizationTimeout == null || !resourceStabilizationTimeout.isNegative(),
+                "Resource stabilization timeout must not be negative");
         this.resourceStabilizationTimeout = resourceStabilizationTimeout;
-        this.transitionContext = transitionContext;
+        this.transitionContext = Preconditions.checkNotNull(transitionContext);
         this.scheduledFutures = new ArrayList<>();
-        this.phase = new Cooldown(initializationTime, clock, this, cooldownTimeout);
+        this.phase =
+                new Cooldown(
+                        Preconditions.checkNotNull(initializationTime),
+                        clock,
+                        this,
+                        Preconditions.checkNotNull(cooldownTimeout));
     }
 
     @Override
@@ -173,46 +191,6 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
                     "Ignoring scheduled action because expected phase {} is not the actual phase {}.",
                     expectedPhase,
                     getPhase());
-        }
-    }
-
-    /** Factory for creating {@link DefaultStateTransitionManager} instances. */
-    public static class Factory implements StateTransitionManager.Factory {
-
-        private final Duration cooldownTimeout;
-        @Nullable private final Duration resourceStabilizationTimeout;
-        private final Duration maximumDelayForTrigger;
-
-        /**
-         * Creates a {@code Factory} instance based on the {@link AdaptiveScheduler}'s {@code
-         * Settings} for rescaling.
-         */
-        public static Factory fromSettings(AdaptiveScheduler.Settings settings) {
-            // it's not ideal that we use a AdaptiveScheduler internal class here. We might want to
-            // change that as part of a more general alignment of the rescaling configuration.
-            return new Factory(
-                    settings.getScalingIntervalMin(),
-                    settings.getScalingIntervalMax(),
-                    settings.getMaximumDelayForTriggeringRescale());
-        }
-
-        private Factory(
-                Duration cooldownTimeout,
-                @Nullable Duration resourceStabilizationTimeout,
-                Duration maximumDelayForTrigger) {
-            this.cooldownTimeout = cooldownTimeout;
-            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
-            this.maximumDelayForTrigger = maximumDelayForTrigger;
-        }
-
-        @Override
-        public DefaultStateTransitionManager create(Context context, Instant lastStateTransition) {
-            return new DefaultStateTransitionManager(
-                    lastStateTransition,
-                    context,
-                    cooldownTimeout,
-                    resourceStabilizationTimeout,
-                    maximumDelayForTrigger);
         }
     }
 

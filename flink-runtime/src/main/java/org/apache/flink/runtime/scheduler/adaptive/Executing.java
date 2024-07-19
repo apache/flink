@@ -54,6 +54,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
@@ -77,7 +78,8 @@ class Executing extends StateWithExecutionGraph
             Context context,
             ClassLoader userCodeClassLoader,
             List<ExceptionHistoryEntry> failureCollection,
-            StateTransitionManager.Factory stateTransitionManagerFactory,
+            BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+                    stateTransitionManagerFactory,
             int minParallelismChangeForRescale,
             int rescaleOnFailedCheckpointCount,
             Instant lastRescale) {
@@ -96,7 +98,7 @@ class Executing extends StateWithExecutionGraph
         this.sufficientResourcesController = new EnforceParallelismChangeRescalingController();
         this.desiredResourcesController =
                 new EnforceMinimalIncreaseRescalingController(minParallelismChangeForRescale);
-        this.stateTransitionManager = stateTransitionManagerFactory.create(this, lastRescale);
+        this.stateTransitionManager = stateTransitionManagerFactory.apply(this, lastRescale);
 
         Preconditions.checkArgument(
                 rescaleOnFailedCheckpointCount > 0,
@@ -328,7 +330,8 @@ class Executing extends StateWithExecutionGraph
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
-        private final StateTransitionManager.Factory stateTransitionManagerFactory;
+        private final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+                stateTransitionManagerFactory;
         private final int minParallelismChangeForRescale;
         private final int rescaleOnFailedCheckpointCount;
 
@@ -340,7 +343,8 @@ class Executing extends StateWithExecutionGraph
                 Context context,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection,
-                StateTransitionManager.Factory stateTransitionManagerFactory,
+                BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+                        stateTransitionManagerFactory,
                 int minParallelismChangeForRescale,
                 int rescaleOnFailedCheckpointCount) {
             this.context = context;
