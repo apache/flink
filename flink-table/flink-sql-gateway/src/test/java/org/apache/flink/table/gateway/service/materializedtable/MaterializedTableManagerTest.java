@@ -18,17 +18,21 @@
 
 package org.apache.flink.table.gateway.service.materializedtable;
 
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -99,56 +103,340 @@ class MaterializedTableManagerTest {
         assertThat(actualStatement).isEqualTo(expectedStatement);
     }
 
-    @Test
-    void testGetPeriodRefreshPartition() {
-        String schedulerTime = "2024-01-01 00:00:00";
-        Map<String, String> tableOptions = new HashMap<>();
-        tableOptions.put("partition.fields.day.date-formatter", "yyyy-MM-dd");
-        tableOptions.put("partition.fields.hour.date-formatter", "HH");
-
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testGetPeriodRefreshPartition(TestSpec testSpec) {
         ObjectIdentifier objectIdentifier = ObjectIdentifier.of("catalog", "database", "table");
 
-        Map<String, String> actualRefreshPartition =
-                MaterializedTableManager.getPeriodRefreshPartition(
-                        schedulerTime, objectIdentifier, tableOptions, ZoneId.systemDefault());
-        Map<String, String> expectedRefreshPartition = new HashMap<>();
-        expectedRefreshPartition.put("day", "2024-01-01");
-        expectedRefreshPartition.put("hour", "00");
+        if (testSpec.errorMessage == null) {
+            Map<String, String> actualRefreshPartition =
+                    MaterializedTableManager.getPeriodRefreshPartition(
+                            testSpec.schedulerTime,
+                            testSpec.freshness,
+                            objectIdentifier,
+                            testSpec.tableOptions,
+                            ZoneId.systemDefault());
 
-        assertThat(actualRefreshPartition).isEqualTo(expectedRefreshPartition);
+            assertThat(actualRefreshPartition).isEqualTo(testSpec.expectedRefreshPartition);
+        } else {
+            assertThatThrownBy(
+                            () ->
+                                    MaterializedTableManager.getPeriodRefreshPartition(
+                                            testSpec.schedulerTime,
+                                            testSpec.freshness,
+                                            objectIdentifier,
+                                            testSpec.tableOptions,
+                                            ZoneId.systemDefault()))
+                    .hasMessage(testSpec.errorMessage);
+        }
     }
 
-    @Test
-    void testGetPeriodRefreshPartitionWithInvalidSchedulerTime() {
-        // scheduler time is null
-        Map<String, String> tableOptions = new HashMap<>();
-        tableOptions.put("partition.fields.day.date-formatter", "yyyy-MM-dd");
-        tableOptions.put("partition.fields.hour.date-formatter", "HH");
+    static Stream<TestSpec> testData() {
+        return Stream.of(
+                // The interval of freshness match the partition specified by the 'date-formatter'.
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofDay("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2023-12-31"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-02 00:00:00")
+                        .freshness(IntervalFreshness.ofDay("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2024-01-01"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-02 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2024-01-01")
+                        .expectedRefreshPartition("hour", "23"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-02 01:00:00")
+                        .freshness(IntervalFreshness.ofHour("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2024-01-02")
+                        .expectedRefreshPartition("hour", "00"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("2"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "22"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("4"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "20"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("8"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "16"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("12"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "12"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "59"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("2"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "58"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("4"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "56"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("5"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "55"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("6"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "54"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("10"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "50"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("12"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "48"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("15"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "45"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("30"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "30"),
 
-        ObjectIdentifier objectIdentifier = ObjectIdentifier.of("catalog", "database", "table");
+                // The interval of freshness is larger than the partition specified by the
+                // 'date-formatter'.
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofDay("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "00"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofDay("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "00")
+                        .expectedRefreshPartition("minute", "00"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "00"),
+                // The interval of freshness is less than the partition specified by the
+                // 'date-formatter'.
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2023-12-31"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 01:00:00")
+                        .freshness(IntervalFreshness.ofHour("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2024-01-01"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("2"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2023-12-31"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 02:00:00")
+                        .freshness(IntervalFreshness.ofHour("2"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2024-01-01"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofHour("4"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2023-12-31"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 04:00:00")
+                        .freshness(IntervalFreshness.ofHour("4"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2024-01-01"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("2"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("4"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("15"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2023-12-31")
+                        .expectedRefreshPartition("hour", "23"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:00:00")
+                        .freshness(IntervalFreshness.ofMinute("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2023-12-31"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:01:00")
+                        .freshness(IntervalFreshness.ofMinute("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .expectedRefreshPartition("day", "2024-01-01"),
 
-        assertThatThrownBy(
-                        () ->
-                                MaterializedTableManager.getPeriodRefreshPartition(
-                                        null,
-                                        objectIdentifier,
-                                        tableOptions,
-                                        ZoneId.systemDefault()))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Scheduler time not properly set for periodic refresh of materialized table `catalog`.`database`.`table`.");
+                // Invalid test case.
+                TestSpec.create()
+                        .schedulerTime(null)
+                        .freshness(IntervalFreshness.ofDay("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .errorMessage(
+                                "Scheduler time not properly set for periodic refresh of materialized table `catalog`.`database`.`table`."),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01")
+                        .freshness(IntervalFreshness.ofDay("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .errorMessage(
+                                "Failed to parse a valid partition value for the field 'day' in materialized table `catalog`.`database`.`table` using the scheduler time '2024-01-01' based on the date format 'yyyy-MM-dd HH:mm:ss'."));
+    }
 
-        // scheduler time is invalid
-        String invalidSchedulerTime = "2024-01-01";
-        assertThatThrownBy(
-                        () ->
-                                MaterializedTableManager.getPeriodRefreshPartition(
-                                        invalidSchedulerTime,
-                                        objectIdentifier,
-                                        tableOptions,
-                                        ZoneId.systemDefault()))
-                .isInstanceOf(SqlExecutionException.class)
-                .hasMessage(
-                        "Failed to parse a valid partition value for the field 'day' in materialized table `catalog`.`database`.`table` using the scheduler time '2024-01-01' based on the date format 'yyyy-MM-dd HH:mm:ss'.");
+    private static class TestSpec {
+        private String schedulerTime;
+        private IntervalFreshness freshness;
+        private Map<String, String> tableOptions;
+        private Map<String, String> expectedRefreshPartition;
+
+        private @Nullable String errorMessage;
+
+        private TestSpec() {
+            this.tableOptions = new HashMap<>();
+            this.expectedRefreshPartition = new HashMap<>();
+        }
+
+        public static TestSpec create() {
+            return new TestSpec();
+        }
+
+        public TestSpec schedulerTime(String schedulerTime) {
+            this.schedulerTime = schedulerTime;
+            return this;
+        }
+
+        public TestSpec freshness(IntervalFreshness freshness) {
+            this.freshness = freshness;
+            return this;
+        }
+
+        public TestSpec tableOptions(String key, String value) {
+            this.tableOptions.put(key, value);
+            return this;
+        }
+
+        public TestSpec expectedRefreshPartition(String key, String value) {
+            this.expectedRefreshPartition.put(key, value);
+            return this;
+        }
+
+        public TestSpec errorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "TestSpec{"
+                    + "schedulerTime="
+                    + schedulerTime
+                    + ", freshness="
+                    + freshness
+                    + ", tableOptions="
+                    + tableOptions
+                    + ", expectedRefreshPartition="
+                    + expectedRefreshPartition
+                    + '}';
+        }
     }
 }

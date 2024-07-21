@@ -45,6 +45,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -735,12 +736,26 @@ public class DateTimeUtils {
 
     public static String formatTimestampString(
             String dateStr, String fromFormat, String toFormat, TimeZone tz) {
+        return formatTimestampStringWithOffset(dateStr, fromFormat, toFormat, tz, 0);
+    }
+
+    public static String formatTimestampStringWithOffset(
+            String dateStr, String fromFormat, String toFormat, TimeZone tz, long offsetMills) {
         SimpleDateFormat fromFormatter = FORMATTER_CACHE.get(fromFormat);
         fromFormatter.setTimeZone(tz);
         SimpleDateFormat toFormatter = FORMATTER_CACHE.get(toFormat);
         toFormatter.setTimeZone(tz);
         try {
-            return toFormatter.format(fromFormatter.parse(dateStr));
+            Date date = fromFormatter.parse(dateStr);
+
+            if (offsetMills != 0) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(date);
+                calendar.add(Calendar.MILLISECOND, (int) offsetMills);
+                date = calendar.getTime();
+            }
+
+            return toFormatter.format(date);
         } catch (ParseException e) {
             LOG.error(
                     "Exception when formatting: '"
@@ -749,6 +764,8 @@ public class DateTimeUtils {
                             + fromFormat
                             + "' to: '"
                             + toFormat
+                            + "' with offsetMills: '"
+                            + offsetMills
                             + "'",
                     e);
             return null;

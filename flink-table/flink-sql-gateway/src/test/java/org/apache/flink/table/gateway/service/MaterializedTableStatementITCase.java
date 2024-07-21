@@ -1417,7 +1417,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                         sessionHandle,
                         materializedTableIdentifier.asSerializableString(),
                         true,
-                        "2024-01-02 00:00:00",
+                        "2024-01-03 00:00:00",
                         Collections.emptyMap(),
                         Collections.emptyMap(),
                         Collections.emptyMap());
@@ -1518,6 +1518,58 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                                 TEST_DEFAULT_DATABASE,
                                                 "my_materialized_table")
                                         .asSerializableString()));
+    }
+
+    @Test
+    void testMaterializedTableDefinitionQueryContainsTemporaryResources() throws Exception {
+        // create a temporary table
+
+        String temporaryTableDDL = "CREATE ";
+
+        String dataId = TestValuesTableFactory.registerData(Collections.emptyList());
+        String sourceDDL =
+                String.format(
+                        "CREATE TEMPORARY TABLE IF NOT EXISTS my_source (\n"
+                                + "  order_id BIGINT,\n"
+                                + "  user_id BIGINT,\n"
+                                + "  shop_id BIGINT,\n"
+                                + "  order_created_at STRING\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'true',\n"
+                                + "  'data-id' = '%s'\n"
+                                + ")",
+                        dataId);
+
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, sourceDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, operationHandle);
+
+        String createMaterializedTableStatement =
+                String.format(
+                        "CREATE MATERIALIZED TABLE %s"
+                                + " PARTITIONED BY (ds)\n"
+                                + " WITH(\n"
+                                + "   'format' = 'debezium-json'\n"
+                                + " )\n"
+                                + " FRESHNESS = INTERVAL '30' SECOND\n"
+                                + " REFRESH_MODE = %s\n"
+                                + " AS SELECT \n"
+                                + "  user_id,\n"
+                                + "  shop_id,\n"
+                                + "  ds,\n"
+                                + "  COUNT(order_id) AS order_cnt\n"
+                                + " FROM (\n"
+                                + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                                + " ) AS tmp\n"
+                                + " GROUP BY (user_id, shop_id, ds)",
+                        "my_materialized_table", "FULL");
+
+        OperationHandle createMaterializedTableOperationHandle =
+                service.executeStatement(
+                        sessionHandle, createMaterializedTableStatement, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, createMaterializedTableOperationHandle);
     }
 
     private int getPartitionSize(List<Row> data, String partition) {

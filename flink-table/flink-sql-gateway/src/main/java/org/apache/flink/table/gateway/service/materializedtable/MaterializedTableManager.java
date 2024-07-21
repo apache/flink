@@ -28,6 +28,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -102,8 +103,9 @@ import static org.apache.flink.table.factories.WorkflowSchedulerFactoryUtil.WORK
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.service.utils.Constants.CLUSTER_INFO;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
-import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampString;
+import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampStringWithOffset;
 import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
+import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
 
 /** Manager is responsible for execute the {@link MaterializedTableOperation}. */
 @Internal
@@ -615,6 +617,7 @@ public class MaterializedTableManager {
                 isPeriodic
                         ? getPeriodRefreshPartition(
                                 scheduleTime,
+                                materializedTable.getDefinitionFreshness(),
                                 materializedTableIdentifier,
                                 materializedTable.getOptions(),
                                 operationExecutor
@@ -686,6 +689,7 @@ public class MaterializedTableManager {
     @VisibleForTesting
     static Map<String, String> getPeriodRefreshPartition(
             String scheduleTime,
+            IntervalFreshness freshness,
             ObjectIdentifier materializedTableIdentifier,
             Map<String, String> materializedTableOptions,
             ZoneId localZoneId) {
@@ -707,12 +711,14 @@ public class MaterializedTableManager {
                             PARTITION_FIELDS.length() + 1,
                             partKey.length() - (DATE_FORMATTER.length() + 1));
             String partFieldFormatter = materializedTableOptions.get(partKey);
+
             String partFiledValue =
-                    formatTimestampString(
+                    formatTimestampStringWithOffset(
                             scheduleTime,
                             SCHEDULE_TIME_DATE_FORMATTER_DEFAULT,
                             partFieldFormatter,
-                            TimeZone.getTimeZone(localZoneId));
+                            TimeZone.getTimeZone(localZoneId),
+                            -convertFreshnessToDuration(freshness).toMillis());
             if (partFiledValue == null) {
                 throw new SqlExecutionException(
                         String.format(
