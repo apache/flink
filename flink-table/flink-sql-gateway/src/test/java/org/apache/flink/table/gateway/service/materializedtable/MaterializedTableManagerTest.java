@@ -187,6 +187,13 @@ class MaterializedTableManagerTest {
                         .expectedRefreshPartition("day", "2023-12-31")
                         .expectedRefreshPartition("hour", "12"),
                 TestSpec.create()
+                        .schedulerTime("2024-01-01 12:00:00")
+                        .freshness(IntervalFreshness.ofHour("12"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .expectedRefreshPartition("day", "2024-01-01")
+                        .expectedRefreshPartition("hour", "00"),
+                TestSpec.create()
                         .schedulerTime("2024-01-01 00:00:00")
                         .freshness(IntervalFreshness.ofMinute("1"))
                         .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
@@ -267,6 +274,15 @@ class MaterializedTableManagerTest {
                         .expectedRefreshPartition("day", "2023-12-31")
                         .expectedRefreshPartition("hour", "23")
                         .expectedRefreshPartition("minute", "30"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 00:30:00")
+                        .freshness(IntervalFreshness.ofMinute("30"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2024-01-01")
+                        .expectedRefreshPartition("hour", "00")
+                        .expectedRefreshPartition("minute", "00"),
 
                 // The interval of freshness is larger than the partition specified by the
                 // 'date-formatter'.
@@ -294,6 +310,15 @@ class MaterializedTableManagerTest {
                         .tableOptions("partition.fields.minute.date-formatter", "mm")
                         .expectedRefreshPartition("day", "2023-12-31")
                         .expectedRefreshPartition("hour", "23")
+                        .expectedRefreshPartition("minute", "00"),
+                TestSpec.create()
+                        .schedulerTime("2024-01-01 01:00:00")
+                        .freshness(IntervalFreshness.ofHour("1"))
+                        .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
+                        .tableOptions("partition.fields.hour.date-formatter", "HH")
+                        .tableOptions("partition.fields.minute.date-formatter", "mm")
+                        .expectedRefreshPartition("day", "2024-01-01")
+                        .expectedRefreshPartition("hour", "00")
                         .expectedRefreshPartition("minute", "00"),
                 // The interval of freshness is less than the partition specified by the
                 // 'date-formatter'.
@@ -373,7 +398,7 @@ class MaterializedTableManagerTest {
                         .tableOptions("partition.fields.day.date-formatter", "yyyy-MM-dd")
                         .tableOptions("partition.fields.hour.date-formatter", "HH")
                         .errorMessage(
-                                "Scheduler time not properly set for periodic refresh of materialized table `catalog`.`database`.`table`."),
+                                "The scheduler time must not be null during the periodic refresh of the materialized table `catalog`.`database`.`table`."),
                 TestSpec.create()
                         .schedulerTime("2024-01-01")
                         .freshness(IntervalFreshness.ofDay("1"))
@@ -386,8 +411,8 @@ class MaterializedTableManagerTest {
     private static class TestSpec {
         private String schedulerTime;
         private IntervalFreshness freshness;
-        private Map<String, String> tableOptions;
-        private Map<String, String> expectedRefreshPartition;
+        private final Map<String, String> tableOptions;
+        private final Map<String, String> expectedRefreshPartition;
 
         private @Nullable String errorMessage;
 

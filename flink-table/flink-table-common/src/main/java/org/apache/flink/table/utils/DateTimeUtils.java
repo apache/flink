@@ -45,7 +45,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -749,10 +748,7 @@ public class DateTimeUtils {
             Date date = fromFormatter.parse(dateStr);
 
             if (offsetMills != 0) {
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTime(date);
-                calendar.add(Calendar.MILLISECOND, (int) offsetMills);
-                date = calendar.getTime();
+                date = new Date(date.getTime() + offsetMills);
             }
 
             return toFormatter.format(date);

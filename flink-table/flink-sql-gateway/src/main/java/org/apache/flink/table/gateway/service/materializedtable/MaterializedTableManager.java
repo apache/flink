@@ -696,7 +696,7 @@ public class MaterializedTableManager {
         if (scheduleTime == null) {
             throw new ValidationException(
                     String.format(
-                            "Scheduler time not properly set for periodic refresh of materialized table %s.",
+                            "The scheduler time must not be null during the periodic refresh of the materialized table %s.",
                             materializedTableIdentifier));
         }
 
