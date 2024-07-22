@@ -20,8 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.util.concurrent.Executors;
@@ -48,8 +46,6 @@ class DefaultJobManagerRunnerRegistryTest {
     @BeforeEach
     void setup() {
         testInstance = new DefaultJobManagerRunnerRegistry(4);
-        ((DefaultJobManagerRunnerRegistry) testInstance)
-                .setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
     }
 
     @Test
@@ -167,8 +163,10 @@ class DefaultJobManagerRunnerRegistryTest {
                 .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
-        // Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isTrue()
+                .as(
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.");
     }
 
     @Test
@@ -195,8 +193,10 @@ class DefaultJobManagerRunnerRegistryTest {
         final CompletableFuture<Void> cleanupResult =
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(), Executors.directExecutor());
-        // Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isTrue()
+                .as(
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.");
         assertThatFuture(cleanupResult)
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
@@ -215,11 +215,12 @@ class DefaultJobManagerRunnerRegistryTest {
         // this call shouldn't block
         final CompletableFuture<Void> cleanupFuture =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), UnsupportedOperationExecutor.INSTANCE);
+                        jobManagerRunner.getJobID(), Executors.directExecutor());
 
-        // Since the cleanup future hasn't completed yet, the JobManagerRunner is expected to not
-        // have been unregistered.
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isTrue();
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isTrue()
+                .as(
+                        "Since the cleanup future hasn't completed yet, the JobManagerRunner is expected to not have been unregistered.");
         assertThat(jobManagerRunner.getTerminationFuture()).isNotCompleted();
         assertThat(cleanupFuture).isNotCompleted();
 

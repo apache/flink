@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
@@ -42,12 +41,10 @@ import java.util.concurrent.Executor;
 public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry {
 
     @VisibleForTesting final Map<JobID, JobManagerRunner> jobManagerRunners;
-    private ComponentMainThreadExecutor mainThreadExecutor;
 
     public DefaultJobManagerRunnerRegistry(int initialCapacity) {
         Preconditions.checkArgument(initialCapacity > 0);
         jobManagerRunners = CollectionUtil.newHashMapWithExpectedSize(initialCapacity);
-        mainThreadExecutor = null;
     }
 
     @Override
@@ -86,13 +83,13 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     }
 
     @Override
-    public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor unusedExecutor) {
+    public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor mainThreadExecutor) {
         if (isRegistered(jobId)) {
             CompletableFuture<Void> resultFuture = this.jobManagerRunners.get(jobId).closeAsync();
 
             return resultFuture.thenApply(
                     result -> {
-                        getMainThreadExecutor().execute(() -> unregister(jobId));
+                        mainThreadExecutor.execute(() -> unregister(jobId));
                         return result;
                     });
         }
@@ -104,14 +101,6 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     public JobManagerRunner unregister(JobID jobId) {
         assertJobRegistered(jobId);
         return this.jobManagerRunners.remove(jobId);
-    }
-
-    public void setMainThreadExecutor(ComponentMainThreadExecutor executor) {
-        mainThreadExecutor = executor;
-    }
-
-    public ComponentMainThreadExecutor getMainThreadExecutor() {
-        return mainThreadExecutor;
     }
 
     private void assertJobRegistered(JobID jobId) {
