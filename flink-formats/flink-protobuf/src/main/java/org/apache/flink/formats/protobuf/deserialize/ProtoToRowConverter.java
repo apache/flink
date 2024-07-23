@@ -132,7 +132,11 @@ public class ProtoToRowConverter {
 
     public RowData convertProtoBinaryToRow(byte[] data) throws Exception {
         Object messageObj = parseFromMethod.invoke(null, data);
-        return (RowData) decodeMethod.invoke(null, messageObj);
+        return convertProtoObjectToRow(messageObj);
+    }
+
+    public RowData convertProtoObjectToRow(Object message) throws Exception {
+        return (RowData) decodeMethod.invoke(null, message);
     }
 
     @VisibleForTesting
