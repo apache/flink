@@ -212,6 +212,9 @@ public class StreamingJobGraphGenerator {
      */
     private final Map<Integer, List<StreamEdge>> opNonChainableOutputsCache;
 
+    private static final Map<StreamNode, StreamOperatorFactory<?>> nodeToHeadOperatorMap =
+            new HashMap<>();
+
     private StreamingJobGraphGenerator(
             ClassLoader userClassloader,
             StreamGraph streamGraph,
@@ -235,6 +238,7 @@ public class StreamingJobGraphGenerator {
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
         this.chainInfos = new HashMap<>();
         this.opNonChainableOutputsCache = new LinkedHashMap<>();
+        nodeToHeadOperatorMap.clear();
 
         jobGraph = new JobGraph(jobID, streamGraph.getJobName());
     }
@@ -1652,12 +1656,21 @@ public class StreamingJobGraphGenerator {
     /** Backtraces the head of an operator chain. */
     private static StreamOperatorFactory<?> getHeadOperator(
             StreamNode upStreamVertex, StreamGraph streamGraph) {
-        if (upStreamVertex.getInEdges().size() == 1
-                && isChainable(upStreamVertex.getInEdges().get(0), streamGraph)) {
-            return getHeadOperator(
-                    streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
+        if (!nodeToHeadOperatorMap.containsKey(upStreamVertex)) {
+            if (upStreamVertex.getInEdges().size() == 1
+                    && isChainable(upStreamVertex.getInEdges().get(0), streamGraph)) {
+                StreamOperatorFactory<?> headOperator =
+                        getHeadOperator(
+                                streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)),
+                                streamGraph);
+                nodeToHeadOperatorMap.put(upStreamVertex, headOperator);
+            } else {
+                Preconditions.checkNotNull(upStreamVertex.getOperatorFactory());
+                nodeToHeadOperatorMap.put(upStreamVertex, upStreamVertex.getOperatorFactory());
+            }
         }
-        return Preconditions.checkNotNull(upStreamVertex.getOperatorFactory());
+
+        return nodeToHeadOperatorMap.get(upStreamVertex);
     }
 
     private void markSupportingConcurrentExecutionAttempts() {
