@@ -717,6 +717,10 @@ under the License.
 									<pattern>com.google.flatbuffers</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.com.google.flatbuffers</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>com.google.protobuf</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
