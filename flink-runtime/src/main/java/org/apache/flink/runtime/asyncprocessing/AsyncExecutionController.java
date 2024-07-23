@@ -359,6 +359,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         epochManager.onNonRecord(wrappedAction, epochParallelMode);
     }
 
+    public DeclarationManager getDeclarationManager() {
+        return declarationManager;
+    }
+
     @VisibleForTesting
     public StateExecutor getStateExecutor() {
         return stateExecutor;

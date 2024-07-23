@@ -19,14 +19,17 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.streaming.api.operators.async.DeclarativeTriggerable;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
@@ -64,6 +67,47 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 eventTimeTimersQueue,
                 cancellationContext);
         this.asyncExecutionController = asyncExecutionController;
+    }
+
+    @Override
+    public void startTimerService(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            Triggerable<K, N> triggerTarget) {
+        if (!isInitialized) {
+            if (triggerTarget instanceof DeclarativeTriggerable) {
+                ThrowingConsumer<InternalTimer<K, N>, Exception> eventTimeHandler =
+                        asyncExecutionController
+                                .getDeclarationManager()
+                                .buildProcess(
+                                        ((DeclarativeTriggerable<K, N>) triggerTarget)
+                                                ::declareOnEventTime);
+                ThrowingConsumer<InternalTimer<K, N>, Exception> processingTimeHandler =
+                        asyncExecutionController
+                                .getDeclarationManager()
+                                .buildProcess(
+                                        ((DeclarativeTriggerable<K, N>) triggerTarget)
+                                                ::declareOnProcessingTime);
+                Triggerable<K, N> triggerable =
+                        new Triggerable<K, N>() {
+                            @Override
+                            public void onEventTime(InternalTimer<K, N> timer) throws Exception {
+                                eventTimeHandler.accept(timer);
+                            }
+
+                            @Override
+                            public void onProcessingTime(InternalTimer<K, N> timer)
+                                    throws Exception {
+                                processingTimeHandler.accept(timer);
+                            }
+                        };
+                super.startTimerService(keySerializer, namespaceSerializer, triggerable);
+            } else {
+                super.startTimerService(keySerializer, namespaceSerializer, triggerTarget);
+            }
+        } else {
+            super.startTimerService(keySerializer, namespaceSerializer, triggerTarget);
+        }
     }
 
     @Override

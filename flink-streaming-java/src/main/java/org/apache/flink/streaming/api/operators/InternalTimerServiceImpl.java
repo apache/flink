@@ -85,7 +85,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 
     protected Triggerable<K, N> triggerTarget;
 
-    private volatile boolean isInitialized;
+    protected volatile boolean isInitialized;
 
     private TypeSerializer<K> keyDeserializer;
 
