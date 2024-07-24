@@ -37,6 +37,8 @@ import org.apache.calcite.tools.RuleSets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.ZoneId;
+
 /** Test for {@link PushFilterInCalcIntoTableSourceRuleTest}. */
 class PushFilterInCalcIntoTableSourceRuleTest extends PushFilterIntoTableSourceScanRuleTestBase {
 
@@ -145,5 +147,28 @@ class PushFilterInCalcIntoTableSourceRuleTest extends PushFilterIntoTableSourceS
 
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();
+    }
+
+    @Test
+    public void testWithTimestampWithTimeZone() {
+        String ddl =
+                "CREATE TABLE MTable (\n"
+                        + "a TIMESTAMP_LTZ(3),\n"
+                        + "b TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'filterable-fields' = 'a',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+
+        util.tableEnv().executeSql(ddl);
+        ZoneId preZoneId = util.tableEnv().getConfig().getLocalTimeZone();
+        util.tableEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
+        try {
+            super.testWithTimestampWithTimeZone();
+        } finally {
+            util.tableEnv().getConfig().setLocalTimeZone(preZoneId);
+        }
     }
 }
