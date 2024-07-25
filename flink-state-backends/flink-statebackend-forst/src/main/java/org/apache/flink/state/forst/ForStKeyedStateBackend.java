@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
@@ -242,6 +243,16 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 (ReducingStateDescriptor<SV>) stateDesc,
                                 serializedKeyBuilder,
                                 defaultNamespace,
+                                namespaceSerializer::duplicate,
+                                valueSerializerView,
+                                valueDeserializerView);
+            case AGGREGATING:
+                return (S)
+                        new ForStAggregatingState<>(
+                                (AggregatingStateDescriptor<?, SV, ?>) stateDesc,
+                                stateRequestHandler,
+                                columnFamilyHandle,
+                                serializedKeyBuilder,
                                 namespaceSerializer::duplicate,
                                 valueSerializerView,
                                 valueDeserializerView);

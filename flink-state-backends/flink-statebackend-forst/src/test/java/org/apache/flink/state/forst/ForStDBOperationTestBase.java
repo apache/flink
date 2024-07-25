@@ -18,10 +18,13 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -33,6 +36,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
@@ -159,6 +164,50 @@ public class ForStDBOperationTestBase {
                 serializedKeyBuilder,
                 VoidNamespace.INSTANCE,
                 () -> VoidNamespaceSerializer.INSTANCE,
+                valueSerializerView,
+                valueDeserializerView);
+    }
+
+    protected ForStAggregatingState<String, ?, Integer, Integer, Integer>
+            buildForStSumAggregateState(String stateName) throws Exception {
+        ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
+        AggregatingStateDescriptor<Integer, Integer, Integer> valueStateDescriptor =
+                new AggregatingStateDescriptor<>(
+                        stateName,
+                        new AggregateFunction<Integer, Integer, Integer>() {
+                            @Override
+                            public Integer createAccumulator() {
+                                return 0;
+                            }
+
+                            @Override
+                            public Integer add(Integer value, Integer accumulator) {
+                                return value + accumulator;
+                            }
+
+                            @Override
+                            public Integer getResult(Integer accumulator) {
+                                return accumulator;
+                            }
+
+                            @Override
+                            public Integer merge(Integer a, Integer b) {
+                                return a + b;
+                            }
+                        },
+                        BasicTypeInfo.INT_TYPE_INFO);
+        Supplier<SerializedCompositeKeyBuilder<String>> serializedKeyBuilder =
+                () -> new SerializedCompositeKeyBuilder<>(StringSerializer.INSTANCE, 2, 32);
+        Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);
+        Supplier<DataInputDeserializer> valueDeserializerView =
+                () -> new DataInputDeserializer(new byte[128]);
+
+        return new ForStAggregatingState<>(
+                valueStateDescriptor,
+                buildMockStateRequestHandler(),
+                cf,
+                serializedKeyBuilder,
+                () -> VoidSerializer.INSTANCE,
                 valueSerializerView,
                 valueDeserializerView);
     }

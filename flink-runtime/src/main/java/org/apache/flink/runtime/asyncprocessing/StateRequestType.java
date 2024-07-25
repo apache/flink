@@ -114,6 +114,6 @@ public enum StateRequestType {
     /** Get value from aggregating state by {@link AggregatingState#asyncGet()}. */
     AGGREGATING_GET,
 
-    /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
-    AGGREGATING_ADD
+    /** Put element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
+    AGGREGATING_PUT
 }

@@ -54,14 +54,29 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
         this.aggregateFunction = stateDescriptor.getAggregateFunction();
     }
 
-    @Override
-    public StateFuture<OUT> asyncGet() {
+    protected StateFuture<ACC> asyncGetAccumulator() {
         return handleRequest(StateRequestType.AGGREGATING_GET, null);
     }
 
     @Override
+    public StateFuture<OUT> asyncGet() {
+        return asyncGetAccumulator()
+                .thenApply(acc -> (acc == null) ? null : this.aggregateFunction.getResult(acc));
+    }
+
+    @Override
     public StateFuture<Void> asyncAdd(IN value) {
-        return handleRequest(StateRequestType.AGGREGATING_ADD, value);
+        return asyncGetAccumulator()
+                .thenAccept(
+                        acc -> {
+                            final ACC safeAcc =
+                                    (acc == null)
+                                            ? this.aggregateFunction.createAccumulator()
+                                            : acc;
+                            handleRequest(
+                                    StateRequestType.AGGREGATING_PUT,
+                                    this.aggregateFunction.add(value, safeAcc));
+                        });
     }
 
     @Override

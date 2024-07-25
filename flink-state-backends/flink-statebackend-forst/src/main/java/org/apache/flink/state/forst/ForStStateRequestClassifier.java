@@ -99,6 +99,20 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                     dbPutRequests.add(forStMapState.buildDBBunchPutRequest(stateRequest));
                     return;
                 }
+            case AGGREGATING_GET:
+                {
+                    ForStAggregatingState<?, ?, ?, ?, ?> state =
+                            (ForStAggregatingState<?, ?, ?, ?, ?>) stateRequest.getState();
+                    dbGetRequests.add(state.buildDBGetRequest(stateRequest));
+                    return;
+                }
+            case AGGREGATING_PUT:
+                {
+                    ForStAggregatingState<?, ?, ?, ?, ?> state =
+                            (ForStAggregatingState<?, ?, ?, ?, ?>) stateRequest.getState();
+                    dbPutRequests.add(state.buildDBPutRequest(stateRequest));
+                    return;
+                }
             case CLEAR:
                 {
                     if (stateRequest.getState() instanceof ForStMapState) {
@@ -110,6 +124,11 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                         ForStInnerTable<?, ?, ?> innerTable =
                                 (ForStInnerTable<?, ?, ?>) stateRequest.getState();
                         dbPutRequests.add(innerTable.buildDBPutRequest(stateRequest));
+                        return;
+                    } else if (stateRequest.getState() instanceof ForStAggregatingState) {
+                        ForStAggregatingState<?, ?, ?, ?, ?> state =
+                                (ForStAggregatingState<?, ?, ?, ?, ?>) stateRequest.getState();
+                        dbPutRequests.add(state.buildDBPutRequest(stateRequest));
                         return;
                     } else {
                         throw new UnsupportedOperationException(

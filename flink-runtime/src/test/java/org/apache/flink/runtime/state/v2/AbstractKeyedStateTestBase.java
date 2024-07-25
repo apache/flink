@@ -101,6 +101,20 @@ public class AbstractKeyedStateTestBase {
         assertThat(testStateExecutor.receivedRequest.size()).isEqualTo(remainingRequests);
     }
 
+    <IN> void validateRequestRun(
+            @Nullable State state, StateRequestType type, @Nullable IN payload, boolean isEnd) {
+        aec.drainInflightRecords(0);
+        testStateExecutor.validate(state, type, payload);
+        if (isEnd) {
+            assertThat(testStateExecutor.receivedRequest.isEmpty()).isTrue();
+        }
+    }
+
+    <IN> void validateRequestRun(
+            @Nullable State state, StateRequestType type, @Nullable IN payload) {
+        validateRequestRun(state, type, payload, true);
+    }
+
     /**
      * A brief implementation of {@link StateBackend} which illustrates the interaction between AEC
      * and StateBackend.
