@@ -87,7 +87,7 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
         if (isRegistered(jobId)) {
             CompletableFuture<Void> resultFuture = this.jobManagerRunners.get(jobId).closeAsync();
 
-            return resultFuture.thenApply(
+            return resultFuture.thenApplyAsync(
                     result -> {
                         mainThreadExecutor.execute(() -> unregister(jobId));
                         return result;
