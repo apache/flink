@@ -152,6 +152,7 @@ public class WindowRankOperatorBuilder {
                         outputRankNumber,
                         windowEndIndex,
                         shiftTimeZone);
-        return new WindowAggOperator<>(windowProcessor);
+        // Processing time Window TopN is not supported yet.
+        return new WindowAggOperator<>(windowProcessor, true);
     }
 }
