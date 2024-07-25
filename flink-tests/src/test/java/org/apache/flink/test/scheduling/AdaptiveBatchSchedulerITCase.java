@@ -191,7 +191,8 @@ class AdaptiveBatchSchedulerITCase {
                     env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
                             .setParallelism(SOURCE_PARALLELISM_1)
                             .name("source1")
-                            .slotSharingGroup(slotSharingGroups.get(0));
+                            .slotSharingGroup(slotSharingGroups.get(0))
+                            .setMaxParallelism(2);
             source2 =
                     env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
                             .setParallelism(SOURCE_PARALLELISM_2)
