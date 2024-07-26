@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -642,9 +643,10 @@ class SlotSharingExecutionSlotAllocatorTest {
                     new HashMap<>();
             for (Map.Entry<ExecutionVertexID[], ResourceProfile> groupAndResource :
                     groupAndResources.entrySet()) {
+                SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+                slotSharingGroup.setResourceProfile(groupAndResource.getValue());
                 ExecutionSlotSharingGroup executionSlotSharingGroup =
-                        new ExecutionSlotSharingGroup();
-                executionSlotSharingGroup.setResourceProfile(groupAndResource.getValue());
+                        new ExecutionSlotSharingGroup(slotSharingGroup);
                 for (ExecutionVertexID executionVertexId : groupAndResource.getKey()) {
                     executionSlotSharingGroup.addVertex(executionVertexId);
                     executionSlotSharingGroups.put(executionVertexId, executionSlotSharingGroup);
