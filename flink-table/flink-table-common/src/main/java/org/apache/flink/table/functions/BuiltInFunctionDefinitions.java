@@ -2012,14 +2012,8 @@ public final class BuiltInFunctionDefinitions {
                                             or(
                                                     logical(LogicalTypeFamily.INTEGER_NUMERIC),
                                                     logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                            or(
-                                                    logical(LogicalTypeRoot.TINYINT),
-                                                    logical(LogicalTypeRoot.SMALLINT),
-                                                    logical(LogicalTypeRoot.INTEGER)),
-                                            or(
-                                                    logical(LogicalTypeRoot.TINYINT),
-                                                    logical(LogicalTypeRoot.SMALLINT),
-                                                    logical(LogicalTypeRoot.INTEGER)))))
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC))))
                     .outputTypeStrategy(explicit(STRING()))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.ConvFunction")
                     .build();

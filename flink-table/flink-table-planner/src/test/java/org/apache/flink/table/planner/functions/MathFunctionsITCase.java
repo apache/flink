@@ -287,6 +287,17 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 "CONV('-FFFFFFFFFFFFFFFE', 16, 16)",
                                 "FFFFFFFFFFFFFFFF",
                                 DataTypes.STRING())
+                        // BIGINT base
+                        .testResult(
+                                $("f2").conv(1234567890123L, 16),
+                                "CONV(f2, 1234567890123, 16)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(16, 1234567890123L),
+                                "CONV(f2, 16, 1234567890123)",
+                                null,
+                                DataTypes.STRING())
                         // number positive base
                         .testResult($("f2").conv(2, 4), "CONV(f2, 2, 4)", "10", DataTypes.STRING())
                         .testResult(
@@ -361,10 +372,10 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").conv("12", 10),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER>], toBase [<TINYINT> | <SMALLINT> | <INTEGER>])")
+                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase <INTEGER_NUMERIC>, toBase <INTEGER_NUMERIC>)")
                         .testSqlValidationError(
                                 "CONV(f0, '12', 10)",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER>], toBase [<TINYINT> | <SMALLINT> | <INTEGER>])"));
+                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase <INTEGER_NUMERIC>, toBase <INTEGER_NUMERIC>)"));
     }
 }

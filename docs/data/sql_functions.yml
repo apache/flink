@@ -255,7 +255,7 @@ arithmetic:
       The function supports base 2 to base 36, fromBase in [2, 36], ABS(toBase) in [2,36], otherwise the function returns `NULL`. 
       If toBase is negative, num is interpreted as a signed number, otherwise it is treated as an unsigned number. The result is consistent with this rule. 
       If num overflows, the function returns -1.
-      num [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT> | <CHAR> | <VARCHAR>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER>], toBase [<TINYINT> | <SMALLINT> | <INTEGER>]
+      num [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT> | <CHAR> | <VARCHAR>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT>], toBase [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT>]
       Returns a STRING representation of the converted num, `NULL` if any of the arguments are `NULL`.
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
