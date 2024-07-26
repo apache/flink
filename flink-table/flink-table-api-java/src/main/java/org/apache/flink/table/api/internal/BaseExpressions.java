@@ -83,6 +83,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COLLECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONV;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
@@ -832,6 +833,21 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType unhex() {
         return toApiSpecificExpression(unresolvedCall(UNHEX, toExpr()));
+    }
+
+    /**
+     * Converts {@code num} from {@code fromBase} to {@code toBase}. <br>
+     * The function supports base 2 to base 36. If {@code toBase} is negative, {@code num} is
+     * interpreted as a signed number, otherwise it is treated as an unsigned number. The result is
+     * consistent with this rule. If {@code num} overflows, the function returns -1.
+     *
+     * @param fromBase An INTEGER expression.
+     * @param toBase An INTEGER expression.
+     */
+    public OutType conv(InType fromBase, InType toBase) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        CONV, toExpr(), objectToExpression(fromBase), objectToExpression(toBase)));
     }
 
     /**

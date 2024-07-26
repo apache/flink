@@ -1017,6 +1017,15 @@ class Expression(Generic[T]):
         """
         return _unary_op("unhex")(self)
 
+    def conv(self, from_base, to_base) -> 'Expression':
+        """
+        Converts num from from_base to to_base.
+        The function supports base 2 to base 36. If toBase is negative, num is interpreted as a
+        signed number, otherwise it is treated as an unsigned number. The result is consistent with
+        this rule. If num overflows, the function returns -1.
+        """
+        return _ternary_op("conv")(self, from_base, to_base)
+
     def truncate(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
         """
         Returns a number of truncated to n decimal places.

@@ -150,6 +150,7 @@ arithmetic functions
     Expression.bin
     Expression.hex
     Expression.unhex
+    Expression.conv
     Expression.truncate
 
 string functions

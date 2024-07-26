@@ -41,7 +41,8 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                         modTestCases(),
                         roundTestCases(),
                         truncateTestCases(),
-                        unhexTestCases())
+                        unhexTestCases(),
+                        convTestCases())
                 .flatMap(s -> s);
     }
 
@@ -230,5 +231,140 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 "UNHEX(f0)",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "UNHEX(expr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> convTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CONV)
+                        .onFieldsWithData(null, null, "100", "", "11abc")
+                        .andDataTypes(
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        // null input
+                        .testResult($("f0").conv(2, 2), "CONV(f0, 2, 2)", null, DataTypes.STRING())
+                        .testResult($("f1").conv(2, 2), "CONV(f1, 2, 2)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv($("f0"), 2),
+                                "CONV(f2, f0, 2)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(2, $("f0")),
+                                "CONV(f2, 2, f0)",
+                                null,
+                                DataTypes.STRING())
+                        // empty string
+                        .testResult($("f3").conv(2, 4), "CONV(f3, 2, 4)", null, DataTypes.STRING())
+                        // invalid fromBase
+                        .testResult($("f2").conv(1, 2), "CONV(f2, 1, 2)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(40, 2), "CONV(f2, 40, 2)", null, DataTypes.STRING())
+                        // invalid toBase
+                        .testResult(
+                                $("f2").conv(2, -1), "CONV(f2, 2, -1)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(2, -40), "CONV(f2, 2, -40)", null, DataTypes.STRING())
+                        // invalid num format
+                        .testResult(
+                                $("f4").conv(10, 16), "CONV(f4, 10, 16)", null, DataTypes.STRING())
+                        // num overflow
+                        .testResult(
+                                lit("FFFFFFFFFFFFFFFF").conv(16, 16),
+                                "CONV('FFFFFFFFFFFFFFFF', 16, 16)",
+                                "FFFFFFFFFFFFFFFF",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("-1").conv(16, -16),
+                                "CONV('-1', 16, -16)",
+                                "-1",
+                                DataTypes.STRING())
+                        // double negative
+                        .testResult(
+                                lit("-FFFFFFFFFFFFFFFE").conv(16, 16),
+                                "CONV('-FFFFFFFFFFFFFFFE', 16, 16)",
+                                "FFFFFFFFFFFFFFFF",
+                                DataTypes.STRING())
+                        // number positive base
+                        .testResult($("f2").conv(2, 4), "CONV(f2, 2, 4)", "10", DataTypes.STRING())
+                        .testResult(
+                                lit(4521).conv(10, 36),
+                                "CONV(4521, 10, 36)",
+                                "3HL",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(22).conv(10, 10), "CONV(22, 10, 10)", "22", DataTypes.STRING())
+                        .testResult(
+                                lit(110011).conv(2, 16),
+                                "CONV(110011, 2, 16)",
+                                "33",
+                                DataTypes.STRING())
+                        // number negative base
+                        .testResult(
+                                lit(-641).conv(10, -10),
+                                "CONV(-641, 10, -10)",
+                                "-641",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(1011).conv(2, -16),
+                                "CONV(1011, 2, -16)",
+                                "B",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(-15).conv(10, 16),
+                                "CONV(-15, 10, 16)",
+                                "FFFFFFFFFFFFFFF1",
+                                DataTypes.STRING())
+                        // string positive base
+                        .testResult($("f2").conv(2, 4), "CONV(f2, 2, 4)", "10", DataTypes.STRING())
+                        .testResult(
+                                lit("4521").conv(10, 36),
+                                "CONV('4521', 10, 36)",
+                                "3HL",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("22").conv(10, 10),
+                                "CONV('22', 10, 10)",
+                                "22",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("110011").conv(2, 16),
+                                "CONV('110011', 2, 16)",
+                                "33",
+                                DataTypes.STRING())
+                        // string negative base
+                        .testResult(
+                                lit("-641").conv(10, -10),
+                                "CONV('-641', 10, -10)",
+                                "-641",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("1011").conv(2, -16),
+                                "CONV('1011', 2, -16)",
+                                "B",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("-15").conv(10, 16),
+                                "CONV('-15', 10, 16)",
+                                "FFFFFFFFFFFFFFF1",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("FFFFFFFFFFFFFFFE").conv(16, -16),
+                                "CONV('FFFFFFFFFFFFFFFE', 16, -16)",
+                                "-2",
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CONV, "Validation Error")
+                        .onFieldsWithData("12345")
+                        .andDataTypes(DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").conv("12", 10),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER>], toBase [<TINYINT> | <SMALLINT> | <INTEGER>])")
+                        .testSqlValidationError(
+                                "CONV(f0, '12', 10)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER>], toBase [<TINYINT> | <SMALLINT> | <INTEGER>])"));
     }
 }
