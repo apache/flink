@@ -1084,6 +1084,13 @@ class Expression(Generic[T]):
         """
         return _ternary_op("replace")(self, search, replacement)
 
+    def translate(self, from_str, to_str) -> 'Expression':
+        """
+        Translate an expr where all characters in from_str have been replaced with those in to_str.
+        If to_str has a shorter length than from_str, unmatched characters are removed.
+        """
+        return _ternary_op("translate")(self, from_str, to_str)
+
     @property
     def char_length(self) -> 'Expression[int]':
         """
