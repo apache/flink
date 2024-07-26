@@ -466,7 +466,7 @@ class Catalog(object):
         Get the model.
 
         :param model_path: Path :class:`ObjectPath` of the model.
-        :return: The requested function :class:`CatalogModel`.
+        :return: The requested :class:`CatalogModel`.
         :raise: CatalogException in case of any runtime exception.
                 ModelNotExistException if the model does not exist in the catalog.
         """
@@ -498,7 +498,7 @@ class Catalog(object):
     def rename_model(self, model_path: 'ObjectPath', new_model_name: str,
                      ignore_if_not_exists: bool):
         """
-        Rename an existing model
+        Rename an existing model.
 
         :param model_path: Path :class:`ObjectPath` of the model to be renamed.
         :param new_model_name: The new name of the model.
@@ -516,7 +516,7 @@ class Catalog(object):
         Create a new model.
 
         :param model_path: Path :class:`ObjectPath` of the model to be created.
-        :param model: The table definition :class:`CatalogModel`.
+        :param model: The model definition :class:`CatalogModel`.
         :param ignore_if_exists: Flag to specify behavior when a model already exists at
                                  the given path:
                                  if set to false, it throws a ModelAlreadyExistException,
@@ -534,7 +534,7 @@ class Catalog(object):
         Modify an existing model.
 
         :param model_path: Path :class:`ObjectPath` of the model to be modified.
-        :param new_model: The new table definition :class:`CatalogModel`.
+        :param new_model: The new model definition :class:`CatalogModel`.
         :param ignore_if_not_exists: Flag to specify behavior when the model does not exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.

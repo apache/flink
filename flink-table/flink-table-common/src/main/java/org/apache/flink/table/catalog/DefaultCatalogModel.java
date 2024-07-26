@@ -36,7 +36,7 @@ public class DefaultCatalogModel implements CatalogModel {
     private final List<ModelChange> modelChanges;
     private final @Nullable String comment;
 
-    public DefaultCatalogModel(
+    protected DefaultCatalogModel(
             Schema inputSchema,
             Schema outputSchema,
             Map<String, String> modelOptions,

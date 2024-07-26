@@ -22,7 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Map;
 
-/** A common parent that describes the <i>resolved</i> metadata of a model in a catalog. */
+/**  * A validated {@link CatalogModel} that is backed by the original metadata coming from the {@link
+ * Catalog} but resolved by the framework. */
 @PublicEvolving
 public interface ResolvedCatalogModel extends CatalogModel {
     /**
@@ -43,7 +44,7 @@ public interface ResolvedCatalogModel extends CatalogModel {
      * Serializes this instance into a map of string-based properties.
      *
      * <p>Compared to the pure table options in {@link #getOptions()}, the map includes input
-     * schema, output schema, kind, task, comment and options.
+     * schema, output schema, comment and options.
      */
     Map<String, String> toProperties();
 
@@ -52,7 +53,7 @@ public interface ResolvedCatalogModel extends CatalogModel {
      * previously created with {@link ResolvedCatalogModel#toProperties()}.
      *
      * @param properties serialized version of a {@link ResolvedCatalogModel} that includes input
-     *     schema, output schema, kind, task, comment and options.
+     *     schema, output schema, comment and options.
      */
     static CatalogModel fromProperties(Map<String, String> properties) {
         return CatalogPropertiesUtil.deserializeCatalogModel(properties);

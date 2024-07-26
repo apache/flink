@@ -796,7 +796,7 @@ public interface Catalog {
     // ------ models  ------
 
     /**
-     * Get names of all tables models under this database. An empty list is returned if none exists.
+     * Get names of all models under this database. An empty list is returned if none exists.
      *
      * @return a list of the names of all models in this database
      * @throws DatabaseNotExistException if the database does not exist
