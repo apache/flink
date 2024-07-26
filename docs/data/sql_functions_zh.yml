@@ -296,6 +296,15 @@ arithmetic:
     description: |
       以十六进制格式返回整数 numeric 或字符串 string 的字符串表示。如果参数为 `NULL`，则返回 `NULL`。
       例如数字 20 返回“14”，数字 100 返回“64”，字符串“hello,world” 返回“68656C6C6F2C776F726C64”。
+  - sql: CONV(num, fromBase, toBase)
+    table: num.conv(fromBase, toBase)
+    description: |
+      将 num 从 fromBase 进制转换为 toBase 进制。
+      该函数支持 2 进制到 36 进制，fromBase 应在 [2, 36] 范围内，toBase 的绝对值应在[2, 36]范围内，否则函数将会返回 `NULL`。
+      如果 toBase 为负数，则 num 被视为有符号数处理；如果为正数，则视为无符号数处理。转换结果与此规则保持一致。
+      如果 num 溢出，函数将返回 -1。
+      num [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT> | <CHAR> | <VARCHAR>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER>], toBase [<TINYINT> | <SMALLINT> | <INTEGER>]
+      返回一个 STRING 格式的 num 转换结果。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: |
