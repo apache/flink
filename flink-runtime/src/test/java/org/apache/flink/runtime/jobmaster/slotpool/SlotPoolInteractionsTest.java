@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link DeclarativeSlotPoolBridge} interactions. */
 class SlotPoolInteractionsTest {
 
-    private static final Time fastTimeout = Time.milliseconds(1L);
+    private static final Duration fastTimeout = Duration.ofMillis(1L);
 
     @RegisterExtension
     private static final TestingComponentMainThreadExecutor.Extension EXECUTOR_EXTENSION =

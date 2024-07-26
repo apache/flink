@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -95,7 +94,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                             declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                     slotRequestId,
                                                     ResourceProfile.UNKNOWN,
-                                                    Time.minutes(5)),
+                                                    Duration.ofMinutes(5)),
                                     componentMainThreadExecutor)
                             .get();
 
@@ -167,7 +166,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                                 declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                         slotRequestId,
                                                         ResourceProfile.UNKNOWN,
-                                                        Time.fromDuration(RPC_TIMEOUT));
+                                                        RPC_TIMEOUT);
                                         slotFuture.whenComplete(
                                                 (physicalSlot, throwable) -> {
                                                     if (throwable != null) {
@@ -199,9 +198,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
 
             final CompletableFuture<PhysicalSlot> slotFuture =
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                            new SlotRequestId(),
-                            ResourceProfile.UNKNOWN,
-                            Time.fromDuration(RPC_TIMEOUT));
+                            new SlotRequestId(), ResourceProfile.UNKNOWN, RPC_TIMEOUT);
 
             final LocalTaskManagerLocation localTaskManagerLocation =
                     new LocalTaskManagerLocation();
