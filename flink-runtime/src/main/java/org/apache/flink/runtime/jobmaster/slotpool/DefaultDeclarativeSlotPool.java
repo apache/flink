@@ -96,7 +96,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     private final Duration rpcTimeout;
 
     private final JobID jobId;
-    protected final AllocatedSlotPool slotPool;
+    protected final AllocatedSlotPool allocatedSlotPool;
 
     private final Map<AllocationID, ResourceProfile> slotToRequirementProfileMappings;
 
@@ -116,7 +116,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     public DefaultDeclarativeSlotPool(
             JobID jobId,
-            AllocatedSlotPool slotPool,
+            AllocatedSlotPool allocatedSlotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Duration idleSlotTimeout,
             Duration rpcTimeout,
@@ -124,7 +124,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             ComponentMainThreadExecutor componentMainThreadExecutor) {
 
         this.jobId = jobId;
-        this.slotPool = slotPool;
+        this.allocatedSlotPool = allocatedSlotPool;
         this.notifyNewResourceRequirements = notifyNewResourceRequirements;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
@@ -234,7 +234,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         final Collection<AllocatedSlot> acceptedSlots = new ArrayList<>();
 
         for (SlotOffer offer : offers) {
-            if (slotPool.containsSlot(offer.getAllocationId())) {
+            if (allocatedSlotPool.containsSlot(offer.getAllocationId())) {
                 // we have already accepted this offer
                 acceptedSlotOffers.add(offer);
             } else {
@@ -252,7 +252,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             }
         }
 
-        slotPool.addSlots(acceptedSlots, currentTime);
+        allocatedSlotPool.addSlots(acceptedSlots, currentTime);
 
         if (!acceptedSlots.isEmpty()) {
             log.debug(
@@ -371,7 +371,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public PhysicalSlot reserveFreeSlot(
             AllocationID allocationId, ResourceProfile requiredSlotProfile) {
-        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId);
+        final AllocatedSlot allocatedSlot = allocatedSlotPool.reserveFreeSlot(allocationId);
 
         Preconditions.checkState(
                 allocatedSlot.getResourceProfile().isMatching(requiredSlotProfile),
@@ -416,7 +416,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         log.debug("Free reserved slot {}.", allocationId);
 
         final Optional<AllocatedSlot> freedSlot =
-                slotPool.freeReservedSlot(allocationId, currentTime);
+                allocatedSlotPool.freeReservedSlot(allocationId, currentTime);
 
         Optional<ResourceCounter> previouslyFulfilledRequirement =
                 freedSlot.map(Collections::singleton).map(this::getFulfilledRequirements);
@@ -466,7 +466,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public ResourceCounter releaseSlots(ResourceID owner, Exception cause) {
         final AllocatedSlotPool.AllocatedSlotsAndReservationStatus removedSlots =
-                slotPool.removeSlots(owner);
+                allocatedSlotPool.removeSlots(owner);
 
         final Collection<AllocatedSlot> slotsToFree = new ArrayList<>();
         for (AllocatedSlot removedSlot : removedSlots.getAllocatedSlots()) {
@@ -480,8 +480,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public ResourceCounter releaseSlot(AllocationID allocationId, Exception cause) {
-        final boolean wasSlotFree = slotPool.containsFreeSlot(allocationId);
-        final Optional<AllocatedSlot> removedSlot = slotPool.removeSlot(allocationId);
+        final boolean wasSlotFree = allocatedSlotPool.containsFreeSlot(allocationId);
+        final Optional<AllocatedSlot> removedSlot = allocatedSlotPool.removeSlot(allocationId);
 
         if (removedSlot.isPresent()) {
             final AllocatedSlot slot = removedSlot.get();
@@ -519,7 +519,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void releaseIdleSlots(long currentTimeMillis) {
         final Collection<AllocatedSlotPool.FreeSlotInfo> freeSlotsInformation =
-                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
+                allocatedSlotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
 
         ResourceCounter excessResources =
                 fulfilledResourceRequirements.subtract(totalResourceRequirements);
@@ -539,7 +539,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 if (excessResources.containsResource(matchingProfile)) {
                     excessResources = excessResources.subtract(matchingProfile, 1);
                     final Optional<AllocatedSlot> removedSlot =
-                            slotPool.removeSlot(idleSlot.getAllocationId());
+                            allocatedSlotPool.removeSlot(idleSlot.getAllocationId());
 
                     final AllocatedSlot allocatedSlot =
                             removedSlot.orElseThrow(
@@ -600,22 +600,22 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-        return slotPool.getFreeSlotInfoTracker();
+        return allocatedSlotPool.getFreeSlotInfoTracker();
     }
 
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
-        return slotPool.getAllSlotsInformation();
+        return allocatedSlotPool.getAllSlotsInformation();
     }
 
     @Override
     public boolean containsFreeSlot(AllocationID allocationId) {
-        return slotPool.containsFreeSlot(allocationId);
+        return allocatedSlotPool.containsFreeSlot(allocationId);
     }
 
     @Override
     public boolean containsSlots(ResourceID owner) {
-        return slotPool.containsSlots(owner);
+        return allocatedSlotPool.containsSlots(owner);
     }
 
     private ResourceCounter getFulfilledRequirements(

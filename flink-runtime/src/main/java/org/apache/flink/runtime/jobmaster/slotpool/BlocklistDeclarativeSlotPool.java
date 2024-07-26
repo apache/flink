@@ -106,7 +106,7 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
         // blocked task manager. Because the slot may already be assigned to an execution, rejecting
         // it will cause a task failover.
         for (SlotOffer offer : offers) {
-            if (slotPool.containsSlot(offer.getAllocationId())) {
+            if (allocatedSlotPool.containsSlot(offer.getAllocationId())) {
                 // we have already accepted this offer
                 acceptedSlotOffers.add(offer);
             } else {
@@ -129,7 +129,7 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
     @Override
     public ResourceCounter freeReservedSlot(
             AllocationID allocationId, @Nullable Throwable cause, long currentTime) {
-        Optional<SlotInfo> slotInfo = slotPool.getSlotInformation(allocationId);
+        Optional<SlotInfo> slotInfo = allocatedSlotPool.getSlotInformation(allocationId);
 
         if (!slotInfo.isPresent()) {
             return ResourceCounter.empty();
