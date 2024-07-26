@@ -25,12 +25,17 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /** Test String functions correct behaviour. */
 class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(regexpExtractTestCases(), translateTestCases()).flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> regexpExtractTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
@@ -45,5 +50,146 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_EXTRACT(f1, '[A-Z]+')",
                                 "ABC",
                                 DataTypes.STRING().nullable()));
+    }
+
+    private Stream<TestSetSpec> translateTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRANSLATE)
+                        .onFieldsWithData(
+                                null, "www.apache.org", "", "翻译test，测试", "www.\uD83D\uDE00.org")
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f0").translate("abc", "123"),
+                                "TRANSLATE(f0, 'abc', '123')",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate($("f0"), "123"),
+                                "TRANSLATE(f1, f0, '123')",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate("abc", $("f0")),
+                                "TRANSLATE(f1, 'abc', f0)",
+                                "www.phe.org",
+                                DataTypes.STRING())
+                        // empty input
+                        .testResult(
+                                $("f2").translate("abc", "123"),
+                                "TRANSLATE(f2, 'abc', '123')",
+                                "",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate($("f2"), "123"),
+                                "TRANSLATE(f1, f2, '123')",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate("abc", $("f2")),
+                                "TRANSLATE(f1, 'abc', f2)",
+                                "www.phe.org",
+                                DataTypes.STRING())
+                        // from longer than to
+                        .testResult(
+                                $("f1").translate("abcde", "123"),
+                                "TRANSLATE(f1, 'abcde', '123')",
+                                "www.1p13h.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate("abcde.", "123"),
+                                "TRANSLATE(f1, 'abcde.', '123')",
+                                "www1p13horg",
+                                DataTypes.STRING())
+                        // to longer than from
+                        .testResult(
+                                $("f1").translate("abc", "12345"),
+                                "TRANSLATE(f1, 'abc', '12345')",
+                                "www.1p13he.org",
+                                DataTypes.STRING())
+                        // duplicate chars in from
+                        .testResult(
+                                $("f1").translate("abcae", "12345"),
+                                "TRANSLATE(f1, 'abcae', '12345')",
+                                "www.1p13h5.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate("...", "123"),
+                                "TRANSLATE(f1, '...', '123')",
+                                "www1apache1org",
+                                DataTypes.STRING())
+                        // case sensitive
+                        .testResult(
+                                $("f1").translate("ABCDE", "12345"),
+                                "TRANSLATE(f1, 'ABCDE', '12345')",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        // Unicode
+                        .testResult(
+                                $("f3").translate("翻译测试test，", "测试翻译tset。"),
+                                "TRANSLATE(f3, '翻译测试test，', '测试翻译tset。')",
+                                "测试tset。翻译",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f3").translate("翻译测试test，", "test翻译  "),
+                                "TRANSLATE(f3, '翻译测试test，', 'test翻译  ')",
+                                "te翻译 翻st",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f4").translate(".\uD83D\uDE00", "\uD83D\uDE00."),
+                                "TRANSLATE(f4, '.\uD83D\uDE00', '\uD83D\uDE00.')",
+                                "www\uD83D\uDE00.\uD83D\uDE00org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f4").translate("\uD83D\uDE00w", "笑α"),
+                                "TRANSLATE(f4, '\uD83D\uDE00w', '笑α')",
+                                "ααα.笑.org",
+                                DataTypes.STRING())
+                        // return type
+                        .testResult(
+                                lit("www.apache.org").translate("abc", "123"),
+                                "TRANSLATE('www.apache.org', 'abc', '123')",
+                                "www.1p13he.org",
+                                DataTypes.STRING().notNull())
+                        // dict reuse (coverage)
+                        .testResult(
+                                lit("www.apache.org")
+                                        .translate("abc", "123")
+                                        .translate("abc", "123"),
+                                "TRANSLATE(TRANSLATE('www.apache.org', 'abc', '123'), 'abc', '123')",
+                                "www.1p13he.org",
+                                DataTypes.STRING().notNull())
+                        // normal cases
+                        .testResult(
+                                $("f1").translate("abc", "123"),
+                                "TRANSLATE(f1, 'abc', '123')",
+                                "www.1p13he.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate("abc", "ABC"),
+                                "TRANSLATE(f1, 'abc', 'ABC')",
+                                "www.ApAChe.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").translate("abcworg", "123 "),
+                                "TRANSLATE(f1, 'abcworg', '123 ')",
+                                "   .1p13he.",
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRANSLATE, "Validation Error")
+                        .onFieldsWithData(12345)
+                        .andDataTypes(DataTypes.INT())
+                        .testTableApiValidationError(
+                                $("f0").translate("3", "5"),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "TRANSLATE3(expr <CHARACTER_STRING>, fromStr <CHARACTER_STRING>, toStr <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "TRANSLATE(f0, '3', '5')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "TRANSLATE3(expr <CHARACTER_STRING>, fromStr <CHARACTER_STRING>, toStr <CHARACTER_STRING>)"));
     }
 }

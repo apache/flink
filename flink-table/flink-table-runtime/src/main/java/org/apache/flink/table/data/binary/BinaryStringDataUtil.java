@@ -964,6 +964,11 @@ public class BinaryStringDataUtil {
         }
     }
 
+    public static boolean isEmpty(BinaryStringData str) {
+        return (str.javaObject == null || str.javaObject.isEmpty())
+                && (str.binarySection == null || str.binarySection.getSizeInBytes() == 0);
+    }
+
     public static boolean isSpaceString(BinaryStringData str) {
         if (str.javaObject != null) {
             return str.javaObject.equals(" ");
