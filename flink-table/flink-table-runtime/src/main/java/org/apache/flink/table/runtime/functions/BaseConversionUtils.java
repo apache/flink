@@ -116,7 +116,7 @@ public class BaseConversionUtils {
      * Convert numbers between different number bases. If toBase&gt;0 the result is unsigned,
      * otherwise it is signed.
      */
-    public static String conv(byte[] n, int fromBase, int toBase) {
+    public static String conv(byte[] n, long fromBase, long toBase) {
         byte[] value = new byte[64];
         if (n == null || n.length < 1) {
             return null;
@@ -124,10 +124,14 @@ public class BaseConversionUtils {
 
         if (fromBase < Character.MIN_RADIX
                 || fromBase > Character.MAX_RADIX
+                || toBase == Long.MIN_VALUE
                 || Math.abs(toBase) < Character.MIN_RADIX
                 || Math.abs(toBase) > Character.MAX_RADIX) {
             return null;
         }
+
+        int fromBaseInt = (int) fromBase;
+        int toBaseInt = (int) toBase;
 
         boolean negative = (n[0] == '-');
         int first = 0;
@@ -139,31 +143,31 @@ public class BaseConversionUtils {
         for (int i = 1; i <= n.length - first; i++) {
             value[value.length - i] = n[n.length - i];
         }
-        if (!char2byte(value, fromBase, value.length - n.length + first)) {
+        if (!char2byte(value, fromBaseInt, value.length - n.length + first)) {
             return null;
         }
 
         // Do the conversion by going through a 64 bit integer
-        long val = encode(value, fromBase, value.length - n.length + first);
-        if (negative && toBase > 0) {
+        long val = encode(value, fromBaseInt, value.length - n.length + first);
+        if (negative && toBaseInt > 0) {
             if (val < 0) {
                 val = -1;
             } else {
                 val = -val;
             }
         }
-        if (toBase < 0 && val < 0) {
+        if (toBaseInt < 0 && val < 0) {
             val = -val;
             negative = true;
         }
-        decode(value, val, Math.abs(toBase));
+        decode(value, val, Math.abs(toBaseInt));
 
         // Find the first non-zero digit or the last digits if all are zero.
         for (first = 0; first < value.length - 1 && value[first] == 0; first++) {}
 
-        byte2char(value, Math.abs(toBase), first);
+        byte2char(value, Math.abs(toBaseInt), first);
 
-        if (negative && toBase < 0) {
+        if (negative && toBaseInt < 0) {
             value[--first] = '-';
         }
 

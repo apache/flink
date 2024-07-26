@@ -45,8 +45,8 @@ public class ConvFunction extends BuiltInScalarFunction {
         return BinaryStringData.fromString(
                 BaseConversionUtils.conv(
                         String.valueOf(num.longValue()).getBytes(UTF_8),
-                        fromBase.intValue(),
-                        toBase.intValue()));
+                        fromBase.longValue(),
+                        toBase.longValue()));
     }
 
     public @Nullable StringData eval(
@@ -55,6 +55,6 @@ public class ConvFunction extends BuiltInScalarFunction {
             return null;
         }
         return BinaryStringData.fromString(
-                BaseConversionUtils.conv(num.toBytes(), fromBase.intValue(), toBase.intValue()));
+                BaseConversionUtils.conv(num.toBytes(), fromBase.longValue(), toBase.longValue()));
     }
 }
