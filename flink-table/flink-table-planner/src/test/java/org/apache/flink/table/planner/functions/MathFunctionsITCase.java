@@ -182,9 +182,10 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
     private Stream<TestSetSpec> convTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.CONV)
-                        .onFieldsWithData(null, null, "100", "", "11abc")
+                        .onFieldsWithData(null, null, "100", "", "11abc", "   4521   ")
                         .andDataTypes(
                                 DataTypes.INT(),
+                                DataTypes.STRING(),
                                 DataTypes.STRING(),
                                 DataTypes.STRING(),
                                 DataTypes.STRING(),
@@ -213,20 +214,34 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f2").conv(2, -1), "CONV(f2, 2, -1)", null, DataTypes.STRING())
                         .testResult(
                                 $("f2").conv(2, -40), "CONV(f2, 2, -40)", null, DataTypes.STRING())
-                        // invalid num format
+                        // invalid num format, ignore suffix
                         .testResult(
-                                $("f4").conv(10, 16), "CONV(f4, 10, 16)", null, DataTypes.STRING())
+                                $("f4").conv(10, 16), "CONV(f4, 10, 16)", "B", DataTypes.STRING())
                         // num overflow
-                        .testResult(
+                        .testTableApiRuntimeError(
                                 lit("FFFFFFFFFFFFFFFF").conv(16, 16),
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFF overflows.")
+                        .testSqlRuntimeError(
                                 "CONV('FFFFFFFFFFFFFFFF', 16, 16)",
-                                "FFFFFFFFFFFFFFFF",
-                                DataTypes.STRING())
-                        .testResult(
-                                lit("-1").conv(16, -16),
-                                "CONV('-1', 16, -16)",
-                                "-1",
-                                DataTypes.STRING())
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFF overflows.")
+                        .testTableApiRuntimeError(
+                                lit("FFFFFFFFFFFFFFFEE").conv(16, 16),
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFEE overflows.")
+                        .testSqlRuntimeError(
+                                "CONV('FFFFFFFFFFFFFFFEE', 16, 16)",
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFEE overflows.")
+                        .testTableApiRuntimeError(
+                                lit("18446744073709551616").conv(10, 10),
+                                ArithmeticException.class,
+                                "The number 18446744073709551616 overflows.")
+                        .testSqlRuntimeError(
+                                "CONV('18446744073709551616', 10, 10)",
+                                ArithmeticException.class,
+                                "The number 18446744073709551616 overflows.")
                         // double negative
                         .testResult(
                                 lit("-FFFFFFFFFFFFFFFE").conv(16, 16),
@@ -258,6 +273,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 "CONV(110011, 2, 16)",
                                 "33",
                                 DataTypes.STRING())
+                        .testResult(
+                                lit(-10).conv(11, 7),
+                                "CONV(-10, 11, 7)",
+                                "45012021522523134134555",
+                                DataTypes.STRING())
                         // number negative base
                         .testResult(
                                 lit(-641).conv(10, -10),
@@ -274,6 +294,14 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 "CONV(-15, 10, 16)",
                                 "FFFFFFFFFFFFFFF1",
                                 DataTypes.STRING())
+                        .testResult(
+                                lit(Long.MIN_VALUE).conv(10, -2),
+                                "CONV(-9223372036854775808, 10, -2)",
+                                "-" + Long.toBinaryString(Long.MIN_VALUE),
+                                DataTypes.STRING())
+                        // trim string
+                        .testResult(
+                                $("f5").conv(10, 36), "CONV(f5, 10, 36)", "3HL", DataTypes.STRING())
                         // string positive base
                         .testResult($("f2").conv(2, 4), "CONV(f2, 2, 4)", "10", DataTypes.STRING())
                         .testResult(
@@ -290,6 +318,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 lit("110011").conv(2, 16),
                                 "CONV('110011', 2, 16)",
                                 "33",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("-10").conv(11, 7),
+                                "CONV('-10', 11, 7)",
+                                "45012021522523134134555",
                                 DataTypes.STRING())
                         // string negative base
                         .testResult(
@@ -311,6 +344,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 lit("FFFFFFFFFFFFFFFE").conv(16, -16),
                                 "CONV('FFFFFFFFFFFFFFFE', 16, -16)",
                                 "-2",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(String.valueOf(Long.MIN_VALUE)).conv(10, -2),
+                                "CONV('-9223372036854775808', 10, -2)",
+                                "-" + Long.toBinaryString(Long.MIN_VALUE),
                                 DataTypes.STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.CONV, "Validation Error")
                         .onFieldsWithData("12345")

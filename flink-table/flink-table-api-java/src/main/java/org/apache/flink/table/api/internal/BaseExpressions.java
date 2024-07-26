@@ -817,7 +817,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * Converts {@code num} from {@code fromBase} to {@code toBase}. <br>
      * The function supports base 2 to base 36. If {@code toBase} is negative, {@code num} is
      * interpreted as a signed number, otherwise it is treated as an unsigned number. The result is
-     * consistent with this rule. If {@code num} overflows, the function returns -1.
+     * consistent with this rule. If {@code num} overflows, the function raises an error.
      *
      * @param fromBase An INTEGER expression.
      * @param toBase An INTEGER expression.

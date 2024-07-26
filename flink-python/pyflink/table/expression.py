@@ -1009,7 +1009,7 @@ class Expression(Generic[T]):
         Converts num from from_base to to_base.
         The function supports base 2 to base 36. If toBase is negative, num is interpreted as a
         signed number, otherwise it is treated as an unsigned number. The result is consistent with
-        this rule. If num overflows, the function returns -1.
+        this rule. If num overflows, the function raises an error.
         """
         return _ternary_op("conv")(self, from_base, to_base)
 
