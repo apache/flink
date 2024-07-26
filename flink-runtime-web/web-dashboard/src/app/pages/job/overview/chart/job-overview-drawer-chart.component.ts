@@ -45,10 +45,16 @@ import { JobLocalService } from '../../job-local.service';
   standalone: true
 })
 export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
+  public readonly countMetricBarrier: number = 50000;
+  public readonly countDisplayMetric: number = 20000;
+  private readonly filteredOutMetric: number = 10000;
+
   public data = [];
   public listOfMetricName: string[] = [];
   public listOfSelectedMetric: string[] = [];
   public listOfUnselectedMetric: string[] = [];
+  public listOfFirstMetrics: string[] = [];
+  public listOfDisplayedMetric: string[] = [];
   public cacheMetricKey: string;
 
   @ViewChildren(JobChartComponent) private readonly listOfJobChartComponent: QueryList<JobChartComponent>;
@@ -97,6 +103,9 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
     this.cacheMetricKey = `${jobId}/${vertexId}`;
     this.metricsService.loadAllAvailableMetrics(jobId, vertexId).subscribe(data => {
       this.listOfMetricName = data.map(item => item.id);
+      if (data.length > this.countMetricBarrier) {
+        this.listOfFirstMetrics = this.listOfDisplayedMetric = this.listOfMetricName.slice(0, this.countDisplayMetric);
+      }
       this.listOfSelectedMetric = this.jobLocalService.metricsCacheMap.get(this.cacheMetricKey) || [];
       this.updateUnselectedMetricList();
       this.cdr.markForCheck();
@@ -117,5 +126,19 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
 
   public updateUnselectedMetricList(): void {
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
+  }
+
+  public trackByName(_index: number, item: string): string {
+    return item;
+  }
+
+  public onSearch(search: string): void {
+    if (search && search.length > 1) {
+      this.listOfDisplayedMetric = this.listOfUnselectedMetric
+        .filter(item => item.indexOf(search) > -1)
+        .slice(0, this.filteredOutMetric);
+    } else {
+      this.listOfDisplayedMetric = this.listOfFirstMetrics;
+    }
   }
 }
