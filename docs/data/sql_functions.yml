@@ -252,11 +252,13 @@ arithmetic:
     table: num.conv(fromBase, toBase)
     description: |
       Converts num from fromBase to toBase.
-      The function supports base 2 to base 36, fromBase in [2, 36], ABS(toBase) in [2,36], otherwise the function returns `NULL`. 
+      The function supports base 2 to base 36, fromBase in [2, 36], ABS(toBase) in [2,36]. 
+      
       If toBase is negative, num is interpreted as a signed number, otherwise it is treated as an unsigned number. The result is consistent with this rule. 
-      If num overflows, the function returns -1.
-      num [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT> | <CHAR> | <VARCHAR>], fromBase [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT>], toBase [<TINYINT> | <SMALLINT> | <INTEGER> | <BIGINT>]
-      Returns a STRING representation of the converted num, `NULL` if any of the arguments are `NULL`.
+      
+      `num <TINYINT | SMALLINT | INTEGER | BIGINT | CHAR | VARCHAR>, fromBase <TINYINT | SMALLINT | INTEGER | BIGINT>, toBase <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      Returns a `STRING` representation of the converted num, `NULL` if any of the arguments are `NULL` or num invalid or base invalid.
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.

@@ -836,13 +836,13 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Converts {@code num} from {@code fromBase} to {@code toBase}. <br>
-     * The function supports base 2 to base 36. If {@code toBase} is negative, {@code num} is
-     * interpreted as a signed number, otherwise it is treated as an unsigned number. The result is
-     * consistent with this rule. If {@code num} overflows, the function returns -1.
+     * Converts {@code num} from {@code fromBase} to {@code toBase}. The function supports base 2 to
+     * base 36, {@code fromBase} in [2, 36], {@code ABS(toBase)} in [2,36]. <br>
+     * null if any of the arguments are null or {@code num} invalid or base invalid.
      *
      * @param fromBase An INTEGER expression.
      * @param toBase An INTEGER expression.
+     * @return A STRING representation of the converted num.
      */
     public OutType conv(InType fromBase, InType toBase) {
         return toApiSpecificExpression(

@@ -20,8 +20,16 @@ package org.apache.flink.table.runtime.functions;
 
 import java.util.Arrays;
 
-/** This is ported from Hive: org.apache.hadoop.hive.ql.udf.UDFConv.java. */
+/** This is inspired by Hive: org.apache.hadoop.hive.ql.udf.UDFConv.java. */
 public class BaseConversionUtils {
+
+    /**
+     * The output string has a max length of one char per bit in the 64-bit `Long` intermediate
+     * representation plus one char for the '-' sign. This happens in practice when converting
+     * `Long.MinValue` with `toBase` equal to -2.
+     */
+    private static final int MAX_OUTPUT_LENGTH = Long.SIZE + 1;
+
     /**
      * Divide x by m as if x is an unsigned 64-bit integer. Examples: unsignedLongDiv(-1, 2) ==
      * Long.MAX_VALUE unsignedLongDiv(6, 3) == 2 unsignedLongDiv(0, 5) == 0
@@ -35,13 +43,18 @@ public class BaseConversionUtils {
         }
 
         // Let uval be the value of the unsigned long with the same bits as x
-        // Two's complement => x = uval - 2*MAX - 2
-        // => uval = x + 2*MAX + 2
-        // Now, use the fact: (a+b)/c = a/c + b/c + (a%c+b%c)/c
-        return x / m
-                + 2 * (Long.MAX_VALUE / m)
-                + 2 / m
-                + (x % m + 2 * (Long.MAX_VALUE % m) + 2 % m) / m;
+        // Two's complement => x = uval - 2 * MAX - 2
+        // => uval = x + 2 * MAX + 2
+        // Now, use the fact: (a + b) / c = a / c + b / c + (a % c + b % c) / c
+
+        // remainder < 0 is invalid for unsigned long. Therefore, div result should be decremented
+        // by 1 if remainder % m < 0
+        long remainder = (x % m + 2 * (Long.MAX_VALUE % m) + 2 % m);
+        if (remainder < 0) {
+            remainder -= m - 1;
+        }
+
+        return x / m + 2 * (Long.MAX_VALUE / m) + 2 / m + remainder / m;
     }
 
     /**
@@ -60,25 +73,34 @@ public class BaseConversionUtils {
     }
 
     /**
-     * Convert value[] into a long. On overflow, return -1 (as mySQL does). If a negative digit is
-     * found, ignore the suffix starting there.
+     * Convert value[] into a long. On overflow, return -1 (as MySQL does).
      *
      * @param radix must be between MIN_RADIX and MAX_RADIX
-     * @param fromPos is the first element that should be conisdered
+     * @param fromPos is the first element that should be considered
      * @return the result should be treated as an unsigned 64-bit integer.
      */
     private static long encode(byte[] value, int radix, int fromPos) {
         long val = 0;
-        long bound = unsignedLongDiv(-1 - radix, radix); // Possible overflow once
-        // val
-        // exceeds this value
+
+        // bound will always be positive since radix >= 2.
+        // -1 is reserved to indicate overflows.
+        // possible overflow once.
+        long bound = unsignedLongDiv(-1 - radix, radix);
+
         for (int i = fromPos; i < value.length && value[i] >= 0; i++) {
-            if (val >= bound) {
-                // Check for overflow
-                if (unsignedLongDiv(-1 - value[i], radix) < val) {
-                    return -1;
-                }
+            // val < 0 means its bit presentation starts with 1, val * radix will cause overflow
+            if (val < 0) {
+                return -1;
             }
+
+            // bound is not accurate enough, our target is checking whether val * radix + value(i)
+            // can cause overflow or not.
+            // Just like bound, (-1 - value(i)) / radix will be positive, and we can easily check
+            // overflow by checking (-1 - value(i)) / radix < val or not.
+            if (val >= bound && unsignedLongDiv(-1 - value[i], radix) < val) {
+                return -1;
+            }
+
             val = val * radix + value[i];
         }
         return val;
@@ -97,28 +119,28 @@ public class BaseConversionUtils {
     }
 
     /**
-     * Convert the chars in value[] to the corresponding integers. Convert invalid characters to -1.
+     * Convert the chars in value[] to the corresponding integers. If invalid character is found,
+     * convert it to -1 and ignore the suffix starting there.
      *
      * @param radix must be between MIN_RADIX and MAX_RADIX
      * @param fromPos is the first nonzero element
      */
-    private static boolean char2byte(byte[] value, int radix, int fromPos) {
+    private static void char2byte(byte[] value, int radix, int fromPos) {
         for (int i = fromPos; i < value.length; i++) {
             value[i] = (byte) Character.digit(value[i], radix);
             if (value[i] == -1) {
-                return false;
+                return;
             }
         }
-        return true;
     }
 
     /**
-     * Convert numbers between different number bases. If toBase&gt;0 the result is unsigned,
-     * otherwise it is signed.
+     * Convert numbers between different number bases. If {@code toBase} is negative, {@code num} is
+     * interpreted as a signed number, otherwise it is treated as an unsigned number. The result is
+     * consistent with this rule.
      */
-    public static String conv(byte[] n, long fromBase, long toBase) {
-        byte[] value = new byte[64];
-        if (n == null || n.length < 1) {
+    public static String conv(byte[] num, long fromBase, long toBase) {
+        if (num == null || num.length < 1) {
             return null;
         }
 
@@ -133,36 +155,38 @@ public class BaseConversionUtils {
         int fromBaseInt = (int) fromBase;
         int toBaseInt = (int) toBase;
 
-        boolean negative = (n[0] == '-');
-        int first = 0;
-        if (negative) {
-            first = 1;
-        }
+        boolean negative = (num[0] == '-');
+        int first = negative ? 1 : 0;
 
-        // Copy the digits in the right side of the array
-        for (int i = 1; i <= n.length - first; i++) {
-            value[value.length - i] = n[n.length - i];
-        }
-        if (!char2byte(value, fromBaseInt, value.length - n.length + first)) {
+        byte[] value = new byte[Math.max(num.length, MAX_OUTPUT_LENGTH)];
+        System.arraycopy(num, first, value, value.length - num.length + first, num.length - first);
+        char2byte(value, fromBaseInt, value.length - num.length + first);
+
+        // do the conversion by going through a 64-bit integer
+        long val = encode(value, fromBaseInt, value.length - num.length + first);
+        if (val == -1) {
             return null;
         }
 
-        // Do the conversion by going through a 64 bit integer
-        long val = encode(value, fromBaseInt, value.length - n.length + first);
+        // use negative num to represent a num bigger than LONG_MAX
         if (negative && toBaseInt > 0) {
             if (val < 0) {
+                // double negative is invalid
                 val = -1;
             } else {
+                // get actual num
                 val = -val;
             }
         }
+
         if (toBaseInt < 0 && val < 0) {
             val = -val;
             negative = true;
         }
+
         decode(value, val, Math.abs(toBaseInt));
 
-        // Find the first non-zero digit or the last digits if all are zero.
+        // find the first non-zero digit or the last digits if all are zero
         for (first = 0; first < value.length - 1 && value[first] == 0; first++) {}
 
         byte2char(value, Math.abs(toBaseInt), first);

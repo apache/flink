@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.functions.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.runtime.functions.BaseConversionUtils;
@@ -54,7 +55,10 @@ public class ConvFunction extends BuiltInScalarFunction {
         if (num == null || fromBase == null || toBase == null) {
             return null;
         }
+        StringData trimNum =
+                BinaryStringDataUtil.trim((BinaryStringData) num, BinaryStringData.fromString(" "));
         return BinaryStringData.fromString(
-                BaseConversionUtils.conv(num.toBytes(), fromBase.longValue(), toBase.longValue()));
+                BaseConversionUtils.conv(
+                        trimNum.toBytes(), fromBase.longValue(), toBase.longValue()));
     }
 }

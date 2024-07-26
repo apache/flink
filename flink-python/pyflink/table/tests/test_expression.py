@@ -125,6 +125,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('bin(a)', str(expr1.bin))
         self.assertEqual('hex(a)', str(expr1.hex))
         self.assertEqual("UNHEX(a)", str(expr1.unhex))
+        self.assertEqual("CONV(a, 16, 10)", str(expr1.conv(16, 10)))
         self.assertEqual('truncate(a, 3)', str(expr1.truncate(3)))
 
         # string functions

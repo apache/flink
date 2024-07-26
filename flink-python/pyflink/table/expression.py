@@ -1019,10 +1019,14 @@ class Expression(Generic[T]):
 
     def conv(self, from_base, to_base) -> 'Expression':
         """
-        Converts num from from_base to to_base.
-        The function supports base 2 to base 36. If toBase is negative, num is interpreted as a
-        signed number, otherwise it is treated as an unsigned number. The result is consistent with
-        this rule. If num overflows, the function returns -1.
+        Converts num from from_base to to_base. The function supports base 2 to base 36, from_base
+        in [2, 36], ABS(to_base) in [2,36].
+
+        null if any of the arguments are null or num invalid or base invalid.
+
+        :param from_base: An INTEGER expression.
+        :param to_base: An INTEGER expression.
+        :return: A STRING representation of the converted num.
         """
         return _ternary_op("conv")(self, from_base, to_base)
 
