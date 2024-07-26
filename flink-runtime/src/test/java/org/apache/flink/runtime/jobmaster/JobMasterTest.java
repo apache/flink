@@ -610,7 +610,7 @@ class JobMasterTest {
                 @Nonnull SlotRequestId slotRequestId,
                 @Nonnull ResourceProfile resourceProfile,
                 @Nonnull Collection<AllocationID> preferredAllocations,
-                @Nullable Time timeout) {
+                @Nullable Duration timeout) {
             return new CompletableFuture<>();
         }
 

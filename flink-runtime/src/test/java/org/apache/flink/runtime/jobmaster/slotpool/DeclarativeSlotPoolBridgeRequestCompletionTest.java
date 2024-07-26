@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -32,6 +31,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests how the {@link DeclarativeSlotPoolBridge} completes slot requests. */
 class DeclarativeSlotPoolBridgeRequestCompletionTest {
 
-    private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
+    private static final Duration TIMEOUT = SlotPoolUtils.TIMEOUT;
 
     private TestingResourceManagerGateway resourceManagerGateway;
 

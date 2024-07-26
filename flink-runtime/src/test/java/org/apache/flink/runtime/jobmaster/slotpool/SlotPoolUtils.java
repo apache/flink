@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Testing utility functions for the {@link SlotPool}. */
 public class SlotPoolUtils {
 
-    public static final Time TIMEOUT = Time.seconds(10L);
+    public static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     private SlotPoolUtils() {
         throw new UnsupportedOperationException("Cannot instantiate this class.");

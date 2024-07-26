@@ -52,9 +52,9 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
                         new JobID(),
                         new DefaultDeclarativeSlotPoolFactory(),
                         SystemClock.getInstance(),
-                        TestingUtils.infiniteTime().toDuration(),
-                        TestingUtils.infiniteTime().toDuration(),
-                        TestingUtils.infiniteTime().toDuration(),
+                        TestingUtils.infiniteDuration(),
+                        TestingUtils.infiniteDuration(),
+                        TestingUtils.infiniteDuration(),
                         PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
                         Duration.ZERO,
                         forMainThread());

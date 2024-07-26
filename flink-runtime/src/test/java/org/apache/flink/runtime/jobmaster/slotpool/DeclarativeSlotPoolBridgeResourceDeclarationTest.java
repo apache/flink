@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -97,7 +96,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
 
         // requesting the allocation of a new slot should increase the requirements
         declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                new SlotRequestId(), ResourceProfile.UNKNOWN, Time.minutes(5));
+                new SlotRequestId(), ResourceProfile.UNKNOWN, Duration.ofMinutes(5));
         assertThat(requirementListener.getRequirements().getResourceCount(ResourceProfile.UNKNOWN))
                 .isOne();
     }
@@ -120,7 +119,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                                             declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                     new SlotRequestId(),
                                                     ResourceProfile.UNKNOWN,
-                                                    Time.milliseconds(5)),
+                                                    Duration.ofMillis(5)),
                                     mainThreadExecutor)
                             .get();
 

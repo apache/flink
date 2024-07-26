@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -282,7 +281,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             @Nonnull SlotRequestId slotRequestId,
             @Nonnull ResourceProfile resourceProfile,
             @Nonnull Collection<AllocationID> preferredAllocations,
-            @Nullable Time timeout) {
+            @Nullable Duration timeout) {
         assertRunningInMainThread();
 
         log.debug(
@@ -318,7 +317,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     private CompletableFuture<PhysicalSlot> internalRequestNewSlot(
-            PendingRequest pendingRequest, @Nullable Time timeout) {
+            PendingRequest pendingRequest, @Nullable Duration timeout) {
         internalRequestNewAllocatedSlot(pendingRequest);
 
         if (timeout == null) {
@@ -326,12 +325,12 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         } else {
             return FutureUtils.orTimeout(
                             pendingRequest.getSlotFuture(),
-                            timeout.toMilliseconds(),
+                            timeout.toMillis(),
                             TimeUnit.MILLISECONDS,
                             componentMainThreadExecutor,
                             String.format(
                                     "Pending slot request %s timed out after %d ms.",
-                                    pendingRequest.getSlotRequestId(), timeout.toMilliseconds()))
+                                    pendingRequest.getSlotRequestId(), timeout.toMillis()))
                     .whenComplete(
                             (physicalSlot, throwable) -> {
                                 if (throwable instanceof TimeoutException) {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -154,7 +154,9 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return a newly allocated slot that was previously not available.
      */
     default CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-            SlotRequestId slotRequestId, ResourceProfile resourceProfile, @Nullable Time timeout) {
+            SlotRequestId slotRequestId,
+            ResourceProfile resourceProfile,
+            @Nullable Duration timeout) {
         return requestNewAllocatedSlot(
                 slotRequestId, resourceProfile, Collections.emptyList(), timeout);
     }
@@ -175,7 +177,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
             SlotRequestId slotRequestId,
             ResourceProfile resourceProfile,
             Collection<AllocationID> preferredAllocations,
-            @Nullable Time timeout);
+            @Nullable Duration timeout);
 
     /**
      * Requests the allocation of a new batch slot from the resource manager. Unlike the normal
