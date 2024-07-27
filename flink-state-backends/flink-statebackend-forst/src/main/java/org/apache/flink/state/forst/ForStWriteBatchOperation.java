@@ -63,6 +63,11 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
                                 writeBatch.delete(
                                         request.getColumnFamilyHandle(),
                                         request.buildSerializedKey());
+                            } else if (request.isMerge()) {
+                                writeBatch.merge(
+                                        request.getColumnFamilyHandle(),
+                                        request.buildSerializedKey(),
+                                        request.buildSerializedValue());
                             } else {
                                 writeBatch.put(
                                         request.getColumnFamilyHandle(),

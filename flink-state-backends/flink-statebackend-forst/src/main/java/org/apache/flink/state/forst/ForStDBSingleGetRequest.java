@@ -20,42 +20,28 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.core.state.InternalStateFuture;
 
-import org.rocksdb.ColumnFamilyHandle;
-
 import java.io.IOException;
 
 /**
  * The Get access request for ForStDB.
  *
  * @param <K> The type of key in get access request.
- * @param <N> The type of namespace in put access request.
  * @param <V> The type of value returned by get request.
- * @param <R> The type of returned value in state future.
  */
-public abstract class ForStDBGetRequest<K, N, V, R> {
+public class ForStDBSingleGetRequest<K, N, V> extends ForStDBGetRequest<K, N, V, V> {
 
-    final ContextKey<K, N> key;
-    final ForStInnerTable<K, N, V> table;
-    final InternalStateFuture<R> future;
-
-    ForStDBGetRequest(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<R> future) {
-        this.key = key;
-        this.table = table;
-        this.future = future;
+    ForStDBSingleGetRequest(
+            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<V> future) {
+        super(key, table, future);
     }
 
-    public byte[] buildSerializedKey() throws IOException {
-        return table.serializeKey(key);
-    }
-
-    public ColumnFamilyHandle getColumnFamilyHandle() {
-        return table.getColumnFamilyHandle();
-    }
-
-    public abstract void completeStateFuture(byte[] bytesValue) throws IOException;
-
-    public void completeStateFutureExceptionally(String message, Throwable ex) {
-        future.completeExceptionally(message, ex);
+    @Override
+    public void completeStateFuture(byte[] bytesValue) throws IOException {
+        if (bytesValue == null) {
+            future.complete(null);
+            return;
+        }
+        V value = table.deserializeValue(bytesValue);
+        future.complete(value);
     }
 }
