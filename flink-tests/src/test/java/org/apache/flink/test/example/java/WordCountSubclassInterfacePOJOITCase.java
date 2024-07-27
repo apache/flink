@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -34,7 +34,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** WordCount with subclass and interface example. */
 @SuppressWarnings("serial")
-public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBase
+public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBaseJUnit4
         implements Serializable {
     private static final long serialVersionUID = 1L;
     protected String textPath;

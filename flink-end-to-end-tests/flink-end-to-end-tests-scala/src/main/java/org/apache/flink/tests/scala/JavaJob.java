@@ -27,7 +27,7 @@ public class JavaJob {
         // we want to go through serialization to check for kryo issues
         env.disableOperatorChaining();
 
-        env.fromElements(new NonPojo()).map(x -> x);
+        env.fromData(new NonPojo()).map(x -> x);
 
         env.execute();
     }

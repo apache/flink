@@ -100,8 +100,8 @@ abstract class AbstractSortMergeOuterJoinIteratorITCase {
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
         TupleTypeInfo<Tuple2<String, Integer>> typeInfo2 =
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class);
-        serializer1 = typeInfo1.createSerializer(config);
-        serializer2 = typeInfo2.createSerializer(config);
+        serializer1 = typeInfo1.createSerializer(config.getSerializerConfig());
+        serializer2 = typeInfo2.createSerializer(config.getSerializerConfig());
         comparator1 = typeInfo1.createComparator(new int[] {0}, new boolean[] {true}, 0, config);
         comparator2 = typeInfo2.createComparator(new int[] {0}, new boolean[] {true}, 0, config);
         pairComp = new GenericPairComparator<>(comparator1, comparator2);

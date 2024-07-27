@@ -24,7 +24,8 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class OverWindowValidationTest extends TableTestBase {
 
@@ -32,7 +33,7 @@ class OverWindowValidationTest extends TableTestBase {
   streamUtil.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime.proctime)
 
   /** All aggregates must be computed on the same window. */
-  @Test(expected = classOf[TableException])
+  @Test
   def testMultiWindow(): Unit = {
 
     val sqlQuery = "SELECT " +
@@ -41,16 +42,18 @@ class OverWindowValidationTest extends TableTestBase {
       "sum(a) OVER (PARTITION BY b ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
-    streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => streamUtil.tableEnv.sqlQuery(sqlQuery).toDataStream)
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
-    streamUtil.addFunction("overAgg", new OverAgg0)
+    streamUtil.addTemporarySystemFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
 
-    streamUtil.tableEnv.sqlQuery(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => streamUtil.tableEnv.sqlQuery(sqlQuery))
   }
 }

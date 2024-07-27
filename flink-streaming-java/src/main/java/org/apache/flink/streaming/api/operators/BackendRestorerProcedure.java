@@ -91,7 +91,9 @@ public class BackendRestorerProcedure<T extends Closeable & Disposable, S extend
      * @throws Exception if the backend could not be created or restored.
      */
     @Nonnull
-    public T createAndRestore(@Nonnull List<? extends Collection<S>> restoreOptions)
+    public T createAndRestore(
+            @Nonnull List<? extends Collection<S>> restoreOptions,
+            @Nonnull StateObject.StateObjectSizeStatsCollector stats)
             throws Exception {
 
         if (restoreOptions.isEmpty()) {
@@ -132,7 +134,10 @@ public class BackendRestorerProcedure<T extends Closeable & Disposable, S extend
             }
 
             try {
-                return attemptCreateAndRestore(restoreState);
+                T successfullyRestored = attemptCreateAndRestore(restoreState);
+                // Obtain and report stats for the state objects used in our successful restore
+                restoreState.forEach(handle -> handle.collectSizeStats(stats));
+                return successfullyRestored;
             } catch (Exception ex) {
 
                 collectedException = ExceptionUtils.firstOrSuppressed(ex, collectedException);

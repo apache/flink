@@ -20,31 +20,32 @@ package org.apache.flink.table.planner.plan.rules.physical.batch;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.runtime.functions.aggregate.CollectAggFunction;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test for rules that extend {@link PushLocalAggIntoScanRuleBase} to push down local aggregates
  * into table source.
  */
-public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
+class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     protected BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         TableConfig tableConfig = util.tableEnv().getConfig();
         tableConfig.set(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED, true);
         String ddl =
                 "CREATE TABLE inventory (\n"
                         + "  id BIGINT,\n"
-                        + "  name STRING,\n"
+                        + "  name STRING not null,\n"
                         + "  amount BIGINT,\n"
                         + "  price BIGINT,\n"
                         + "  type STRING\n"
@@ -109,7 +110,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalHashAggWithGroup() {
+    void testCanPushDownLocalHashAggWithGroup() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  sum(amount),\n"
@@ -120,7 +121,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testDisablePushDownLocalAgg() {
+    void testDisablePushDownLocalAgg() {
         // disable push down local agg
         util.getTableEnv()
                 .getConfig()
@@ -145,7 +146,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalHashAggWithoutGroup() {
+    void testCanPushDownLocalHashAggWithoutGroup() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  min(id),\n"
@@ -157,7 +158,27 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalSortAggWithoutSort() {
+    public void testCanPushDownLocalHashAggForCount() {
+        util.verifyRelPlan("SELECT count(*) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount1() {
+        util.verifyRelPlan("SELECT count(1) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNullableColumn() {
+        util.verifyRelPlan("SELECT count(id) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNotNullColumn() {
+        util.verifyRelPlan("SELECT count(name) FROM inventory");
+    }
+
+    @Test
+    void testCanPushDownLocalSortAggWithoutSort() {
         // enable sort agg
         util.getTableEnv()
                 .getConfig()
@@ -179,7 +200,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalSortAggWithSort() {
+    void testCanPushDownLocalSortAggWithSort() {
         // enable sort agg
         util.getTableEnv()
                 .getConfig()
@@ -200,7 +221,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalAggAfterFilterPushDown() {
+    void testCanPushDownLocalAggAfterFilterPushDown() {
 
         util.verifyRelPlan(
                 "SELECT\n"
@@ -213,7 +234,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalAggWithMetadata() {
+    void testCanPushDownLocalAggWithMetadata() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  sum(amount),\n"
@@ -226,7 +247,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalAggWithPartition() {
+    void testCanPushDownLocalAggWithPartition() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  sum(amount),\n"
@@ -238,7 +259,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalAggWithoutProjectionPushDown() {
+    void testCanPushDownLocalAggWithoutProjectionPushDown() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  sum(amount),\n"
@@ -250,11 +271,13 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCanPushDownLocalAggWithAuxGrouping() {
+    void testCanPushDownLocalAggWithAuxGrouping() {
         // enable two-phase aggregate, otherwise there is no local aggregate
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.TWO_PHASE);
 
         util.verifyRelPlan(
                 "SELECT\n"
@@ -264,7 +287,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownLocalAggAfterLimitPushDown() {
+    void testCannotPushDownLocalAggAfterLimitPushDown() {
 
         util.verifyRelPlan(
                 "SELECT\n"
@@ -281,7 +304,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownLocalAggWithUDAF() {
+    void testCannotPushDownLocalAggWithUDAF() {
         // add udf
         util.addTemporarySystemFunction(
                 "udaf_collect", new CollectAggFunction<>(DataTypes.BIGINT().getLogicalType()));
@@ -296,7 +319,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownLocalAggWithUnsupportedDataTypes() {
+    void testCannotPushDownLocalAggWithUnsupportedDataTypes() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  max(name),\n"
@@ -306,7 +329,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownWithColumnExpression() {
+    void testCannotPushDownWithColumnExpression() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  min(amount + price),\n"
@@ -319,7 +342,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownWithUnsupportedAggFunction() {
+    void testCannotPushDownWithUnsupportedAggFunction() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  min(id),\n"
@@ -332,7 +355,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownWithWindowAggFunction() {
+    void testCannotPushDownWithWindowAggFunction() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  id,\n"
@@ -343,7 +366,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownWithArgFilter() {
+    void testCannotPushDownWithArgFilter() {
         util.verifyRelPlan(
                 "SELECT\n"
                         + "  min(id),\n"

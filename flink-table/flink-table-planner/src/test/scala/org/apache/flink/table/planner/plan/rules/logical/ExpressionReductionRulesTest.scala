@@ -21,10 +21,10 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
-import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
+import org.apache.flink.table.planner.expressions.utils.{Func1, FuncNotReducible, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]]. */
 class ExpressionReductionRulesTest extends TableTestBase {
@@ -34,20 +34,20 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
   @Test
   def testExpressionReductionWithUDF(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT MyUdf(1) FROM MyTable")
   }
 
   @Test
   def testExpressionReductionWithRichUDF(): Unit = {
-    util.addFunction("MyUdf", new RichFunc1)
+    util.addTemporarySystemFunction("MyUdf", new RichFunc1)
     util.getTableEnv.getConfig.addJobParameter("int.value", "10")
     util.verifyRelPlan("SELECT myUdf(1) FROM MyTable")
   }
 
   @Test
   def testExpressionReductionWithRichUDFAndInvalidOpen(): Unit = {
-    util.addFunction("MyUdf", new RichFunc1)
+    util.addTemporarySystemFunction("MyUdf", new RichFunc1)
     // FunctionContext.getCachedFile will fail during expression reduction
     // it will be executed during runtime though
     util.getTableEnv.getConfig.addJobParameter("fail-for-cached-file", "true")
@@ -55,9 +55,22 @@ class ExpressionReductionRulesTest extends TableTestBase {
   }
 
   @Test
+  def testExpressionReductionWithNonReducibleUDF(): Unit = {
+    util.addTemporarySystemFunction("MyUdf", FuncNotReducible)
+    util.verifyRelPlan("SELECT MyUdf(1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithNonReducibleMultipleUDF(): Unit = {
+    util.addTemporarySystemFunction("MyUdf1", Func1)
+    util.addTemporarySystemFunction("MyUdf2", FuncNotReducible)
+    util.verifyRelPlan("SELECT MyUdf2(MyUdf1(1)), MyUdf1(MyUdf2(1)) FROM MyTable")
+  }
+
+  @Test
   def testExpressionReductionWithPythonUDF(): Unit = {
-    util.addFunction("PyUdf", DeterministicPythonFunc)
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("PyUdf", DeterministicPythonFunc)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT PyUdf(), MyUdf(1) FROM MyTable")
   }
 

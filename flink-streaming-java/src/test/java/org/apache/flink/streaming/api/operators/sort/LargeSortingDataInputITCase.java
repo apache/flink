@@ -42,11 +42,11 @@ import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
@@ -55,8 +55,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Longer running IT tests for {@link SortingDataInput} and {@link MultiInputSortingDataInput}.
@@ -64,9 +63,9 @@ import static org.junit.Assert.assertThat;
  * @see SortingDataInputTest
  * @see MultiInputSortingDataInputsTest
  */
-public class LargeSortingDataInputITCase {
+class LargeSortingDataInputITCase {
     @Test
-    public void intKeySorting() throws Exception {
+    void intKeySorting() throws Exception {
         int numberOfRecords = 500_000;
         GeneratedRecordsDataInput input = new GeneratedRecordsDataInput(numberOfRecords, 0);
         KeySelector<Tuple3<Integer, String, byte[]>, Integer> keySelector = value -> value.f0;
@@ -90,12 +89,12 @@ public class LargeSortingDataInputITCase {
                 inputStatus = sortingDataInput.emitNext(output);
             } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-            assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
+            assertThat(output.getSeenRecords()).isEqualTo(numberOfRecords);
         }
     }
 
     @Test
-    public void stringKeySorting() throws Exception {
+    void stringKeySorting() throws Exception {
         int numberOfRecords = 500_000;
         GeneratedRecordsDataInput input = new GeneratedRecordsDataInput(numberOfRecords, 0);
         KeySelector<Tuple3<Integer, String, byte[]>, String> keySelector = value -> value.f1;
@@ -119,13 +118,13 @@ public class LargeSortingDataInputITCase {
                 inputStatus = sortingDataInput.emitNext(output);
             } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-            assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
+            assertThat(output.getSeenRecords()).isEqualTo(numberOfRecords);
         }
     }
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public void multiInputKeySorting() throws Exception {
+    void multiInputKeySorting() throws Exception {
         int numberOfRecords = 500_000;
         GeneratedRecordsDataInput input1 = new GeneratedRecordsDataInput(numberOfRecords, 0);
         GeneratedRecordsDataInput input2 = new GeneratedRecordsDataInput(numberOfRecords, 1);
@@ -173,7 +172,7 @@ public class LargeSortingDataInputITCase {
                     inputStatus = multiSortedProcessor.processInput();
                 } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-                assertThat(output.getSeenRecords(), equalTo(numberOfRecords * 2));
+                assertThat(output.getSeenRecords()).isEqualTo(numberOfRecords * 2);
             }
         }
     }
@@ -203,9 +202,9 @@ public class LargeSortingDataInputITCase {
             this.seenRecords++;
             E incomingKey = keySelector.getKey(streamRecord.getValue());
             if (!Objects.equals(incomingKey, currentKey)) {
-                if (!seenKeys.add(incomingKey)) {
-                    Assert.fail("Received an out of order key: " + incomingKey);
-                }
+                assertThat(seenKeys.add(incomingKey))
+                        .as("Received an out of order key: " + incomingKey)
+                        .isTrue();
                 this.currentKey = incomingKey;
             }
         }
@@ -218,6 +217,9 @@ public class LargeSortingDataInputITCase {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {}
 
         public int getSeenRecords() {
             return seenRecords;

@@ -26,23 +26,24 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
 /** Plan test for dynamic filtering. */
-@RunWith(Parameterized.class)
-public class DynamicFilteringTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class DynamicFilteringTest extends TableTestBase {
 
     // Notes that the here name is used to load the correct plan.
-    @Parameterized.Parameters(name = "mode = {0}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "mode = {0}")
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {BatchShuffleMode.ALL_EXCHANGES_BLOCKING},
@@ -52,14 +53,14 @@ public class DynamicFilteringTest extends TableTestBase {
 
     private final BatchShuffleMode batchShuffleMode;
 
-    public DynamicFilteringTest(BatchShuffleMode batchShuffleMode) {
+    DynamicFilteringTest(BatchShuffleMode batchShuffleMode) {
         this.batchShuffleMode = batchShuffleMode;
     }
 
     private BatchTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = batchTestUtil(TableConfig.getDefault());
         util.tableEnv()
                 .getConfig()
@@ -117,8 +118,8 @@ public class DynamicFilteringTest extends TableTestBase {
                                 + ")");
     }
 
-    @Test
-    public void testLegacySource() {
+    @TestTemplate
+    void testLegacySource() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE legacy_source (\n"
@@ -142,8 +143,8 @@ public class DynamicFilteringTest extends TableTestBase {
                         Collections.singletonList(ExplainDetail.JSON_EXECUTION_PLAN)));
     }
 
-    @Test
-    public void testSimpleDynamicFiltering() {
+    @TestTemplate
+    void testSimpleDynamicFiltering() {
         // the execution plan contains 'Placeholder-Filter' operator
         util.verifyExplain(
                 "SELECT * FROM fact1, dim WHERE p1 = p AND x > 10",
@@ -151,8 +152,8 @@ public class DynamicFilteringTest extends TableTestBase {
                         Collections.singletonList(ExplainDetail.JSON_EXECUTION_PLAN)));
     }
 
-    @Test
-    public void testDynamicFilteringWithMultipleInput() {
+    @TestTemplate
+    void testDynamicFilteringWithMultipleInput() {
         // the execution plan does not contain 'Placeholder-Filter' operator
         util.verifyExplain(
                 "SELECT * FROM fact1, dim, fact2 WHERE p1 = p and p1 = p2 AND x > 10",
@@ -160,8 +161,8 @@ public class DynamicFilteringTest extends TableTestBase {
                         Collections.singletonList(ExplainDetail.JSON_EXECUTION_PLAN)));
     }
 
-    @Test
-    public void testDuplicateFactTables() {
+    @TestTemplate
+    void testDuplicateFactTables() {
         // the fact tables can not be reused
         util.verifyExplain(
                 "SELECT * FROM (SELECT * FROM fact1, dim WHERE p1 = p AND x > 10) t1 JOIN fact1 t2 ON t1.y = t2.b1",
@@ -169,8 +170,8 @@ public class DynamicFilteringTest extends TableTestBase {
                         Collections.singletonList(ExplainDetail.JSON_EXECUTION_PLAN)));
     }
 
-    @Test
-    public void testReuseDimSide() {
+    @TestTemplate
+    void testReuseDimSide() {
         // dynamic filtering collector will be reused for both fact tables
         util.verifyExplain(
                 "SELECT * FROM fact1, dim WHERE p1 = p AND x > 10 "
@@ -180,8 +181,8 @@ public class DynamicFilteringTest extends TableTestBase {
                         Collections.singletonList(ExplainDetail.JSON_EXECUTION_PLAN)));
     }
 
-    @Test
-    public void testDynamicFilteringWithStaticPartitionPruning() {
+    @TestTemplate
+    void testDynamicFilteringWithStaticPartitionPruning() {
         util.verifyExplain(
                 "SELECT * FROM fact1, dim WHERE p1 = p AND x > 10 and p1 > 1",
                 JavaScalaConversionUtil.toScala(

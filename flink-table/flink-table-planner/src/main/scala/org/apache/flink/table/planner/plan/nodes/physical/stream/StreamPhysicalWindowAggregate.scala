@@ -17,8 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy
+import org.apache.flink.table.planner.plan.logical.{WindowAttachedWindowingStrategy, WindowingStrategy}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
 import org.apache.flink.table.planner.plan.utils._
@@ -64,8 +65,10 @@ class StreamPhysicalWindowAggregate(
     unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
+    AggregateUtil.needRetraction(this),
     windowing.getWindow,
-    isStateBackendDataViews = true)
+    isStateBackendDataViews = true
+  )
 
   override def requireWatermark: Boolean = windowing.isRowtime
 
@@ -110,12 +113,19 @@ class StreamPhysicalWindowAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(unwrapTableConfig(this))
+
+    if (windowing.isInstanceOf[WindowAttachedWindowingStrategy] && windowing.isProctime) {
+      throw new TableException(
+        "Non-mergeable processing time window tvf aggregation is invalid, should fallback to group " +
+          "aggregation instead. This is a bug and should not happen. Please file an issue.")
+    }
     new StreamExecWindowAggregate(
       unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       windowing,
       namedWindowProperties.toArray,
+      AggregateUtil.needRetraction(this),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

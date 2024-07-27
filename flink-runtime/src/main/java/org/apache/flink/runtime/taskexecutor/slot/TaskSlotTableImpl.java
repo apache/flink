@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceBudgetManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -42,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,6 +54,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** Default implementation of {@link TaskSlotTable}. */
@@ -274,7 +275,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
     @VisibleForTesting
     @Override
     public boolean allocateSlot(
-            int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
+            int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
         return allocateSlot(index, jobId, allocationId, defaultSlotResourceProfile, slotTimeout);
     }
 
@@ -284,7 +285,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Time slotTimeout) {
+            Duration slotTimeout) {
         checkRunning();
 
         Preconditions.checkArgument(requestedIndex < numberSlots);
@@ -334,7 +335,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         allocatedSlots.put(allocationId, taskSlot);
 
         // register a timeout for this slot since it's in state allocated
-        timerService.registerTimeout(allocationId, slotTimeout.getSize(), slotTimeout.getUnit());
+        timerService.registerTimeout(allocationId, slotTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
         // add this slot to the set of job slots
         Set<AllocationID> slots = slotsPerJob.get(jobId);
@@ -398,7 +399,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
     }
 
     @Override
-    public boolean markSlotInactive(AllocationID allocationId, Time slotTimeout)
+    public boolean markSlotInactive(AllocationID allocationId, Duration slotTimeout)
             throws SlotNotFoundException {
         checkStarted();
 
@@ -408,7 +409,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
             if (taskSlot.markInactive()) {
                 // register a timeout to free the slot
                 timerService.registerTimeout(
-                        allocationId, slotTimeout.getSize(), slotTimeout.getUnit());
+                        allocationId, slotTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
                 return true;
             } else {

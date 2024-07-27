@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableAggregateTest extends TableTestBase {
 

@@ -16,8 +16,7 @@
  */
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
-import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -128,9 +127,9 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * Copied to fix calcite issues. FLINK modifications are at lines
  *
  * <ol>
- *   <li>Was changed within FLINK-29280, FLINK-28682: Line 222 ~ 232
- *   <li>Should be removed after fix of FLINK-29540: Line 298 ~ 304
- *   <li>Should be removed after fix of FLINK-29540: Line 316 ~ 322
+ *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 218 ~ 225, Line 273 ~ 288
+ *   <li>Should be removed after fix of FLINK-29540: Line 293 ~ 299
+ *   <li>Should be removed after fix of FLINK-29540: Line 311 ~ 317
  * </ol>
  */
 public class RelDecorrelator implements ReflectiveVisitor {
@@ -216,18 +215,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
             newRootRel = decorrelator.decorrelate(newRootRel);
         }
 
-        // Re-propagate the hints.
-        newRootRel = RelOptUtil.propagateRelHints(newRootRel, true);
-
         // ----- FLINK MODIFICATION BEGIN -----
+        // REASON: hints are already parsed and validated before optimizing, so should not
+        // re-propagate again here
 
-        // replace all join hints with upper case
-        newRootRel = FlinkHints.capitalizeJoinHints(newRootRel);
-
-        // clear join hints which are propagated into wrong query block
-        // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
-        // distinguish the query block in the SQL.
-        newRootRel = newRootRel.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+        // Re-propagate the hints.
+        // newRootRel = RelOptUtil.propagateRelHints(newRootRel, true);
 
         // ----- FLINK MODIFICATION END -----
 
@@ -277,20 +270,22 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                                         .FilterIntoJoinRuleConfig.class)
                                         .toRule())
                         .addRuleInstance(
-                                CoreRules.FILTER_PROJECT_TRANSPOSE
-                                        .config
-                                        .withRelBuilderFactory(f)
-                                        .as(FilterProjectTransposeRule.Config.class)
-                                        .withOperandFor(
-                                                Filter.class,
-                                                filter ->
-                                                        !RexUtil.containsCorrelation(
-                                                                filter.getCondition()),
-                                                Project.class,
-                                                project -> true)
-                                        .withCopyFilter(true)
-                                        .withCopyProject(true)
-                                        .toRule())
+                                // ----- FLINK MODIFICATION BEGIN -----
+                                FlinkFilterProjectTransposeRule.build(
+                                        CoreRules.FILTER_PROJECT_TRANSPOSE
+                                                .config
+                                                .withRelBuilderFactory(f)
+                                                .as(FilterProjectTransposeRule.Config.class)
+                                                .withOperandFor(
+                                                        Filter.class,
+                                                        filter ->
+                                                                !RexUtil.containsCorrelation(
+                                                                        filter.getCondition()),
+                                                        Project.class,
+                                                        project -> true)
+                                                .withCopyFilter(true)
+                                                .withCopyProject(true)))
+                        // ----- FLINK MODIFICATION END -----
                         .addRuleInstance(
                                 FilterCorrelateRule.Config.DEFAULT
                                         .withRelBuilderFactory(f)

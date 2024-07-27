@@ -168,7 +168,7 @@ public class ProducerMergedPartitionFileIndex {
         checkArgument(firstBufferInRegion.getBufferIndex() <= lastBufferInRegion.getBufferIndex());
 
         subpartitionRegionMap
-                .computeIfAbsent(firstBufferInRegion.getSubpartitionId(), ArrayList::new)
+                .computeIfAbsent(firstBufferInRegion.getSubpartitionId(), k -> new ArrayList<>())
                 .add(
                         new FixedSizeRegion(
                                 firstBufferInRegion.getBufferIndex(),

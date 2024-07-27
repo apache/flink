@@ -42,6 +42,11 @@ import java.util.List;
  * can request. Instead, it only simply provides memory usage hints to memory users. It is very
  * <b>important</b> to note that <b>only</b> users with non-reclaimable should check the memory
  * hints by calling {@code getMaxNonReclaimableBuffers} before requesting buffers.
+ *
+ * <p>The {@link TieredStorageMemoryManager} needs to ensure that it would not hinder reclaimable
+ * users from acquiring buffers due to non-reclaimable users not releasing the buffers they have
+ * requested. So it is very <b>important</b> to note that <b>only</b> users with non-reclaimable
+ * should call {@code ensureCapacity} before requesting buffers to reserve enough buffers.
  */
 public interface TieredStorageMemoryManager {
 
@@ -74,11 +79,18 @@ public interface TieredStorageMemoryManager {
     void listenBufferReclaimRequest(Runnable onBufferReclaimRequest);
 
     /**
-     * Request a {@link BufferBuilder} instance from {@link BufferPool} for a specific owner. The
-     * {@link TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested. The
-     * manager only records the number of requested buffers. If the buffers in the {@link
-     * BufferPool} is not enough, the manager will request each tiered storage to reclaim their
-     * requested buffers as much as possible.
+     * Expose and get the internal {@link BufferPool}. Please note that this method is a temporary
+     * workaround for the remote tier plugin and may be removed at any time in the future. We
+     * strongly advise that users do not rely on this method.
+     */
+    BufferPool getBufferPool();
+
+    /**
+     * Request a {@link BufferBuilder} instance for a specific owner. The {@link
+     * TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested. The manager
+     * only records the number of requested buffers. If the buffers is not enough to meet the
+     * request, the manager will request each tiered storage to reclaim their requested buffers as
+     * much as possible.
      *
      * <p>This is not thread safe and is expected to be called only from the task thread.
      *
@@ -100,6 +112,21 @@ public interface TieredStorageMemoryManager {
      * non-reclaimable buffer value returned may be negative.
      */
     int getMaxNonReclaimableBuffers(Object owner);
+
+    /**
+     * Try best to reserve enough buffers that are guaranteed reclaimable along with the additional
+     * ones.
+     *
+     * <p>Note that the available buffers are calculated dynamically based on some conditions, for
+     * example, the state of the {@link BufferPool}, the {@link TieredStorageMemorySpec} of the
+     * owner, etc. So the caller should always ensure capacity before requesting non-reclaimable
+     * buffers.
+     *
+     * @param numAdditionalBuffers the number of buffers that need to also be reserved in addition
+     *     to guaranteed reclaimable buffers.
+     * @return True if the capacity meets the requirements, false otherwise.
+     */
+    boolean ensureCapacity(int numAdditionalBuffers);
 
     /**
      * Return the number of requested buffers belonging to a specific owner.

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.types.Row;
@@ -60,7 +61,7 @@ import java.util.TimeZone;
 /**
  * Serialization schema that serializes {@link Row} into Avro bytes.
  *
- * <p>Serializes objects that are represented in (nested) Flink rows. It support types that are
+ * <p>Serializes objects that are represented in (nested) Flink rows. It supports types that are
  * compatible with Flink's Table & SQL API.
  *
  * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime class
@@ -130,9 +131,15 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 
     @Override
     public byte[] serialize(Row row) {
+        return serialize(row, true);
+    }
+
+    @VisibleForTesting
+    byte[] serialize(Row row, boolean legacyTimestampMapping) {
         try {
             // convert to record
-            final GenericRecord record = convertRowToAvroRecord(schema, row);
+            final GenericRecord record =
+                    convertRowToAvroRecord(schema, row, legacyTimestampMapping);
             arrayOutputStream.reset();
             datumWriter.write(record, encoder);
             encoder.flush();
@@ -162,25 +169,27 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 
     // --------------------------------------------------------------------------------------------
 
-    private GenericRecord convertRowToAvroRecord(Schema schema, Row row) {
+    private GenericRecord convertRowToAvroRecord(
+            Schema schema, Row row, boolean legacyTimestampMapping) {
         final List<Schema.Field> fields = schema.getFields();
         final int length = fields.size();
         final GenericRecord record = new GenericData.Record(schema);
         for (int i = 0; i < length; i++) {
             final Schema.Field field = fields.get(i);
-            record.put(i, convertFlinkType(field.schema(), row.getField(i)));
+            record.put(
+                    i, convertFlinkType(field.schema(), row.getField(i), legacyTimestampMapping));
         }
         return record;
     }
 
-    private Object convertFlinkType(Schema schema, Object object) {
+    private Object convertFlinkType(Schema schema, Object object, boolean legacyTimestampMapping) {
         if (object == null) {
             return null;
         }
         switch (schema.getType()) {
             case RECORD:
                 if (object instanceof Row) {
-                    return convertRowToAvroRecord(schema, (Row) object);
+                    return convertRowToAvroRecord(schema, (Row) object, legacyTimestampMapping);
                 }
                 throw new IllegalStateException("Row expected but was: " + object.getClass());
             case ENUM:
@@ -191,7 +200,8 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
                 final GenericData.Array<Object> convertedArray =
                         new GenericData.Array<>(array.length, schema);
                 for (Object element : array) {
-                    convertedArray.add(convertFlinkType(elementSchema, element));
+                    convertedArray.add(
+                            convertFlinkType(elementSchema, element, legacyTimestampMapping));
                 }
                 return convertedArray;
             case MAP:
@@ -200,7 +210,10 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
                     convertedMap.put(
                             new Utf8(entry.getKey().toString()),
-                            convertFlinkType(schema.getValueType(), entry.getValue()));
+                            convertFlinkType(
+                                    schema.getValueType(),
+                                    entry.getValue(),
+                                    legacyTimestampMapping));
                 }
                 return convertedMap;
             case UNION:
@@ -217,7 +230,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
                     // generic type
                     return object;
                 }
-                return convertFlinkType(actualSchema, object);
+                return convertFlinkType(actualSchema, object, legacyTimestampMapping);
             case FIXED:
                 // check for logical type
                 if (object instanceof BigDecimal) {
@@ -248,9 +261,12 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
             case LONG:
                 // check for logical type
                 if (object instanceof Timestamp) {
-                    return convertFromTimestamp(schema, (Timestamp) object);
+                    return convertFromTimestamp(schema, (Timestamp) object, legacyTimestampMapping);
                 } else if (object instanceof LocalDateTime) {
-                    return convertFromTimestamp(schema, Timestamp.valueOf((LocalDateTime) object));
+                    return convertFromTimestamp(
+                            schema,
+                            Timestamp.valueOf((LocalDateTime) object),
+                            legacyTimestampMapping);
                 } else if (object instanceof Time) {
                     return convertFromTimeMicros(schema, (Time) object);
                 }
@@ -311,13 +327,22 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
         }
     }
 
-    private long convertFromTimestamp(Schema schema, Timestamp date) {
+    private long convertFromTimestamp(
+            Schema schema, Timestamp date, boolean legacyTimestampMapping) {
         final LogicalType logicalType = schema.getLogicalType();
-        if (logicalType == LogicalTypes.timestampMillis()) {
+        if (legacyTimestampMapping
+                && (logicalType == LogicalTypes.localTimestampMillis()
+                        || logicalType == LogicalTypes.localTimestampMicros())) {
+            throw new RuntimeException("Unsupported local timestamp type.");
+        }
+
+        if (logicalType == LogicalTypes.timestampMillis()
+                || logicalType == LogicalTypes.localTimestampMillis()) {
             // adopted from Apache Calcite
             final long time = date.getTime();
             return time + (long) LOCAL_TZ.getOffset(time);
-        } else if (logicalType == LogicalTypes.timestampMicros()) {
+        } else if (logicalType == LogicalTypes.timestampMicros()
+                || logicalType == LogicalTypes.localTimestampMicros()) {
             long millis = date.getTime();
             long micros = millis * 1000 + (date.getNanos() % 1_000_000 / 1000);
             long offset = LOCAL_TZ.getOffset(millis) * 1000L;

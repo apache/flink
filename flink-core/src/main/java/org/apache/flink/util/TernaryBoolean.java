@@ -19,6 +19,8 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
 
 import javax.annotation.Nullable;
 
@@ -69,6 +71,22 @@ public enum TernaryBoolean {
     @Nullable
     public Boolean getAsBoolean() {
         return this == UNDEFINED ? null : (this == TRUE ? Boolean.TRUE : Boolean.FALSE);
+    }
+
+    /**
+     * Merges an existing value with a config, accepting the config's value only if the existing
+     * value is undefined.
+     *
+     * @param original the value to merge with the config.
+     * @param configOption the config option to merge with from the config.
+     * @param config the config to merge with.
+     */
+    public static TernaryBoolean mergeTernaryBooleanWithConfig(
+            TernaryBoolean original, ConfigOption<Boolean> configOption, ReadableConfig config) {
+        if (original != TernaryBoolean.UNDEFINED) {
+            return original;
+        }
+        return TernaryBoolean.fromBoxedBoolean(config.getOptional(configOption).orElse(null));
     }
 
     // ------------------------------------------------------------------------

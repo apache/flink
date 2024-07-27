@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -45,6 +47,7 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -99,7 +102,54 @@ class MiniClusterITCase {
     }
 
     @Test
-    void testHandleStreamingJobsWhenNotEnoughSlot() {
+    void testHandlingNotEnoughSlotsThroughTimeout() throws Exception {
+        final Configuration config = new Configuration();
+
+        // the slot timeout needs to be high enough to avoid causing TimeoutException
+        final Duration slotRequestTimeout = Duration.ofMillis(100);
+
+        // this triggers the failure for the default scheduler
+        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
+        // this triggers the failure for the adaptive scheduler
+        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+
+        // we have to disable sending the slot-unavailable request to allow for the timeout to kick
+        // in
+        config.set(
+                ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofNanos(Long.MAX_VALUE));
+
+        tryRunningJobWithoutEnoughSlots(config);
+    }
+
+    @Test
+    // The AdaptiveScheduler is supposed to work with the resources that are available.
+    // That is why there is no resource allocation abort request supported.
+    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
+    void testHandlingNotEnoughSlotsThroughEarlyAbortRequest() throws Exception {
+        final Configuration config = new Configuration();
+
+        // the slot timeout needs to be high enough to avoid causing TimeoutException
+        final Duration slotRequestTimeout = Duration.ofNanos(Long.MAX_VALUE);
+
+        // this triggers the failure for the default scheduler
+        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
+        // this triggers the failure for the adaptive scheduler
+        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+
+        // overwrite the default check delay to speed up the test execution
+        config.set(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofMillis(20));
+
+        // cluster startup relies on SLOT_REQUEST_TIMEOUT as a fallback if the following parameter
+        // is not set which causes the test to take longer
+        config.set(
+                ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME,
+                Duration.ofMillis(1L));
+
+        tryRunningJobWithoutEnoughSlots(config);
+    }
+
+    private static void tryRunningJobWithoutEnoughSlots(Configuration configuration)
+            throws Exception {
         final JobVertex vertex1 = new JobVertex("Test Vertex1");
         vertex1.setParallelism(1);
         vertex1.setMaxParallelism(1);
@@ -115,19 +165,6 @@ class MiniClusterITCase {
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex1, vertex2);
 
-        assertThatThrownBy(() -> runHandleJobsWhenNotEnoughSlots(jobGraph))
-                .isInstanceOf(JobExecutionException.class)
-                .hasRootCauseInstanceOf(NoResourceAvailableException.class)
-                .hasMessageContaining("Job execution failed");
-    }
-
-    private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
-        final Configuration configuration = new Configuration();
-        // this triggers the failure for the default scheduler
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
-        // this triggers the failure for the adaptive scheduler
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(100));
-
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .withRandomPorts()
@@ -139,7 +176,15 @@ class MiniClusterITCase {
         try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
             miniCluster.start();
 
-            miniCluster.executeJobBlocking(jobGraph);
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .hasMessageContaining("Job execution failed")
+                    .extracting(Throwable::getCause)
+                    .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
+                    .anySatisfy(
+                            cause ->
+                                    assertThat(cause)
+                                            .isInstanceOf(NoResourceAvailableException.class));
         }
     }
 

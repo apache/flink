@@ -36,7 +36,7 @@ class JsonStringCallGen(call: RexCall) extends CallGenerator {
 
     val valueTerm = createNodeTerm(ctx, operands.head, call.operands.get(0))
 
-    val resultTerm = newName("result")
+    val resultTerm = newName(ctx, "result")
     val resultTermType = primitiveTypeTermForType(returnType)
     val resultCode = s"""
                         |${operands.map(_.code).mkString}

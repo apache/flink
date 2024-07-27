@@ -40,6 +40,21 @@ Flink 中的日志记录是使用 [SLF4J](http://www.slf4j.org/) 日志接口实
 
 <a name="configuring-log4j-2"></a>
 
+### Structured logging
+
+Flink adds the following fields to [MDC](https://www.slf4j.org/api/org/slf4j/MDC.html) of most of the relevant log messages (experimental feature):
+- Job ID
+    - key: `flink-job-id`
+    - format: string
+    - length 32
+
+This is most useful in environments with structured logging and allows you to quickly filter the relevant logs.
+
+The MDC is propagated by slf4j to the logging backend which usually adds it to the log records automatically (e.g. in [log4j json layout](https://logging.apache.org/log4j/2.x/manual/json-template-layout.html)).
+Alternatively, it can be configured explicitly - [log4j pattern layout](https://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/PatternLayout.html) might look like this:
+
+`[%-32X{flink-job-id}] %c{0} %m%n`.
+
 ## 配置 Log4j 2
 
 Log4j 2 是通过 property 配置文件进行配置的。

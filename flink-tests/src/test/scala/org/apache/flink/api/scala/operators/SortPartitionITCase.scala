@@ -22,10 +22,10 @@ import org.apache.flink.api.common.functions.MapPartitionFunction
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBaseJUnit4, TestBaseUtils}
 import org.apache.flink.util.Collector
 
+import MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -36,7 +36,7 @@ import java.lang
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBaseJUnit4(mode) {
 
   @Test
   @throws(classOf[Exception])

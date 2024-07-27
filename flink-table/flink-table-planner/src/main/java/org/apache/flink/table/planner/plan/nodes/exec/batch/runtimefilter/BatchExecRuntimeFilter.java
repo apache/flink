@@ -102,11 +102,11 @@ public class BatchExecRuntimeFilter extends ExecNodeBase<RowData>
 
     @Override
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
         OpFusionCodegenSpecGenerator leftInput =
-                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);
         OpFusionCodegenSpecGenerator rightInput =
-                getInputEdges().get(1).translateToFusionCodegenSpec(planner);
+                getInputEdges().get(1).translateToFusionCodegenSpec(planner, parentCtx);
         OpFusionCodegenSpecGenerator runtimeFilterGenerator =
                 new TwoInputOpFusionCodegenSpecGenerator(
                         leftInput,
@@ -115,7 +115,9 @@ public class BatchExecRuntimeFilter extends ExecNodeBase<RowData>
                         (RowType) getOutputType(),
                         new RuntimeFilterFusionCodegenSpec(
                                 new CodeGeneratorContext(
-                                        config, planner.getFlinkContext().getClassLoader()),
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        parentCtx),
                                 probeIndices));
         leftInput.addOutput(1, runtimeFilterGenerator);
         rightInput.addOutput(2, runtimeFilterGenerator);

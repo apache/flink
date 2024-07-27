@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -51,8 +51,8 @@ class UnionSerializerTest extends SerializerTestBase<TaggedUnion<Object, Object>
     @Override
     protected TypeSerializer<TaggedUnion<Object, Object>> createSerializer() {
         return new UnionSerializer<>(
-                new KryoSerializer<>(Object.class, new ExecutionConfig()),
-                new KryoSerializer<>(Object.class, new ExecutionConfig()));
+                new KryoSerializer<>(Object.class, new SerializerConfigImpl()),
+                new KryoSerializer<>(Object.class, new SerializerConfigImpl()));
     }
 
     @Override

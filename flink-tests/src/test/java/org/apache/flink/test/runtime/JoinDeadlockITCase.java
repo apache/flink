@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Rule;
 import org.junit.rules.Timeout;
@@ -32,7 +32,7 @@ import org.junit.rules.Timeout;
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1343">FLINK-1343</a>
  */
-public class JoinDeadlockITCase extends JavaProgramTestBase {
+public class JoinDeadlockITCase extends JavaProgramTestBaseJUnit4 {
 
     protected String resultPath;
 

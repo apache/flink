@@ -18,32 +18,33 @@
 
 package org.apache.flink.api.common.accumulators;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
-public class DoubleMaximumTest {
+class DoubleMaximumTest {
 
     @Test
-    public void testGet() {
+    void testGet() {
         DoubleMaximum max = new DoubleMaximum();
-        assertEquals(Double.NEGATIVE_INFINITY, max.getLocalValue(), 0.0);
+        assertThat(max.getLocalValue()).isCloseTo(Double.NEGATIVE_INFINITY, within(0.0));
     }
 
     @Test
-    public void testResetLocal() {
+    void testResetLocal() {
         DoubleMaximum max = new DoubleMaximum();
         double value = 13.57902468;
 
         max.add(value);
-        assertEquals(value, max.getLocalValue(), 0.0);
+        assertThat(max.getLocalValue()).isCloseTo(value, within(0.0));
 
         max.resetLocal();
-        assertEquals(Double.NEGATIVE_INFINITY, max.getLocalValue(), 0.0);
+        assertThat(max.getLocalValue()).isCloseTo(Double.NEGATIVE_INFINITY, within(0.0));
     }
 
     @Test
-    public void testAdd() {
+    void testAdd() {
         DoubleMaximum max = new DoubleMaximum();
 
         max.add(1234.5768);
@@ -51,11 +52,11 @@ public class DoubleMaximumTest {
         max.add(-987.6543);
         max.add(-123.4567);
 
-        assertEquals(9876.5432, max.getLocalValue(), 0.0);
+        assertThat(max.getLocalValue()).isCloseTo(9876.5432, within(0.0));
     }
 
     @Test
-    public void testMerge() {
+    void testMerge() {
         DoubleMaximum max1 = new DoubleMaximum();
         max1.add(1234.5768);
 
@@ -63,20 +64,20 @@ public class DoubleMaximumTest {
         max2.add(5678.9012);
 
         max2.merge(max1);
-        assertEquals(5678.9012, max2.getLocalValue(), 0.0);
+        assertThat(max2.getLocalValue()).isCloseTo(5678.9012, within(0.0));
 
         max1.merge(max2);
-        assertEquals(5678.9012, max1.getLocalValue(), 0.0);
+        assertThat(max1.getLocalValue()).isCloseTo(5678.9012, within(0.0));
     }
 
     @Test
-    public void testClone() {
+    void testClone() {
         DoubleMaximum max = new DoubleMaximum();
         double value = 3.14159265359;
 
         max.add(value);
 
         DoubleMaximum clone = max.clone();
-        assertEquals(value, clone.getLocalValue(), 0.0);
+        assertThat(clone.getLocalValue()).isCloseTo(value, within(0.0));
     }
 }

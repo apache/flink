@@ -369,7 +369,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
-    registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
@@ -389,7 +389,7 @@ class CalcITCase extends BatchTestBase {
     val words = "Hello\nWord"
     val filePath = UserDefinedFunctionTestUtils.writeCacheFile("test_words", words)
     env.registerCachedFile(filePath, "words")
-    registerFunction("RichFunc3", new RichFunc3)
+    tEnv.createTemporarySystemFunction("RichFunc3", new RichFunc3)
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
     tEnv.createTemporaryView("t1", ds)
@@ -405,8 +405,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMultipleUserDefinedScalarFunctions(): Unit = {
-    registerFunction("RichFunc1", new RichFunc1)
-    registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc1", new RichFunc1)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")

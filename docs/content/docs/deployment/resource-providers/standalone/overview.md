@@ -96,13 +96,25 @@ Then, we can launch the JobManager:
 $ ./bin/standalone-job.sh start --job-classname org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
 ```
 
-The web interface is now available at [localhost:8081](http://localhost:8081). However, the application won't be able to start, because there are no TaskManagers running yet:
+The web interface is now available at [localhost:8081](http://localhost:8081).
+
+{{< hint info >}}
+Another approach would be to use the artifact fetching mechanism via the `--jars` option:
+
+```bash
+$ ./bin/standalone-job.sh start -D user.artifacts.base-dir=/tmp/flink-artifacts --jars local:///path/to/TopSpeedWindowing.jar
+```
+
+Read more about this CLI option [here]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments).
+{{< /hint >}}
+
+However, the application won't be able to start, because there are no TaskManagers running yet:
 
 ```bash
 $ ./bin/taskmanager.sh start
 ```
 
-Note: You can start multiple TaskManagers, if your application needs more resources.
+<span class="label label-info">Note</span> You can start multiple TaskManagers, if your application needs more resources.
 
 Stopping the services is also supported via the scripts. Call them multiple times if you want to stop multiple instances, or use `stop-all`:
 
@@ -136,7 +148,7 @@ Example:
 $ ./bin/jobmanager.sh start -D jobmanager.rpc.address=localhost -D rest.port=8081
 ```
 
-Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+Options set via dynamic properties overwrite the options from [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ### Debugging
 
@@ -247,7 +259,7 @@ By default, the JobManager will pick a *random port* for inter process communica
 
 #### Example: Standalone HA Cluster with 2 JobManagers
 
-1. Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
+1. Configure high availability mode and ZooKeeper quorum in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}):
 
 ```bash
 high-availability.type: zookeeper

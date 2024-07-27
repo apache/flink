@@ -505,7 +505,8 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {
-            mailboxExecutor.submit(() -> processRetry(results, error), "delayed retry or complete");
+            mailboxExecutor.execute(
+                    () -> processRetry(results, error), "delayed retry or complete");
         }
 
         private void processRetry(Collection<OUT> results, Throwable error) {

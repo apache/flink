@@ -269,6 +269,10 @@ public class Types {
      *
      * <p>The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
      *
+     * <p>Java Record classes can also be used as valid POJOs (even though they don't fulfill some
+     * of the above criteria). In this case Flink will use the record canonical constructor to
+     * create the objects.
+     *
      * <p>If Flink's type analyzer is unable to extract a valid POJO type information with type
      * information for all fields, an {@link
      * org.apache.flink.api.common.functions.InvalidTypesException} is thrown. Alternatively, you

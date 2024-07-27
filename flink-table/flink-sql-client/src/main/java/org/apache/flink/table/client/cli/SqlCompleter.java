@@ -47,7 +47,7 @@ public class SqlCompleter implements Completer {
             executor.completeStatement(statement, line.cursor())
                     .forEach(hint -> candidates.add(createCandidate(hint)));
         } catch (SqlExecutionException e) {
-            LOG.debug("Could not complete statement at " + line.cursor() + ":" + statement, e);
+            LOG.debug("Could not complete statement at {} : {}.", line.cursor(), statement, e);
         }
     }
 

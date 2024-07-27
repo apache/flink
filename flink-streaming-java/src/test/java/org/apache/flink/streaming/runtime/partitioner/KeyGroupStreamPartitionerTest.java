@@ -21,15 +21,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KeyGroupStreamPartitioner}. */
-public class KeyGroupStreamPartitionerTest extends TestLogger {
+class KeyGroupStreamPartitionerTest {
 
     private KeyGroupStreamPartitioner<Tuple2<String, Integer>, String> keyGroupPartitioner;
     private StreamRecord<Tuple2<String, Integer>> streamRecord1 =
@@ -41,8 +40,8 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
     private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> serializationDelegate2 =
             new SerializationDelegate<>(null);
 
-    @Before
-    public void setPartitioner() {
+    @BeforeEach
+    void setPartitioner() {
         keyGroupPartitioner =
                 new KeyGroupStreamPartitioner<>(
                         new KeySelector<Tuple2<String, Integer>, String>() {
@@ -58,19 +57,16 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
     }
 
     @Test
-    public void testSelectChannelsGrouping() {
+    void testSelectChannelsGrouping() {
         serializationDelegate1.setInstance(streamRecord1);
         serializationDelegate2.setInstance(streamRecord2);
 
-        assertEquals(
-                selectChannels(serializationDelegate1, 1),
-                selectChannels(serializationDelegate2, 1));
-        assertEquals(
-                selectChannels(serializationDelegate1, 2),
-                selectChannels(serializationDelegate2, 2));
-        assertEquals(
-                selectChannels(serializationDelegate1, 1024),
-                selectChannels(serializationDelegate2, 1024));
+        assertThat(selectChannels(serializationDelegate1, 1))
+                .isEqualTo(selectChannels(serializationDelegate2, 1));
+        assertThat(selectChannels(serializationDelegate1, 2))
+                .isEqualTo(selectChannels(serializationDelegate2, 2));
+        assertThat(selectChannels(serializationDelegate1, 1024))
+                .isEqualTo(selectChannels(serializationDelegate2, 1024));
     }
 
     private int selectChannels(

@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Queue;
@@ -53,13 +52,17 @@ public class HashSubpartitionBufferAccumulator {
 
     private final Queue<BufferBuilder> unfinishedBuffers = new LinkedList<>();
 
+    private final boolean isPartialRecordAllowed;
+
     public HashSubpartitionBufferAccumulator(
             TieredStorageSubpartitionId subpartitionId,
             int bufferSize,
-            HashSubpartitionBufferAccumulatorContext bufferAccumulatorContext) {
+            HashSubpartitionBufferAccumulatorContext bufferAccumulatorContext,
+            boolean isPartialRecordAllowed) {
         this.subpartitionId = subpartitionId;
         this.bufferSize = bufferSize;
         this.bufferAccumulatorContext = bufferAccumulatorContext;
+        this.isPartialRecordAllowed = isPartialRecordAllowed;
     }
 
     // ------------------------------------------------------------------------
@@ -94,7 +97,7 @@ public class HashSubpartitionBufferAccumulator {
         // Store the events in the heap segments to improve network memory efficiency
         MemorySegment data = MemorySegmentFactory.wrap(event.array());
         flushFinishedBuffer(
-                new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, dataType, data.size()));
+                new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, dataType, data.size()), 0);
     }
 
     private void writeRecord(ByteBuffer record, Buffer.DataType dataType) {
@@ -107,6 +110,13 @@ public class HashSubpartitionBufferAccumulator {
 
     private void ensureCapacityForRecord(ByteBuffer record) {
         final int numRecordBytes = record.remaining();
+
+        if (!isPartialRecordAllowed
+                && !unfinishedBuffers.isEmpty()
+                && unfinishedBuffers.peek().getWritableBytes() < numRecordBytes) {
+            finishCurrentWritingBufferIfNotEmpty();
+        }
+
         int availableBytes =
                 Optional.ofNullable(unfinishedBuffers.peek())
                         .map(
@@ -123,12 +133,23 @@ public class HashSubpartitionBufferAccumulator {
     }
 
     private void writeRecord(ByteBuffer record) {
+        boolean needFinalFlush = false;
         while (record.hasRemaining()) {
             BufferBuilder currentWritingBuffer = checkNotNull(unfinishedBuffers.peek());
             currentWritingBuffer.append(record);
             if (currentWritingBuffer.isFull()) {
-                finishCurrentWritingBuffer();
+                int numRemainingConsecutiveBuffers = 0;
+                if (!isPartialRecordAllowed) {
+                    needFinalFlush = true;
+                    numRemainingConsecutiveBuffers =
+                            (int) Math.ceil(((double) record.remaining()) / bufferSize);
+                }
+                finishCurrentWritingBuffer(numRemainingConsecutiveBuffers);
             }
+        }
+
+        if (needFinalFlush) {
+            finishCurrentWritingBuffer(0);
         }
     }
 
@@ -138,24 +159,29 @@ public class HashSubpartitionBufferAccumulator {
             return;
         }
 
-        finishCurrentWritingBuffer();
+        finishCurrentWritingBuffer(0);
     }
 
-    private void finishCurrentWritingBuffer() {
+    private void finishCurrentWritingBuffer(int numRemainingConsecutiveBuffers) {
         BufferBuilder currentWritingBuffer = unfinishedBuffers.poll();
         if (currentWritingBuffer == null) {
             return;
+        }
+        if (currentWritingBuffer.getDataType() == Buffer.DataType.DATA_BUFFER
+                && !isPartialRecordAllowed
+                && numRemainingConsecutiveBuffers == 0) {
+            currentWritingBuffer.setDataType(Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END);
         }
         currentWritingBuffer.finish();
         BufferConsumer bufferConsumer = currentWritingBuffer.createBufferConsumerFromBeginning();
         Buffer buffer = bufferConsumer.build();
         currentWritingBuffer.close();
         bufferConsumer.close();
-        flushFinishedBuffer(buffer);
+        flushFinishedBuffer(buffer, numRemainingConsecutiveBuffers);
     }
 
-    private void flushFinishedBuffer(Buffer finishedBuffer) {
+    private void flushFinishedBuffer(Buffer finishedBuffer, int numRemainingConsecutiveBuffers) {
         bufferAccumulatorContext.flushAccumulatedBuffers(
-                subpartitionId, Collections.singletonList(finishedBuffer));
+                subpartitionId, finishedBuffer, numRemainingConsecutiveBuffers);
     }
 }

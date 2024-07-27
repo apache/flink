@@ -133,46 +133,7 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
             GlobalProperties produced2) {
         if (requested1.getPartitioning().isPartitionedOnKey()
                 && requested2.getPartitioning().isPartitionedOnKey()) {
-
-            if (produced1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED
-                    && produced2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-
-                // both are hash partitioned, check that partitioning fields are equivalently chosen
-                return checkEquivalentFieldPositionsInKeyFields(
-                        produced1.getPartitioningFields(), produced2.getPartitioningFields());
-
-            } else if (produced1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
-                    && produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
-                    && produced1.getDataDistribution() != null
-                    && produced2.getDataDistribution() != null) {
-
-                return produced1.getPartitioningFields().size()
-                                == produced2.getPartitioningFields().size()
-                        && checkSameOrdering(
-                                produced1, produced2, produced1.getPartitioningFields().size())
-                        && produced1.getDataDistribution().equals(produced2.getDataDistribution());
-
-            } else if (produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING
-                    && produced2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING) {
-
-                // both use a custom partitioner. Check that both keys are exactly as specified and
-                // that both the same partitioner
-                return produced1.getPartitioningFields().isExactMatch(this.keys1)
-                        && produced2.getPartitioningFields().isExactMatch(this.keys2)
-                        && produced1.getCustomPartitioner() != null
-                        && produced2.getCustomPartitioner() != null
-                        && produced1
-                                .getCustomPartitioner()
-                                .equals(produced2.getCustomPartitioner());
-
-            } else {
-
-                // no other partitioning valid, incl. ANY_PARTITIONING.
-                //   For joins we must ensure that both sides are exactly identically partitioned,
-                // ANY is not good enough.
-                return false;
-            }
-
+            return checkCompatibilityBasedOnDiversePartitioningProperty(produced1, produced2);
         } else {
             return true;
         }

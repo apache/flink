@@ -18,15 +18,14 @@
 package org.apache.flink.api.scala.io
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.core.io.GenericInputSplit
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -61,7 +60,7 @@ class CollectionInputFormatTest {
     val inputFormat: CollectionInputFormat[ElementType] = {
       new CollectionInputFormat[ElementType](
         inputCollection.asJava,
-        info.createSerializer(new ExecutionConfig))
+        info.createSerializer(new SerializerConfigImpl))
     }
 
     val buffer = new ByteArrayOutputStream
@@ -72,8 +71,8 @@ class CollectionInputFormatTest {
     val in = new ObjectInputStream(new ByteArrayInputStream(buffer.toByteArray))
     val serializationResult: AnyRef = in.readObject
 
-    assertNotNull(serializationResult)
-    assertTrue(serializationResult.isInstanceOf[CollectionInputFormat[_]])
+    assertThat(serializationResult).isNotNull
+    assertThat(serializationResult).isInstanceOf(classOf[CollectionInputFormat[_]])
 
     val result = serializationResult.asInstanceOf[CollectionInputFormat[ElementType]]
     val inputSplit = new GenericInputSplit(0, 1)
@@ -83,7 +82,7 @@ class CollectionInputFormatTest {
     while (!inputFormat.reachedEnd && !result.reachedEnd) {
       val expectedElement = inputFormat.nextRecord(null)
       val actualElement = result.nextRecord(null)
-      assertEquals(expectedElement, actualElement)
+      assertThat(expectedElement).isEqualTo(actualElement)
     }
   }
 
@@ -137,7 +136,7 @@ class CollectionInputFormatTest {
 
     val inputFormat = new CollectionInputFormat[String](
       data.asJava,
-      BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig))
+      BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl))
     val baos = new ByteArrayOutputStream
     val oos = new ObjectOutputStream(baos)
 
@@ -148,15 +147,15 @@ class CollectionInputFormatTest {
     val ois = new ObjectInputStream(bais)
     val result: AnyRef = ois.readObject
 
-    assertTrue(result.isInstanceOf[CollectionInputFormat[_]])
+    assertThat(result).isInstanceOf(classOf[CollectionInputFormat[_]])
     var i: Int = 0
     val in = result.asInstanceOf[CollectionInputFormat[String]]
     in.open(new GenericInputSplit(0, 1))
 
     while (!in.reachedEnd) {
-      assertEquals(data(i), in.nextRecord(""))
+      assertThat(data(i)).isEqualTo(in.nextRecord(""))
       i += 1
     }
-    assertEquals(data.length, i)
+    assertThat(data.length).isEqualTo(i)
   }
 }

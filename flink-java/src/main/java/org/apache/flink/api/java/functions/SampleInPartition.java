@@ -58,7 +58,7 @@ public class SampleInPartition<T> extends RichMapPartitionFunction<T, Intermedia
     public void mapPartition(Iterable<T> values, Collector<IntermediateSampleData<T>> out)
             throws Exception {
         DistributedRandomSampler<T> sampler;
-        long seedAndIndex = seed + getRuntimeContext().getIndexOfThisSubtask();
+        long seedAndIndex = seed + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         if (withReplacement) {
             sampler = new ReservoirSamplerWithReplacement<T>(numSample, seedAndIndex);
         } else {

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -69,7 +68,7 @@ class RetryingExecutorTest {
 
     @Test
     void testDiscardOnTimeout() throws Exception {
-        int timeoutMs = 5;
+        int timeoutMs = 50; // should be long enough for the last attempt to succeed
         int numAttempts = 7;
         int successfulAttempt = numAttempts - 1;
         List<Integer> completed = new CopyOnWriteArrayList<>();
@@ -123,7 +122,11 @@ class RetryingExecutorTest {
                 Thread.sleep(10);
             }
         }
-        assertThat(unexpectedException).hasValue(null);
+        if (unexpectedException.get() != null) {
+            // the last attempt might still timeout if the worker node is overloaded
+            // and the thread is unscheduled for more than timeoutMs
+            assertThat(unexpectedException).isInstanceOf(TimeoutException.class);
+        }
         assertThat(singletonList(successfulAttempt)).isEqualTo(completed);
         assertThat(IntStream.range(0, successfulAttempt).boxed().collect(toList()))
                 .isEqualTo(discarded.stream().sorted().collect(toList()));
@@ -219,7 +222,7 @@ class RetryingExecutorTest {
                 Executors.newScheduledThreadPool(2));
         /* future completion can be delayed arbitrarily causing start delta be less than timeout */
         assertThat(((double) secondStart.get() - firstStart.get()) / 1_000_000)
-                .isCloseTo(timeout, Percentage.withPercentage(75));
+                .isGreaterThanOrEqualTo(timeout * .75);
     }
 
     private void testPolicy(

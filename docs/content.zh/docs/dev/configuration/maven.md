@@ -28,7 +28,7 @@ under the License.
 
 ## 要求
 
-- Maven 3.0.4 (or higher)
+- Maven 3.8.6
 - Java 8 (deprecated) or Java 11
 
 ## 将项目导入 IDE

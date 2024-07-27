@@ -22,142 +22,186 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 
 class CalcValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidUseOfRowtime(): Unit = {
     val util = streamTestUtil()
-    util
-      .addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
-        "MyTable",
-        'rowtime,
-        'int,
-        'double,
-        'float,
-        'bigdec,
-        'string)
-      .select('rowtime.rowtime)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
+              "MyTable",
+              'rowtime,
+              'int,
+              'double,
+              'float,
+              'bigdec,
+              'string)
+            .select('rowtime.rowtime))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidUseOfRowtime2(): Unit = {
     val util = streamTestUtil()
-    util
-      .addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
-        "MyTable",
-        'rowtime,
-        'int,
-        'double,
-        'float,
-        'bigdec,
-        'string)
-      .window(Tumble.over(2.millis).on('rowtime).as('w))
-      .groupBy('w)
-      .select('w.end.rowtime, 'int.count.as('int)) // no rowtime on non-window reference
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addDataStream[(Long, Int, Double, Float, BigDecimal, String)](
+              "MyTable",
+              'rowtime,
+              'int,
+              'double,
+              'float,
+              'bigdec,
+              'string)
+            .window(Tumble.over(2.millis).on('rowtime).as('w))
+            .groupBy('w)
+            // no rowtime on non-window reference
+            .select('w.end.rowtime, 'int.count.as('int)))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAddColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.addColumns('a.sum)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.addColumns('a.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAddOrReplaceColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.addOrReplaceColumns('a.sum)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.addOrReplaceColumns('a.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRenameColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.renameColumns('a.sum)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.renameColumns('a.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRenameColumnsWithoutAlias(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.renameColumns('a)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.renameColumns('a))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRenameColumnsWithFunctallCall(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.renameColumns(('a + 1).as('a2))
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.renameColumns(('a + 1).as('a2)))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRenameColumnsNotExist(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.renameColumns('e.as('e2))
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.renameColumns('e.as('e2)))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropColumnsWithAgg(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.dropColumns('a.sum)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.dropColumns('a.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropColumnsNotExist(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.dropColumns('e)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.dropColumns('e))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropColumnsWithValueLiteral(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-    tab.dropColumns("a")
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => tab.dropColumns("a"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeAggregation(): Unit = {
     val util = streamTestUtil()
-    util
-      .addTableSource[(Int)]("MyTable", 'int)
-      .map('int.sum) // do not support AggregateFunction as input
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addTableSource[(Int)]("MyTable", 'int)
+            .map('int.sum)) // do not support AggregateFunction as input
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeUDAGG(): Unit = {
     val util = streamTestUtil()
 
     val weightedAvg = new WeightedAvg
-    util
-      .addTableSource[(Int)]("MyTable", 'int)
-      .map(weightedAvg('int, 'int)) // do not support AggregateFunction as input
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addTableSource[(Int)]("MyTable", 'int)
+            .map(weightedAvg('int))) // do not support AggregateFunction as input
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeUDAGG2(): Unit = {
     val util = streamTestUtil()
 
-    util.addFunction("weightedAvg", new WeightedAvg)
-    util
-      .addTableSource[(Int)]("MyTable", 'int)
-      .map(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
+    util.addTemporarySystemFunction("weightedAvg", new WeightedAvg)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addTableSource[(Int)]("MyTable", 'int)
+            .map(call("weightedAvg", $"int", $"int"))) // do not support AggregateFunction as input
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeTableFunction(): Unit = {
     val util = streamTestUtil()
 
-    util.addFunction("func", new TableFunc0)
-    util
-      .addTableSource[(String)]("MyTable", 'string)
-      .map(call("func", $"string").as("a")) // do not support TableFunction as input
+    util.addTemporarySystemFunction("func", new TableFunc0)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addTableSource[(String)]("MyTable", 'string)
+            .map(call("func", $"string").as("a"))) // do not support TableFunction as input
   }
 }

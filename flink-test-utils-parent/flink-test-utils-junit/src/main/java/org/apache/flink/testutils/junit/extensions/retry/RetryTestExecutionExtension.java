@@ -51,7 +51,7 @@ public class RetryTestExecutionExtension
         RetryStrategy retryStrategy = getRetryStrategyInStore(context);
         String method = getTestMethodKey(context);
         if (!retryStrategy.hasNextAttempt()) {
-            return ConditionEvaluationResult.disabled(method + "has already passed or failed.");
+            return ConditionEvaluationResult.disabled(method + " has already passed or failed.");
         }
         return ConditionEvaluationResult.enabled(
                 String.format("Test %s[%d/%d]", method, retryIndex, totalTimes));

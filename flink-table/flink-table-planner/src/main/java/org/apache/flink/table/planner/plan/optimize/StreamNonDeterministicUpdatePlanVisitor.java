@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.plan.optimize;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
@@ -138,7 +140,7 @@ import java.util.stream.Collectors;
  * require all columns' determinism when no primary key is defined
  *
  * <p>4. for a cdc source node(which will generate updates), the metadata columns are treated as
- * non-deterministic.
+ * non-deterministic if changelogNormalize is not enabled.
  */
 public class StreamNonDeterministicUpdatePlanVisitor {
     private static final ImmutableBitSet NO_REQUIRED_DETERMINISM = ImmutableBitSet.of();
@@ -364,40 +366,54 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 if (!insertOnly && supportsReadingMetadata) {
                     TableSourceTable sourceTable =
                             tableScan.getTable().unwrap(TableSourceTable.class);
-                    // check if requireDeterminism contains metadata column
-                    List<Column.MetadataColumn> metadataColumns =
-                            DynamicSourceUtils.extractMetadataColumns(
-                                    sourceTable.contextResolvedTable().getResolvedSchema());
-                    Set<String> metaColumnSet =
-                            metadataColumns.stream()
-                                    .map(Column::getName)
-                                    .collect(Collectors.toSet());
-                    List<String> columns = tableScan.getRowType().getFieldNames();
-                    List<String> metadataCauseErr = new ArrayList<>();
-                    for (int index = 0; index < columns.size(); index++) {
-                        String column = columns.get(index);
-                        if (metaColumnSet.contains(column) && requireDeterminism.get(index)) {
-                            metadataCauseErr.add(column);
+                    TableConfig tableConfig =
+                            ShortcutUtils.unwrapContext(rel.getCluster()).getTableConfig();
+                    ResolvedSchema resolvedSchema =
+                            sourceTable.contextResolvedTable().getResolvedSchema();
+                    // check if changelogNormalize is enabled for the source, if yes, the metadata
+                    // columns are deterministic
+                    if (!DynamicSourceUtils.changelogNormalizeEnabled(
+                            tableScan.eventTimeSnapshotRequired(),
+                            resolvedSchema,
+                            sourceTable.tableSource(),
+                            tableConfig)) {
+                        // check if requireDeterminism contains metadata column
+                        List<Column.MetadataColumn> metadataColumns =
+                                DynamicSourceUtils.extractMetadataColumns(
+                                        sourceTable.contextResolvedTable().getResolvedSchema());
+                        Set<String> metaColumnSet =
+                                metadataColumns.stream()
+                                        .map(Column::getName)
+                                        .collect(Collectors.toSet());
+                        List<String> columns = tableScan.getRowType().getFieldNames();
+                        List<String> metadataCauseErr = new ArrayList<>();
+                        for (int index = 0; index < columns.size(); index++) {
+                            String column = columns.get(index);
+                            if (metaColumnSet.contains(column) && requireDeterminism.get(index)) {
+                                metadataCauseErr.add(column);
+                            }
                         }
-                    }
-                    if (!metadataCauseErr.isEmpty()) {
-                        StringBuilder errorMsg = new StringBuilder();
-                        errorMsg.append("The metadata column(s): '")
-                                .append(String.join(", ", metadataCauseErr.toArray(new String[0])))
-                                .append("' in cdc source may cause wrong result or error on")
-                                .append(" downstream operators, please consider removing these")
-                                .append(" columns or use a non-cdc source that only has insert")
-                                .append(" messages.\nsource node:\n")
-                                .append(
-                                        FlinkRelOptUtil.toString(
-                                                tableScan,
-                                                SqlExplainLevel.DIGEST_ATTRIBUTES,
-                                                false,
-                                                true,
-                                                false,
-                                                true,
-                                                false));
-                        throw new TableException(errorMsg.toString());
+                        if (!metadataCauseErr.isEmpty()) {
+                            StringBuilder errorMsg = new StringBuilder();
+                            errorMsg.append("The metadata column(s): '")
+                                    .append(
+                                            String.join(
+                                                    ", ", metadataCauseErr.toArray(new String[0])))
+                                    .append("' in cdc source may cause wrong result or error on")
+                                    .append(" downstream operators, please consider removing these")
+                                    .append(" columns or use a non-cdc source that only has insert")
+                                    .append(" messages.\nsource node:\n")
+                                    .append(
+                                            FlinkRelOptUtil.toString(
+                                                    tableScan,
+                                                    SqlExplainLevel.DIGEST_ATTRIBUTES,
+                                                    false,
+                                                    true,
+                                                    false,
+                                                    true,
+                                                    false));
+                            throw new TableException(errorMsg.toString());
+                        }
                     }
                 }
             }

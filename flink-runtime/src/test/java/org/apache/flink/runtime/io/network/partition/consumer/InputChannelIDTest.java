@@ -22,24 +22,22 @@ import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InputChannelID}. */
-public class InputChannelIDTest {
+class InputChannelIDTest {
     private static final NettyBufferPool ALLOCATOR = new NettyBufferPool(1);
 
     @Test
-    public void testByteBufWriteAndRead() {
+    void testByteBufWriteAndRead() {
         final InputChannelID inputChannelID = new InputChannelID();
         final int byteBufLen = InputChannelID.getByteBufLength();
         final ByteBuf byteBuf = ALLOCATOR.directBuffer(byteBufLen, byteBufLen);
         inputChannelID.writeTo(byteBuf);
 
-        assertThat(byteBuf.writerIndex(), is(equalTo(InputChannelID.getByteBufLength())));
-        assertThat(InputChannelID.fromByteBuf(byteBuf), is(equalTo(inputChannelID)));
+        assertThat(byteBuf.writerIndex()).isEqualTo(InputChannelID.getByteBufLength());
+        assertThat(InputChannelID.fromByteBuf(byteBuf)).isEqualTo(inputChannelID);
     }
 }

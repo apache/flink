@@ -34,7 +34,7 @@ import java.util.Collection;
 
 /** An abstract base implementation of the {@link StateBackendBuilder} interface. */
 public abstract class AbstractKeyedStateBackendBuilder<K>
-        implements StateBackendBuilder<AbstractKeyedStateBackend, BackendBuildingException> {
+        implements StateBackendBuilder<AbstractKeyedStateBackend<K>, BackendBuildingException> {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     protected final TaskKvStateRegistry kvStateRegistry;

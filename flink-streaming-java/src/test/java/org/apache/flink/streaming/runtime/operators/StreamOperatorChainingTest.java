@@ -46,18 +46,16 @@ import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for stream operator chaining behaviour. */
 @SuppressWarnings("serial")
-public class StreamOperatorChainingTest {
+class StreamOperatorChainingTest {
 
     // We have to use static fields because the sink functions will go through serialization
     private static List<String> sink1Results;
@@ -65,7 +63,7 @@ public class StreamOperatorChainingTest {
     private static List<String> sink3Results;
 
     @Test
-    public void testMultiChainingWithObjectReuse() throws Exception {
+    void testMultiChainingWithObjectReuse() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
 
@@ -73,7 +71,7 @@ public class StreamOperatorChainingTest {
     }
 
     @Test
-    public void testMultiChainingWithoutObjectReuse() throws Exception {
+    void testMultiChainingWithoutObjectReuse() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().disableObjectReuse();
 
@@ -88,7 +86,7 @@ public class StreamOperatorChainingTest {
         env.setParallelism(2);
 
         // the actual elements will not be used
-        DataStream<Integer> input = env.fromElements(1, 2, 3);
+        DataStream<Integer> input = env.fromData(1, 2, 3);
 
         sink1Results = new ArrayList<>();
         sink2Results = new ArrayList<>();
@@ -118,7 +116,7 @@ public class StreamOperatorChainingTest {
         // be build our own StreamTask and OperatorChain
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
+        assertThat(jobGraph.getVerticesSortedTopologicallyFromSources()).hasSize(2);
 
         JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
@@ -143,8 +141,8 @@ public class StreamOperatorChainingTest {
             headOperator.processElement(new StreamRecord<>(2));
             headOperator.processElement(new StreamRecord<>(3));
 
-            assertThat(sink1Results, contains("First: 1", "First: 2", "First: 3"));
-            assertThat(sink2Results, contains("Second: 1", "Second: 2", "Second: 3"));
+            assertThat(sink1Results).containsExactly("First: 1", "First: 2", "First: 3");
+            assertThat(sink2Results).containsExactly("Second: 1", "Second: 2", "Second: 3");
         }
     }
 
@@ -158,7 +156,7 @@ public class StreamOperatorChainingTest {
     }
 
     @Test
-    public void testMultiChainingWithSplitWithObjectReuse() throws Exception {
+    void testMultiChainingWithSplitWithObjectReuse() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
 
@@ -166,7 +164,7 @@ public class StreamOperatorChainingTest {
     }
 
     @Test
-    public void testMultiChainingWithSplitWithoutObjectReuse() throws Exception {
+    void testMultiChainingWithSplitWithoutObjectReuse() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().disableObjectReuse();
 
@@ -181,7 +179,7 @@ public class StreamOperatorChainingTest {
         env.setParallelism(2);
 
         // the actual elements will not be used
-        DataStream<Integer> input = env.fromElements(1, 2, 3);
+        DataStream<Integer> input = env.fromData(1, 2, 3);
 
         sink1Results = new ArrayList<>();
         sink2Results = new ArrayList<>();
@@ -244,7 +242,7 @@ public class StreamOperatorChainingTest {
         // be build our own StreamTask and OperatorChain
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
+        assertThat(jobGraph.getVerticesSortedTopologicallyFromSources()).hasSize(2);
 
         JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
@@ -269,9 +267,9 @@ public class StreamOperatorChainingTest {
             headOperator.processElement(new StreamRecord<>(2));
             headOperator.processElement(new StreamRecord<>(3));
 
-            assertThat(sink1Results, contains("First 1: 1"));
-            assertThat(sink2Results, contains("First 2: 1"));
-            assertThat(sink3Results, contains("Second: 2", "Second: 3"));
+            assertThat(sink1Results).containsExactly("First 1: 1");
+            assertThat(sink2Results).containsExactly("First 2: 1");
+            assertThat(sink3Results).containsExactly("Second: 2", "Second: 3");
         }
     }
 

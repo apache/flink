@@ -47,7 +47,7 @@ abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSys
   }
 
   override def check(sqlQuery: String, expectedResult: Seq[Row]): Unit = {
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink()
     result.addSink(sink)
     env.execute()

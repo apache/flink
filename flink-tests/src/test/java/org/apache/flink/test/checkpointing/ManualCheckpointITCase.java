@@ -35,7 +35,7 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
@@ -53,7 +53,7 @@ import java.util.function.Predicate;
 
 /** Tests for manually triggering checkpoints. */
 @RunWith(Parameterized.class)
-public class ManualCheckpointITCase extends AbstractTestBase {
+public class ManualCheckpointITCase extends AbstractTestBaseJUnit4 {
 
     @Parameterized.Parameter public StorageSupplier storageSupplier;
 

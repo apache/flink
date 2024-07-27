@@ -39,7 +39,7 @@ class WebMonitorUtilsTest {
     @Test
     void testLoadWebSubmissionExtension() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        configuration.set(JobManagerOptions.ADDRESS, "localhost");
         final WebMonitorExtension webMonitorExtension =
                 WebMonitorUtils.loadWebSubmissionExtension(
                         CompletableFuture::new,

@@ -43,9 +43,9 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.state.WindowListState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowListState;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 
@@ -141,7 +141,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
         InternalTimerService<Long> internalTimerService =
                 getInternalTimerService("window-timers", windowSerializer, this);
-        this.windowTimerService = new WindowTimerServiceImpl(internalTimerService, shiftTimeZone);
+        this.windowTimerService =
+                new SlicingWindowTimerServiceImpl(internalTimerService, shiftTimeZone);
 
         // init join condition
         JoinCondition condition =

@@ -97,8 +97,7 @@ public abstract class AbstractOrcFileInputFormat<T, BatchT, SplitT extends FileS
     public OrcVectorizedReader<T, BatchT> createReader(
             final Configuration config, final SplitT split) throws IOException {
 
-        final int numBatchesToCirculate =
-                config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+        final int numBatchesToCirculate = config.get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
         final Pool<OrcReaderBatch<T, BatchT>> poolOfBatches =
                 createPoolOfBatches(split, numBatchesToCirculate);
 

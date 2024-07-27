@@ -160,9 +160,19 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                 });
     }
 
+    @Override
+    public boolean supportsBatchSnapshot() {
+        try {
+            return getInternalCoordinator().supportsBatchSnapshot();
+        } catch (Exception e) {
+            String msg = "Could not get internal coordinator";
+            LOG.error(msg, e);
+            throw new RuntimeException(msg, e);
+        }
+    }
+
     // ---------------------
 
-    @VisibleForTesting
     public OperatorCoordinator getInternalCoordinator() throws Exception {
         waitForAllAsyncCallsFinish();
         return coordinator.internalCoordinator;

@@ -140,9 +140,10 @@ public class UpsertTestFileUtil {
             DeserializationSchema<V> valueDeserializationSchema)
             throws IOException {
         checkNotNull(file);
-        FileInputStream fs = new FileInputStream(file);
-        BufferedInputStream bis = new BufferedInputStream(fs);
-        return readRecords(bis, keyDeserializationSchema, valueDeserializationSchema);
+        try (FileInputStream fs = new FileInputStream(file);
+                BufferedInputStream bis = new BufferedInputStream(fs)) {
+            return readRecords(bis, keyDeserializationSchema, valueDeserializationSchema);
+        }
     }
 
     /**

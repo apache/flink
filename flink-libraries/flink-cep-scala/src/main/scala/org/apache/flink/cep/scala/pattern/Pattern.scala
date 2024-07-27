@@ -25,6 +25,8 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JC
 import org.apache.flink.cep.scala.conditions.Context
 import org.apache.flink.streaming.api.windowing.time.Time
 
+import java.time.Duration
+
 /**
  * Base class for a pattern definition.
  *
@@ -64,8 +66,14 @@ class Pattern[T, F <: T](jPattern: JPattern[T, F]) {
   def getName: String = jPattern.getName
 
   /** @return Window length in which the pattern match has to occur */
+  @deprecated(message = "Use getWindowSize", since = "1.19.0")
   def getWindowTime: Option[Time] = {
-    Option(jPattern.getWindowTime)
+    getWindowSize.map(Time.of)
+  }
+
+  /** @return Window length in which the pattern match has to occur */
+  def getWindowSize: Option[Duration] = {
+    Option(jPattern.getWindowSize.orElse(null))
   }
 
   /** @return currently applied quantifier to this pattern */
@@ -253,17 +261,23 @@ class Pattern[T, F <: T](jPattern: JPattern[T, F]) {
     until(condFun)
   }
 
+  @deprecated(message = "Use within(Duration)", since = "1.19.0")
+  def within(windowTime: Time): Pattern[T, F] = {
+    jPattern.within(Time.toDuration(windowTime))
+    this
+  }
+
   /**
    * Defines the maximum time interval in which a matching pattern has to be completed in order to
    * be considered valid. This interval corresponds to the maximum time gap between first and the
    * last event.
    *
    * @param windowTime
-   *   Time of the matching window
+   *   Duration of the matching window
    * @return
    *   The same pattern operator with the new window length
    */
-  def within(windowTime: Time): Pattern[T, F] = {
+  def within(windowTime: Duration): Pattern[T, F] = {
     jPattern.within(windowTime)
     this
   }

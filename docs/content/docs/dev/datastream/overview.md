@@ -386,7 +386,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator, Class)` - Creates a data stream from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
+- `fromSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Custom:
@@ -441,7 +441,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator)` - Creates a data stream from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
+- `fromSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Custom:

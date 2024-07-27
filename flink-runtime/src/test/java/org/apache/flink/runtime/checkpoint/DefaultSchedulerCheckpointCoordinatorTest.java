@@ -189,6 +189,7 @@ class DefaultSchedulerCheckpointCoordinatorTest {
         final Time timeout = Time.days(1L);
 
         final JobVertex jobVertex = new JobVertex("MockVertex");
+        jobVertex.setParallelism(1);
         jobVertex.setInvokableClass(AbstractInvokable.class);
 
         final CheckpointCoordinatorConfiguration chkConfig =

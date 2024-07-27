@@ -34,9 +34,9 @@ import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichAndCondition;
 import org.apache.flink.cep.pattern.conditions.RichNotCondition;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -318,8 +318,7 @@ public class NFACompiler {
          */
         private State<T> createEndingState() {
             State<T> endState = createState(ENDING_STATE_NAME, State.StateType.Final);
-            windowTime =
-                    Optional.ofNullable(currentPattern.getWindowTime()).map(Time::toMilliseconds);
+            windowTime = currentPattern.getWindowSize().map(Duration::toMillis);
             return endState;
         }
 
@@ -336,7 +335,7 @@ public class NFACompiler {
                 if (currentPattern.getQuantifier().getConsumingStrategy()
                         == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
                     // skip notFollow patterns, they are converted into edge conditions
-                    if ((currentPattern.getWindowTime(WithinType.PREVIOUS_AND_CURRENT) != null
+                    if ((currentPattern.getWindowSize(WithinType.PREVIOUS_AND_CURRENT).isPresent()
                                     || getWindowTime() > 0)
                             && lastSink.isFinal()) {
                         final State<T> notFollow = createState(State.StateType.Pending, true);
@@ -370,12 +369,15 @@ public class NFACompiler {
                 followingPattern = currentPattern;
                 currentPattern = currentPattern.getPrevious();
 
-                final Time currentWindowTime = currentPattern.getWindowTime();
-                if (currentWindowTime != null
-                        && currentWindowTime.toMilliseconds() < windowTime.orElse(Long.MAX_VALUE)) {
-                    // the window time is the global minimum of all window times of each state
-                    windowTime = Optional.of(currentWindowTime.toMilliseconds());
-                }
+                // the window time is the global minimum of all window times of each state
+                currentPattern
+                        .getWindowSize()
+                        .map(Duration::toMillis)
+                        .filter(
+                                windowSizeInMillis ->
+                                        windowSizeInMillis < windowTime.orElse(Long.MAX_VALUE))
+                        .ifPresent(
+                                windowSizeInMillis -> windowTime = Optional.of(windowSizeInMillis));
             }
             return lastSink;
         }
@@ -422,13 +424,20 @@ public class NFACompiler {
             State<T> state = createState(currentPattern.getName(), stateType);
             if (isTake) {
                 Times times = currentPattern.getTimes();
-                Time windowTime = currentPattern.getWindowTime(WithinType.PREVIOUS_AND_CURRENT);
-                if (times == null && windowTime != null) {
-                    windowTimes.put(state.getName(), windowTime.toMilliseconds());
-                } else if (times != null
-                        && times.getWindowTime() != null
-                        && state.getName().contains(STATE_NAME_DELIM)) {
-                    windowTimes.put(state.getName(), times.getWindowTime().toMilliseconds());
+                Optional<Duration> windowSize =
+                        currentPattern.getWindowSize(WithinType.PREVIOUS_AND_CURRENT);
+                if (times == null) {
+                    windowSize
+                            .map(Duration::toMillis)
+                            .ifPresent(
+                                    windowSizeInMillis ->
+                                            windowTimes.put(state.getName(), windowSizeInMillis));
+                } else if (state.getName().contains(STATE_NAME_DELIM)) {
+                    times.getWindowSize()
+                            .map(Duration::toMillis)
+                            .ifPresent(
+                                    windowSizeInMillis ->
+                                            windowTimes.put(state.getName(), windowSizeInMillis));
                 }
             }
             return state;

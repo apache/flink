@@ -18,8 +18,10 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Ignore;
@@ -30,8 +32,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum;
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE;
@@ -52,16 +56,40 @@ public class LocalRecoveryITCase extends TestLogger {
 
     @Parameterized.Parameter public StateBackendEnum backendEnum;
 
-    @Parameterized.Parameters(name = "statebackend type ={0}")
-    public static Collection<StateBackendEnum> parameter() {
-        return Arrays.asList(ROCKSDB_FULL, ROCKSDB_INCREMENTAL_ZK, FILE);
+    @Parameterized.Parameter(1)
+    public boolean localRecoveryEnabled;
+
+    @Parameterized.Parameter(2)
+    public boolean localBackupEnabled;
+
+    private static final List<StateBackendEnum> STATE_BACKEND_ENUMS =
+            Arrays.asList(ROCKSDB_FULL, ROCKSDB_INCREMENTAL_ZK, FILE);
+
+    private static final List<Tuple2<Boolean, Boolean>> LOCAL_BACKUP_AND_RECOVERY_CONFIGS =
+            Arrays.asList(Tuple2.of(true, true), Tuple2.of(true, false), Tuple2.of(false, true));
+
+    @Parameterized.Parameters(
+            name = "stateBackendType = {0}, localBackupEnabled = {1}, localRecoveryEnabled = {2}")
+    public static Collection<Object[]> parameter() {
+        List<Object[]> parameterList = new ArrayList<>();
+        for (StateBackendEnum stateBackend : STATE_BACKEND_ENUMS) {
+            for (Tuple2<Boolean, Boolean> backupAndRecoveryConfig :
+                    LOCAL_BACKUP_AND_RECOVERY_CONFIGS) {
+                parameterList.add(
+                        new Object[] {
+                            stateBackend, backupAndRecoveryConfig.f0, backupAndRecoveryConfig.f1
+                        });
+            }
+        }
+        return parameterList;
     }
 
     @Test
     public final void executeTest() throws Exception {
         EventTimeWindowCheckpointingITCase.tempFolder.create();
         EventTimeWindowCheckpointingITCase windowChkITCase =
-                new EventTimeWindowCheckpointingITCaseInstance(backendEnum, true);
+                new EventTimeWindowCheckpointingITCaseInstance(
+                        backendEnum, localBackupEnabled, localRecoveryEnabled);
 
         executeTest(windowChkITCase);
     }
@@ -97,13 +125,16 @@ public class LocalRecoveryITCase extends TestLogger {
             extends EventTimeWindowCheckpointingITCase {
 
         private final StateBackendEnum backendEnum;
+        private final boolean localBackupEnable;
         private final boolean localRecoveryEnabled;
 
         public EventTimeWindowCheckpointingITCaseInstance(
-                StateBackendEnum backendEnum, boolean localRecoveryEnabled) {
+                StateBackendEnum backendEnum,
+                boolean localBackupEnable,
+                boolean localRecoveryEnabled) {
             super(backendEnum, 2);
-
             this.backendEnum = backendEnum;
+            this.localBackupEnable = localBackupEnable;
             this.localRecoveryEnabled = localRecoveryEnabled;
         }
 
@@ -115,9 +146,8 @@ public class LocalRecoveryITCase extends TestLogger {
         @Override
         protected Configuration createClusterConfig() throws IOException {
             Configuration config = super.createClusterConfig();
-
-            config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecoveryEnabled);
-
+            config.set(StateRecoveryOptions.LOCAL_RECOVERY, localRecoveryEnabled);
+            config.set(CheckpointingOptions.LOCAL_BACKUP_ENABLED, localBackupEnable);
             return config;
         }
     }

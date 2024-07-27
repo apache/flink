@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -42,10 +42,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class StreamProjectTest {
+class StreamProjectTest {
 
     @Test
-    public void testProject() throws Exception {
+    void testProject() throws Exception {
 
         TypeInformation<Tuple5<Integer, String, Integer, String, Integer>> inType =
                 TypeExtractor.getForObject(
@@ -56,7 +56,7 @@ public class StreamProjectTest {
         TupleSerializer<Tuple3<Integer, Integer, String>> serializer =
                 new TupleTypeInfo<Tuple3<Integer, Integer, String>>(
                                 StreamProjection.extractFieldTypes(fields, inType))
-                        .createSerializer(new ExecutionConfig());
+                        .createSerializer(new SerializerConfigImpl());
         @SuppressWarnings("unchecked")
         StreamProject<
                         Tuple5<Integer, String, Integer, String, Integer>,

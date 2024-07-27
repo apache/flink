@@ -20,8 +20,12 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
 import org.apache.flink.test.util.FileUtils;
 import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.test.util.SQLJobClientMode;
@@ -64,8 +68,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -417,12 +424,9 @@ public final class FlinkDistribution {
         mergedConfig.addAll(defaultConfig);
         mergedConfig.addAll(config);
 
-        final List<String> configurationLines =
-                mergedConfig.toMap().entrySet().stream()
-                        .map(entry -> entry.getKey() + ": " + entry.getValue())
-                        .collect(Collectors.toList());
-
-        Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+        Files.write(
+                conf.resolve(GlobalConfiguration.FLINK_CONF_FILENAME),
+                ConfigurationUtils.convertConfigToWritableLines(mergedConfig, false));
     }
 
     public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {
@@ -465,7 +469,7 @@ public final class FlinkDistribution {
     }
 
     /** This rest client is used to submit SQL strings to Rest Endpoint of Sql Gateway. */
-    private static class TestSqlGatewayRestClient {
+    public static class TestSqlGatewayRestClient {
 
         private final String host;
         private final int port;
@@ -477,12 +481,31 @@ public final class FlinkDistribution {
             this.host = host;
             this.port = port;
             this.version = version;
-            this.sessionHandle = openSession();
+            this.sessionHandle = openSession(Collections.emptyMap());
         }
 
-        private String openSession() throws Exception {
-            FormBody.Builder builder = new FormBody.Builder();
-            FormBody requestBody = builder.build();
+        public TestSqlGatewayRestClient(
+                String host, int port, String version, Map<String, String> properties)
+                throws Exception {
+            this.host = host;
+            this.port = port;
+            this.version = version;
+            this.sessionHandle = openSession(properties);
+        }
+
+        private String openSession(Map<String, String> properties) throws Exception {
+            RequestBody requestBody;
+            if (properties == null || properties.isEmpty()) {
+                requestBody = new FormBody.Builder().build();
+            } else {
+                Map<String, Object> requestMap = new HashMap<>();
+                requestMap.put("properties", properties);
+                requestBody =
+                        RequestBody.create(
+                                MediaType.parse("application/json; charset=utf-8"),
+                                OBJECT_MAPPER.writeValueAsString(requestMap));
+            }
+
             final Request request =
                     new Request.Builder()
                             .post(requestBody)
@@ -529,6 +552,45 @@ public final class FlinkDistribution {
                 final JsonNode jsonNode = OBJECT_MAPPER.readTree(sendRequest(request));
                 status = jsonNode.get("status").asText();
             } while (!Objects.equals(status, "FINISHED") && !Objects.equals(status, "ERROR"));
+        }
+
+        public List<RowData> getOperationResult(String operationHandle) throws Exception {
+            List<RowData> result = new ArrayList<>();
+            String resultUri =
+                    String.format(
+                            "/%s/sessions/%s/operations/%s/result/0",
+                            version, sessionHandle, operationHandle);
+            while (resultUri != null) {
+                final Request request =
+                        new Request.Builder()
+                                .get()
+                                .url(String.format("http://%s:%s%s", host, port, resultUri))
+                                .build();
+
+                String response = sendRequest(request);
+
+                FetchResultsResponseBody fetchResultsResponseBody =
+                        OBJECT_MAPPER.readValue(response, FetchResultsResponseBody.class);
+                ResultKind resultKind = fetchResultsResponseBody.getResultKind();
+
+                if (Objects.equals(resultKind, ResultKind.SUCCESS_WITH_CONTENT)) {
+                    result.addAll(fetchResultsResponseBody.getResults().getData());
+                }
+                resultUri = fetchResultsResponseBody.getNextResultUri();
+                Thread.sleep(1000);
+            }
+
+            return result;
+        }
+
+        public List<RowData> executeStatementWithResult(String sql) {
+            try {
+                String operationHandle = executeStatement(sql);
+                waitUntilOperationTerminate(operationHandle);
+                return getOperationResult(operationHandle);
+            } catch (Exception e) {
+                throw new RuntimeException("Execute statement failed", e);
+            }
         }
 
         private String sendRequest(Request request) throws Exception {

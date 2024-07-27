@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.common.DynamicFunctionPlanTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 /** Plan test for queries contain dynamic functions in batch. */
-public class DynamicFunctionPlanTest extends DynamicFunctionPlanTestBase {
+class DynamicFunctionPlanTest extends DynamicFunctionPlanTestBase {
     @Override
     protected TableTestUtil getTableTestUtil() {
         return batchTestUtil(TableConfig.getDefault());

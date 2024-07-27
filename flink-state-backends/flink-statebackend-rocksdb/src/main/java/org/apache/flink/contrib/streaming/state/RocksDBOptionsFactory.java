@@ -18,6 +18,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
@@ -50,6 +52,7 @@ import java.util.Collection;
  * });
  * }</pre>
  */
+@PublicEvolving
 public interface RocksDBOptionsFactory extends java.io.Serializable {
 
     /**

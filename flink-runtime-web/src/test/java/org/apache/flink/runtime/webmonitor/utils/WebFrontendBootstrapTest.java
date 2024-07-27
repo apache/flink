@@ -58,9 +58,8 @@ class WebFrontendBootstrapTest {
     void testHandlersMustBeLoaded() throws Exception {
         Path webDir = Files.createDirectories(tmp.resolve("webDir"));
         Configuration configuration = new Configuration();
-        configuration.setString(
-                Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
-        configuration.setString(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
+        configuration.set(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
+        configuration.set(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
         Router<?> router =
                 new Router<>()
                         .addGet("/:*", new HistoryServerStaticFileServerHandler(webDir.toFile()));

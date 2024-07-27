@@ -18,29 +18,29 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.BlockingSourceContext;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link StatefulSequenceSource}. */
-public class StatefulSequenceSourceTest {
+class StatefulSequenceSourceTest {
 
     @Test
-    public void testCheckpointRestore() throws Exception {
+    void testCheckpointRestore() throws Exception {
         final int initElement = 0;
         final int maxElement = 100;
         final int maxParallelsim = 2;
@@ -70,45 +70,25 @@ public class StatefulSequenceSourceTest {
                 new AbstractStreamOperatorTestHarness<>(src2, maxParallelsim, 2, 1);
         testHarness2.open();
 
-        final Throwable[] error = new Throwable[3];
-
         // run the source asynchronously
-        Thread runner1 =
-                new Thread() {
+        CheckedThread runner1 =
+                new CheckedThread() {
                     @Override
-                    public void run() {
-                        try {
-                            source1.run(
-                                    new BlockingSourceContext<>(
-                                            "1",
-                                            latchToTrigger1,
-                                            latchToWait1,
-                                            outputCollector,
-                                            21));
-                        } catch (Throwable t) {
-                            t.printStackTrace();
-                            error[0] = t;
-                        }
+                    public void go() throws Exception {
+                        source1.run(
+                                new BlockingSourceContext<>(
+                                        "1", latchToTrigger1, latchToWait1, outputCollector, 21));
                     }
                 };
 
         // run the source asynchronously
-        Thread runner2 =
-                new Thread() {
+        CheckedThread runner2 =
+                new CheckedThread() {
                     @Override
-                    public void run() {
-                        try {
-                            source2.run(
-                                    new BlockingSourceContext<>(
-                                            "2",
-                                            latchToTrigger2,
-                                            latchToWait2,
-                                            outputCollector,
-                                            32));
-                        } catch (Throwable t) {
-                            t.printStackTrace();
-                            error[1] = t;
-                        }
+                    public void go() throws Exception {
+                        source2.run(
+                                new BlockingSourceContext<>(
+                                        "2", latchToTrigger2, latchToWait2, outputCollector, 32));
                     }
                 };
 
@@ -145,28 +125,19 @@ public class StatefulSequenceSourceTest {
         latchToWait3.trigger();
 
         // run the source asynchronously
-        Thread runner3 =
-                new Thread() {
+        CheckedThread runner3 =
+                new CheckedThread() {
                     @Override
-                    public void run() {
-                        try {
-                            source3.run(
-                                    new BlockingSourceContext<>(
-                                            "3",
-                                            latchToTrigger3,
-                                            latchToWait3,
-                                            outputCollector,
-                                            3));
-                        } catch (Throwable t) {
-                            t.printStackTrace();
-                            error[2] = t;
-                        }
+                    public void go() throws Exception {
+                        source3.run(
+                                new BlockingSourceContext<>(
+                                        "3", latchToTrigger3, latchToWait3, outputCollector, 3));
                     }
                 };
         runner3.start();
-        runner3.join();
+        runner3.sync();
 
-        Assert.assertEquals(3, outputCollector.size()); // we have 3 tasks.
+        assertThat(outputCollector).hasSize(3); // we have 3 tasks.
 
         // test for at-most-once
         Set<Long> dedupRes = new HashSet<>(Math.abs(maxElement - initElement) + 1);
@@ -175,101 +146,25 @@ public class StatefulSequenceSourceTest {
             List<Long> elements = outputCollector.get(key);
 
             // this tests the correctness of the latches in the test
-            Assert.assertTrue(elements.size() > 0);
+            assertThat(elements).isNotEmpty();
 
             for (Long elem : elements) {
-                if (!dedupRes.add(elem)) {
-                    Assert.fail("Duplicate entry: " + elem);
-                }
+                assertThat(dedupRes.add(elem)).as("Duplicate entry: " + elem).isTrue();
 
-                if (!expectedOutput.contains(elem)) {
-                    Assert.fail("Unexpected element: " + elem);
-                }
+                assertThat(expectedOutput.contains(elem))
+                        .as("Unexpected element: " + elem)
+                        .isTrue();
             }
         }
 
         // test for exactly-once
-        Assert.assertEquals(Math.abs(initElement - maxElement) + 1, dedupRes.size());
+        assertThat(dedupRes).hasSize(Math.abs(initElement - maxElement) + 1);
 
         latchToWait1.trigger();
         latchToWait2.trigger();
 
         // wait for everybody ot finish.
-        runner1.join();
-        runner2.join();
-    }
-
-    /** Test SourceContext. */
-    public static class BlockingSourceContext<T> implements SourceFunction.SourceContext<T> {
-
-        private final String name;
-
-        private final Object lock;
-        private final OneShotLatch latchToTrigger;
-        private final OneShotLatch latchToWait;
-        private final ConcurrentHashMap<String, List<T>> collector;
-
-        private final int threshold;
-        private int counter = 0;
-
-        private final List<T> localOutput;
-
-        public BlockingSourceContext(
-                String name,
-                OneShotLatch latchToTrigger,
-                OneShotLatch latchToWait,
-                ConcurrentHashMap<String, List<T>> output,
-                int elemToFire) {
-            this.name = name;
-            this.lock = new Object();
-            this.latchToTrigger = latchToTrigger;
-            this.latchToWait = latchToWait;
-            this.collector = output;
-            this.threshold = elemToFire;
-
-            this.localOutput = new ArrayList<>();
-            List<T> prev = collector.put(name, localOutput);
-            if (prev != null) {
-                Assert.fail();
-            }
-        }
-
-        @Override
-        public void collectWithTimestamp(T element, long timestamp) {
-            collect(element);
-        }
-
-        @Override
-        public void collect(T element) {
-            localOutput.add(element);
-            if (++counter == threshold) {
-                latchToTrigger.trigger();
-                try {
-                    if (!latchToWait.isTriggered()) {
-                        latchToWait.await();
-                    }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        @Override
-        public void emitWatermark(Watermark mark) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void markAsTemporarilyIdle() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Object getCheckpointLock() {
-            return lock;
-        }
-
-        @Override
-        public void close() {}
+        runner1.sync();
+        runner2.sync();
     }
 }

@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.schema.Table;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,12 +37,12 @@ import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DatabaseCalciteSchema}. */
-public class DatabaseCalciteSchemaTest {
+class DatabaseCalciteSchemaTest {
 
     private static final String TABLE_NAME = "tab";
 
     @Test
-    public void testPermanentTableWithPrimaryKey() {
+    void testPermanentTableWithPrimaryKey() {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
         final DatabaseCalciteSchema calciteSchema =
@@ -60,7 +60,7 @@ public class DatabaseCalciteSchemaTest {
     }
 
     @Test
-    public void testTemporaryTableWithPrimaryKey() {
+    void testTemporaryTableWithPrimaryKey() {
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
         final DatabaseCalciteSchema calciteSchema =

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,8 +29,18 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformationWrapper;
+import org.apache.flink.streaming.api.transformations.TransformationWithLineage;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -39,6 +50,9 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.lineage.TableLineageUtils;
+import org.apache.flink.table.planner.lineage.TableSourceLineageVertex;
+import org.apache.flink.table.planner.lineage.TableSourceLineageVertexImpl;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -48,16 +62,22 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
 /**
  * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
@@ -96,6 +116,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
+        final Transformation<RowData> sourceTransform;
         final StreamExecutionEnvironment env = planner.getExecEnv();
         final TransformationMetadata meta = createTransformationMeta(SOURCE_TRANSFORMATION, config);
         final InternalTypeInfo<RowData> outputTypeInfo =
@@ -105,53 +126,184 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                         planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        final int sourceParallelism = deriveSourceParallelism(provider);
+        final boolean sourceParallelismConfigured = isParallelismConfigured(provider);
+        Optional<LineageVertex> lineageVertex = Optional.empty();
         if (provider instanceof SourceFunctionProvider) {
             final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
             final SourceFunction<RowData> function = sourceFunctionProvider.createSourceFunction();
-            final Transformation<RowData> transformation =
+            lineageVertex = TableLineageUtils.extractLineageDataset(function);
+            sourceTransform =
                     createSourceFunctionTransformation(
                             env,
                             function,
                             sourceFunctionProvider.isBounded(),
                             meta.getName(),
-                            outputTypeInfo);
-            return meta.fill(transformation);
+                            outputTypeInfo,
+                            sourceParallelism,
+                            sourceParallelismConfigured);
+
+            LineageDataset tableLineageDataset =
+                    TableLineageUtils.createTableLineageDataset(
+                            tableSourceSpec.getContextResolvedTable(), lineageVertex);
+
+            TableSourceLineageVertex sourceLineageVertex =
+                    new TableSourceLineageVertexImpl(
+                            Arrays.asList(tableLineageDataset),
+                            provider.isBounded()
+                                    ? Boundedness.BOUNDED
+                                    : Boundedness.CONTINUOUS_UNBOUNDED);
+
+            ((TransformationWithLineage<RowData>) sourceTransform)
+                    .setLineageVertex(sourceLineageVertex);
+            if (function instanceof ParallelSourceFunction && sourceParallelismConfigured) {
+                meta.fill(sourceTransform);
+                return new SourceTransformationWrapper<>(sourceTransform);
+            } else {
+                return meta.fill(sourceTransform);
+            }
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
-            final Transformation<RowData> transformation =
+            lineageVertex = TableLineageUtils.extractLineageDataset(inputFormat);
+            sourceTransform =
                     createInputFormatTransformation(
                             env, inputFormat, outputTypeInfo, meta.getName());
-            return meta.fill(transformation);
+            meta.fill(sourceTransform);
         } else if (provider instanceof SourceProvider) {
             final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
+            lineageVertex = TableLineageUtils.extractLineageDataset(source);
             // TODO: Push down watermark strategy to source scan
-            final Transformation<RowData> transformation =
+            sourceTransform =
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
                                     meta.getName(),
                                     outputTypeInfo)
                             .getTransformation();
-            return meta.fill(transformation);
+            meta.fill(sourceTransform);
         } else if (provider instanceof DataStreamScanProvider) {
-            Transformation<RowData> transformation =
+            sourceTransform =
                     ((DataStreamScanProvider) provider)
                             .produceDataStream(createProviderContext(config), env)
                             .getTransformation();
-            meta.fill(transformation);
-            transformation.setOutputType(outputTypeInfo);
-            return transformation;
+            meta.fill(sourceTransform);
+            sourceTransform.setOutputType(outputTypeInfo);
         } else if (provider instanceof TransformationScanProvider) {
-            final Transformation<RowData> transformation =
+            sourceTransform =
                     ((TransformationScanProvider) provider)
                             .createTransformation(createProviderContext(config));
-            meta.fill(transformation);
-            transformation.setOutputType(outputTypeInfo);
-            return transformation;
+            meta.fill(sourceTransform);
+            sourceTransform.setOutputType(outputTypeInfo);
         } else {
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");
+        }
+
+        LineageDataset tableLineageDataset =
+                TableLineageUtils.createTableLineageDataset(
+                        tableSourceSpec.getContextResolvedTable(), lineageVertex);
+
+        TableSourceLineageVertex sourceLineageVertex =
+                new TableSourceLineageVertexImpl(
+                        Arrays.asList(tableLineageDataset),
+                        provider.isBounded()
+                                ? Boundedness.BOUNDED
+                                : Boundedness.CONTINUOUS_UNBOUNDED);
+
+        if (sourceTransform instanceof TransformationWithLineage) {
+            ((TransformationWithLineage<RowData>) sourceTransform)
+                    .setLineageVertex(sourceLineageVertex);
+        }
+
+        if (sourceParallelismConfigured) {
+            Transformation<RowData> sourceTransformationWrapper =
+                    applySourceTransformationWrapper(
+                            sourceTransform,
+                            planner.getFlinkContext().getClassLoader(),
+                            outputTypeInfo,
+                            config,
+                            tableSource.getChangelogMode(),
+                            sourceParallelism);
+            return sourceTransformationWrapper;
+        }
+
+        return sourceTransform;
+    }
+
+    private boolean isParallelismConfigured(ScanTableSource.ScanRuntimeProvider runtimeProvider) {
+        return runtimeProvider instanceof ParallelismProvider
+                && ((ParallelismProvider) runtimeProvider).getParallelism().isPresent();
+    }
+
+    private int deriveSourceParallelism(ScanTableSource.ScanRuntimeProvider runtimeProvider) {
+        if (isParallelismConfigured(runtimeProvider)) {
+            int sourceParallelism = ((ParallelismProvider) runtimeProvider).getParallelism().get();
+            if (sourceParallelism <= 0) {
+                throw new TableException(
+                        String.format(
+                                "Invalid configured parallelism %s for table '%s'.",
+                                sourceParallelism,
+                                tableSourceSpec
+                                        .getContextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
+            }
+            return sourceParallelism;
+        } else {
+            return ExecutionConfig.PARALLELISM_DEFAULT;
+        }
+    }
+
+    protected RowType getPhysicalRowType(ResolvedSchema schema) {
+        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+    }
+
+    protected int[] getPrimaryKeyIndices(RowType sourceRowType, ResolvedSchema schema) {
+        return schema.getPrimaryKey()
+                .map(k -> k.getColumns().stream().mapToInt(sourceRowType::getFieldIndex).toArray())
+                .orElse(new int[0]);
+    }
+
+    private Transformation<RowData> applySourceTransformationWrapper(
+            Transformation<RowData> sourceTransform,
+            ClassLoader classLoader,
+            InternalTypeInfo<RowData> outputTypeInfo,
+            ExecNodeConfig config,
+            ChangelogMode changelogMode,
+            int sourceParallelism) {
+        sourceTransform.setParallelism(sourceParallelism, true);
+        Transformation<RowData> sourceTransformationWrapper =
+                new SourceTransformationWrapper<>(sourceTransform);
+
+        if (!changelogMode.containsOnly(RowKind.INSERT)) {
+            final ResolvedSchema schema =
+                    tableSourceSpec.getContextResolvedTable().getResolvedSchema();
+            final RowType physicalRowType = getPhysicalRowType(schema);
+            final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
+            final boolean hasPk = primaryKeys.length > 0;
+            if (!hasPk) {
+                throw new TableException(
+                        String.format(
+                                "Configured parallelism %s for upsert table '%s' while can not find primary key field. "
+                                        + "This is a bug, please file an issue.",
+                                sourceParallelism,
+                                tableSourceSpec
+                                        .getContextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString()));
+            }
+            final RowDataKeySelector selector =
+                    KeySelectorUtil.getRowDataSelector(classLoader, primaryKeys, outputTypeInfo);
+            final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
+                    new KeyGroupStreamPartitioner<>(selector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
+            Transformation<RowData> partitionedTransform =
+                    new PartitionTransformation<>(sourceTransformationWrapper, partitioner);
+            createTransformationMeta("partitioner", "Partitioner", "Partitioner", config)
+                    .fill(partitionedTransform);
+            return partitionedTransform;
+        } else {
+            return sourceTransformationWrapper;
         }
     }
 
@@ -178,17 +330,22 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             SourceFunction<RowData> function,
             boolean isBounded,
             String operatorName,
-            TypeInformation<RowData> outputTypeInfo) {
+            TypeInformation<RowData> outputTypeInfo,
+            int sourceParallelism,
+            boolean sourceParallelismConfigured) {
 
         env.clean(function);
 
         final int parallelism;
-        boolean parallelismConfigured = false;
         if (function instanceof ParallelSourceFunction) {
-            parallelism = env.getParallelism();
+            if (sourceParallelismConfigured) {
+                parallelism = sourceParallelism;
+            } else {
+                parallelism = env.getParallelism();
+            }
         } else {
             parallelism = 1;
-            parallelismConfigured = true;
+            sourceParallelismConfigured = true;
         }
 
         final Boundedness boundedness;
@@ -205,7 +362,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                 outputTypeInfo,
                 parallelism,
                 boundedness,
-                parallelismConfigured);
+                sourceParallelismConfigured);
     }
 
     /**

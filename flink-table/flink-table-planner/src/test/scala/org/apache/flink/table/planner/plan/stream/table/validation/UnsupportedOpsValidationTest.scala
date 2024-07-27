@@ -18,68 +18,87 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.planner.utils.TableTestUtil
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.junit5.MiniClusterExtension
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
-class UnsupportedOpsValidationTest extends AbstractTestBase {
+class UnsupportedOpsValidationTest {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.join(t2)
+
+    assertThatThrownBy(() => t1.join(t2)).isInstanceOf(classOf[ValidationException])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.union(t2)
+
+    assertThatThrownBy(() => t1.union(t2)).isInstanceOf(classOf[ValidationException])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersect(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.intersect(t2)
+
+    assertThatThrownBy(() => t1.intersect(t2)).isInstanceOf(classOf[ValidationException])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersectAll(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.intersectAll(t2)
+
+    assertThatThrownBy(() => t1.intersectAll(t2)).isInstanceOf(classOf[ValidationException])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinus(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.minus(t2)
+
+    assertThatThrownBy(() => t1.minus(t2)).isInstanceOf(classOf[ValidationException])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinusAll(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.minusAll(t2)
+
+    assertThatThrownBy(() => t1.minusAll(t2)).isInstanceOf(classOf[ValidationException])
   }
+}
+
+object UnsupportedOpsValidationTest {
+  @RegisterExtension
+  private val _: MiniClusterExtension = new MiniClusterExtension(
+    () =>
+      new MiniClusterResourceConfiguration.Builder()
+        .setNumberTaskManagers(1)
+        .setNumberSlotsPerTaskManager(4)
+        .build())
 }

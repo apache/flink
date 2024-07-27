@@ -31,7 +31,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * This class represents a generic collection for {@link StateObject}s. Being a state object itself,
@@ -142,11 +144,22 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 
     @Override
     public long getStateSize() {
-        return sumAllSizes(stateObjects);
+        return streamAllStateObjects().mapToLong(StateObject::getStateSize).sum();
+    }
+
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamAllStateObjects().forEach(object -> object.collectSizeStats(collector));
     }
 
     public long getCheckpointedSize() {
-        return sumAllCheckpointedSizes(stateObjects);
+        return streamAllStateObjects()
+                .mapToLong(StateObjectCollection::getCheckpointedSizeNullSafe)
+                .sum();
+    }
+
+    private Stream<T> streamAllStateObjects() {
+        return stateObjects.stream().filter(Objects::nonNull);
     }
 
     /** Returns true if this contains at least one {@link StateObject}. */
@@ -214,26 +227,8 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
         return stateObject == null ? empty() : singleton(stateObject);
     }
 
-    private static long sumAllSizes(Collection<? extends StateObject> stateObject) {
-        long size = 0L;
-        for (StateObject object : stateObject) {
-            size += getSizeNullSafe(object);
-        }
-
-        return size;
-    }
-
     private static long getSizeNullSafe(StateObject stateObject) {
         return stateObject != null ? stateObject.getStateSize() : 0L;
-    }
-
-    private static long sumAllCheckpointedSizes(Collection<? extends StateObject> stateObject) {
-        long size = 0L;
-        for (StateObject object : stateObject) {
-            size += getCheckpointedSizeNullSafe(object);
-        }
-
-        return size;
     }
 
     private static long getCheckpointedSizeNullSafe(StateObject stateObject) {

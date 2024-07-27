@@ -32,7 +32,7 @@ import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.Test;
@@ -46,7 +46,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for the {@link Source} with a coordinator. */
-public class CoordinatedSourceITCase extends AbstractTestBase {
+public class CoordinatedSourceITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testEnumeratorReaderCommunication() throws Exception {

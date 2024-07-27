@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -32,6 +31,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
@@ -96,7 +96,7 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @return True if the task slot could be allocated; otherwise false
      */
     @VisibleForTesting
-    boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout);
+    boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Duration slotTimeout);
 
     /**
      * Allocate the slot with the given index for the given job and allocation id. If negative index
@@ -116,7 +116,7 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Time slotTimeout);
+            Duration slotTimeout);
 
     /**
      * Marks the slot under the given allocation id as active. If the slot could not be found, then
@@ -137,7 +137,7 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @throws SlotNotFoundException if the slot could not be found for the given allocation id
      * @return True if the slot could be marked inactive
      */
-    boolean markSlotInactive(AllocationID allocationId, Time slotTimeout)
+    boolean markSlotInactive(AllocationID allocationId, Duration slotTimeout)
             throws SlotNotFoundException;
 
     /**

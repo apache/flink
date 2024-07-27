@@ -21,8 +21,12 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
+
+import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /** The set of configuration options relating to network stack. */
 @PublicEvolving
@@ -86,8 +90,12 @@ public class NettyShuffleEnvironmentOptions {
      *
      * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is
      * more effective for IO bounded scenario when data compression ratio is high.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0. Please set the
+     *     {@link NettyShuffleEnvironmentOptions#SHUFFLE_COMPRESSION_CODEC} to NONE to disable the
+     *     compression.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Boolean> BATCH_SHUFFLE_COMPRESSION_ENABLED =
             key("taskmanager.network.batch-shuffle.compression.enabled")
                     .booleanType()
@@ -102,13 +110,13 @@ public class NettyShuffleEnvironmentOptions {
 
     /** The codec to be used when compressing shuffle data. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    @Experimental
-    public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
+    public static final ConfigOption<CompressionCodec> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
-                    .stringType()
-                    .defaultValue("LZ4")
+                    .enumType(CompressionCodec.class)
+                    .defaultValue(CompressionCodec.LZ4)
                     .withDescription(
-                            "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
+                            "The codec to be used when compressing shuffle data. If it is \"NONE\", "
+                                    + "compression is disable. If it is not \"NONE\", only \"LZ4\", \"LZO\" "
                                     + "and \"ZSTD\" are supported now. Through tpc-ds test of these "
                                     + "three algorithms, the results show that \"LZ4\" algorithm has "
                                     + "the highest compression and decompression speed, but the "
@@ -116,6 +124,14 @@ public class NettyShuffleEnvironmentOptions {
                                     + "compression ratio, but the compression and decompression "
                                     + "speed is the slowest, and LZO is between the two. Also note "
                                     + "that this option is experimental and might be changed in the future.");
+
+    /** Supported compression codec. */
+    public enum CompressionCodec {
+        NONE,
+        LZ4,
+        LZO,
+        ZSTD
+    }
 
     /**
      * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
@@ -182,8 +198,13 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue("1gb")
                     .withDescription("Maximum memory size for network buffers.");
 
-    /** The maximum number of tpc connections between taskmanagers for data communication. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * The maximum number of tpc connections between taskmanagers for data communication.
+     *
+     * @deprecated The option is unnecessary. It is deprecated in 1.20 and will be removed and
+     *     hard-coded to 1 in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> MAX_NUM_TCP_CONNECTIONS =
             key("taskmanager.network.max-num-tcp-connections")
                     .intType()
@@ -229,8 +250,11 @@ public class NettyShuffleEnvironmentOptions {
      * upstream outgoing channel, max(1, configured value) will be used. In other words we ensure
      * that, for performance reasons, at least one buffer is used per outgoing channel regardless of
      * the configuration.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.buffers-per-channel")
                     .intType()
@@ -259,8 +283,11 @@ public class NettyShuffleEnvironmentOptions {
     /**
      * Number of floating network buffers for each outgoing/incoming gate (result partition/input
      * gate).
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
             key("taskmanager.network.memory.floating-buffers-per-gate")
                     .intType()
@@ -305,8 +332,11 @@ public class NettyShuffleEnvironmentOptions {
     /**
      * Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking
      * shuffle.
+     *
+     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
+     *     in 2.0.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
             key("taskmanager.network.sort-shuffle.min-parallelism")
                     .intType()
@@ -327,8 +357,14 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
-    /** Region group size of hybrid spilled file data index. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Region group size of hybrid spilled file data index.
+     *
+     * @deprecated The option is only used in the legacy hybrid shuffle mode. It is deprecated in
+     *     1.20 and will be totally removed in 2.0, as the legacy hybrid shuffle mode will be
+     *     removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_REGION_GROUP_SIZE =
             key("taskmanager.network.hybrid-shuffle.spill-index-region-group-size")
                     .intType()
@@ -341,8 +377,14 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is set true.");
 
-    /** Max number of hybrid retained regions in memory. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Max number of hybrid retained regions in memory.
+     *
+     * @deprecated The option is only used in the legacy hybrid shuffle mode. It is deprecated in
+     *     1.20 and will be totally removed in 2.0, as the legacy hybrid shuffle mode will be
+     *     removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Long> HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX =
             key("taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max")
                     .longType()
@@ -353,8 +395,13 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is set true. ");
 
-    /** Number of max buffers can be used for each output subpartition. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Number of max buffers can be used for each output subpartition.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.max-buffers-per-channel")
                     .intType()
@@ -367,8 +414,13 @@ public class NettyShuffleEnvironmentOptions {
                                     + " and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer"
                                     + " producing large amount of data.");
 
-    /** Number of max overdraft network buffers to use for each ResultPartition. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Number of max overdraft network buffers to use for each ResultPartition.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE =
             key("taskmanager.network.memory.max-overdraft-buffers-per-gate")
                     .intType()
@@ -386,9 +438,14 @@ public class NettyShuffleEnvironmentOptions {
                                     + " process any more records until the overdraft buffers are returned to the pool."
                                     + " It should be noted that this config option only takes effect for Pipelined Shuffle.");
 
-    /** The timeout for requesting exclusive buffers for each channel. */
-    @Documentation.ExcludeFromDocumentation(
-            "This option is purely implementation related, and may be removed as the implementation changes.")
+    /**
+     * The timeout for requesting exclusive buffers for each channel.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers. Please use {@link
+     *     NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_REQUEST_TIMEOUT} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
             key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
                     .longType()
@@ -399,9 +456,28 @@ public class NettyShuffleEnvironmentOptions {
                                     + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
                                     + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
 
-    /** The option to enable the new mode of hybrid shuffle. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    @Experimental
+    /** The timeout for requesting buffers for each channel. */
+    @Documentation.ExcludeFromDocumentation(
+            "This option is purely implementation related, and may be removed as the implementation changes.")
+    public static final ConfigOption<Duration> NETWORK_BUFFERS_REQUEST_TIMEOUT =
+            key("taskmanager.network.memory.buffers-request-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
+                    .withDeprecatedKeys(
+                            "taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
+                    .withDescription(
+                            "The timeout for requesting buffers for each channel. Since the number of maximum buffers and "
+                                    + "the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream"
+                                    + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
+                                    + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
+
+    /**
+     * The option to enable the new mode of hybrid shuffle.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be totally removed in 2.0, as the
+     *     legacy hybrid shuffle mode will be removed in 2.0.
+     */
+    @Deprecated @Experimental
     public static final ConfigOption<Boolean> NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE =
             ConfigOptions.key(HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME)
                     .booleanType()
@@ -413,6 +489,24 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH_OPTION_NAME
                                     + " is configured. The new mode is currently in an experimental phase. It can be set to false to fallback to the legacy mode "
                                     + " if something unexpected. Once the new mode reaches a stable state, the legacy mode as well as the option will be removed.");
+
+    /** The option to configure the tiered factory creator remote class name for hybrid shuffle. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Experimental
+    public static final ConfigOption<String>
+            NETWORK_HYBRID_SHUFFLE_EXTERNAL_REMOTE_TIER_FACTORY_CLASS_NAME =
+                    key("taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class")
+                            .stringType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    "The option configures the class that is responsible for creating an "
+                                            + "external remote tier factory for hybrid shuffle. If "
+                                            + "configured, the hybrid shuffle will only initialize "
+                                            + "the specified remote tier according to the given class "
+                                            + "name. Currently, since the tier interfaces are not yet "
+                                            + "public and are still actively evolving, it is recommended "
+                                            + "that users do not independently implement the external "
+                                            + "remote tier until the tier interfaces are stabilized. ");
 
     /** The option to configure the base remote storage path for hybrid shuffle. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
@@ -431,7 +525,11 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is true, the remote storage will be disabled.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
+     *     in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
             key("taskmanager.network.blocking-shuffle.type")
                     .stringType()
@@ -472,7 +570,11 @@ public class NettyShuffleEnvironmentOptions {
     //  Netty Options
     // ------------------------------------------------------------------------
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NUM_ARENAS =
             key("taskmanager.network.netty.num-arenas")
                     .intType()
@@ -480,7 +582,11 @@ public class NettyShuffleEnvironmentOptions {
                     .withDeprecatedKeys("taskmanager.net.num-arenas")
                     .withDescription("The number of Netty arenas.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NUM_THREADS_SERVER =
             key("taskmanager.network.netty.server.numThreads")
                     .intType()
@@ -488,7 +594,11 @@ public class NettyShuffleEnvironmentOptions {
                     .withDeprecatedKeys("taskmanager.net.server.numThreads")
                     .withDescription("The number of Netty server threads.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NUM_THREADS_CLIENT =
             key("taskmanager.network.netty.client.numThreads")
                     .intType()
@@ -496,7 +606,11 @@ public class NettyShuffleEnvironmentOptions {
                     .withDeprecatedKeys("taskmanager.net.client.numThreads")
                     .withDescription("The number of Netty client threads.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> CONNECT_BACKLOG =
             key("taskmanager.network.netty.server.backlog")
                     .intType()
@@ -522,7 +636,11 @@ public class NettyShuffleEnvironmentOptions {
                             "The number of retry attempts for network communication."
                                     + " Currently it's only used for establishing input/output channel connections");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE =
             key("taskmanager.network.netty.sendReceiveBufferSize")
                     .intType()
@@ -532,7 +650,11 @@ public class NettyShuffleEnvironmentOptions {
                             "The Netty send and receive buffer size. This defaults to the system buffer size"
                                     + " (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<String> TRANSPORT_TYPE =
             key("taskmanager.network.netty.transport")
                     .stringType()
@@ -585,7 +707,7 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue(100)
                     .withDeprecatedKeys("taskmanager.net.request-backoff.initial")
                     .withDescription(
-                            "Minimum backoff in milliseconds for partition requests of input channels.");
+                            "Minimum backoff in milliseconds for partition requests of local input channels.");
 
     /** Maximum backoff for partition requests of input channels. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
@@ -595,7 +717,22 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue(10000)
                     .withDeprecatedKeys("taskmanager.net.request-backoff.max")
                     .withDescription(
-                            "Maximum backoff in milliseconds for partition requests of input channels.");
+                            "Maximum backoff in milliseconds for partition requests of local input channels.");
+
+    /** The timeout for partition request listener in result partition manager. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Duration> NETWORK_PARTITION_REQUEST_TIMEOUT =
+            key("taskmanager.network.partition-request-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Timeout for an individual partition request of remote input channels. "
+                                                    + "The partition request will finally fail if the total wait time exceeds "
+                                                    + "twice the value of %s.",
+                                            code(NETWORK_REQUEST_BACKOFF_MAX.key()))
+                                    .build());
 
     // ------------------------------------------------------------------------
 

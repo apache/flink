@@ -35,23 +35,29 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
+import org.apache.flink.yarn.token.TestYarnAMDelegationTokenProvider;
 
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.Records;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -69,7 +75,9 @@ import java.util.UUID;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.APP_MASTER_TOKEN_SERVICES;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -137,7 +145,7 @@ class YarnClusterDescriptorTest {
     void testConfigOverwrite() throws ClusterDeploymentException {
         Configuration configuration = new Configuration();
         // overwrite vcores in config
-        configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
+        configuration.set(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 
         YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(configuration);
 
@@ -173,7 +181,9 @@ class YarnClusterDescriptorTest {
                 JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, cfg);
         final String dynamicParameters =
                 JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
+        final String defaultJvmOpts = "-DdefaultJvm"; // if set
         final String jvmOpts = "-Djvm"; // if set
+        final String defaultJmJvmOpts = "-DdefaultJmJvm"; // if set
         final String jmJvmOpts = "-DjmJvm"; // if set
         final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
         final String logfile =
@@ -369,7 +379,8 @@ class YarnClusterDescriptorTest {
             // YarnClusterDescriptor,
             // because we have a reference to the ClusterDescriptor's configuration which we modify
             // continuously
-            cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+            cfg.set(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
+            cfg.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
@@ -384,6 +395,7 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     logfile,
@@ -406,6 +418,7 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -418,7 +431,8 @@ class YarnClusterDescriptorTest {
             // log4j, with/out krb5, different JVM opts
             // IMPORTANT: Be aware that we are using side effects here to modify the created
             // YarnClusterDescriptor
-            cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
+            cfg.set(CoreOptions.FLINK_DEFAULT_JM_JVM_OPTIONS, defaultJmJvmOpts);
+            cfg.set(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
@@ -433,7 +447,9 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     logfile,
@@ -456,7 +472,9 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -472,8 +490,8 @@ class YarnClusterDescriptorTest {
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
-            cfg.setString(
-                    ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+            cfg.set(
+                    YARN_CONTAINER_START_COMMAND_TEMPLATE,
                     "%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
             assertThat(
                             clusterDescriptor
@@ -488,7 +506,9 @@ class YarnClusterDescriptorTest {
                                     "1",
                                     jvmmem,
                                     "2",
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -505,8 +525,8 @@ class YarnClusterDescriptorTest {
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
-            cfg.setString(
-                    ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+            cfg.set(
+                    YARN_CONTAINER_START_COMMAND_TEMPLATE,
                     "%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
             // IMPORTANT: Be aware that we are using side effects here to modify the created
             // YarnClusterDescriptor
@@ -522,7 +542,9 @@ class YarnClusterDescriptorTest {
                                     java,
                                     logfile,
                                     logback,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -957,6 +979,30 @@ class YarnClusterDescriptorTest {
                     fakeClassPath,
                     fakeLocalFlinkJar,
                     appId.toString());
+        }
+    }
+
+    @Test
+    public void testSetTokensForYarnAppMaster() {
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(
+                APP_MASTER_TOKEN_SERVICES,
+                Arrays.asList(TestYarnAMDelegationTokenProvider.SERVICE_NAME));
+        YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(flinkConfig);
+        ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
+        try {
+            yarnClusterDescriptor.setTokensFor(amContainer, true);
+            Credentials credentials = new Credentials();
+            try (DataInputStream dis =
+                    new DataInputStream(
+                            new ByteArrayInputStream(amContainer.getTokens().array()))) {
+                credentials.readTokenStorageStream(dis);
+            }
+            assertThat(credentials.getAllTokens())
+                    .hasSize(1)
+                    .contains(TestYarnAMDelegationTokenProvider.TEST_YARN_AM_TOKEN);
+        } catch (Exception e) {
+            fail("Should not throw exception when setting tokens for AM container.");
         }
     }
 }

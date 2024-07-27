@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -42,7 +42,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         extends ProcTimeDeduplicateFunctionTestBase {
 
     private TypeSerializer<RowData> typeSerializer =
-            inputRowType.createSerializer(new ExecutionConfig());
+            inputRowType.createSerializer(new SerializerConfigImpl());
 
     private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunction(
             boolean generateUpdateBefore, boolean generateInsert, long minRetentionTime) {

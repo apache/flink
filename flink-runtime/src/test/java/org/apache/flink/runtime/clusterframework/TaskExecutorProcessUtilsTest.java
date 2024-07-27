@@ -176,7 +176,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
         final double cpuCores = 1.0;
 
         Configuration conf = new Configuration();
-        conf.setDouble(TaskManagerOptions.CPU_CORES, cpuCores);
+        conf.set(TaskManagerOptions.CPU_CORES, cpuCores);
 
         validateInAllConfigurations(
                 conf,
@@ -188,7 +188,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     @Test
     void testConfigNoCpuCores() {
         Configuration conf = new Configuration();
-        conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        conf.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
         validateInAllConfigurations(
                 conf,
                 taskExecutorProcessSpec ->
@@ -199,7 +199,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     @Test
     void testConfigNegativeCpuCores() {
         Configuration conf = new Configuration();
-        conf.setDouble(TaskManagerOptions.CPU_CORES, -0.1f);
+        conf.set(TaskManagerOptions.CPU_CORES, -0.1d);
         validateFailInAllConfigurations(conf);
     }
 
@@ -285,7 +285,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
         final Configuration configuration =
                 setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(400);
         // set fraction to be extremely low to not match the derived network memory
-        configuration.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.001f);
+        configuration.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.001f);
         // internal validation should pass
         TaskExecutorProcessUtils.processSpecFromConfig(configuration);
     }
@@ -323,7 +323,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
                 setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(networkMemorySizeMbToDerive);
         configuration.set(
                 TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.ofMebiBytes(pageSizeMb));
-        configuration.setInteger(
+        configuration.set(
                 NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, numberOfNetworkBuffers);
         // internal validation should fail
         assertThatExceptionOfType(IllegalConfigurationException.class)
@@ -390,7 +390,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
         Configuration conf = new Configuration();
         conf.set(TaskManagerOptions.NETWORK_MEMORY_MAX, networkMax);
         conf.set(TaskManagerOptions.NETWORK_MEMORY_MIN, networkMin);
-        conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, fraction);
+        conf.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, fraction);
 
         // validate in configurations without explicit total flink/process memory, otherwise
         // explicit configured
@@ -409,10 +409,10 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     @Test
     void testConfigNetworkMemoryFractionFailure() {
         Configuration conf = new Configuration();
-        conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, -0.1f);
+        conf.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, -0.1f);
         validateFailInAllConfigurations(conf);
 
-        conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 1.0f);
+        conf.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 1.0f);
         validateFailInAllConfigurations(conf);
     }
 
@@ -434,8 +434,8 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
                 NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION;
 
         Configuration conf = new Configuration();
-        conf.setString(legacyOptionMin, networkMin.getMebiBytes() + "m");
-        conf.setString(legacyOptionMax, networkMax.getMebiBytes() + "m");
+        conf.set(legacyOptionMin, networkMin.getMebiBytes() + "m");
+        conf.set(legacyOptionMax, networkMax.getMebiBytes() + "m");
 
         validateInAllConfigurations(
                 conf,
@@ -446,9 +446,9 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
                             .isLessThanOrEqualTo(networkMax.getBytes());
                 });
 
-        conf.setString(legacyOptionMin, "0m");
-        conf.setString(legacyOptionMax, "1t");
-        conf.setFloat(legacyOptionFraction, fraction);
+        conf.set(legacyOptionMin, "0m");
+        conf.set(legacyOptionMax, "1t");
+        conf.set(legacyOptionFraction, fraction);
 
         validateInConfigWithExplicitTaskHeapAndManagedMem(
                 conf,
@@ -472,7 +472,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
 
         Configuration conf = new Configuration();
         conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, pageSize);
-        conf.setInteger(legacyOption, numOfBuffers);
+        conf.set(legacyOption, numOfBuffers);
 
         // validate in configurations without explicit total flink/process memory, otherwise
         // explicit configured
@@ -530,7 +530,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
         final float fraction = 0.5f;
 
         Configuration conf = new Configuration();
-        conf.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, fraction);
+        conf.set(TaskManagerOptions.MANAGED_MEMORY_FRACTION, fraction);
 
         // managed memory fraction is only used when managed memory size is not explicitly
         // configured
@@ -547,10 +547,10 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     @Test
     void testConfigManagedMemoryFractionFailure() {
         final Configuration conf = new Configuration();
-        conf.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, -0.1f);
+        conf.set(TaskManagerOptions.MANAGED_MEMORY_FRACTION, -0.1f);
         validateFailInConfigurationsWithoutExplicitManagedMem(conf);
 
-        conf.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 1.0f);
+        conf.set(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 1.0f);
         validateFailInConfigurationsWithoutExplicitManagedMem(conf);
     }
 
@@ -581,8 +581,8 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
         final float managedFraction = 0.6f;
 
         Configuration conf = new Configuration();
-        conf.setFloat(TaskManagerOptions.NETWORK_MEMORY_FRACTION, networkFraction);
-        conf.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, managedFraction);
+        conf.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, networkFraction);
+        conf.set(TaskManagerOptions.MANAGED_MEMORY_FRACTION, managedFraction);
 
         // if managed memory size is explicitly configured, then managed memory fraction will be
         // ignored

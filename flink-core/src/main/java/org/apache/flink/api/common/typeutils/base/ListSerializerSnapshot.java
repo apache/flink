@@ -30,9 +30,7 @@ public class ListSerializerSnapshot<T>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public ListSerializerSnapshot() {
-        super(ListSerializer.class);
-    }
+    public ListSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public ListSerializerSnapshot(ListSerializer<T> listSerializer) {

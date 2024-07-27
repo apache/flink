@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringBasedID;
 
 import javax.annotation.Nonnull;
@@ -40,10 +39,6 @@ public class LogicalFile {
 
         public LogicalFileId(String keyString) {
             super(keyString);
-        }
-
-        public Path getFilePath() {
-            return new Path(getKeyString());
         }
 
         public static LogicalFileId generateRandomId() {
@@ -70,10 +65,10 @@ public class LogicalFile {
     @Nonnull private final PhysicalFile physicalFile;
 
     /** The offset of the physical file that this logical file start from. */
-    private final int startOffset;
+    private final long startOffset;
 
     /** The length of this logical file. */
-    private final int length;
+    private final long length;
 
     /** The id of the subtask that this logical file belongs to. */
     @Nonnull private final SubtaskKey subtaskKey;
@@ -81,8 +76,8 @@ public class LogicalFile {
     public LogicalFile(
             LogicalFileId fileId,
             @Nonnull PhysicalFile physicalFile,
-            int startOffset,
-            int length,
+            long startOffset,
+            long length,
             @Nonnull SubtaskKey subtaskKey) {
         this.fileId = fileId;
         this.physicalFile = physicalFile;
@@ -90,6 +85,7 @@ public class LogicalFile {
         this.length = length;
         this.subtaskKey = subtaskKey;
         physicalFile.incRefCount();
+        physicalFile.incSize(length);
     }
 
     public LogicalFileId getFileId() {
@@ -120,6 +116,7 @@ public class LogicalFile {
     public void discardWithCheckpointId(long checkpointId) throws IOException {
         if (!discarded && checkpointId >= lastUsedCheckpointID) {
             physicalFile.decRefCount();
+            physicalFile.decSize(length);
             discarded = true;
         }
     }
@@ -133,11 +130,11 @@ public class LogicalFile {
         return physicalFile;
     }
 
-    public int getStartOffset() {
+    public long getStartOffset() {
         return startOffset;
     }
 
-    public int getLength() {
+    public long getLength() {
         return length;
     }
 

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
+import org.apache.flink.runtime.executiongraph.failover.FailureHandlingResult;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
 
@@ -48,6 +48,7 @@ public class FailureHandlingResultSnapshot {
     private final CompletableFuture<Map<String, String>> failureLabels;
     private final long timestamp;
     private final Set<Execution> concurrentlyFailedExecutions;
+    private final boolean isRootCause;
 
     /**
      * Creates a {@code FailureHandlingResultSnapshot} based on the passed {@link
@@ -84,7 +85,8 @@ public class FailureHandlingResultSnapshot {
                 ErrorInfo.handleMissingThrowable(failureHandlingResult.getError()),
                 failureHandlingResult.getTimestamp(),
                 failureHandlingResult.getFailureLabels(),
-                concurrentlyFailedExecutions);
+                concurrentlyFailedExecutions,
+                failureHandlingResult.isRootCause());
     }
 
     @VisibleForTesting
@@ -93,7 +95,8 @@ public class FailureHandlingResultSnapshot {
             Throwable rootCause,
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
-            Set<Execution> concurrentlyFailedExecutions) {
+            Set<Execution> concurrentlyFailedExecutions,
+            boolean isRootCause) {
         Preconditions.checkArgument(
                 rootCauseExecution == null
                         || !concurrentlyFailedExecutions.contains(rootCauseExecution),
@@ -105,6 +108,7 @@ public class FailureHandlingResultSnapshot {
         this.timestamp = timestamp;
         this.concurrentlyFailedExecutions =
                 Preconditions.checkNotNull(concurrentlyFailedExecutions);
+        this.isRootCause = isRootCause;
     }
 
     /**
@@ -150,7 +154,17 @@ public class FailureHandlingResultSnapshot {
      *
      * @return The concurrently failed {@code Executions}.
      */
-    public Iterable<Execution> getConcurrentlyFailedExecution() {
+    public Set<Execution> getConcurrentlyFailedExecution() {
         return Collections.unmodifiableSet(concurrentlyFailedExecutions);
+    }
+
+    /**
+     * @return True means that the current failure is a new attempt, false means that there has been
+     *     a failure before and has not been tried yet, and the current failure will be merged into
+     *     the previous attempt, and these merged exceptions will be considered as the concurrent
+     *     exceptions.
+     */
+    public boolean isRootCause() {
+        return isRootCause;
     }
 }

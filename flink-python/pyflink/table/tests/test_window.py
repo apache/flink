@@ -37,7 +37,8 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
                 .alias("w"))
 
         self.assertRaisesRegex(
-            Py4JJavaError, "Ordering must be defined on a time attribute",
+            Py4JJavaError,
+            "Second argument in OVER window must be a TIME ATTRIBUTE, but is: BIGINT",
             result.select, expr.col("b").sum.over(expr.col("w")))
 
 

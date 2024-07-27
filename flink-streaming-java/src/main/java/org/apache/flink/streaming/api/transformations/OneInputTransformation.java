@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -168,7 +168,7 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         List<Transformation<?>> result = Lists.newArrayList();
         result.add(this);
         result.addAll(input.getTransitivePredecessors());
@@ -183,5 +183,13 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     @Override
     public final void setChainingStrategy(ChainingStrategy strategy) {
         operatorFactory.setChainingStrategy(strategy);
+    }
+
+    public boolean isOutputOnlyAfterEndOfStream() {
+        return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
+    }
+
+    public boolean isInternalSorterSupported() {
+        return operatorFactory.getOperatorAttributes().isInternalSorterSupported();
     }
 }

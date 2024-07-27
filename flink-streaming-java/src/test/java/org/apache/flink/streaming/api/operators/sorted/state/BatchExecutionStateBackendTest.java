@@ -42,11 +42,8 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,14 +54,8 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static java.util.Arrays.asList;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests copied over from {@link StateBackendTestBase} and adjusted to make sense for a single key
@@ -75,9 +66,7 @@ import static org.junit.Assert.fail;
  * queryable state etc. Moreover the tests had to be adjusted as the state backend assumes keys are
  * grouped.
  */
-public class BatchExecutionStateBackendTest extends TestLogger {
-
-    @Rule public final ExpectedException expectedException = ExpectedException.none();
+class BatchExecutionStateBackendTest {
 
     private <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
             TypeSerializer<K> keySerializer) {
@@ -90,7 +79,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
      * {@code null}.
      */
     @Test
-    public void testListStateAddNull() throws Exception {
+    void testListStateAddNull() throws Exception {
         CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -103,10 +92,9 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("abc");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
-            expectedException.expect(NullPointerException.class);
-            state.add(null);
+            assertThatThrownBy(() -> state.add(null)).isInstanceOf(NullPointerException.class);
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -118,7 +106,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
      * ListState#addAll(List)} to be called with {@code null} entries in the list of entries to add.
      */
     @Test
-    public void testListStateAddAllNullEntries() throws Exception {
+    void testListStateAddAllNullEntries() throws Exception {
         CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -131,15 +119,14 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("abc");
-            assertNull(state.get());
-
-            expectedException.expect(NullPointerException.class);
+            assertThat(state.get()).isNull();
 
             List<Long> adding = new ArrayList<>();
             adding.add(3L);
             adding.add(null);
             adding.add(5L);
-            state.addAll(adding);
+
+            assertThatThrownBy(() -> state.addAll(adding)).isInstanceOf(NullPointerException.class);
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -151,7 +138,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
      * ListState#addAll(List)} to be called with {@code null}.
      */
     @Test
-    public void testListStateAddAllNull() throws Exception {
+    void testListStateAddAllNull() throws Exception {
         CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -164,10 +151,9 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("abc");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
-            expectedException.expect(NullPointerException.class);
-            state.addAll(null);
+            assertThatThrownBy(() -> state.addAll(null)).isInstanceOf(NullPointerException.class);
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -179,7 +165,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
      * ListState#update(List)} to be called with {@code null} entries in the list of entries to add.
      */
     @Test
-    public void testListStateUpdateNullEntries() throws Exception {
+    void testListStateUpdateNullEntries() throws Exception {
         CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -192,15 +178,14 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("abc");
-            assertNull(state.get());
-
-            expectedException.expect(NullPointerException.class);
+            assertThat(state.get()).isNull();
 
             List<Long> adding = new ArrayList<>();
             adding.add(3L);
             adding.add(null);
             adding.add(5L);
-            state.update(adding);
+
+            assertThatThrownBy(() -> state.update(adding)).isInstanceOf(NullPointerException.class);
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -212,7 +197,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
      * ListState#update(List)} to be called with {@code null}.
      */
     @Test
-    public void testListStateUpdateNull() throws Exception {
+    void testListStateUpdateNull() throws Exception {
         CheckpointableKeyedStateBackend<String> keyedBackend =
                 createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -225,10 +210,9 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("abc");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
-            expectedException.expect(NullPointerException.class);
-            state.update(null);
+            assertThatThrownBy(() -> state.update(null)).isInstanceOf(NullPointerException.class);
         } finally {
             keyedBackend.close();
             keyedBackend.dispose();
@@ -236,7 +220,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
     }
 
     @Test
-    public void testListStateAPIs() throws Exception {
+    void testListStateAPIs() throws Exception {
 
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
@@ -248,28 +232,28 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("g");
-            assertNull(state.get());
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
+            assertThat(state.get()).isNull();
             state.addAll(Collections.emptyList());
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.addAll(Arrays.asList(3L, 4L));
-            assertThat(state.get(), containsInAnyOrder(3L, 4L));
-            assertThat(state.get(), containsInAnyOrder(3L, 4L));
+            assertThat(state.get()).containsExactlyInAnyOrder(3L, 4L);
+            assertThat(state.get()).containsExactlyInAnyOrder(3L, 4L);
             state.addAll(new ArrayList<>());
-            assertThat(state.get(), containsInAnyOrder(3L, 4L));
+            assertThat(state.get()).containsExactlyInAnyOrder(3L, 4L);
             state.addAll(Arrays.asList(5L, 6L));
-            assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+            assertThat(state.get()).containsExactlyInAnyOrder(3L, 4L, 5L, 6L);
             state.addAll(new ArrayList<>());
-            assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+            assertThat(state.get()).containsExactlyInAnyOrder(3L, 4L, 5L, 6L);
 
-            assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+            assertThat(state.get()).containsExactlyInAnyOrder(3L, 4L, 5L, 6L);
             state.update(Arrays.asList(1L, 2L));
-            assertThat(state.get(), containsInAnyOrder(1L, 2L));
+            assertThat(state.get()).containsExactlyInAnyOrder(1L, 2L);
         }
     }
 
     @Test
-    public void testListStateMergingOverThreeNamespaces() throws Exception {
+    void testListStateMergingOverThreeNamespaces() throws Exception {
 
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
@@ -301,19 +285,19 @@ public class BatchExecutionStateBackendTest extends TestLogger {
 
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+            assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
             // make sure all lists / maps are cleared
 
             keyedBackend.setCurrentKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testListStateMergingWithEmptyNamespace() throws Exception {
+    void testListStateMergingWithEmptyNamespace() throws Exception {
 
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
@@ -344,19 +328,19 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+            assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
             // make sure all lists / maps are cleared
 
             keyedBackend.setCurrentKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testListStateMergingEmpty() throws Exception {
+    void testListStateMergingEmpty() throws Exception {
 
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
@@ -377,19 +361,19 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
             // make sure all lists / maps are cleared
 
             keyedBackend.setCurrentKey("ghi");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testListStateMergingAllInTargetNamespace() throws Exception {
+    void testListStateMergingAllInTargetNamespace() throws Exception {
 
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
@@ -418,17 +402,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+            assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
             keyedBackend.setCurrentKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testListStateMergingInASingleNamespace() throws Exception {
+    void testListStateMergingInASingleNamespace() throws Exception {
 
         final ListStateDescriptor<Long> stateDescr =
                 new ListStateDescriptor<>("my-state", Long.class);
@@ -457,19 +441,19 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+            assertThat(state.get()).containsExactlyInAnyOrder(11L, 22L, 33L, 44L, 55L);
 
             // make sure all lists / maps are cleared
 
             keyedBackend.setCurrentKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testReducingStateAddAndGet() throws Exception {
+    void testReducingStateAddAndGet() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", Long::sum, Long.class);
@@ -481,18 +465,18 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("def");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.add(17L);
             state.add(11L);
-            assertEquals(28L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(28L);
 
             keyedBackend.setCurrentKey("def");
-            assertEquals(28L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(28L);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
             keyedBackend.setCurrentKey("g");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.add(1L);
             state.add(2L);
 
@@ -502,12 +486,12 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             state.add(1L);
 
             keyedBackend.setCurrentKey("g");
-            assertEquals(9L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(9L);
         }
     }
 
     @Test
-    public void testReducingStateMergingOverThreeNamespaces() throws Exception {
+    void testReducingStateMergingOverThreeNamespaces() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", Long::sum, Long.class);
@@ -542,17 +526,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("abc");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testReducingStateMergingWithEmpty() throws Exception {
+    void testReducingStateMergingWithEmpty() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", Long::sum, Long.class);
@@ -585,17 +569,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testReducingStateMergingEmpty() throws Exception {
+    void testReducingStateMergingEmpty() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", Long::sum, Long.class);
@@ -616,12 +600,12 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testReducingStateMergingInTargetNamespace() throws Exception {
+    void testReducingStateMergingInTargetNamespace() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", Long::sum, Long.class);
@@ -652,17 +636,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testReducingStateMergingInASingleNamespace() throws Exception {
+    void testReducingStateMergingInASingleNamespace() throws Exception {
 
         final ReducingStateDescriptor<Long> stateDescr =
                 new ReducingStateDescriptor<>("my-state", Long::sum, Long.class);
@@ -693,17 +677,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateAddAndGetWithMutableAccumulator() throws Exception {
+    void testAggregatingStateAddAndGetWithMutableAccumulator() throws Exception {
 
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
@@ -716,21 +700,21 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("def");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.add(17L);
             state.add(11L);
-            assertEquals(28L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(28L);
 
             keyedBackend.setCurrentKey("def");
-            assertEquals(28L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(28L);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
             keyedBackend.setCurrentKey("def");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
             keyedBackend.setCurrentKey("g");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.add(1L);
             state.add(2L);
 
@@ -740,15 +724,14 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             state.add(1L);
 
             keyedBackend.setCurrentKey("g");
-            assertEquals(9L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(9L);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithMutableAccumulatorOverThreeNamespaces()
-            throws Exception {
+    void testAggregatingStateMergingWithMutableAccumulatorOverThreeNamespaces() throws Exception {
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
@@ -783,17 +766,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("abc");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithMutableAccumulatorWithEmpty() throws Exception {
+    void testAggregatingStateMergingWithMutableAccumulatorWithEmpty() throws Exception {
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
@@ -826,17 +809,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithMutableAccumulatorEmpty() throws Exception {
+    void testAggregatingStateMergingWithMutableAccumulatorEmpty() throws Exception {
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
@@ -857,13 +840,12 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithMutableAccumulatorInTargetNamespace()
-            throws Exception {
+    void testAggregatingStateMergingWithMutableAccumulatorInTargetNamespace() throws Exception {
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
@@ -894,18 +876,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithMutableAccumulatorInASingleNamespace()
-            throws Exception {
+    void testAggregatingStateMergingWithMutableAccumulatorInASingleNamespace() throws Exception {
         final AggregatingStateDescriptor<Long, MutableLong, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new MutableAggregatingAddingFunction(), MutableLong.class);
@@ -936,17 +917,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateAddAndGetWithImmutableAccumulator() throws Exception {
+    void testAggregatingStateAddAndGetWithImmutableAccumulator() throws Exception {
 
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
@@ -959,18 +940,18 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
 
             keyedBackend.setCurrentKey("def");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.add(17L);
             state.add(11L);
-            assertEquals(28L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(28L);
 
             keyedBackend.setCurrentKey("def");
-            assertEquals(28L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(28L);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
 
             keyedBackend.setCurrentKey("g");
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
             state.add(1L);
             state.add(2L);
 
@@ -980,15 +961,14 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             state.add(1L);
 
             keyedBackend.setCurrentKey("g");
-            assertEquals(9L, state.get().longValue());
+            assertThat(state.get()).isEqualTo(9L);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithImmutableAccumulatorOverThreeNamespaces()
-            throws Exception {
+    void testAggregatingStateMergingWithImmutableAccumulatorOverThreeNamespaces() throws Exception {
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new ImmutableAggregatingAddingFunction(), Long.class);
@@ -1023,17 +1003,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("abc");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("abc");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithImmutableAccumulatorWithEmpty() throws Exception {
+    void testAggregatingStateMergingWithImmutableAccumulatorWithEmpty() throws Exception {
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new ImmutableAggregatingAddingFunction(), Long.class);
@@ -1066,17 +1046,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("def");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("def");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithImmutableAccumulatorEmpty() throws Exception {
+    void testAggregatingStateMergingWithImmutableAccumulatorEmpty() throws Exception {
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new ImmutableAggregatingAddingFunction(), Long.class);
@@ -1097,13 +1077,12 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("ghi");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithImmutableAccumulatorInTargetNamespace()
-            throws Exception {
+    void testAggregatingStateMergingWithImmutableAccumulatorInTargetNamespace() throws Exception {
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new ImmutableAggregatingAddingFunction(), Long.class);
@@ -1134,18 +1113,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("jkl");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("jkl");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testAggregatingStateMergingWithImmutableAccumulatorInASingleNamespace()
-            throws Exception {
+    void testAggregatingStateMergingWithImmutableAccumulatorInASingleNamespace() throws Exception {
         final AggregatingStateDescriptor<Long, Long, Long> stateDescr =
                 new AggregatingStateDescriptor<>(
                         "my-state", new ImmutableAggregatingAddingFunction(), Long.class);
@@ -1176,17 +1154,17 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             keyedBackend.setCurrentKey("mno");
             state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
             state.setCurrentNamespace(namespace1);
-            assertEquals(expectedResult, state.get());
+            assertThat(state.get()).isEqualTo(expectedResult);
 
             keyedBackend.setCurrentKey("mno");
             state.setCurrentNamespace(namespace1);
             state.clear();
-            assertNull(state.get());
+            assertThat(state.get()).isNull();
         }
     }
 
     @Test
-    public void testMapStateIsEmpty() throws Exception {
+    void testMapStateIsEmpty() throws Exception {
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);
 
@@ -1198,19 +1176,19 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
             backend.setCurrentKey(1);
-            assertTrue(state.isEmpty());
+            assertThat(state.isEmpty()).isTrue();
 
             int stateSize = 1024;
             for (int i = 0; i < stateSize; i++) {
                 state.put(i, i * 2L);
-                assertFalse(state.isEmpty());
+                assertThat(state.isEmpty()).isFalse();
             }
 
             for (int i = 0; i < stateSize; i++) {
-                assertFalse(state.isEmpty());
+                assertThat(state.isEmpty()).isFalse();
                 state.remove(i);
             }
-            assertTrue(state.isEmpty());
+            assertThat(state.isEmpty()).isTrue();
 
         } finally {
             backend.dispose();
@@ -1222,7 +1200,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
      * more details.
      */
     @Test
-    public void testMapStateIteratorArbitraryAccess() throws Exception {
+    void testMapStateIteratorArbitraryAccess() throws Exception {
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);
 
@@ -1242,16 +1220,12 @@ public class BatchExecutionStateBackendTest extends TestLogger {
             int iteratorCount = 0;
             while (iterator.hasNext()) {
                 Map.Entry<Integer, Long> entry = iterator.next();
-                assertEquals(iteratorCount, (int) entry.getKey());
+                assertThat(entry.getKey()).isEqualTo(iteratorCount);
                 switch (ThreadLocalRandom.current().nextInt() % 3) {
                     case 0: // remove twice
                         iterator.remove();
-                        try {
-                            iterator.remove();
-                            fail();
-                        } catch (IllegalStateException e) {
-                            // ignore expected exception
-                        }
+                        assertThatThrownBy(iterator::remove)
+                                .isInstanceOf(IllegalStateException.class);
                         break;
                     case 1: // hasNext -> remove
                         iterator.hasNext();
@@ -1262,7 +1236,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                 }
                 iteratorCount++;
             }
-            assertEquals(stateSize, iteratorCount);
+            assertThat(iteratorCount).isEqualTo(stateSize);
         } finally {
             backend.dispose();
         }
@@ -1270,7 +1244,7 @@ public class BatchExecutionStateBackendTest extends TestLogger {
 
     /** Verify that {@link ValueStateDescriptor} allows {@code null} as default. */
     @Test
-    public void testValueStateNullAsDefaultValue() throws Exception {
+    void testValueStateNullAsDefaultValue() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -1281,20 +1255,20 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
         backend.setCurrentKey(1);
-        assertNull(state.value());
+        assertThat(state.value()).isNull();
 
         state.update("Ciao");
-        assertEquals("Ciao", state.value());
+        assertThat(state.value()).isEqualTo("Ciao");
 
         state.clear();
-        assertNull(state.value());
+        assertThat(state.value()).isNull();
 
         backend.dispose();
     }
 
     /** Verify that an empty {@code ValueState} will yield the default value. */
     @Test
-    public void testValueStateDefaultValue() throws Exception {
+    void testValueStateDefaultValue() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -1305,20 +1279,20 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
         backend.setCurrentKey(1);
-        assertEquals("Hello", state.value());
+        assertThat(state.value()).isEqualTo("Hello");
 
         state.update("Ciao");
-        assertEquals("Ciao", state.value());
+        assertThat(state.value()).isEqualTo("Ciao");
 
         state.clear();
-        assertEquals("Hello", state.value());
+        assertThat(state.value()).isEqualTo("Hello");
 
         backend.dispose();
     }
 
     /** Verify that an empty {@code ReduceState} yields {@code null}. */
     @Test
-    public void testReducingStateDefaultValue() throws Exception {
+    void testReducingStateDefaultValue() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -1330,20 +1304,20 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
         backend.setCurrentKey(1);
-        assertNull(state.get());
+        assertThat(state.get()).isNull();
 
         state.add("Ciao");
-        assertEquals("Ciao", state.get());
+        assertThat(state.get()).isEqualTo("Ciao");
 
         state.clear();
-        assertNull(state.get());
+        assertThat(state.get()).isNull();
 
         backend.dispose();
     }
 
     /** Verify that an empty {@code ListState} yields {@code null}. */
     @Test
-    public void testListStateDefaultValue() throws Exception {
+    void testListStateDefaultValue() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -1354,20 +1328,20 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
         backend.setCurrentKey(1);
-        assertNull(state.get());
+        assertThat(state.get()).isNull();
 
         state.update(Arrays.asList("Ciao", "Bello"));
-        assertThat(state.get(), containsInAnyOrder("Ciao", "Bello"));
+        assertThat(state.get()).containsExactlyInAnyOrder("Ciao", "Bello");
 
         state.clear();
-        assertNull(state.get());
+        assertThat(state.get()).isNull();
 
         backend.dispose();
     }
 
     /** Verify that an empty {@code MapState} yields {@code null}. */
     @Test
-    public void testMapStateDefaultValue() throws Exception {
+    void testMapStateDefaultValue() throws Exception {
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -1379,19 +1353,19 @@ public class BatchExecutionStateBackendTest extends TestLogger {
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
         backend.setCurrentKey(1);
-        assertNotNull(state.entries());
-        assertFalse(state.entries().iterator().hasNext());
+        assertThat(state.entries()).isNotNull();
+        assertThat(state.entries().iterator()).isExhausted();
 
         state.put("Ciao", "Hello");
         state.put("Bello", "Nice");
 
-        assertNotNull(state.entries());
-        assertEquals(state.get("Ciao"), "Hello");
-        assertEquals(state.get("Bello"), "Nice");
+        assertThat(state.entries()).isNotNull();
+        assertThat(state.get("Ciao")).isEqualTo("Hello");
+        assertThat(state.get("Bello")).isEqualTo("Nice");
 
         state.clear();
-        assertNotNull(state.entries());
-        assertFalse(state.entries().iterator().hasNext());
+        assertThat(state.entries()).isNotNull();
+        assertThat(state.entries().iterator()).isExhausted();
 
         backend.dispose();
     }

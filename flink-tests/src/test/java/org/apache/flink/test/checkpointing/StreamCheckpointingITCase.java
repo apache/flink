@@ -137,7 +137,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = index;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = index;
         }
 
         StringGeneratingSourceFunction(long numElements) {
@@ -146,9 +146,9 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void open(OpenContext openContext) throws IOException {
-            step = getRuntimeContext().getNumberOfParallelSubtasks();
+            step = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
             if (index == 0) {
-                index = getRuntimeContext().getIndexOfThisSubtask();
+                index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             }
         }
 
@@ -216,7 +216,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -258,9 +258,19 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
         @Override
         public void open(OpenContext openContext) throws IOException {
             long failurePosMin =
-                    (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.4
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
             long failurePosMax =
-                    (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.7
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
 
             failurePos =
                     (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
@@ -273,7 +283,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = inputCount;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = inputCount;
         }
 
         @Override
@@ -322,7 +332,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -355,7 +365,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override

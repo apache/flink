@@ -56,10 +56,6 @@ public enum JoinStrategy {
         this.joinHintName = joinHintName;
     }
 
-    // ~ option name for join hint
-    public static final String LEFT_INPUT = "LEFT";
-    public static final String RIGHT_INPUT = "RIGHT";
-
     public static boolean isJoinStrategy(String hintName) {
         try {
             JoinStrategy.valueOf(hintName.toUpperCase(Locale.ROOT));

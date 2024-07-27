@@ -26,6 +26,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -103,12 +105,10 @@ public class AbstractBroadcastStateTransformation<IN1, IN2, OUT>
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
-        final List<Transformation<?>> predecessors = new ArrayList<>();
-        predecessors.add(this);
-        predecessors.add(regularInput);
-        predecessors.add(broadcastInput);
-        return predecessors;
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
+        return Stream.of(this, regularInput, broadcastInput)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Override

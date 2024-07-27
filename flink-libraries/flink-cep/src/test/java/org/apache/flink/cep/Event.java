@@ -18,7 +18,7 @@
 
 package org.apache.flink.cep;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -74,6 +74,6 @@ public class Event {
         TypeInformation<Event> typeInformation =
                 (TypeInformation<Event>) TypeExtractor.createTypeInfo(Event.class);
 
-        return typeInformation.createSerializer(new ExecutionConfig());
+        return typeInformation.createSerializer(new SerializerConfigImpl());
     }
 }

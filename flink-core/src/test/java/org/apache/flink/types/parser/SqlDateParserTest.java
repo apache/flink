@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import java.sql.Date;
 
-public class SqlDateParserTest extends ParserTestBase<Date> {
+class SqlDateParserTest extends ParserTestBase<Date> {
 
     @Override
     public String[] getValidTestValues() {

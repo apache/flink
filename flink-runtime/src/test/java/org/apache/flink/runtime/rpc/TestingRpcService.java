@@ -23,6 +23,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -195,8 +197,9 @@ public class TestingRpcService implements RpcService {
     }
 
     @Override
-    public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
-        return backingRpcService.startServer(rpcEndpoint);
+    public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(
+            C rpcEndpoint, Map<String, String> loggingContext) {
+        return backingRpcService.startServer(rpcEndpoint, Collections.emptyMap());
     }
 
     @Override

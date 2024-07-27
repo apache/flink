@@ -19,26 +19,20 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility, TypeSerializerSnapshotSerializationUtil}
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
-import org.apache.flink.util.TestLogger
 
-import org.junit.{Rule, Test}
-import org.junit.Assert._
-import org.junit.rules.TemporaryFolder
-import org.scalatest.junit.JUnitSuiteLike
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 
 import java.io._
 import java.net.{URL, URLClassLoader}
+import java.nio.file.{Files, Path}
 
 import scala.reflect.NameTransformer
 import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
 
-class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLike {
-
-  private val _tempFolder = new TemporaryFolder()
-
-  @Rule
-  def tempFolder = _tempFolder
+class EnumValueSerializerCompatibilityTest {
 
   val enumName = "EnumValueSerializerUpgradeTestEnum"
 
@@ -81,42 +75,46 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
 
   /** Check that identical enums don't require migration */
   @Test
-  def checkIdenticalEnums(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumA).isCompatibleAsIs)
+  def checkIdenticalEnums(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumA, tempFolder).isCompatibleAsIs).isTrue
   }
 
   /** Check that appending fields to the enum does not require migration */
   @Test
-  def checkAppendedField(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumB).isCompatibleAsIs)
+  def checkAppendedField(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumB, tempFolder).isCompatibleAsIs).isTrue
   }
 
   /** Check that removing enum fields makes the snapshot incompatible. */
   @Test
-  def checkRemovedField(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumC).isIncompatible)
+  def checkRemovedField(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumC, tempFolder).isIncompatible).isTrue
   }
 
   /** Check that changing the enum field order makes the snapshot incompatible. */
   @Test
-  def checkDifferentFieldOrder(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumD).isIncompatible)
+  def checkDifferentFieldOrder(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumD, tempFolder).isIncompatible).isTrue
   }
 
   /** Check that changing the enum ids causes a migration */
   @Test
-  def checkDifferentIds(): Unit = {
-    assertTrue(
-      "Different ids should be incompatible.",
-      checkCompatibility(enumA, enumE).isIncompatible)
+  def checkDifferentIds(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumE, tempFolder).isIncompatible)
+      .as("Different ids should be incompatible.")
+      .isTrue
   }
 
   def checkCompatibility(
       enumSourceA: String,
-      enumSourceB: String): TypeSerializerSchemaCompatibility[Enumeration#Value] = {
+      enumSourceB: String,
+      tempFolder: Path): TypeSerializerSchemaCompatibility[Enumeration#Value] = {
     import EnumValueSerializerCompatibilityTest._
 
-    val classLoader = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceA)
+    val classLoader = compileAndLoadEnum(
+      Files.createTempDirectory(tempFolder, "classLoader").toFile,
+      s"$enumName.scala",
+      enumSourceA)
 
     val enum = instantiateEnum[Enumeration](classLoader, enumName)
 
@@ -133,14 +131,17 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
     val bais = new ByteArrayInputStream(baos.toByteArray)
     val input = new DataInputViewStreamWrapper(bais)
 
-    val classLoader2 = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceB)
+    val classLoader2 = compileAndLoadEnum(
+      Files.createTempDirectory(tempFolder, "classLoader2").toFile,
+      s"$enumName.scala",
+      enumSourceB)
 
     val snapshot2 = TypeSerializerSnapshotSerializationUtil
       .readSerializerSnapshot[Enumeration#Value](input, classLoader2)
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)
-    snapshot2.resolveSchemaCompatibility(enumValueSerializer2)
+    enumValueSerializer2.snapshotConfiguration().resolveSchemaCompatibility(snapshot2)
   }
 }
 

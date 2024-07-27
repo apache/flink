@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.client.util;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointStatementITCase;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CloseableIterator;
@@ -37,7 +39,10 @@ public class CliClientTestUtils {
                         schema.toPhysicalRowDataType(),
                         DateTimeUtils.UTC_ZONE.toZoneId(),
                         SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
-                        false);
+                        false,
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                SqlGatewayRestEndpointStatementITCase.class.getClassLoader()));
 
         return new StatementResult(
                 schema,

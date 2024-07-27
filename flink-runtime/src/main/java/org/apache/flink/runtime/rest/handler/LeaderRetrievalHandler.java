@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -65,6 +66,10 @@ public abstract class LeaderRetrievalHandler<T extends RestfulGateway>
         this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
         this.timeout = Preconditions.checkNotNull(timeout);
         this.responseHeaders = Preconditions.checkNotNull(responseHeaders);
+    }
+
+    protected Duration getTimeout() {
+        return Duration.ofMillis(timeout.toMilliseconds());
     }
 
     @Override

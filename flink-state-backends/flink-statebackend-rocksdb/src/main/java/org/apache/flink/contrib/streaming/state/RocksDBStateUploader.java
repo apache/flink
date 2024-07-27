@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -33,6 +34,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 
 import javax.annotation.Nonnull;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -44,11 +46,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /** Help class for uploading RocksDB state files. */
-public class RocksDBStateUploader extends RocksDBStateDataTransfer {
+public class RocksDBStateUploader implements Closeable {
     private static final int READ_BUFFER_SIZE = 16 * 1024;
 
+    private final RocksDBStateDataTransferHelper transfer;
+
+    @VisibleForTesting
     public RocksDBStateUploader(int numberOfSnapshottingThreads) {
-        super(numberOfSnapshottingThreads);
+        this(RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads));
+    }
+
+    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer) {
+        this.transfer = transfer;
     }
 
     /**
@@ -114,7 +123,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
                                                                 stateScope,
                                                                 closeableRegistry,
                                                                 tmpResourcesRegistry)),
-                                        executorService))
+                                        transfer.getExecutorService()))
                 .collect(Collectors.toList());
     }
 
@@ -169,5 +178,10 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
                 IOUtils.closeQuietly(outputStream);
             }
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.transfer.close();
     }
 }

@@ -34,8 +34,10 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -74,22 +76,27 @@ public class TriggerTestHarness<T, W extends Window> {
         DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
         MemoryStateBackend backend = new MemoryStateBackend();
 
+        JobID jobID = new JobID();
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+        TaskKvStateRegistry kvStateRegistry =
+                new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID());
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         @SuppressWarnings("unchecked")
         HeapKeyedStateBackend<Integer> stateBackend =
                 (HeapKeyedStateBackend<Integer>)
                         backend.createKeyedStateBackend(
-                                dummyEnv,
-                                new JobID(),
-                                "test_op",
-                                IntSerializer.INSTANCE,
-                                1,
-                                new KeyGroupRange(0, 0),
-                                new KvStateRegistry()
-                                        .createTaskRegistry(new JobID(), new JobVertexID()),
-                                TtlTimeProvider.DEFAULT,
-                                new UnregisteredMetricsGroup(),
-                                Collections.emptyList(),
-                                new CloseableRegistry());
+                                new KeyedStateBackendParametersImpl<>(
+                                        dummyEnv,
+                                        jobID,
+                                        "test_op",
+                                        IntSerializer.INSTANCE,
+                                        1,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        TtlTimeProvider.DEFAULT,
+                                        new UnregisteredMetricsGroup(),
+                                        Collections.emptyList(),
+                                        cancelStreamRegistry));
         this.stateBackend = stateBackend;
 
         this.stateBackend.setCurrentKey(KEY);

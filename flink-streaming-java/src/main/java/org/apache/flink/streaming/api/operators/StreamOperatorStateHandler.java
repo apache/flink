@@ -21,10 +21,12 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -34,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -51,10 +54,12 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
+import org.apache.flink.runtime.state.v2.KeyedStateStoreV2;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +83,10 @@ public class StreamOperatorStateHandler {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StreamOperatorStateHandler.class);
 
+    @Nullable private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+
+    @Nullable private final KeyedStateStoreV2 keyedStateStoreV2;
+
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
 
@@ -96,10 +105,26 @@ public class StreamOperatorStateHandler {
         this.closeableRegistry = closeableRegistry;
 
         if (keyedStateBackend != null) {
-            keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, executionConfig);
+            keyedStateStore =
+                    new DefaultKeyedStateStore(
+                            keyedStateBackend,
+                            new SerializerFactory() {
+                                @Override
+                                public <T> TypeSerializer<T> createSerializer(
+                                        TypeInformation<T> typeInformation) {
+                                    return typeInformation.createSerializer(
+                                            executionConfig.getSerializerConfig());
+                                }
+                            });
         } else {
             keyedStateStore = null;
         }
+
+        this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
+        this.keyedStateStoreV2 =
+                asyncKeyedStateBackend != null
+                        ? new DefaultKeyedStateStoreV2(asyncKeyedStateBackend)
+                        : null;
     }
 
     public void initializeOperatorState(CheckpointedStreamOperator streamOperator)
@@ -140,11 +165,17 @@ public class StreamOperatorStateHandler {
             if (closeableRegistry.unregisterCloseable(keyedStateBackend)) {
                 closer.register(keyedStateBackend);
             }
+            if (closeableRegistry.unregisterCloseable(asyncKeyedStateBackend)) {
+                closer.register(asyncKeyedStateBackend);
+            }
             if (operatorStateBackend != null) {
                 closer.register(operatorStateBackend::dispose);
             }
             if (keyedStateBackend != null) {
                 closer.register(keyedStateBackend::dispose);
+            }
+            if (asyncKeyedStateBackend != null) {
+                closer.register(asyncKeyedStateBackend::dispose);
             }
         }
     }
@@ -313,6 +344,11 @@ public class StreamOperatorStateHandler {
         return (KeyedStateBackend<K>) keyedStateBackend;
     }
 
+    @Nullable
+    public AsyncKeyedStateBackend getAsyncKeyedStateBackend() {
+        return asyncKeyedStateBackend;
+    }
+
     public OperatorStateBackend getOperatorStateBackend() {
         return operatorStateBackend;
     }
@@ -323,6 +359,22 @@ public class StreamOperatorStateHandler {
 
         if (keyedStateBackend != null) {
             return keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+        } else {
+            throw new IllegalStateException(
+                    "Cannot create partitioned state. "
+                            + "The keyed state backend has not been set."
+                            + "This indicates that the operator is not partitioned/keyed.");
+        }
+    }
+
+    /** Create new state (v2) based on new state descriptor. */
+    public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
+            TypeSerializer<N> namespaceSerializer,
+            org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
+            throws Exception {
+
+        if (asyncKeyedStateBackend != null) {
+            return asyncKeyedStateBackend.createState(namespaceSerializer, stateDescriptor);
         } else {
             throw new IllegalStateException(
                     "Cannot create partitioned state. "
@@ -386,6 +438,10 @@ public class StreamOperatorStateHandler {
 
     public Optional<KeyedStateStore> getKeyedStateStore() {
         return Optional.ofNullable(keyedStateStore);
+    }
+
+    public Optional<KeyedStateStoreV2> getKeyedStateStoreV2() {
+        return Optional.ofNullable(keyedStateStoreV2);
     }
 
     /** Custom state handling hooks to be invoked by {@link StreamOperatorStateHandler}. */

@@ -29,7 +29,7 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ public abstract class AbstractGenericArraySerializerTest {
     private final Random rnd = new Random(349712539451944123L);
 
     @Test
-    public void testString() {
+    void testString() {
         String[] arr1 =
                 new String[] {
                     "abc",
@@ -72,7 +72,7 @@ public abstract class AbstractGenericArraySerializerTest {
     }
 
     @Test
-    public void testSimpleTypesObjects() {
+    void testSimpleTypesObjects() {
         SimpleTypes a = new SimpleTypes();
         SimpleTypes b =
                 new SimpleTypes(
@@ -127,7 +127,7 @@ public abstract class AbstractGenericArraySerializerTest {
     }
 
     @Test
-    public void testCompositeObject() {
+    void testCompositeObject() {
         ComplexNestedObject1 o1 = new ComplexNestedObject1(5626435);
         ComplexNestedObject1 o2 = new ComplexNestedObject1(76923);
         ComplexNestedObject1 o3 = new ComplexNestedObject1(-1100);
@@ -141,7 +141,7 @@ public abstract class AbstractGenericArraySerializerTest {
     }
 
     @Test
-    public void testNestedObjects() {
+    void testNestedObjects() {
         ComplexNestedObject2 o1 = new ComplexNestedObject2(rnd);
         ComplexNestedObject2 o2 = new ComplexNestedObject2();
         ComplexNestedObject2 o3 = new ComplexNestedObject2(rnd);
@@ -156,7 +156,7 @@ public abstract class AbstractGenericArraySerializerTest {
     }
 
     @Test
-    public void testBeanStyleObjects() {
+    void testBeanStyleObjects() {
         {
             Book b1 = new Book(976243875L, "The Serialization Odyssey", 42);
             Book b2 = new Book(0L, "Debugging byte streams", 1337);
@@ -212,7 +212,7 @@ public abstract class AbstractGenericArraySerializerTest {
         }
 
         @SuppressWarnings("unchecked")
-        Class<T[]> arrayClass = (Class<T[]>) (Class<?>) Array.newInstance(type, 0).getClass();
+        Class<T[]> arrayClass = (Class<T[]>) Array.newInstance(type, 0).getClass();
 
         GenericArraySerializer<T> serializer = createSerializer(type, componentSerializer);
         SerializerTestInstance<T[]> test =

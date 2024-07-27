@@ -18,10 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
 import org.apache.flink.table.data.GenericRowData;
@@ -47,8 +45,6 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -60,6 +56,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.hive.HiveTestUtils.serialize;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -214,17 +211,5 @@ class HiveSourceDynamicFileEnumeratorTest {
                         .collect(Collectors.toList()),
                 HiveShimLoader.getHiveVersion(),
                 new JobConf());
-    }
-
-    private byte[] serialize(TypeInformation<RowData> typeInfo, RowData row) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            typeInfo.createSerializer(new ExecutionConfig())
-                    .serialize(row, new DataOutputViewStreamWrapper(baos));
-        } catch (IOException e) {
-            // throw as RuntimeException so the function can use in lambda
-            throw new RuntimeException(e);
-        }
-        return baos.toByteArray();
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.source.lib.util;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 
 import javax.annotation.Nullable;
 
@@ -39,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Public
 public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>>
-        implements SplitEnumerator<SplitT, Collection<SplitT>> {
+        implements SplitEnumerator<SplitT, Collection<SplitT>>, SupportsBatchSnapshot {
 
     private final SplitEnumeratorContext<SplitT> context;
     private final Queue<SplitT> remainingSplits;

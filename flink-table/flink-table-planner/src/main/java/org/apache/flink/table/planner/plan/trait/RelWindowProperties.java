@@ -93,6 +93,19 @@ public class RelWindowProperties {
                 this.timeAttributeType);
     }
 
+    public @Nullable RelWindowProperties copy(
+            ImmutableBitSet windowStartColumns,
+            ImmutableBitSet windowEndColumns,
+            ImmutableBitSet windowTimeColumns,
+            WindowSpec windowSpec) {
+        return create(
+                windowStartColumns,
+                windowEndColumns,
+                windowTimeColumns,
+                windowSpec,
+                this.timeAttributeType);
+    }
+
     public ImmutableBitSet getWindowStartColumns() {
         return windowStartColumns;
     }

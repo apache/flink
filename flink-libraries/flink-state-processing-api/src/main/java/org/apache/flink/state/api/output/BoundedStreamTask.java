@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -38,6 +40,7 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Iterator;
@@ -93,7 +96,10 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
                         new CollectorWrapper<>(collector),
                         operatorChain.getOperatorEventDispatcher());
         mainOperator = mainOperatorAndTimeService.f0;
-        mainOperator.initializeState(createStreamTaskStateInitializer());
+        mainOperator.initializeState(
+                createStreamTaskStateInitializer(
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis())));
         mainOperator.open();
         recordProcessor = RecordProcessorUtils.getRecordProcessor(mainOperator);
     }
@@ -144,6 +150,9 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {}
 
         @Override
         public void collect(StreamRecord<OUT> record) {

@@ -135,6 +135,10 @@ public class KeyGroupRange implements KeyGroupsList, Serializable {
                 + '}';
     }
 
+    public String prettyPrintInterval() {
+        return "[" + startKeyGroup + ", " + endKeyGroup + "]";
+    }
+
     @Override
     public Iterator<Integer> iterator() {
         return new KeyGroupIterator();

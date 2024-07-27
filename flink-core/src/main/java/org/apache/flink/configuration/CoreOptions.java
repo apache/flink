@@ -26,11 +26,12 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.ArrayUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /** The set of configuration options for core parameters. */
 @PublicEvolving
@@ -270,6 +271,52 @@ public class CoreOptions {
                     .withDescription(
                             Description.builder()
                                     .text("Java options to start the JVM of the Flink Client with.")
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_SQL_GATEWAY_JVM_OPTIONS =
+            ConfigOptions.key("env.java.opts.sql-gateway")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Java options to start the JVM of the Flink SQL Gateway with.")
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_DEFAULT_JVM_OPTIONS =
+            ConfigOptions.key("env.java.default-opts.all")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A string of default JVM options to prepend to %s."
+                                                    + " This is intended to be set by administrators.",
+                                            code(FLINK_JVM_OPTIONS.key()))
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_DEFAULT_JM_JVM_OPTIONS =
+            ConfigOptions.key("env.java.default-opts.jobmanager")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A string of default JVM options to prepend to %s."
+                                                    + " This is intended to be set by administrators.",
+                                            code(FLINK_JM_JVM_OPTIONS.key()))
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_DEFAULT_TM_JVM_OPTIONS =
+            ConfigOptions.key("env.java.default-opts.taskmanager")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A string of default JVM options to prepend to %s."
+                                                    + " This is intended to be set by administrators.",
+                                            code(FLINK_TM_JVM_OPTIONS.key()))
                                     .build());
 
     /**

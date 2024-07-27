@@ -20,8 +20,8 @@ package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -165,7 +165,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 resourceManagerMetricGroup,
                 Time.fromDuration(
                         Preconditions.checkNotNull(flinkConfig)
-                                .get(AkkaOptions.ASK_TIMEOUT_DURATION)),
+                                .get(RpcOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
 
         this.flinkConfig = flinkConfig;

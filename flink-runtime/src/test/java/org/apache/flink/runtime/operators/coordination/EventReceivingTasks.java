@@ -29,7 +29,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -96,10 +96,13 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     }
 
     public List<OperatorEvent> getSentEventsForSubtask(int subtaskIndex) {
-        return events.stream()
-                .filter((evt) -> evt.subtask == subtaskIndex)
-                .map((evt) -> evt.event)
-                .collect(Collectors.toList());
+
+        // Create a new array list to avoid concurrent modification during processing the events
+        return new ArrayList<>(events)
+                .stream()
+                        .filter((evt) -> evt.subtask == subtaskIndex)
+                        .map((evt) -> evt.event)
+                        .collect(Collectors.toList());
     }
 
     // ------------------------------------------------------------------------
@@ -274,7 +277,7 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
         public void assertRunningInMainThread() {}
 
         @Override
-        public void execute(@NotNull Runnable command) {
+        public void execute(@Nonnull Runnable command) {
             scheduledExecutor.execute(command);
         }
     }

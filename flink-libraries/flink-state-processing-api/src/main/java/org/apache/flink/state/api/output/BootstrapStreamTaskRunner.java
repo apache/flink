@@ -72,7 +72,8 @@ public class BootstrapStreamTaskRunner<IN>
         this.input = new ArrayBlockingQueue<>(16);
 
         SavepointEnvironment env =
-                new SavepointEnvironment.Builder(getRuntimeContext(), maxParallelism)
+                new SavepointEnvironment.Builder(
+                                getRuntimeContext(), getExecutionConfig(), maxParallelism)
                         .setConfiguration(streamConfig.getConfiguration())
                         .build();
 
@@ -103,7 +104,7 @@ public class BootstrapStreamTaskRunner<IN>
         this.task.setName(
                 streamConfig.getOperatorName()
                         + "-bootstrap-thread-"
-                        + getRuntimeContext().getIndexOfThisSubtask());
+                        + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         this.task.start();
     }
 

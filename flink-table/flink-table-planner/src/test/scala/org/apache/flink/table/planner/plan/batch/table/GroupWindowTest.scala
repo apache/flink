@@ -22,7 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -32,7 +33,7 @@ class GroupWindowTest extends TableTestBase {
   // Common test
   // ===============================================================================================
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
@@ -41,7 +42,8 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble.over(2.rows).on('long).as('w))
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyExecPlan(windowedTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(windowedTable))
   }
 
   @Test
@@ -82,7 +84,7 @@ class GroupWindowTest extends TableTestBase {
     util.verifyExecPlan(windowedTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
@@ -92,7 +94,8 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    util.verifyExecPlan(windowedTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(windowedTable))
   }
 
   @Test
@@ -138,7 +141,7 @@ class GroupWindowTest extends TableTestBase {
     util.verifyExecPlan(windowedTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeSlidingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
@@ -148,7 +151,8 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    util.verifyExecPlan(windowedTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(windowedTable))
   }
 
 }

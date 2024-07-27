@@ -38,5 +38,17 @@
             <td><p>Enum</p></td>
             <td>Runtime execution mode of DataStream programs. Among other things, this controls task scheduling, network shuffle behavior, and time semantics.<br /><br />Possible values:<ul><li>"STREAMING"</li><li>"BATCH"</li><li>"AUTOMATIC"</li></ul></td>
         </tr>
+        <tr>
+            <td><h5>execution.sort-keyed-partition.memory</h5></td>
+            <td style="word-wrap: break-word;">128 mb</td>
+            <td>MemorySize</td>
+            <td>Sets the managed memory size for sort partition operator on KeyedPartitionWindowedStream.The memory size is only a weight hint. Thus, it will affect the operator's memory weight within a task, but the actual memory used depends on the running environment.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.sort-partition.memory</h5></td>
+            <td style="word-wrap: break-word;">128 mb</td>
+            <td>MemorySize</td>
+            <td>Sets the managed memory size for sort partition operator in NonKeyedPartitionWindowedStream.The memory size is only a weight hint. Thus, it will affect the operator's memory weight within a task, but the actual memory used depends on the running environment.</td>
+        </tr>
     </tbody>
 </table>

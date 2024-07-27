@@ -171,7 +171,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         final InternalTypeInfo<RowData> rowTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         final TypeSerializer<RowData> rowSerializer =
-                rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+                rowTypeInfo.createSerializer(
+                        planner.getExecEnv().getConfig().getSerializerConfig());
         final OneInputStreamOperator<RowData, RowData> operator;
 
         long stateRetentionTime =

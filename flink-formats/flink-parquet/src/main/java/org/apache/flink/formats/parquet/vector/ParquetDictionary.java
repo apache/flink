@@ -21,15 +21,23 @@ package org.apache.flink.formats.parquet.vector;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.Dictionary;
 
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.PrimitiveType;
+
+import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.decodeInt64ToTimestamp;
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.decodeInt96ToTimestamp;
 
 /** Parquet dictionary. */
 public final class ParquetDictionary implements Dictionary {
 
     private org.apache.parquet.column.Dictionary dictionary;
+    private final ColumnDescriptor descriptor;
 
-    public ParquetDictionary(org.apache.parquet.column.Dictionary dictionary) {
+    public ParquetDictionary(
+            org.apache.parquet.column.Dictionary dictionary, ColumnDescriptor descriptor) {
         this.dictionary = dictionary;
+        this.descriptor = descriptor;
     }
 
     @Override
@@ -59,6 +67,16 @@ public final class ParquetDictionary implements Dictionary {
 
     @Override
     public TimestampData decodeToTimestamp(int id) {
+        if (descriptor.getPrimitiveType().getPrimitiveTypeName()
+                == PrimitiveType.PrimitiveTypeName.INT64) {
+            return decodeInt64ToTimestamp(
+                    true,
+                    dictionary,
+                    id,
+                    ((LogicalTypeAnnotation.TimestampLogicalTypeAnnotation)
+                                    descriptor.getPrimitiveType().getLogicalTypeAnnotation())
+                            .getUnit());
+        }
         return decodeInt96ToTimestamp(true, dictionary, id);
     }
 }

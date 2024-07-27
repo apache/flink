@@ -336,7 +336,7 @@ class StateSerializerProviderTest {
 
         @Override
         public TypeSerializerSchemaCompatibility<String> resolveSchemaCompatibility(
-                TypeSerializer<String> newSerializer) {
+                TypeSerializerSnapshot<String> oldSerializerSnapshot) {
             throw new UnsupportedOperationException();
         }
 

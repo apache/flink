@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
 import org.apache.flink.table.catalog.listener.AlterTableEvent;
@@ -34,14 +35,18 @@ import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -116,25 +121,13 @@ class CatalogManagerTest {
         CompletableFuture<DropTableEvent> dropFuture = new CompletableFuture<>();
         CompletableFuture<DropTableEvent> dropTemporaryFuture = new CompletableFuture<>();
         CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
-                        .classLoader(CatalogManagerTest.class.getClassLoader())
-                        .config(new Configuration())
-                        .catalogModificationListeners(
-                                Collections.singletonList(
-                                        new TestingTableModificationListener(
-                                                createFuture,
-                                                createTemporaryFuture,
-                                                alterFuture,
-                                                dropFuture,
-                                                dropTemporaryFuture)))
-                        .catalogStoreHolder(
-                                CatalogStoreHolder.newBuilder()
-                                        .classloader(CatalogManagerTest.class.getClassLoader())
-                                        .catalogStore(new GenericInMemoryCatalogStore())
-                                        .config(new Configuration())
-                                        .build())
-                        .build();
+                createCatalogManager(
+                        new TestingTableModificationListener(
+                                createFuture,
+                                createTemporaryFuture,
+                                alterFuture,
+                                dropFuture,
+                                dropTemporaryFuture));
 
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
         // Create a view
@@ -250,19 +243,37 @@ class CatalogManagerTest {
         assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("table2");
     }
 
-    private CatalogManager createCatalogManager(CatalogModificationListener listener) {
-        return CatalogManager.newBuilder()
-                .classLoader(CatalogManagerTest.class.getClassLoader())
-                .config(new Configuration())
-                .defaultCatalog("default", new GenericInMemoryCatalog("default"))
-                .catalogModificationListeners(Collections.singletonList(listener))
-                .catalogStoreHolder(
-                        CatalogStoreHolder.newBuilder()
-                                .catalogStore(new GenericInMemoryCatalogStore())
-                                .config(new Configuration())
-                                .classloader(CatalogManagerTest.class.getClassLoader())
-                                .build())
-                .build();
+    @Test
+    public void testDropCurrentDatabase() throws Exception {
+        CatalogManager catalogManager = createCatalogManager(null);
+
+        catalogManager.createDatabase(
+                "default", "dummy", new CatalogDatabaseImpl(new HashMap<>(), null), false);
+        catalogManager.setCurrentDatabase("dummy");
+
+        assertThatThrownBy(() -> catalogManager.dropDatabase("default", "dummy", false, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Cannot drop a database which is currently in use.");
+    }
+
+    private CatalogManager createCatalogManager(@Nullable CatalogModificationListener listener) {
+        CatalogManager.Builder builder =
+                CatalogManager.newBuilder()
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .build());
+
+        if (listener != null) {
+            builder.catalogModificationListeners(Collections.singletonList(listener));
+        }
+
+        return builder.build();
     }
 
     /** Testing database modification listener. */
@@ -357,14 +368,68 @@ class CatalogManagerTest {
         catalogManager.createCatalog("cat1", CatalogDescriptor.of("cat1", configuration));
         catalogManager.createCatalog("cat2", CatalogDescriptor.of("cat2", configuration));
         catalogManager.createCatalog("cat3", CatalogDescriptor.of("cat3", configuration));
+        catalogManager.createCatalog(
+                "cat_comment",
+                CatalogDescriptor.of("cat_comment", configuration.clone(), "comment for catalog"));
+        catalogManager.createCatalog(
+                "cat_comment",
+                CatalogDescriptor.of(
+                        "cat_comment", configuration.clone(), "second comment for catalog"),
+                true);
+        assertThatThrownBy(
+                        () ->
+                                catalogManager.createCatalog(
+                                        "cat_comment",
+                                        CatalogDescriptor.of(
+                                                "cat_comment",
+                                                configuration.clone(),
+                                                "third comment for catalog"),
+                                        false))
+                .isInstanceOf(CatalogException.class)
+                .hasMessage("Catalog cat_comment already exists.");
 
         assertTrue(catalogManager.getCatalog("cat1").isPresent());
         assertTrue(catalogManager.getCatalog("cat2").isPresent());
         assertTrue(catalogManager.getCatalog("cat3").isPresent());
+        assertTrue(catalogManager.getCatalog("cat_comment").isPresent());
+        assertTrue(catalogManager.getCatalogDescriptor("cat_comment").isPresent());
+        assertEquals(
+                "comment for catalog",
+                catalogManager.getCatalogDescriptor("cat_comment").get().getComment().get());
+        assertThat(catalogManager.getCatalog("cat_comment")).isPresent();
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor ->
+                                assertThat(descriptor.getComment())
+                                        .isPresent()
+                                        .hasValueSatisfying(
+                                                comment ->
+                                                        assertEquals(
+                                                                "comment for catalog", comment)));
+
+        catalogManager.alterCatalog(
+                "cat_comment",
+                new CatalogChange.CatalogConfigurationChange(
+                        conf -> conf.setString("default-database", "db")));
+        catalogManager.alterCatalog(
+                "cat_comment", new CatalogChange.CatalogCommentChange("new comment"));
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor -> {
+                            assertThat(descriptor.getConfiguration().toMap())
+                                    .containsEntry("default-database", "db");
+                            assertThat(descriptor.getComment())
+                                    .isPresent()
+                                    .hasValueSatisfying(
+                                            comment -> assertEquals("new comment", comment));
+                        });
 
         assertTrue(catalogManager.listCatalogs().contains("cat1"));
         assertTrue(catalogManager.listCatalogs().contains("cat2"));
         assertTrue(catalogManager.listCatalogs().contains("cat3"));
+        assertTrue(catalogManager.listCatalogs().contains("cat_comment"));
 
         catalogManager.registerCatalog("cat4", new GenericInMemoryCatalog("cat4"));
 
@@ -373,14 +438,14 @@ class CatalogManagerTest {
                                 catalogManager.createCatalog(
                                         "cat1", CatalogDescriptor.of("cat1", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat1 already exists in catalog store.");
+                .hasMessageContaining("Catalog cat1 already exists.");
 
         assertThatThrownBy(
                         () ->
                                 catalogManager.createCatalog(
                                         "cat4", CatalogDescriptor.of("cat4", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat4 already exists in initialized catalogs.");
+                .hasMessageContaining("Catalog cat4 already exists.");
 
         catalogManager.createDatabase(
                 "exist_cat",
@@ -409,7 +474,8 @@ class CatalogManagerTest {
                                         "cat3",
                                         "cat4",
                                         "default_catalog",
-                                        "exist_cat")));
+                                        "exist_cat",
+                                        "cat_comment")));
         catalogManager.setCurrentDatabase("cat_db");
         assertThat(catalogManager.listTables()).isEqualTo(Collections.singleton("test_table"));
 

@@ -28,7 +28,7 @@ import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestHadoopModuleFactory;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -65,7 +65,7 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOSecuredITCase.class);
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
 
         log.info("starting secure cluster environment for testing");
 
@@ -83,9 +83,9 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                 SecureTestEnvironment.getTestKeytab());
 
         Configuration flinkConfig = new Configuration();
-        flinkConfig.setString(
+        flinkConfig.set(
                 SecurityOptions.KERBEROS_LOGIN_KEYTAB, SecureTestEnvironment.getTestKeytab());
-        flinkConfig.setString(
+        flinkConfig.set(
                 SecurityOptions.KERBEROS_LOGIN_PRINCIPAL,
                 SecureTestEnvironment.getHadoopServicePrincipal());
 

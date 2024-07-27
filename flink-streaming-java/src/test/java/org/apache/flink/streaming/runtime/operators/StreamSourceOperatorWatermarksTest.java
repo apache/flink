@@ -46,22 +46,21 @@ import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link StreamSource} operators. */
 @SuppressWarnings("serial")
-public class StreamSourceOperatorWatermarksTest {
+class StreamSourceOperatorWatermarksTest {
 
     @Test
-    public void testEmitMaxWatermarkForFiniteSource() throws Exception {
+    void testEmitMaxWatermarkForFiniteSource() throws Exception {
         StreamSource<String, ?> sourceOperator = new StreamSource<>(new FiniteSource<>());
         StreamTaskTestHarness<String> testHarness =
                 setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
@@ -69,12 +68,12 @@ public class StreamSourceOperatorWatermarksTest {
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
-        assertEquals(1, testHarness.getOutput().size());
-        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().peek());
+        assertThat(testHarness.getOutput()).hasSize(1);
+        assertThat(testHarness.getOutput().peek()).isEqualTo(Watermark.MAX_WATERMARK);
     }
 
     @Test
-    public void testDisabledProgressiveWatermarksForFiniteSource() throws Exception {
+    void testDisabledProgressiveWatermarksForFiniteSource() throws Exception {
         StreamSource<String, ?> sourceOperator =
                 new StreamSource<>(new FiniteSourceWithWatermarks<>(), false);
         StreamTaskTestHarness<String> testHarness =
@@ -84,34 +83,29 @@ public class StreamSourceOperatorWatermarksTest {
         testHarness.waitForTaskCompletion();
 
         // sent by source function
-        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().poll());
+        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
 
         // sent by framework
-        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().poll());
+        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
 
-        assertTrue(testHarness.getOutput().isEmpty());
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void testNoMaxWatermarkOnImmediateCancel() throws Exception {
+    void testNoMaxWatermarkOnImmediateCancel() throws Exception {
         StreamSource<String, ?> sourceOperator = new StreamSource<>(new InfiniteSource<>());
         StreamTaskTestHarness<String> testHarness =
                 setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO, true);
 
         testHarness.invoke();
-        try {
-            testHarness.waitForTaskCompletion();
-            fail("should throw an exception");
-        } catch (Throwable t) {
-            if (!ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
-                throw t;
-            }
-        }
-        assertTrue(testHarness.getOutput().isEmpty());
+        assertThatThrownBy(testHarness::waitForTaskCompletion)
+                .hasCauseInstanceOf(CancelTaskException.class);
+
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void testNoMaxWatermarkOnAsyncCancel() throws Exception {
+    void testNoMaxWatermarkOnAsyncCancel() throws Exception {
         StreamSource<String, ?> sourceOperator = new StreamSource<>(new InfiniteSource<>());
         StreamTaskTestHarness<String> testHarness =
                 setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
@@ -127,11 +121,11 @@ public class StreamSourceOperatorWatermarksTest {
                 throw t;
             }
         }
-        assertTrue(testHarness.getOutput().isEmpty());
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void testAutomaticWatermarkContext() throws Exception {
+    void testAutomaticWatermarkContext() throws Exception {
 
         // regular stream source operator
         final StreamSource<String, InfiniteSource<String>> operator =
@@ -167,13 +161,13 @@ public class StreamSourceOperatorWatermarksTest {
             processingTimeService.setCurrentTime(i);
         }
 
-        assertEquals(9, output.size());
+        assertThat(output).hasSize(9);
 
         long nextWatermark = 0;
         for (StreamElement el : output) {
             nextWatermark += watermarkInterval;
             Watermark wm = (Watermark) el;
-            assertEquals(wm.getTimestamp(), nextWatermark);
+            assertThat(wm.getTimestamp()).isEqualTo(nextWatermark);
         }
     }
 

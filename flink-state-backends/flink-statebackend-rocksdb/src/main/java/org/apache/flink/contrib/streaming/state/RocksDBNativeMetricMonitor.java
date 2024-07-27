@@ -25,7 +25,6 @@ import org.apache.flink.metrics.View;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
 import org.rocksdb.Statistics;
 import org.rocksdb.TickerType;
 import org.slf4j.Logger;
@@ -99,10 +98,10 @@ public class RocksDBNativeMetricMonitor implements Closeable {
                         ? metricGroup.addGroup(COLUMN_FAMILY_KEY, columnFamilyName)
                         : metricGroup.addGroup(columnFamilyName);
 
-        for (String property : options.getProperties()) {
+        for (RocksDBProperty property : options.getProperties()) {
             RocksDBNativePropertyMetricView gauge =
                     new RocksDBNativePropertyMetricView(handle, property);
-            group.gauge(property, gauge);
+            group.gauge(property.getRocksDBProperty(), gauge);
         }
     }
 
@@ -114,11 +113,13 @@ public class RocksDBNativeMetricMonitor implements Closeable {
         try {
             synchronized (lock) {
                 if (rocksDB != null) {
-                    long value = rocksDB.getLongProperty(metricView.handle, metricView.property);
+                    long value =
+                            metricView.property.getNumericalPropertyValue(
+                                    rocksDB, metricView.handle);
                     metricView.setValue(value);
                 }
             }
-        } catch (RocksDBException e) {
+        } catch (Exception e) {
             metricView.close();
             LOG.warn("Failed to read native metric {} from RocksDB.", metricView.property, e);
         }
@@ -168,14 +169,14 @@ public class RocksDBNativeMetricMonitor implements Closeable {
      * gauge wraps the result in a {@link BigInteger}.
      */
     class RocksDBNativePropertyMetricView extends RocksDBNativeView implements Gauge<BigInteger> {
-        private final String property;
+        private final RocksDBProperty property;
 
         private final ColumnFamilyHandle handle;
 
         private BigInteger bigInteger;
 
         private RocksDBNativePropertyMetricView(
-                ColumnFamilyHandle handle, @Nonnull String property) {
+                ColumnFamilyHandle handle, @Nonnull RocksDBProperty property) {
             this.handle = handle;
             this.property = property;
             this.bigInteger = BigInteger.ZERO;

@@ -76,7 +76,7 @@ public class JaasModule implements SecurityModule {
 
     public JaasModule(SecurityConfiguration securityConfig) {
         this.securityConfig = checkNotNull(securityConfig);
-        String[] dirs = splitPaths(securityConfig.getFlinkConfig().getString(CoreOptions.TMP_DIRS));
+        String[] dirs = splitPaths(securityConfig.getFlinkConfig().get(CoreOptions.TMP_DIRS));
         // should be at least one directory.
         checkState(dirs.length > 0);
         this.workingDir = dirs[0];

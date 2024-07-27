@@ -90,7 +90,8 @@ public class SubtasksAllAccumulatorsInfo implements ResponseBody {
     public static class SubtaskAccumulatorsInfo {
         public static final String FIELD_NAME_SUBTASK_INDEX = "subtask";
         public static final String FIELD_NAME_ATTEMPT_NUM = "attempt";
-        public static final String FIELD_NAME_HOST = "host";
+        @Deprecated public static final String FIELD_NAME_HOST = "host";
+        public static final String FIELD_NAME_ENDPOINT = "endpoint";
         public static final String FIELD_NAME_USER_ACCUMULATORS = "user-accumulators";
 
         @JsonProperty(FIELD_NAME_SUBTASK_INDEX)
@@ -102,6 +103,9 @@ public class SubtasksAllAccumulatorsInfo implements ResponseBody {
         @JsonProperty(FIELD_NAME_HOST)
         private final String host;
 
+        @JsonProperty(FIELD_NAME_ENDPOINT)
+        private final String endpoint;
+
         @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
         private final Collection<UserAccumulator> userAccumulators;
 
@@ -110,12 +114,14 @@ public class SubtasksAllAccumulatorsInfo implements ResponseBody {
                 @JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
                 @JsonProperty(FIELD_NAME_ATTEMPT_NUM) int attemptNum,
                 @JsonProperty(FIELD_NAME_HOST) String host,
+                @JsonProperty(FIELD_NAME_ENDPOINT) String endpoint,
                 @JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
                         Collection<UserAccumulator> userAccumulators) {
 
             this.subtaskIndex = subtaskIndex;
             this.attemptNum = attemptNum;
             this.host = Preconditions.checkNotNull(host);
+            this.endpoint = Preconditions.checkNotNull(endpoint);
             this.userAccumulators = Preconditions.checkNotNull(userAccumulators);
         }
 
@@ -131,12 +137,13 @@ public class SubtasksAllAccumulatorsInfo implements ResponseBody {
             return subtaskIndex == that.subtaskIndex
                     && attemptNum == that.attemptNum
                     && Objects.equals(host, that.host)
+                    && Objects.equals(endpoint, that.endpoint)
                     && Objects.equals(userAccumulators, that.userAccumulators);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(subtaskIndex, attemptNum, host, userAccumulators);
+            return Objects.hash(subtaskIndex, attemptNum, host, endpoint, userAccumulators);
         }
     }
 }

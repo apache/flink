@@ -25,10 +25,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link StreamFilter}. These test that:
@@ -39,7 +40,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class StreamFilterTest {
+class StreamFilterTest {
 
     static class MyFilter implements FilterFunction<Integer> {
         private static final long serialVersionUID = 1L;
@@ -52,7 +53,7 @@ public class StreamFilterTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testFilter() throws Exception {
+    void testFilter() throws Exception {
         StreamFilter<Integer> operator = new StreamFilter<Integer>(new MyFilter());
 
         OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
@@ -82,7 +83,7 @@ public class StreamFilterTest {
     }
 
     @Test
-    public void testOpenClose() throws Exception {
+    void testOpenClose() throws Exception {
         StreamFilter<String> operator = new StreamFilter<String>(new TestOpenCloseFilterFunction());
 
         OneInputStreamOperatorTestHarness<String, String> testHarness =
@@ -97,9 +98,10 @@ public class StreamFilterTest {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseFilterFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        assertThat(TestOpenCloseFilterFunction.closeCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
+        assertThat(testHarness.getOutput()).as("Output contains no elements.").isNotEmpty();
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -113,26 +115,20 @@ public class StreamFilterTest {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+            assertThat(openCalled).as("Open was called before.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public boolean filter(String value) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             return value.startsWith("foo");
         }
     }

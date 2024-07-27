@@ -29,7 +29,7 @@ under the License.
 Flink allows reporting metrics to external systems.
 For more information about Flink's metric system go to the [metric system documentation]({{< ref "docs/ops/metrics" >}}).
 
-Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`. These
+Metrics can be exposed to an external system by configuring one or several reporters in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). These
 reporters will be instantiated on each job and task manager when they are started.
 
 Below is a list of parameters that are generally applicable to all reporters. All properties are configured by setting `metrics.reporter.<reporter_name>.<property>` in the configuration. Reporters may additionally offer implementation-specific parameters, which are documented in the respective reporter's section. 

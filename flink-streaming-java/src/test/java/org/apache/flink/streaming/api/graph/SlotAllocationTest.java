@@ -23,14 +23,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This verifies that slot sharing groups are correctly forwarded from user job to JobGraph.
@@ -39,43 +37,37 @@ import static org.junit.Assert.assertNotEquals;
  * sharing groups.
  */
 @SuppressWarnings("serial")
-public class SlotAllocationTest extends TestLogger {
+class SlotAllocationTest {
+
+    private static final FilterFunction<Long> DUMMY_FILTER = value -> false;
 
     @Test
-    public void testTwoPipelines() {
+    void testTwoPipelines() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        FilterFunction<Long> dummyFilter =
-                new FilterFunction<Long>() {
-                    @Override
-                    public boolean filter(Long value) {
-                        return false;
-                    }
-                };
-
-        env.generateSequence(1, 10)
-                .filter(dummyFilter)
+        env.fromSequence(1, 10)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("isolated")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("default")
                 .disableChaining()
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("group 1")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .startNewChain()
                 .print()
                 .disableChaining();
 
         // verify that a second pipeline does not inherit the groups from the first pipeline
-        env.generateSequence(1, 10)
-                .filter(dummyFilter)
+        env.fromSequence(1, 10)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("isolated-2")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("default")
                 .disableChaining()
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .slotSharingGroup("group 2")
-                .filter(dummyFilter)
+                .filter(DUMMY_FILTER)
                 .startNewChain()
                 .print()
                 .disableChaining();
@@ -84,105 +76,87 @@ public class SlotAllocationTest extends TestLogger {
 
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
-        assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(3).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(0).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(3).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
-        assertEquals(vertices.get(4).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
-        assertEquals(vertices.get(5).getSlotSharingGroup(), vertices.get(6).getSlotSharingGroup());
+        assertThat(vertices.get(0).getSlotSharingGroup())
+                .isEqualTo(vertices.get(3).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(2).getSlotSharingGroup());
+        assertThat(vertices.get(3).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(4).getSlotSharingGroup());
+        assertThat(vertices.get(4).getSlotSharingGroup())
+                .isEqualTo(vertices.get(5).getSlotSharingGroup());
+        assertThat(vertices.get(5).getSlotSharingGroup())
+                .isEqualTo(vertices.get(6).getSlotSharingGroup());
 
         int pipelineStart = 6;
-        assertEquals(
-                vertices.get(1).getSlotSharingGroup(),
-                vertices.get(pipelineStart + 2).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(1).getSlotSharingGroup(),
-                vertices.get(pipelineStart + 1).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(pipelineStart + 2).getSlotSharingGroup(),
-                vertices.get(pipelineStart + 3).getSlotSharingGroup());
-        assertEquals(
-                vertices.get(pipelineStart + 3).getSlotSharingGroup(),
-                vertices.get(pipelineStart + 4).getSlotSharingGroup());
-        assertEquals(
-                vertices.get(pipelineStart + 4).getSlotSharingGroup(),
-                vertices.get(pipelineStart + 5).getSlotSharingGroup());
+        assertThat(vertices.get(1).getSlotSharingGroup())
+                .isEqualTo(vertices.get(pipelineStart + 2).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(pipelineStart + 1).getSlotSharingGroup());
+        assertThat(vertices.get(pipelineStart + 2).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(pipelineStart + 3).getSlotSharingGroup());
+        assertThat(vertices.get(pipelineStart + 3).getSlotSharingGroup())
+                .isEqualTo(vertices.get(pipelineStart + 4).getSlotSharingGroup());
+        assertThat(vertices.get(pipelineStart + 4).getSlotSharingGroup())
+                .isEqualTo(vertices.get(pipelineStart + 5).getSlotSharingGroup());
     }
 
     @Test
-    public void testUnion() {
+    void testUnion() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        FilterFunction<Long> dummyFilter =
-                new FilterFunction<Long>() {
-                    @Override
-                    public boolean filter(Long value) {
-                        return false;
-                    }
-                };
-
-        DataStream<Long> src1 = env.generateSequence(1, 10);
-        DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("src-1");
+        DataStream<Long> src1 = env.fromSequence(1, 10);
+        DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("src-1");
 
         // this should not inherit group "src-1"
-        src1.union(src2).filter(dummyFilter);
+        src1.union(src2).filter(DUMMY_FILTER);
 
-        DataStream<Long> src3 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-        DataStream<Long> src4 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src3 = env.fromSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src4 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should inherit "group-1" now
-        src3.union(src4).filter(dummyFilter);
+        src3.union(src4).filter(DUMMY_FILTER);
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
         // first pipeline
-        assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(0).getSlotSharingGroup(), vertices.get(1).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(1).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
+        assertThat(vertices.get(0).getSlotSharingGroup())
+                .isEqualTo(vertices.get(4).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(1).getSlotSharingGroup());
+        assertThat(vertices.get(1).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(4).getSlotSharingGroup());
 
         // second pipeline
-        assertEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(3).getSlotSharingGroup());
-        assertEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
-        assertEquals(vertices.get(3).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
+        assertThat(vertices.get(2).getSlotSharingGroup())
+                .isEqualTo(vertices.get(3).getSlotSharingGroup())
+                .isEqualTo(vertices.get(5).getSlotSharingGroup());
+        assertThat(vertices.get(3).getSlotSharingGroup())
+                .isEqualTo(vertices.get(5).getSlotSharingGroup());
     }
 
     @Test
-    public void testInheritOverride() {
+    void testInheritOverride() {
         // verify that we can explicitly disable inheritance of the input slot sharing groups
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        FilterFunction<Long> dummyFilter =
-                new FilterFunction<Long>() {
-                    @Override
-                    public boolean filter(Long value) {
-                        return false;
-                    }
-                };
-
-        DataStream<Long> src1 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-        DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src1 = env.fromSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should not inherit group but be in "default"
-        src1.union(src2).filter(dummyFilter).slotSharingGroup("default");
+        src1.union(src2).filter(DUMMY_FILTER).slotSharingGroup("default");
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
-        assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(1).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(0).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(1).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
+        assertThat(vertices.get(0).getSlotSharingGroup())
+                .isEqualTo(vertices.get(1).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(2).getSlotSharingGroup());
+        assertThat(vertices.get(1).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(2).getSlotSharingGroup());
     }
 
     @Test
-    public void testCoOperation() {
+    void testCoOperation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         CoMapFunction<Long, Long, Long> dummyCoMap =
@@ -198,14 +172,14 @@ public class SlotAllocationTest extends TestLogger {
                     }
                 };
 
-        DataStream<Long> src1 = env.generateSequence(1, 10);
-        DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("src-1");
+        DataStream<Long> src1 = env.fromSequence(1, 10);
+        DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("src-1");
 
         // this should not inherit group "src-1"
         src1.connect(src2).map(dummyCoMap);
 
-        DataStream<Long> src3 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-        DataStream<Long> src4 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src3 = env.fromSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src4 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should inherit "group-1" now
         src3.connect(src4).map(dummyCoMap);
@@ -215,15 +189,17 @@ public class SlotAllocationTest extends TestLogger {
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
         // first pipeline
-        assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(0).getSlotSharingGroup(), vertices.get(1).getSlotSharingGroup());
-        assertNotEquals(
-                vertices.get(1).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
+        assertThat(vertices.get(0).getSlotSharingGroup())
+                .isEqualTo(vertices.get(4).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(1).getSlotSharingGroup());
+        assertThat(vertices.get(1).getSlotSharingGroup())
+                .isNotEqualTo(vertices.get(4).getSlotSharingGroup());
 
         // second pipeline
-        assertEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(3).getSlotSharingGroup());
-        assertEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
-        assertEquals(vertices.get(3).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
+        assertThat(vertices.get(2).getSlotSharingGroup())
+                .isEqualTo(vertices.get(3).getSlotSharingGroup())
+                .isEqualTo(vertices.get(5).getSlotSharingGroup());
+        assertThat(vertices.get(3).getSlotSharingGroup())
+                .isEqualTo(vertices.get(5).getSlotSharingGroup());
     }
 }

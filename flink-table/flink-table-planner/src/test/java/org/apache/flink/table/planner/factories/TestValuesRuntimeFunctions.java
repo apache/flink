@@ -25,8 +25,8 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -36,6 +36,12 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
+import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
+import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.GenericRowData;
@@ -46,13 +52,14 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
-import org.apache.flink.util.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -70,6 +77,8 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -82,29 +91,44 @@ final class TestValuesRuntimeFunctions {
     static final Object LOCK = TestValuesTableFactory.class;
 
     // [table_name, [task_id, List[value]]]
-    private static final Map<String, Map<Integer, List<String>>> globalRawResult = new HashMap<>();
+    private static final Map<String, Map<Integer, List<Row>>> globalRawResult = new HashMap<>();
     // [table_name, [task_id, Map[key, value]]]
-    private static final Map<String, Map<Integer, Map<String, String>>> globalUpsertResult =
+    private static final Map<String, Map<Integer, Map<Row, Row>>> globalUpsertResult =
             new HashMap<>();
     // [table_name, [task_id, List[value]]]
-    private static final Map<String, Map<Integer, List<String>>> globalRetractResult =
-            new HashMap<>();
+    private static final Map<String, Map<Integer, List<Row>>> globalRetractResult = new HashMap<>();
     // [table_name, [watermark]]
     private static final Map<String, List<Watermark>> watermarkHistory = new HashMap<>();
 
-    static List<String> getRawResults(String tableName) {
-        List<String> result = new ArrayList<>();
+    // [table_name, [List[observer]]
+    private static final Map<String, List<BiConsumer<Integer, List<Row>>>>
+            localRawResultsObservers = new HashMap<>();
+
+    static List<String> getRawResultsAsStrings(String tableName) {
+        return getRawResults(tableName).stream()
+                .map(TestValuesRuntimeFunctions::rowToString)
+                .collect(Collectors.toList());
+    }
+
+    static List<Row> getRawResults(String tableName) {
         synchronized (LOCK) {
             if (globalRawResult.containsKey(tableName)) {
-                globalRawResult.get(tableName).values().forEach(result::addAll);
+                return globalRawResult.get(tableName).values().stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
             }
         }
-        return result;
+        return Collections.emptyList();
     }
 
     /** Returns raw results if there was only one table with results, throws otherwise. */
-    static List<String> getOnlyRawResults() {
-        List<String> result = new ArrayList<>();
+    static List<String> getOnlyRawResultsAsStrings() {
+        return getOnlyRawResults().stream()
+                .map(TestValuesRuntimeFunctions::rowToString)
+                .collect(Collectors.toList());
+    }
+
+    static List<Row> getOnlyRawResults() {
         synchronized (LOCK) {
             if (globalRawResult.size() != 1) {
                 throw new IllegalStateException(
@@ -112,9 +136,10 @@ final class TestValuesRuntimeFunctions {
                                 + globalRawResult.size());
             }
 
-            globalRawResult.values().iterator().next().values().forEach(result::addAll);
+            return globalRawResult.values().iterator().next().values().stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
         }
-        return result;
     }
 
     static List<Watermark> getWatermarks(String tableName) {
@@ -127,23 +152,30 @@ final class TestValuesRuntimeFunctions {
         }
     }
 
-    static List<String> getResults(String tableName) {
-        List<String> result = new ArrayList<>();
+    static List<String> getResultsAsStrings(String tableName) {
+        return getResults(tableName).stream().map(Row::toString).collect(Collectors.toList());
+    }
+
+    static List<Row> getResults(String tableName) {
         synchronized (LOCK) {
             if (globalUpsertResult.containsKey(tableName)) {
-                globalUpsertResult
-                        .get(tableName)
-                        .values()
-                        .forEach(map -> result.addAll(map.values()));
+                return globalUpsertResult.get(tableName).values().stream()
+                        .flatMap(map -> map.values().stream())
+                        .collect(Collectors.toList());
             } else if (globalRetractResult.containsKey(tableName)) {
-                globalRetractResult.get(tableName).values().forEach(result::addAll);
+                return globalRetractResult.get(tableName).values().stream()
+                        .flatMap(Collection::stream)
+                        .collect(Collectors.toList());
             } else if (globalRawResult.containsKey(tableName)) {
-                getRawResults(tableName).stream()
-                        .map(s -> s.substring(3, s.length() - 1)) // removes the +I(...) wrapper
-                        .forEach(result::add);
+                return getRawResults(tableName);
             }
         }
-        return result;
+        return Collections.emptyList();
+    }
+
+    static void registerLocalRawResultsObserver(
+            String tableName, BiConsumer<Integer, List<Row>> observer) {
+        localRawResultsObservers.computeIfAbsent(tableName, n -> new ArrayList<>()).add(observer);
     }
 
     static void clearResults() {
@@ -152,6 +184,25 @@ final class TestValuesRuntimeFunctions {
             globalUpsertResult.clear();
             globalRetractResult.clear();
             watermarkHistory.clear();
+            localRawResultsObservers.clear();
+        }
+    }
+
+    static LineageVertex createLineageVertex(String name, String namespace) {
+        return new LineageVertex() {
+
+            @Override
+            public List<LineageDataset> datasets() {
+                return Arrays.asList(new DefaultLineageDataset(name, namespace, new HashMap<>()));
+            }
+        };
+    }
+
+    private static String rowToString(Row row) {
+        if (RowUtils.USE_LEGACY_TO_STRING) {
+            return String.format("%s(%s)", row.getKind().shortString(), row);
+        } else {
+            return row.toString();
         }
     }
 
@@ -159,7 +210,10 @@ final class TestValuesRuntimeFunctions {
     // Source Function implementations
     // ------------------------------------------------------------------------------------------
 
-    public static class FromElementSourceFunctionWithWatermark implements SourceFunction<RowData> {
+    public static class FromElementSourceFunctionWithWatermark
+            implements SourceFunction<RowData>, LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE =
+                "values://FromElementSourceFunctionWithWatermark";
 
         /** The (de)serializer to be used for the data elements. */
         private final TypeSerializer<RowData> serializer;
@@ -178,7 +232,7 @@ final class TestValuesRuntimeFunctions {
 
         private volatile boolean isRunning = true;
 
-        private String tableName;
+        private final String tableName;
 
         public FromElementSourceFunctionWithWatermark(
                 String tableName,
@@ -243,6 +297,23 @@ final class TestValuesRuntimeFunctions {
             isRunning = false;
         }
 
+        @Override
+        public LineageVertex getLineageVertex() {
+            return new SourceLineageVertex() {
+                @Override
+                public Boundedness boundedness() {
+                    return Boundedness.BOUNDED;
+                }
+
+                @Override
+                public List<LineageDataset> datasets() {
+                    return Arrays.asList(
+                            new DefaultLineageDataset(
+                                    tableName, LINEAGE_NAMESPACE, new HashMap<>()));
+                }
+            };
+        }
+
         private class TestValuesWatermarkOutput implements WatermarkOutput {
             SourceContext<RowData> ctx;
 
@@ -279,30 +350,37 @@ final class TestValuesRuntimeFunctions {
      * restoring in streaming sql.
      */
     private abstract static class AbstractExactlyOnceSink extends RichSinkFunction<RowData>
-            implements CheckpointedFunction {
+            implements CheckpointedFunction, LineageVertexProvider {
         private static final long serialVersionUID = 1L;
 
         protected final String tableName;
+        protected final DataType consumedDataType;
+        protected final DataStructureConverter converter;
+        protected transient ListState<Row> rawResultState;
+        protected transient List<Row> localRawResult;
 
-        protected transient ListState<String> rawResultState;
-        protected transient List<String> localRawResult;
-
-        protected AbstractExactlyOnceSink(String tableName) {
+        protected AbstractExactlyOnceSink(
+                String tableName, DataType consumedDataType, DataStructureConverter converter) {
             this.tableName = tableName;
+            this.consumedDataType = consumedDataType;
+            this.converter = converter;
         }
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
             this.rawResultState =
                     context.getOperatorStateStore()
-                            .getListState(new ListStateDescriptor<>("sink-results", Types.STRING));
+                            .getListState(
+                                    new ListStateDescriptor<>(
+                                            "sink-results",
+                                            ExternalSerializer.of(consumedDataType)));
             this.localRawResult = new ArrayList<>();
             if (context.isRestored()) {
-                for (String value : rawResultState.get()) {
+                for (Row value : rawResultState.get()) {
                     localRawResult.add(value);
                 }
             }
-            int taskId = getRuntimeContext().getIndexOfThisSubtask();
+            int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
@@ -316,27 +394,45 @@ final class TestValuesRuntimeFunctions {
                 rawResultState.update(localRawResult);
             }
         }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex(tableName, getNamespace());
+        }
+
+        abstract String getNamespace();
+
+        protected void addLocalRawResult(Row row) {
+            localRawResult.add(row);
+            Optional.ofNullable(localRawResultsObservers.get(tableName))
+                    .orElse(Collections.emptyList())
+                    .forEach(
+                            c ->
+                                    c.accept(
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask(),
+                                            localRawResult));
+        }
     }
 
     static class AppendingSinkFunction extends AbstractExactlyOnceSink {
-
+        private static final String LINEAGE_NAMESPACE = "values://AppendingSinkFunction";
         private static final long serialVersionUID = 1L;
-        private final DataStructureConverter converter;
         private final int rowtimeIndex;
 
         protected AppendingSinkFunction(
-                String tableName, DataStructureConverter converter, int rowtimeIndex) {
-            super(tableName);
-            this.converter = converter;
+                String tableName,
+                DataType consumedDataType,
+                DataStructureConverter converter,
+                int rowtimeIndex) {
+            super(tableName, consumedDataType, converter);
             this.rowtimeIndex = rowtimeIndex;
         }
 
         @Override
         public void invoke(RowData value, Context context) throws Exception {
-            RowKind kind = value.getRowKind();
             if (value.getRowKind() == RowKind.INSERT) {
-                Row row = (Row) converter.toExternal(value);
-                assertThat(row).isNotNull();
                 if (rowtimeIndex >= 0) {
                     // currently, rowtime attribute always uses 3 precision
                     TimestampData rowtime = value.getTimestamp(rowtimeIndex, 3);
@@ -347,12 +443,17 @@ final class TestValuesRuntimeFunctions {
                     }
                 }
                 synchronized (LOCK) {
-                    localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                    addLocalRawResult((Row) converter.toExternal(value));
                 }
             } else {
                 throw new RuntimeException(
                         "AppendingSinkFunction received " + value.getRowKind() + " messages.");
             }
+        }
+
+        @Override
+        public String getNamespace() {
+            return LINEAGE_NAMESPACE;
         }
     }
 
@@ -361,26 +462,26 @@ final class TestValuesRuntimeFunctions {
      * databases.
      */
     static class KeyedUpsertingSinkFunction extends AbstractExactlyOnceSink {
+        private static final String LINEAGE_NAMESPACE = "values://KeyedUpsertingSinkFunction";
         private static final long serialVersionUID = 1L;
-        private final DataStructureConverter converter;
         private final int[] keyIndices;
         private final int[] targetColumnIndices;
         private final int expectedSize;
         private final int totalColumns;
 
         // [key, value] map result
-        private transient Map<String, String> localUpsertResult;
+        private transient Map<Row, Row> localUpsertResult;
         private transient int receivedNum;
 
         protected KeyedUpsertingSinkFunction(
                 String tableName,
+                DataType consumedDataType,
                 DataStructureConverter converter,
                 int[] keyIndices,
                 int[] targetColumnIndices,
                 int expectedSize,
                 int totalColumns) {
-            super(tableName);
-            this.converter = converter;
+            super(tableName, consumedDataType, converter);
             this.keyIndices = keyIndices;
             this.targetColumnIndices = targetColumnIndices;
             this.expectedSize = expectedSize;
@@ -408,35 +509,34 @@ final class TestValuesRuntimeFunctions {
             assertThat(row).isNotNull();
 
             synchronized (LOCK) {
-                if (RowUtils.USE_LEGACY_TO_STRING) {
-                    localRawResult.add(kind.shortString() + "(" + row + ")");
-                } else {
-                    localRawResult.add(row.toString());
-                }
-
-                row.setKind(RowKind.INSERT);
                 Row key = Row.project(row, keyIndices);
+                key.setKind(RowKind.INSERT);
+
+                final Row upsertRow = Row.copy(row);
+                upsertRow.setKind(RowKind.INSERT);
 
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
                     if (targetColumnIndices.length > 0) {
                         // perform partial insert
-                        localUpsertResult.put(
-                                key.toString(),
-                                updateRowValue(
-                                        localUpsertResult.get(key.toString()),
-                                        row,
-                                        targetColumnIndices));
+                        localUpsertResult.compute(
+                                key,
+                                (entryKey, currentValue) ->
+                                        updateRowValue(
+                                                currentValue, upsertRow, targetColumnIndices));
                     } else {
-                        localUpsertResult.put(key.toString(), row.toString());
+                        localUpsertResult.put(key, upsertRow);
                     }
                 } else {
-                    String oldValue = localUpsertResult.remove(key.toString());
+                    Row oldValue = localUpsertResult.remove(key);
                     if (oldValue == null) {
                         throw new RuntimeException(
                                 "Tried to delete a value that wasn't inserted first. "
                                         + "This is probably an incorrectly implemented test.");
                     }
                 }
+                // Moving later so that global state is updated first.
+                addLocalRawResult(row);
+
                 receivedNum++;
                 if (expectedSize != -1 && receivedNum == expectedSize) {
                     // some sources are infinite (e.g. kafka),
@@ -446,42 +546,36 @@ final class TestValuesRuntimeFunctions {
             }
         }
 
-        private String updateRowValue(String old, Row newRow, int[] targetColumnIndices) {
-            if (StringUtils.isNullOrWhitespaceOnly(old)) {
+        private Row updateRowValue(Row old, Row newRow, int[] targetColumnIndices) {
+            if (old == null) {
                 // no old value, just return current
-                return newRow.toString();
+                return newRow;
             } else {
-                String[] oldCols =
-                        org.apache.commons.lang3.StringUtils.splitByWholeSeparatorPreserveAllTokens(
-                                old, ", ");
-                assert oldCols.length == totalColumns;
+                assert old.getArity() == totalColumns;
                 // exist old value, simply simulate an update
-                for (int i = 0; i < targetColumnIndices.length; i++) {
-                    int idx = targetColumnIndices[i];
-                    if (idx == 0) {
-                        oldCols[idx] = String.format("+I[%s", newRow.getField(idx));
-                    } else if (idx == totalColumns - 1) {
-                        oldCols[idx] = String.format("%s]", newRow.getField(idx));
-                    } else {
-                        oldCols[idx] = (String) newRow.getField(idx);
-                    }
+                for (int idx : targetColumnIndices) {
+                    old.setField(idx, newRow.getField(idx));
                 }
-                return String.join(", ", oldCols);
+                return old;
             }
+        }
+
+        @Override
+        public String getNamespace() {
+            return LINEAGE_NAMESPACE;
         }
     }
 
     static class RetractingSinkFunction extends AbstractExactlyOnceSink {
+        private static final String LINEAGE_NAMESPACE = "values://RetractingSinkFunction";
         private static final long serialVersionUID = 1L;
 
-        private final DataStructureConverter converter;
+        protected transient ListState<Row> retractResultState;
+        protected transient List<Row> localRetractResult;
 
-        protected transient ListState<String> retractResultState;
-        protected transient List<String> localRetractResult;
-
-        protected RetractingSinkFunction(String tableName, DataStructureConverter converter) {
-            super(tableName);
-            this.converter = converter;
+        protected RetractingSinkFunction(
+                String tableName, DataType consumedDataType, DataStructureConverter converter) {
+            super(tableName, consumedDataType, converter);
         }
 
         @Override
@@ -491,16 +585,17 @@ final class TestValuesRuntimeFunctions {
                     context.getOperatorStateStore()
                             .getListState(
                                     new ListStateDescriptor<>(
-                                            "sink-retract-results", Types.STRING));
+                                            "sink-retract-results",
+                                            ExternalSerializer.of(consumedDataType)));
             this.localRetractResult = new ArrayList<>();
 
             if (context.isRestored()) {
-                for (String value : retractResultState.get()) {
+                for (Row value : retractResultState.get()) {
                     localRetractResult.add(value);
                 }
             }
 
-            int taskId = getRuntimeContext().getIndexOfThisSubtask();
+            int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             synchronized (LOCK) {
                 globalRetractResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
@@ -523,30 +618,38 @@ final class TestValuesRuntimeFunctions {
             Row row = (Row) converter.toExternal(value);
             assertThat(row).isNotNull();
             synchronized (LOCK) {
-                localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                final Row retractRow = Row.copy(row);
+                retractRow.setKind(RowKind.INSERT);
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
-                    row.setKind(RowKind.INSERT);
-                    localRetractResult.add(row.toString());
+                    localRetractResult.add(retractRow);
                 } else {
-                    row.setKind(RowKind.INSERT);
-                    boolean contains = localRetractResult.remove(row.toString());
+                    boolean contains = localRetractResult.remove(retractRow);
                     if (!contains) {
                         throw new RuntimeException(
                                 "Tried to retract a value that wasn't inserted first. "
                                         + "This is probably an incorrectly implemented test.");
                     }
                 }
+                // Moving this to the end so that the rawLocalObservers can see update
+                // globalRetracts.
+                addLocalRawResult(row);
             }
+        }
+
+        @Override
+        public String getNamespace() {
+            return LINEAGE_NAMESPACE;
         }
     }
 
-    static class AppendingOutputFormat extends RichOutputFormat<RowData> {
-
+    static class AppendingOutputFormat extends RichOutputFormat<RowData>
+            implements LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE = "values://AppendingOutputFormat";
         private static final long serialVersionUID = 1L;
         private final String tableName;
         private final DataStructureConverter converter;
 
-        protected transient List<String> localRawResult;
+        protected transient List<Row> localRawResult;
 
         protected AppendingOutputFormat(String tableName, DataStructureConverter converter) {
             this.tableName = tableName;
@@ -570,17 +673,30 @@ final class TestValuesRuntimeFunctions {
 
         @Override
         public void writeRecord(RowData value) throws IOException {
-            RowKind kind = value.getRowKind();
             if (value.getRowKind() == RowKind.INSERT) {
                 Row row = (Row) converter.toExternal(value);
                 assertThat(row).isNotNull();
                 synchronized (LOCK) {
-                    localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                    localRawResult.add(row);
+                    Optional.ofNullable(localRawResultsObservers.get(tableName))
+                            .orElse(Collections.emptyList())
+                            .forEach(
+                                    c ->
+                                            c.accept(
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask(),
+                                                    localRawResult));
                 }
             } else {
                 throw new RuntimeException(
                         "AppendingOutputFormat received " + value.getRowKind() + " messages.");
             }
+        }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex(tableName, LINEAGE_NAMESPACE);
         }
 
         @Override
@@ -597,8 +713,9 @@ final class TestValuesRuntimeFunctions {
      * A lookup function which find matched rows with the given fields. NOTE: We have to declare it
      * as public because it will be used in code generation.
      */
-    public static class TestValuesLookupFunction extends LookupFunction {
-
+    public static class TestValuesLookupFunction extends LookupFunction
+            implements LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE = "values://TestValuesLookupFunction";
         private static final long serialVersionUID = 1L;
         private final List<Row> data;
         private final int[] lookupIndices;
@@ -631,11 +748,11 @@ final class TestValuesRuntimeFunctions {
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
             isOpenCalled = true;
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (projectable) {
-                projection =
-                        generatedProjection.newInstance(
-                                Thread.currentThread().getContextClassLoader());
+                projection = generatedProjection.newInstance(classLoader);
             }
+            converter.open(RuntimeConverter.Context.create(classLoader));
             rowSerializer = InternalSerializers.create(producedRowType);
             indexDataByKey();
         }
@@ -651,6 +768,11 @@ final class TestValuesRuntimeFunctions {
                                 keyRow));
             }
             return indexedData.get(keyRow);
+        }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex("", LINEAGE_NAMESPACE);
         }
 
         @Override
@@ -690,8 +812,9 @@ final class TestValuesRuntimeFunctions {
      * An async lookup function which find matched rows with the given fields. NOTE: We have to
      * declare it as public because it will be used in code generation.
      */
-    public static class AsyncTestValueLookupFunction extends AsyncLookupFunction {
-
+    public static class AsyncTestValueLookupFunction extends AsyncLookupFunction
+            implements LineageVertexProvider {
+        private static final String LINEAGE_NAMESPACE = "values://TestValuesLookupFunction";
         private static final long serialVersionUID = 1L;
         private final List<Row> data;
         private final int[] lookupIndices;
@@ -725,11 +848,11 @@ final class TestValuesRuntimeFunctions {
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (projectable) {
-                projection =
-                        generatedProjection.newInstance(
-                                Thread.currentThread().getContextClassLoader());
+                projection = generatedProjection.newInstance(classLoader);
             }
+            converter.open(RuntimeConverter.Context.create(classLoader));
             rowSerializer = InternalSerializers.create(producedRowType);
             isOpenCalled = true;
             // generate unordered result for async lookup
@@ -757,6 +880,11 @@ final class TestValuesRuntimeFunctions {
                         return indexedData.get(keyRow);
                     },
                     executor);
+        }
+
+        @Override
+        public LineageVertex getLineageVertex() {
+            return createLineageVertex("", LINEAGE_NAMESPACE);
         }
 
         @Override

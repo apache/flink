@@ -242,6 +242,7 @@ public class CheckpointFailureManager {
             case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
                 // there are some edge cases shouldn't be counted as a failure, e.g. shutdown
             case TRIGGER_CHECKPOINT_FAILURE:
+            case BLOCKING_OUTPUT_EXIST:
                 // ignore
                 break;
 

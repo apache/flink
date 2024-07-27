@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nullable;
@@ -49,14 +50,17 @@ public final class CommittableCollectorSerializer<CommT>
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final int subtaskId;
     private final int numberOfSubtasks;
+    private final SinkCommitterMetricGroup metricGroup;
 
     public CommittableCollectorSerializer(
             SimpleVersionedSerializer<CommT> committableSerializer,
             int subtaskId,
-            int numberOfSubtasks) {
+            int numberOfSubtasks,
+            SinkCommitterMetricGroup metricGroup) {
         this.committableSerializer = checkNotNull(committableSerializer);
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
+        this.metricGroup = metricGroup;
     }
 
     @Override
@@ -89,7 +93,8 @@ public final class CommittableCollectorSerializer<CommT>
     private CommittableCollector<CommT> deserializeV1(DataInputView in) throws IOException {
         return CommittableCollector.ofLegacy(
                 SinkV1CommittableDeserializer.readVersionAndDeserializeList(
-                        committableSerializer, in));
+                        committableSerializer, in),
+                metricGroup);
     }
 
     private void serializeV2(
@@ -112,7 +117,8 @@ public final class CommittableCollectorSerializer<CommT>
                                 Collectors.toMap(
                                         CheckpointCommittableManagerImpl::getCheckpointId, e -> e)),
                 subtaskId,
-                numberOfSubtasks);
+                numberOfSubtasks,
+                metricGroup);
     }
 
     private static void validateMagicNumber(DataInputView in) throws IOException {
@@ -125,6 +131,7 @@ public final class CommittableCollectorSerializer<CommT>
 
     private class CheckpointSimpleVersionedSerializer
             implements SimpleVersionedSerializer<CheckpointCommittableManagerImpl<CommT>> {
+
         @Override
         public int getVersion() {
             return 0;
@@ -175,7 +182,11 @@ public final class CommittableCollectorSerializer<CommT>
             }
 
             return new CheckpointCommittableManagerImpl<>(
-                    subtasksCommittableManagers, subtaskId, numberOfSubtasks, checkpointId);
+                    subtasksCommittableManagers,
+                    subtaskId,
+                    numberOfSubtasks,
+                    checkpointId,
+                    metricGroup);
         }
     }
 
@@ -236,7 +247,8 @@ public final class CommittableCollectorSerializer<CommT>
                     subtaskId,
                     checkNotNull(
                             checkpointId,
-                            "CheckpointId must be set to align the SubtaskCommittableManager with holding CheckpointCommittableManager."));
+                            "CheckpointId must be set to align the SubtaskCommittableManager with holding CheckpointCommittableManager."),
+                    metricGroup);
         }
 
         private class RequestSimpleVersionedSerializer
@@ -264,7 +276,10 @@ public final class CommittableCollectorSerializer<CommT>
                         SimpleVersionedSerialization.readVersionAndDeSerialize(
                                 committableSerializer, in);
                 return new CommitRequestImpl<>(
-                        committable, in.readInt(), CommitRequestState.values()[in.readInt()]);
+                        committable,
+                        in.readInt(),
+                        CommitRequestState.values()[in.readInt()],
+                        metricGroup);
             }
         }
     }

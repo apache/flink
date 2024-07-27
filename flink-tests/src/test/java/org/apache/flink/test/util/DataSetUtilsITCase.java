@@ -46,7 +46,7 @@ import java.util.Set;
 
 /** Integration tests for {@link DataSetUtils}. */
 @RunWith(Parameterized.class)
-public class DataSetUtilsITCase extends MultipleProgramsTestBase {
+public class DataSetUtilsITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public DataSetUtilsITCase(TestExecutionMode mode) {
         super(mode);

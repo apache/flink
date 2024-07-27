@@ -63,18 +63,18 @@ public class YarnEntrypointUtils {
                 "ApplicationMaster hostname variable %s not set",
                 ApplicationConstants.Environment.NM_HOST.key());
 
-        configuration.setString(JobManagerOptions.ADDRESS, hostname);
-        configuration.setString(RestOptions.ADDRESS, hostname);
-        configuration.setString(RestOptions.BIND_ADDRESS, hostname);
+        configuration.set(JobManagerOptions.ADDRESS, hostname);
+        configuration.set(RestOptions.ADDRESS, hostname);
+        configuration.set(RestOptions.BIND_ADDRESS, hostname);
 
         // if a web monitor shall be started, set the port to random binding
-        if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
-            configuration.setInteger(WebOptions.PORT, 0);
+        if (configuration.get(WebOptions.PORT, 0) >= 0) {
+            configuration.set(WebOptions.PORT, 0);
         }
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly
-            configuration.setString(RestOptions.BIND_PORT, "0");
+            configuration.set(RestOptions.BIND_PORT, "0");
         }
 
         // if the user has set the deprecated YARN-specific config keys, we add the
@@ -96,8 +96,8 @@ public class YarnEntrypointUtils {
                         workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
 
         if (keytabPath != null && keytabPrincipal != null) {
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
         }
 
         final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());

@@ -193,7 +193,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
         @Override
         public void open(OpenContext openContext) throws Exception {
             // this sink can only work with DOP 1
-            assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+            assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
 
             long failurePosMin = (long) (0.4 * LINES_PER_FILE);
             long failurePosMax = (long) (0.7 * LINES_PER_FILE);

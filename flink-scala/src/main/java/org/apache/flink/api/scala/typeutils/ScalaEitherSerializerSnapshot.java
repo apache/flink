@@ -33,9 +33,7 @@ public class ScalaEitherSerializerSnapshot<L, R>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public ScalaEitherSerializerSnapshot() {
-        super(EitherSerializer.class);
-    }
+    public ScalaEitherSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public ScalaEitherSerializerSnapshot(EitherSerializer<L, R> eitherSerializer) {

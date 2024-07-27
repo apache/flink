@@ -1540,22 +1540,32 @@ class TableEnvironment(object):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
     def _add_jars_to_j_env_config(self, config_key):
-        jvm = get_gateway().jvm
         jar_urls = self.get_config().get(config_key, None)
-        if jar_urls is not None:
-            # normalize
+
+        if jar_urls:
+            jvm = get_gateway().jvm
             jar_urls_list = []
-            for url in jar_urls.split(";"):
-                url = url.strip()
-                if url != "":
-                    jar_urls_list.append(jvm.java.net.URL(url).toString())
+            parsed_jar_urls = Configuration.parse_jars_value(jar_urls, jvm)
+            url_strings = [
+                jvm.java.net.URL(url).toString() if url else ""
+                for url in parsed_jar_urls
+            ]
+            self._parse_urls(url_strings, jar_urls_list)
+
             j_configuration = get_j_env_configuration(self._get_j_env())
-            if j_configuration.containsKey(config_key):
-                for url in j_configuration.getString(config_key, "").split(";"):
-                    url = url.strip()
-                    if url != "" and url not in jar_urls_list:
-                        jar_urls_list.append(url)
+            parsed_jar_urls = Configuration.parse_jars_value(
+                j_configuration.getString(config_key, ""),
+                jvm
+            )
+            self._parse_urls(parsed_jar_urls, jar_urls_list)
+
             j_configuration.setString(config_key, ";".join(jar_urls_list))
+
+    def _parse_urls(self, jar_urls, jar_urls_list):
+        for url in jar_urls:
+            url = url.strip()
+            if url != "" and url not in jar_urls_list:
+                jar_urls_list.append(url)
 
     def _get_j_env(self):
         return self._j_tenv.getPlanner().getExecEnv()

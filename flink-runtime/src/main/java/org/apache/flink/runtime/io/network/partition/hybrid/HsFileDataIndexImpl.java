@@ -160,7 +160,7 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         checkArgument(firstBufferInRegion.subpartitionId == lastBufferInRegion.subpartitionId);
         checkArgument(firstBufferInRegion.bufferIndex <= lastBufferInRegion.bufferIndex);
         internalRegionsBySubpartition
-                .computeIfAbsent(firstBufferInRegion.subpartitionId, ArrayList::new)
+                .computeIfAbsent(firstBufferInRegion.subpartitionId, k -> new ArrayList<>())
                 .add(
                         new InternalRegion(
                                 firstBufferInRegion.bufferIndex,

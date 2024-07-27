@@ -59,4 +59,7 @@ public interface ResultProvider {
      * {@link CloseableIterator#next()} method returns a row.
      */
     boolean isFirstRowReady();
+
+    /** Reset this ResultProvider to the origin state when we create it. */
+    default void reset() {}
 }

@@ -80,6 +80,27 @@ LogicalProject(b=[$0], s=[$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestWithValues">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM UNNEST(ARRAY[1,2,3])]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[$0])
++- Uncollect
+   +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
+      +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(EXPR$0=[$0])
++- Uncollect
+   +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
+      +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+  </TestCase>
   <TestCase name="testCrossWithUnnestForMap">
     <Resource name="sql">
       <![CDATA[SELECT a, b, v FROM MyTable CROSS JOIN UNNEST(c) as f(k, v)]]>

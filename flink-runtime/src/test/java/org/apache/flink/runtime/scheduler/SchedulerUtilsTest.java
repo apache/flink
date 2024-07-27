@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -43,10 +43,11 @@ import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,18 +58,19 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SchedulerUtils} utilities. */
-public class SchedulerUtilsTest extends TestLogger {
+class SchedulerUtilsTest {
+
+    private static final Logger log = LoggerFactory.getLogger(SharedSlotTest.class);
 
     @Test
-    public void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
+    void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
 
         final int maxNumberOfCheckpointsToRetain = 10;
         final Configuration jobManagerConfig = new Configuration();
-        jobManagerConfig.setInteger(
+        jobManagerConfig.set(
                 CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, maxNumberOfCheckpointsToRetain);
 
         final CompletedCheckpointStore completedCheckpointStore =
@@ -80,9 +82,8 @@ public class SchedulerUtilsTest extends TestLogger {
                         new JobID(),
                         RestoreMode.CLAIM);
 
-        assertEquals(
-                maxNumberOfCheckpointsToRetain,
-                completedCheckpointStore.getMaxNumberOfRetainedCheckpoints());
+        assertThat(completedCheckpointStore.getMaxNumberOfRetainedCheckpoints())
+                .isEqualTo(maxNumberOfCheckpointsToRetain);
     }
 
     /**
@@ -90,7 +91,7 @@ public class SchedulerUtilsTest extends TestLogger {
      * shared checkpoint state on restore.
      */
     @Test
-    public void testSharedStateRegistration() throws Exception {
+    void testSharedStateRegistration() throws Exception {
         UUID backendId = UUID.randomUUID();
         String localPath = "k0";
         StreamStateHandle handle = new ByteStreamStateHandle("h0", new byte[] {1, 2, 3});
@@ -113,17 +114,17 @@ public class SchedulerUtilsTest extends TestLogger {
                 buildIncrementalHandle(
                         localPath,
                         new PlaceholderStreamStateHandle(
-                                handle.getStreamStateHandleID(), handle.getStateSize()),
+                                handle.getStreamStateHandleID(), handle.getStateSize(), false),
                         backendId);
         newHandle.registerSharedStates(sharedStateRegistry, 1L);
 
-        assertSame(
-                handle,
-                newHandle.getSharedState().stream()
-                        .filter(e -> e.getLocalPath().equals(localPath))
-                        .findFirst()
-                        .get()
-                        .getHandle());
+        assertThat(
+                        newHandle.getSharedState().stream()
+                                .filter(e -> e.getLocalPath().equals(localPath))
+                                .findFirst()
+                                .get()
+                                .getHandle())
+                .isEqualTo(handle);
     }
 
     private CheckpointRecoveryFactory buildRecoveryFactory(CompletedCheckpoint checkpoint) {

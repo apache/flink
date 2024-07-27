@@ -146,8 +146,8 @@ object CorrelateCodeGenerator {
       // output all fields of left and right
       // in case of left outer join and the returned row of table function is empty,
       // fill all fields of row with null
-      val joinedRowTerm = CodeGenUtils.newName("joinedRow")
-      val nullRowTerm = CodeGenUtils.newName("nullRow")
+      val joinedRowTerm = CodeGenUtils.newName(ctx, "joinedRow")
+      val nullRowTerm = CodeGenUtils.newName(ctx, "nullRow")
       ctx.addReusableOutputRecord(returnType, classOf[JoinedRowData], joinedRowTerm)
       ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
       val header = if (retainHeader) {
@@ -189,15 +189,15 @@ object CorrelateCodeGenerator {
       condition: Option[RexNode],
       retainHeader: Boolean = true): String = {
 
-    val correlateCollectorTerm = newName("correlateCollector")
+    val correlateCollectorTerm = newName(ctx, "correlateCollector")
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val collectorCtx = new CodeGeneratorContext(tableConfig, ctx.classLoader)
+    val collectorCtx = new CodeGeneratorContext(tableConfig, ctx.classLoader, ctx)
 
     val body = {
       // completely output left input + right
-      val joinedRowTerm = CodeGenUtils.newName("joinedRow")
+      val joinedRowTerm = CodeGenUtils.newName(ctx, "joinedRow")
       collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRowData], joinedRowTerm)
 
       val header = if (retainHeader) {

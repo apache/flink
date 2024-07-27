@@ -20,6 +20,8 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
@@ -71,6 +73,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
     private final RocksDBNativeMetricMonitor nativeMetricMonitor;
     private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
     private final Long writeBufferManagerCapacity;
+    private final RocksDBManualCompactionManager manualCompactionManager;
 
     RocksDBPriorityQueueSetFactory(
             KeyGroupRange keyGroupRange,
@@ -83,7 +86,8 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             Long writeBufferManagerCapacity,
-            int cacheSize) {
+            int cacheSize,
+            RocksDBManualCompactionManager manualCompactionManager) {
         this.keyGroupRange = keyGroupRange;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.numberOfKeyGroups = numberOfKeyGroups;
@@ -98,6 +102,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
         this.writeBufferManagerCapacity = writeBufferManagerCapacity;
         Preconditions.checkArgument(cacheSize > 0);
         this.cacheSize = cacheSize;
+        this.manualCompactionManager = manualCompactionManager;
     }
 
     @Nonnull
@@ -179,7 +184,10 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
                             db,
                             columnFamilyOptionsFactory,
                             null,
-                            writeBufferManagerCapacity);
+                            writeBufferManagerCapacity,
+                            // Using ICloseableRegistry.NO_OP here because there is no restore in
+                            // progress; created column families will be closed in dispose()
+                            ICloseableRegistry.NO_OP);
             RocksDBOperationUtils.registerKvStateInformation(
                     kvStateInformation, nativeMetricMonitor, stateName, stateInfo);
         } else {
@@ -225,6 +233,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
                 kvStateInformation.put(stateName, stateInfo);
             }
         }
+        manualCompactionManager.register(stateInfo);
 
         return stateInfo;
     }

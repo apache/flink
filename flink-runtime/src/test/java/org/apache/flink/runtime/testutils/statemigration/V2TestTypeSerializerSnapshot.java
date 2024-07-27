@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.testutils.statemigration.TestType.IncompatibleTestTypeSerializer.IncompatibleTestTypeSerializerSnapshot;
+import org.apache.flink.runtime.testutils.statemigration.TestType.ReconfigurationRequiringTestTypeSerializer.ReconfigurationRequiringTestTypeSerializerSnapshot;
 
 import java.io.IOException;
 
@@ -36,18 +38,19 @@ public class V2TestTypeSerializerSnapshot implements TypeSerializerSnapshot<Test
 
     @Override
     public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(
-            TypeSerializer<TestType> newSerializer) {
-        if (newSerializer instanceof TestType.V2TestTypeSerializer) {
+            TypeSerializerSnapshot<TestType> oldSerializerSnapshot) {
+        if (oldSerializerSnapshot instanceof V2TestTypeSerializerSnapshot) {
             return TypeSerializerSchemaCompatibility.compatibleAsIs();
-        } else if (newSerializer instanceof TestType.ReconfigurationRequiringTestTypeSerializer) {
-            // we mimic the reconfiguration by just re-instantiating the correct serializer
-            return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
-                    new TestType.V2TestTypeSerializer());
+        } else if (oldSerializerSnapshot instanceof V1TestTypeSerializerSnapshot) {
+            // Migrate from V1 to V2 is supported
+            return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
         } else if (
-        // migrating from V2 -> V1 is not supported
-        newSerializer instanceof TestType.V1TestTypeSerializer
-                || newSerializer instanceof TestType.IncompatibleTestTypeSerializer) {
-
+        // old ReconfigurationRequiringTestTypeSerializerSnapshot cannot be compatible with
+        // any new  TypeSerializerSnapshots
+        oldSerializerSnapshot instanceof ReconfigurationRequiringTestTypeSerializerSnapshot
+                // IncompatibleTestTypeSerializerSnapshot cannot be compatible with any
+                // TypeSerializerSnapshots
+                || oldSerializerSnapshot instanceof IncompatibleTestTypeSerializerSnapshot) {
             return TypeSerializerSchemaCompatibility.incompatible();
         } else {
             throw new IllegalStateException("Unknown serializer class for TestType.");

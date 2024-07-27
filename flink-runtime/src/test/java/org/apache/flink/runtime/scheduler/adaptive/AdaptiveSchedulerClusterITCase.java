@@ -24,6 +24,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -42,13 +43,14 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testtasks.OnceBlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -58,15 +60,15 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This class contains integration tests for the adaptive scheduler which start a {@link
  * org.apache.flink.runtime.minicluster.MiniCluster} per test case.
  */
-public class AdaptiveSchedulerClusterITCase extends TestLogger {
+public class AdaptiveSchedulerClusterITCase {
+
+    private static final Logger log = LoggerFactory.getLogger(AdaptiveSchedulerClusterITCase.class);
 
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 2;
     private static final int NUMBER_TASK_MANAGERS = 2;
@@ -75,35 +77,38 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
 
     private final Configuration configuration = createConfiguration();
 
-    @Rule
-    public final MiniClusterResource miniClusterResource =
-            new MiniClusterResource(
+    private final InternalMiniClusterExtension internalMiniClusterExtension =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(configuration)
                             .setNumberSlotsPerTaskManager(NUMBER_SLOTS_PER_TASK_MANAGER)
                             .setNumberTaskManagers(NUMBER_TASK_MANAGERS)
                             .build());
 
-    private Configuration createConfiguration() {
+    @RegisterExtension
+    private final EachCallbackWrapper<InternalMiniClusterExtension> eachCallbackWrapper =
+            new EachCallbackWrapper<>(internalMiniClusterExtension);
+
+    private static Configuration createConfiguration() {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
+        configuration.set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
         // required for #testCheckpointStatsPersistedAcrossRescale
         configuration.set(WebOptions.CHECKPOINTS_HISTORY_SIZE, Integer.MAX_VALUE);
 
         return configuration;
     }
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         OnceBlockingNoOpInvokable.reset();
     }
 
     @Test
-    public void testAutomaticScaleDownInCaseOfLostSlots() throws Exception {
-        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+    void testAutomaticScaleDownInCaseOfLostSlots() throws Exception {
+        final MiniCluster miniCluster = internalMiniClusterExtension.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
 
         miniCluster.submitJob(jobGraph).join();
@@ -125,12 +130,12 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
 
         final JobResult jobResult = resultFuture.join();
 
-        assertTrue(jobResult.isSuccess());
+        assertThat(jobResult.isSuccess()).isTrue();
     }
 
     @Test
-    public void testAutomaticScaleUp() throws Exception {
-        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+    void testAutomaticScaleUp() throws Exception {
+        final MiniCluster miniCluster = internalMiniClusterExtension.getMiniCluster();
         int initialInstanceCount = NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS;
         int targetInstanceCount = initialInstanceCount + NUMBER_SLOTS_PER_TASK_MANAGER;
         final JobGraph jobGraph = createBlockingJobGraph(targetInstanceCount);
@@ -154,12 +159,12 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
                 jobGraph.getJobID(), JOB_VERTEX_ID, targetInstanceCount);
         OnceBlockingNoOpInvokable.unblock();
 
-        assertTrue(jobResultFuture.join().isSuccess());
+        assertThat(jobResultFuture.join().isSuccess()).isTrue();
     }
 
     @Test
-    public void testCheckpointStatsPersistedAcrossRescale() throws Exception {
-        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+    void testCheckpointStatsPersistedAcrossRescale() throws Exception {
+        final MiniCluster miniCluster = internalMiniClusterExtension.getMiniCluster();
 
         JobVertex jobVertex = new JobVertex("jobVertex", JOB_VERTEX_ID);
         jobVertex.setInvokableClass(CheckpointingNoOpInvokable.class);
@@ -203,7 +208,7 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
                         .thenApply(
                                 eg -> eg.getCheckpointStatsSnapshot().getHistory().getCheckpoints())
                         .get();
-        assertThat(checkpointHistory.get(checkpointHistory.size() - 1).getCheckpointId(), is(1L));
+        assertThat(checkpointHistory.get(checkpointHistory.size() - 1).getCheckpointId()).isOne();
     }
 
     /** An invokable that doesn't do anything interesting, but does support checkpointing. */
@@ -265,7 +270,7 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     final ArchivedExecutionGraph archivedExecutionGraph =
-                            miniClusterResource
+                            internalMiniClusterExtension
                                     .getMiniCluster()
                                     .getArchivedExecutionGraph(jobId)
                                     .get();

@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.JSON_MAP_NULL_KEY_MODE;
@@ -86,6 +87,8 @@ public class MaxwellJsonFormatFactory
         final boolean encodeDecimalAsPlainNumber =
                 formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
 
+        final boolean ignoreNullFields = formatOptions.get(ENCODE_IGNORE_NULL_FIELDS);
+
         return new EncodingFormat<SerializationSchema<RowData>>() {
 
             @Override
@@ -107,7 +110,8 @@ public class MaxwellJsonFormatFactory
                         timestampFormat,
                         mapNullKeyMode,
                         mapNullKeyLiteral,
-                        encodeDecimalAsPlainNumber);
+                        encodeDecimalAsPlainNumber,
+                        ignoreNullFields);
             }
         };
     }
@@ -130,6 +134,7 @@ public class MaxwellJsonFormatFactory
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ENCODE_IGNORE_NULL_FIELDS);
         return options;
     }
 

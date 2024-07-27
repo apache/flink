@@ -22,19 +22,19 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def testIntersect(): Unit = {
     val tableA = failingDataSource(TestData.smallTupleData3)
       .toTable(tEnv, 'a1, 'a2, 'a3)
@@ -49,10 +49,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testExcept(): Unit = {
     val data1 = new mutable.MutableList[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
@@ -85,10 +85,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "Hi8",
       "Hi9"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testIntersectAll(): Unit = {
     val t1 = failingDataSource(Seq(1, 1, 1, 2, 2)).toTable(tEnv, 'c)
     val t2 = failingDataSource(Seq(1, 2, 2, 2, 3)).toTable(tEnv, 'c)
@@ -101,10 +101,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList("1", "2", "2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMinusAll(): Unit = {
     val tableA = failingDataSource(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("tableA", tableA)
@@ -128,7 +128,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "Hello world",
       "Hello world"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
 }

@@ -44,7 +44,6 @@ import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.FutureTaskWithException;
@@ -120,7 +119,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** ITCase for {@link HiveServer2Endpoint}. */
-public class HiveServer2EndpointITCase extends TestLogger {
+class HiveServer2EndpointITCase {
 
     @RegisterExtension
     @Order(1)
@@ -137,12 +136,12 @@ public class HiveServer2EndpointITCase extends TestLogger {
             new HiveServer2EndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     @BeforeAll
-    public static void setup() throws Exception {
+    static void setup() throws Exception {
         initializeEnvironment();
     }
 
     @Test
-    public void testOpenCloseJdbcConnection() throws Exception {
+    void testOpenCloseJdbcConnection() throws Exception {
         SessionManagerImpl sessionManager =
                 (SessionManagerImpl) SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager();
         int originSessionCount = sessionManager.currentSessionCount();
@@ -153,7 +152,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testOpenSessionWithConfig() throws Exception {
+    void testOpenSessionWithConfig() throws Exception {
         TCLIService.Client client = createClient();
         TOpenSessionReq openSessionReq = new TOpenSessionReq();
 
@@ -187,7 +186,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetException() throws Exception {
+    void testGetException() throws Exception {
         TCLIService.Client client = createClient();
         TCloseSessionReq closeSessionReq = new TCloseSessionReq();
         SessionHandle sessionHandle = SessionHandle.create();
@@ -203,7 +202,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetUnsupportedException() throws Exception {
+    void testGetUnsupportedException() throws Exception {
         try (HiveConnection connection = (HiveConnection) ENDPOINT_EXTENSION.getConnection();
                 HiveStatement statement = (HiveStatement) connection.createStatement()) {
             assertThatThrownBy(() -> connection.renewDelegationToken("TokenMessage"))
@@ -244,7 +243,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testCancelOperation() throws Exception {
+    void testCancelOperation() throws Exception {
         runOperationRequest(
                 tOperationHandle -> {
                     TCancelOperationResp tCancelOperationResp =
@@ -264,7 +263,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testCloseOperation() throws Exception {
+    void testCloseOperation() throws Exception {
         runOperationRequest(
                 tOperationHandle -> {
                     TCloseOperationResp resp =
@@ -290,7 +289,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetCatalogs() throws Exception {
+    void testGetCatalogs() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getCatalogs(),
                 ResolvedSchema.of(Column.physical("TABLE_CAT", DataTypes.STRING())),
@@ -298,7 +297,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetSchemas() throws Exception {
+    void testGetSchemas() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getSchemas("hive", null),
                 getExpectedGetSchemasOperationSchema(),
@@ -310,7 +309,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetSchemasWithPattern() throws Exception {
+    void testGetSchemasWithPattern() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getSchemas(null, "db\\_test%"),
                 getExpectedGetSchemasOperationSchema(),
@@ -319,7 +318,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetTables() throws Exception {
+    void testGetTables() throws Exception {
         runGetObjectTest(
                 connection ->
                         connection
@@ -344,7 +343,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetTablesWithPattern() throws Exception {
+    void testGetTablesWithPattern() throws Exception {
         runGetObjectTest(
                 connection ->
                         connection
@@ -362,7 +361,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetTableTypes() throws Exception {
+    void testGetTableTypes() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getTableTypes(),
                 ResolvedSchema.of(Column.physical("TABLE_TYPE", DataTypes.STRING())),
@@ -456,7 +455,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetColumnsWithPattern() throws Exception {
+    void testGetColumnsWithPattern() throws Exception {
         runGetObjectTest(
                 connection ->
                         connection
@@ -482,7 +481,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetPrimaryKey() throws Exception {
+    void testGetPrimaryKey() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getPrimaryKeys(null, null, null),
                 getExpectedGetPrimaryKeysOperationSchema(),
@@ -493,7 +492,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetPrimaryKeyWithPattern() throws Exception {
+    void testGetPrimaryKeyWithPattern() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getPrimaryKeys(null, null, "tbl_2"),
                 getExpectedGetPrimaryKeysOperationSchema(),
@@ -503,7 +502,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetTypeInfo() throws Exception {
+    void testGetTypeInfo() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getTypeInfo(),
                 getExpectedGetTypeInfoSchema(),
@@ -537,7 +536,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetFunctions() throws Exception {
+    void testGetFunctions() throws Exception {
         runGetObjectTest(
                 connection -> connection.getMetaData().getFunctions(null, null, ".*"),
                 ResolvedSchema.of(
@@ -568,7 +567,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetFunctionWithPattern() throws Exception {
+    void testGetFunctionWithPattern() throws Exception {
         runGetObjectTest(
                 connection -> {
                     try (Statement statement = connection.createStatement()) {
@@ -596,7 +595,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testGetInfo() throws Exception {
+    void testGetInfo() throws Exception {
         try (Connection connection = ENDPOINT_EXTENSION.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
             assertThat(metaData.getDatabaseProductName()).isEqualTo("Apache Flink");
@@ -606,7 +605,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testUnknownGetInfoType() throws Exception {
+    void testUnknownGetInfoType() throws Exception {
         TCLIService.Client client = createClient();
         TOpenSessionReq openSessionReq = new TOpenSessionReq();
         TOpenSessionResp openSessionResp = client.OpenSession(openSessionReq);
@@ -628,7 +627,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testExecuteStatementInSyncMode() throws Exception {
+    void testExecuteStatementInSyncMode() throws Exception {
         TCLIService.Client client = createClient();
         TSessionHandle sessionHandle = client.OpenSession(new TOpenSessionReq()).getSessionHandle();
         TOperationHandle operationHandle =
@@ -662,7 +661,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testExecuteStatementInSyncModeWithCompileException() throws Exception {
+    void testExecuteStatementInSyncModeWithCompileException() throws Exception {
         TCLIService.Client client = createClient();
         TSessionHandle tSessionHandle =
                 client.OpenSession(new TOpenSessionReq()).getSessionHandle();
@@ -686,7 +685,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testExecuteStatementInSyncModeWithRuntimeException1() throws Exception {
+    void testExecuteStatementInSyncModeWithRuntimeException1() throws Exception {
         runExecuteStatementInSyncModeWithRuntimeException(
                 (tSessionHandle, future) -> {
                     createClient().CloseSession(new TCloseSessionReq(tSessionHandle));
@@ -709,7 +708,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
     }
 
     @Test
-    public void testExecuteStatementInSyncModeWithRuntimeException2(
+    void testExecuteStatementInSyncModeWithRuntimeException2(
             @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
         runExecuteStatementInSyncModeWithRuntimeException(
                 (tSessionHandle, future) -> {

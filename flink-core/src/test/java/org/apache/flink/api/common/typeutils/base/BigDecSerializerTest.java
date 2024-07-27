@@ -50,7 +50,7 @@ class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
             BigDecimal.ZERO,
             BigDecimal.ONE,
             BigDecimal.TEN,
-            new BigDecimal(rnd.nextDouble()),
+            BigDecimal.valueOf(rnd.nextDouble()),
             new BigDecimal("874597969.1234123413478523984729447"),
             BigDecimal.valueOf(-1.444),
             BigDecimal.valueOf(-10000.888)

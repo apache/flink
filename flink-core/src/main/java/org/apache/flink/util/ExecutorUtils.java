@@ -21,6 +21,8 @@ package org.apache.flink.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -38,8 +40,9 @@ public class ExecutorUtils {
      * @param timeout to wait for the termination of all ExecutorServices
      * @param unit of the timeout
      * @param executorServices to shut down
+     * @return Tasks that were not executed prior to a {@link ExecutorService#shutdownNow()}.
      */
-    public static void gracefulShutdown(
+    public static List<Runnable> gracefulShutdown(
             long timeout, TimeUnit unit, ExecutorService... executorServices) {
         for (ExecutorService executorService : executorServices) {
             executorService.shutdown();
@@ -50,22 +53,23 @@ public class ExecutorUtils {
         long timeLeft = unit.toMillis(timeout);
         boolean hasTimeLeft = timeLeft > 0L;
 
+        final List<Runnable> outstandingTasks = new ArrayList<>();
         for (ExecutorService executorService : executorServices) {
             if (wasInterrupted || !hasTimeLeft) {
-                executorService.shutdownNow();
+                outstandingTasks.addAll(executorService.shutdownNow());
             } else {
                 try {
                     if (!executorService.awaitTermination(timeLeft, TimeUnit.MILLISECONDS)) {
                         LOG.warn(
                                 "ExecutorService did not terminate in time. Shutting it down now.");
-                        executorService.shutdownNow();
+                        outstandingTasks.addAll(executorService.shutdownNow());
                     }
                 } catch (InterruptedException e) {
                     LOG.warn(
                             "Interrupted while shutting down executor services. Shutting all "
                                     + "remaining ExecutorServices down now.",
                             e);
-                    executorService.shutdownNow();
+                    outstandingTasks.addAll(executorService.shutdownNow());
 
                     wasInterrupted = true;
 
@@ -76,6 +80,8 @@ public class ExecutorUtils {
                 hasTimeLeft = timeLeft > 0L;
             }
         }
+
+        return outstandingTasks;
     }
 
     /**

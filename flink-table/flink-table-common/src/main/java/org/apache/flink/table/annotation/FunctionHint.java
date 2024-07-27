@@ -44,6 +44,23 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * // accepts (INT, STRING) and returns BOOLEAN
  * @FunctionHint(
+ *   argument = [(name = "f1", @DataTypeHint("INT"), isOptional = true),
+ *      (name = "f2", @DataTypeHint("STRING"), isOptional = true)],
+ *   output = @DataTypeHint("BOOLEAN")
+ * )
+ * class X extends ScalarFunction { ... }
+ *
+ * // accepts (INT, STRING...) and returns BOOLEAN
+ * @FunctionHint(
+ *   argument = [(name = "f1", @DataTypeHint("INT"), isOptional = false),
+ *      (name = "f2", @DataTypeHint("STRING"), isOptional = false)],
+ *   isVarArgs = true,
+ *   output = @DataTypeHint("BOOLEAN")
+ * )
+ * class X extends ScalarFunction { ... }
+ *
+ * // accepts (INT, STRING) and returns BOOLEAN
+ * @FunctionHint(
  *   input = [@DataTypeHint("INT"), @DataTypeHint("STRING")],
  *   output = @DataTypeHint("BOOLEAN")
  * )
@@ -147,6 +164,18 @@ public @interface FunctionHint {
      * reflection-based extraction is used, thus, this parameter is ignored.
      */
     String[] argumentNames() default {""};
+
+    /**
+     * Explicitly lists the argument that a function takes as input, including their names, types,
+     * and whether they are optional.
+     *
+     * <p>By default, it is recommended to use this parameter instead of {@link #input()}. If the
+     * type of argumentHint is not defined, it will be considered an invalid argument and an
+     * exception will be thrown. Additionally, both this parameter and {@link #input()} cannot be
+     * defined at the same time. If neither argument nor {@link #input()} are defined,
+     * reflection-based extraction will be used.
+     */
+    ArgumentHint[] argument() default {};
 
     /**
      * Explicitly defines the intermediate result type that a function uses as accumulator.

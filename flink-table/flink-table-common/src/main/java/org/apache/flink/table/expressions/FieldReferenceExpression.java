@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -86,6 +87,11 @@ public final class FieldReferenceExpression implements ResolvedExpression {
     @Override
     public String asSummaryString() {
         return name;
+    }
+
+    @Override
+    public String asSerializableString() {
+        return EncodingUtils.escapeIdentifier(name);
     }
 
     @Override

@@ -55,14 +55,14 @@ public final class StreamSQLExample {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final DataStream<Order> orderA =
-                env.fromCollection(
+                env.fromData(
                         Arrays.asList(
                                 new Order(1L, "beer", 3),
                                 new Order(1L, "diaper", 4),
                                 new Order(3L, "rubber", 2)));
 
         final DataStream<Order> orderB =
-                env.fromCollection(
+                env.fromData(
                         Arrays.asList(
                                 new Order(2L, "pen", 3),
                                 new Order(2L, "rubber", 3),

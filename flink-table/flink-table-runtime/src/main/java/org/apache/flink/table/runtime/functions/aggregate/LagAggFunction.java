@@ -78,7 +78,8 @@ public class LagAggFunction<T> extends BuiltInAggregateFunction<T, LagAggFunctio
         return DataTypes.STRUCTURED(
                 LagAcc.class,
                 DataTypes.FIELD("offset", DataTypes.INT()),
-                DataTypes.FIELD("defaultValue", valueDataTypes[0]),
+                // The initial accumulator's default value is null.
+                DataTypes.FIELD("defaultValue", valueDataTypes[0].nullable()),
                 DataTypes.FIELD("buffer", getLinkedListType()));
     }
 

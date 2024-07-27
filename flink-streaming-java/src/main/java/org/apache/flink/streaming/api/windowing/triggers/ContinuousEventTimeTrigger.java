@@ -27,6 +27,8 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+import java.time.Duration;
+
 /**
  * A {@link Trigger} that continuously fires based on a given time interval. This fires based on
  * {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks}.
@@ -133,9 +135,21 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
      *
      * @param interval The time interval at which to fire.
      * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+     * @deprecated Use {@link #of(Duration)}
      */
+    @Deprecated
     public static <W extends Window> ContinuousEventTimeTrigger<W> of(Time interval) {
-        return new ContinuousEventTimeTrigger<>(interval.toMilliseconds());
+        return of(interval.toDuration());
+    }
+
+    /**
+     * Creates a trigger that continuously fires based on the given interval.
+     *
+     * @param interval The time interval at which to fire.
+     * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+     */
+    public static <W extends Window> ContinuousEventTimeTrigger<W> of(Duration interval) {
+        return new ContinuousEventTimeTrigger<>(interval.toMillis());
     }
 
     private static class Min implements ReduceFunction<Long> {

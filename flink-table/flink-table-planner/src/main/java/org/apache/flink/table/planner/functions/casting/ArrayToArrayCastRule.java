@@ -68,7 +68,7 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
 
         final String innerTargetTypeTerm = arrayElementType(innerTargetType);
         final String arraySize = methodCall(inputTerm, "size");
-        final String objArrayTerm = newName("objArray");
+        final String objArrayTerm = newName(context.getCodeGeneratorContext(), "objArray");
 
         return new CastRuleUtils.CodeWriter()
                 .declStmt(
@@ -102,7 +102,8 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
                                         .assignArrayStmt(
                                                 objArrayTerm, index, codeBlock.getReturnTerm());
                             }
-                        })
+                        },
+                        context.getCodeGeneratorContext())
                 .assignStmt(returnVariable, constructorCall(GenericArrayData.class, objArrayTerm))
                 .toString();
     }

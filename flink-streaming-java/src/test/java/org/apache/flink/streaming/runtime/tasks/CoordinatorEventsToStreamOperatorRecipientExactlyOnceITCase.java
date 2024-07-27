@@ -99,7 +99,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * checkpoint completed before the failure is injected, and that there must be events sent from the
  * coordinator to its subtask during checkpoint.
  */
-public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
+class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         extends CoordinatorEventsExactlyOnceITCase {
 
     private static final int NUM_EVENTS = 100;

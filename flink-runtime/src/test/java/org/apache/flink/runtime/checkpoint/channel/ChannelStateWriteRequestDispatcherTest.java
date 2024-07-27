@@ -169,8 +169,7 @@ public class ChannelStateWriteRequestDispatcherTest {
     void doRun() {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(),
-                        JOB_ID,
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(JOB_ID),
                         new ChannelStateSerializerImpl());
         try {
             processor.dispatch(register());

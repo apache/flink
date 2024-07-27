@@ -82,7 +82,7 @@ class InternalOperatorGroupTest {
     @Test
     void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(
+        cfg.set(
                 MetricOptions.SCOPE_NAMING_OPERATOR,
                 "<tm_id>.<job_id>.<task_id>.<operator_name>.<operator_id>");
         MetricRegistryImpl registry =

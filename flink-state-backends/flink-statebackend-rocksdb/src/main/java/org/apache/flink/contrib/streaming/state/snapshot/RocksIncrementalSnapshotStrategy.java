@@ -47,6 +47,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -97,7 +98,6 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull LocalRecoveryConfig localRecoveryConfig,
-            @Nonnull CloseableRegistry cancelStreamRegistry,
             @Nonnull File instanceBasePath,
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Collection<HandleAndLocalPath>> uploadedStateHandles,
@@ -187,7 +187,7 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException {
         stateUploader.close();
     }
 
@@ -262,6 +262,8 @@ public class RocksIncrementalSnapshotStrategy<K>
             // Handles to the misc files in the current snapshot will go here
             final List<HandleAndLocalPath> miscFiles = new ArrayList<>();
 
+            final List<StreamStateHandle> reusedHandle = new ArrayList<>();
+
             try {
 
                 metaStateHandle =
@@ -284,7 +286,8 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 sstFiles,
                                 miscFiles,
                                 snapshotCloseableRegistry,
-                                tmpResourcesRegistry);
+                                tmpResourcesRegistry,
+                                reusedHandle);
 
                 // We make the 'sstFiles' as the 'sharedState' in IncrementalRemoteKeyedStateHandle,
                 // whether they belong to the sharded CheckpointedStateScope or exclusive
@@ -322,6 +325,10 @@ public class RocksIncrementalSnapshotStrategy<K>
             } finally {
                 if (!completed) {
                     cleanupIncompleteSnapshot(tmpResourcesRegistry, localBackupDirectory);
+                } else {
+                    // Report the reuse of state handle to stream factory, which is essential for
+                    // file merging mechanism.
+                    checkpointStreamFactory.reusePreviousStateHandle(reusedHandle);
                 }
             }
         }
@@ -331,7 +338,8 @@ public class RocksIncrementalSnapshotStrategy<K>
                 @Nonnull List<HandleAndLocalPath> sstFiles,
                 @Nonnull List<HandleAndLocalPath> miscFiles,
                 @Nonnull CloseableRegistry snapshotCloseableRegistry,
-                @Nonnull CloseableRegistry tmpResourcesRegistry)
+                @Nonnull CloseableRegistry tmpResourcesRegistry,
+                @Nonnull List<StreamStateHandle> reusedHandle)
                 throws Exception {
 
             // write state data
@@ -350,6 +358,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 ? CheckpointedStateScope.EXCLUSIVE
                                 : CheckpointedStateScope.SHARED;
 
+                // Collect the reuse of state handle.
+                sstFiles.stream().map(HandleAndLocalPath::getHandle).forEach(reusedHandle::add);
+
                 List<HandleAndLocalPath> sstFilesUploadResult =
                         stateUploader.uploadFilesToCheckpointFs(
                                 sstFilePaths,
@@ -358,7 +369,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 snapshotCloseableRegistry,
                                 tmpResourcesRegistry);
                 uploadedSize +=
-                        sstFilesUploadResult.stream().mapToLong(e -> e.getStateSize()).sum();
+                        sstFilesUploadResult.stream()
+                                .mapToLong(HandleAndLocalPath::getStateSize)
+                                .sum();
                 sstFiles.addAll(sstFilesUploadResult);
 
                 List<HandleAndLocalPath> miscFilesUploadResult =
@@ -369,7 +382,9 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 snapshotCloseableRegistry,
                                 tmpResourcesRegistry);
                 uploadedSize +=
-                        miscFilesUploadResult.stream().mapToLong(e -> e.getStateSize()).sum();
+                        miscFilesUploadResult.stream()
+                                .mapToLong(HandleAndLocalPath::getStateSize)
+                                .sum();
                 miscFiles.addAll(miscFilesUploadResult);
 
                 synchronized (uploadedSstFiles) {
@@ -402,7 +417,8 @@ public class RocksIncrementalSnapshotStrategy<K>
 
                 if (fileName.endsWith(SST_FILE_SUFFIX)) {
                     Optional<StreamStateHandle> uploaded = previousSnapshot.getUploaded(fileName);
-                    if (uploaded.isPresent()) {
+                    if (uploaded.isPresent()
+                            && checkpointStreamFactory.couldReuseStateHandle(uploaded.get())) {
                         sstFiles.add(HandleAndLocalPath.of(uploaded.get(), fileName));
                     } else {
                         sstFilePaths.add(filePath); // re-upload

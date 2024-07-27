@@ -26,30 +26,30 @@ import scala.collection.mutable.ListBuffer
 class ScalaEnumSerializerSnapshot[E <: Enumeration] extends TypeSerializerSnapshot[E#Value] {
 
   var enumClass: Class[E] = _
-  var previousEnumConstants: List[(String, Int)] = _
+  var enumConstants: List[(String, Int)] = _
 
   def this(enum: E) = {
     this()
     this.enumClass = Preconditions.checkNotNull(enum).getClass.asInstanceOf[Class[E]]
-    this.previousEnumConstants = enum.values.toList.map(x => (x.toString, x.id))
+    this.enumConstants = enum.values.toList.map(x => (x.toString, x.id))
   }
 
   def this(enumClass: Class[E], previousEnumConstants: List[(String, Int)]) = {
     this()
     this.enumClass = Preconditions.checkNotNull(enumClass)
-    this.previousEnumConstants = Preconditions.checkNotNull(previousEnumConstants)
+    this.enumConstants = Preconditions.checkNotNull(previousEnumConstants)
   }
 
   override def getCurrentVersion: Int = ScalaEnumSerializerSnapshot.VERSION
 
   override def writeSnapshot(out: DataOutputView): Unit = {
     Preconditions.checkState(enumClass != null)
-    Preconditions.checkState(previousEnumConstants != null)
+    Preconditions.checkState(enumConstants != null)
 
     out.writeUTF(enumClass.getName)
 
-    out.writeInt(previousEnumConstants.length)
-    for ((name, idx) <- previousEnumConstants) {
+    out.writeInt(enumConstants.length)
+    for ((name, idx) <- enumConstants) {
       out.writeUTF(name)
       out.writeInt(idx)
     }
@@ -71,7 +71,7 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration] extends TypeSerializerSnapsh
       listBuffer += ((name, idx))
     }
 
-    previousEnumConstants = listBuffer.toList
+    enumConstants = listBuffer.toList
   }
 
   override def restoreSerializer(): TypeSerializer[E#Value] = {
@@ -80,25 +80,26 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration] extends TypeSerializerSnapsh
     new EnumValueSerializer(enumObject)
   }
 
-  override def resolveSchemaCompatibility(
-      newSerializer: TypeSerializer[E#Value]): TypeSerializerSchemaCompatibility[E#Value] = {
+  override def resolveSchemaCompatibility(oldSerializerSnapshot: TypeSerializerSnapshot[E#Value])
+      : TypeSerializerSchemaCompatibility[E#Value] = {
 
     Preconditions.checkState(enumClass != null)
-    Preconditions.checkState(previousEnumConstants != null)
+    Preconditions.checkState(enumConstants != null)
 
-    if (!newSerializer.isInstanceOf[EnumValueSerializer[E]]) {
+    if (!oldSerializerSnapshot.isInstanceOf[ScalaEnumSerializerSnapshot[E]]) {
       return TypeSerializerSchemaCompatibility.incompatible()
     }
 
-    val newEnumSerializer = newSerializer.asInstanceOf[EnumValueSerializer[E]]
-    if (!enumClass.equals(newEnumSerializer.enum.getClass)) {
+    val oldEnumSerializerSnapshot =
+      oldSerializerSnapshot.asInstanceOf[ScalaEnumSerializerSnapshot[E]]
+    if (!enumClass.equals(oldEnumSerializerSnapshot.enumClass)) {
       return TypeSerializerSchemaCompatibility.incompatible()
     }
 
-    for ((previousEnumName, index) <- previousEnumConstants) {
+    for ((oldEnumName, index) <- oldEnumSerializerSnapshot.enumConstants) {
       try {
-        val newEnumName = newEnumSerializer.enum(index).toString
-        if (previousEnumName != newEnumName) {
+        val enumName = enumConstants(index)._1
+        if (enumName != oldEnumName) {
           return TypeSerializerSchemaCompatibility.incompatible()
         }
       } catch {

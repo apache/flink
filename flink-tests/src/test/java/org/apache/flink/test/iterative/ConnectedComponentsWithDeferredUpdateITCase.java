@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.runner.RunWith;
@@ -46,7 +46,7 @@ import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
  * the solution set.
  */
 @RunWith(Parameterized.class)
-public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTestBase {
+public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final long SEED = 0xBADC0FFEEBEEFL;
 

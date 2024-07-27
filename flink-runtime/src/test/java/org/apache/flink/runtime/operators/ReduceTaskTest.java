@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Record, Record>> {
+public class ReduceTaskTest extends DriverTestBase<GroupReduceFunction<Record, Record>> {
     private static final Logger LOG = LoggerFactory.getLogger(ReduceTaskTest.class);
 
     @SuppressWarnings("unchecked")

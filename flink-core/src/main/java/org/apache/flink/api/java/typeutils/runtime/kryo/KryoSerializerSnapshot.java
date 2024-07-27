@@ -33,11 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
-import java.util.function.Function;
 
 import static org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializerSnapshotData.createFrom;
 import static org.apache.flink.util.LinkedOptionalMap.mergeRightIntoLeft;
-import static org.apache.flink.util.LinkedOptionalMap.optionalMapOf;
 
 /** {@link TypeSerializerSnapshot} for {@link KryoSerializer}. */
 public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
@@ -92,24 +90,25 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
     @Override
     public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer) {
-        if (!(newSerializer instanceof KryoSerializer)) {
+            TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof KryoSerializerSnapshot)) {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
-        KryoSerializer<T> kryoSerializer = (KryoSerializer<T>) newSerializer;
-        if (kryoSerializer.getType() != snapshotData.getTypeClass()) {
+        KryoSerializerSnapshot<T> oldKryoSerializerSnapshot =
+                (KryoSerializerSnapshot<T>) oldSerializerSnapshot;
+        if (snapshotData.getTypeClass() != oldKryoSerializerSnapshot.snapshotData.getTypeClass()) {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
-        return resolveSchemaCompatibility(kryoSerializer);
+        return resolveSchemaCompatibility(oldKryoSerializerSnapshot);
     }
 
     private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            KryoSerializer<T> newSerializer) {
+            KryoSerializerSnapshot<T> oldKryoSerializerSnapshot) {
         // merge the default serializers
         final MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers =
                 mergeRightIntoLeft(
-                        snapshotData.getDefaultKryoSerializers(),
-                        optionalMapOf(newSerializer.getDefaultKryoSerializers(), Class::getName));
+                        oldKryoSerializerSnapshot.snapshotData.getDefaultKryoSerializers(),
+                        snapshotData.getDefaultKryoSerializers());
 
         if (reconfiguredDefaultKryoSerializers.hasMissingKeys()) {
             logMissingKeys(reconfiguredDefaultKryoSerializers);
@@ -120,10 +119,9 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         final MergeResult<Class<?>, Class<? extends Serializer<?>>>
                 reconfiguredDefaultKryoSerializerClasses =
                         mergeRightIntoLeft(
-                                snapshotData.getDefaultKryoSerializerClasses(),
-                                optionalMapOf(
-                                        newSerializer.getDefaultKryoSerializerClasses(),
-                                        Class::getName));
+                                oldKryoSerializerSnapshot.snapshotData
+                                        .getDefaultKryoSerializerClasses(),
+                                snapshotData.getDefaultKryoSerializerClasses());
 
         if (reconfiguredDefaultKryoSerializerClasses.hasMissingKeys()) {
             logMissingKeys(reconfiguredDefaultKryoSerializerClasses);
@@ -133,8 +131,8 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         // merge registration
         final MergeResult<String, KryoRegistration> reconfiguredRegistrations =
                 mergeRightIntoLeft(
-                        snapshotData.getKryoRegistrations(),
-                        optionalMapOf(newSerializer.getKryoRegistrations(), Function.identity()));
+                        oldKryoSerializerSnapshot.snapshotData.getKryoRegistrations(),
+                        snapshotData.getKryoRegistrations());
 
         if (reconfiguredRegistrations.hasMissingKeys()) {
             logMissingKeys(reconfiguredRegistrations);

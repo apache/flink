@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.util.CloseableIterator;
 
@@ -52,12 +52,23 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
     private final CollectResultFetcher<T> fetcher;
     private T bufferedResult;
 
+    private CompletableFuture<OperatorID> operatorIdFuture;
+    private TypeSerializer<T> serializer;
+    private String accumulatorName;
+    private CheckpointConfig checkpointConfig;
+    private long resultFetchTimeout;
+
     public CollectResultIterator(
             CompletableFuture<OperatorID> operatorIdFuture,
             TypeSerializer<T> serializer,
             String accumulatorName,
             CheckpointConfig checkpointConfig,
             long resultFetchTimeout) {
+        this.operatorIdFuture = operatorIdFuture;
+        this.serializer = serializer;
+        this.accumulatorName = accumulatorName;
+        this.checkpointConfig = checkpointConfig;
+        this.resultFetchTimeout = resultFetchTimeout;
         AbstractCollectResultBuffer<T> buffer = createBuffer(serializer, checkpointConfig);
         this.fetcher =
                 new CollectResultFetcher<>(
@@ -77,7 +88,7 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
                         operatorIdFuture,
                         accumulatorName,
                         retryMillis,
-                        AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
+                        RpcOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
         this.bufferedResult = null;
     }
 
@@ -122,7 +133,8 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
     private AbstractCollectResultBuffer<T> createBuffer(
             TypeSerializer<T> serializer, CheckpointConfig checkpointConfig) {
         if (checkpointConfig.isCheckpointingEnabled()) {
-            if (checkpointConfig.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE) {
+            if (checkpointConfig.getCheckpointingConsistencyMode()
+                    == CheckpointingMode.EXACTLY_ONCE) {
                 return new CheckpointedCollectResultBuffer<>(serializer);
             } else {
                 return new UncheckpointedCollectResultBuffer<>(serializer, true);
@@ -130,5 +142,14 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
         } else {
             return new UncheckpointedCollectResultBuffer<>(serializer, false);
         }
+    }
+
+    public CollectResultIterator<T> copy() {
+        return new CollectResultIterator<>(
+                this.operatorIdFuture,
+                this.serializer,
+                this.accumulatorName,
+                this.checkpointConfig,
+                this.resultFetchTimeout);
     }
 }

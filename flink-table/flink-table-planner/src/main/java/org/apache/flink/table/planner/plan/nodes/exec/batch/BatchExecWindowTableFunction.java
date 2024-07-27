@@ -61,4 +61,14 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
         }
         return super.translateToPlanInternal(planner, config);
     }
+
+    @Override
+    protected Transformation<RowData> translateWithUnalignedWindow(
+            PlannerBase planner,
+            ExecNodeConfig config,
+            RowType inputRowType,
+            Transformation<RowData> inputTransform) {
+        throw new TableException(
+                "Unaligned windows like session are not supported in batch mode yet.");
+    }
 }

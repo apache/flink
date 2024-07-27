@@ -48,7 +48,7 @@ Operator's On-CPU Flame Graph
 
 {{< hint warning >}}
 
-Any measurement process in and of itself inevitably affects the subject of measurement (see the [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation)). Sampling CPU stack traces is no exception. In order to prevent unintended impacts on production environments, Flame Graphs are currently available as an opt-in feature. To enable it, you'll need to set [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in `conf/flink-conf.yaml`. We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
+Any measurement process in and of itself inevitably affects the subject of measurement (see the [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation)). Sampling CPU stack traces is no exception. In order to prevent unintended impacts on production environments, Flame Graphs are currently available as an opt-in feature. To enable it, you'll need to set [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
 
 {{< /hint >}}
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.output;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.Output;
@@ -55,7 +55,7 @@ public class OutputTest extends MultipleInputTestBase {
         latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
         serializer =
                 InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType()))
-                        .createSerializer(new ExecutionConfig());
+                        .createSerializer(new SerializerConfigImpl());
     }
 
     @Test

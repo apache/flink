@@ -249,7 +249,8 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
 
             // mark this subtask as executed before
             stateFromSavepoint.update(
-                    Collections.singletonList(getRuntimeContext().getIndexOfThisSubtask()));
+                    Collections.singletonList(
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()));
         }
     }
 }

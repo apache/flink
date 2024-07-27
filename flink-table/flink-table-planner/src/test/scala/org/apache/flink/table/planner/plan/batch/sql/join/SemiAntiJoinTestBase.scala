@@ -19,11 +19,10 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 abstract class SemiAntiJoinTestBase extends TableTestBase {
 
@@ -33,7 +32,7 @@ abstract class SemiAntiJoinTestBase extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("t", 'i, 'j, 'k)
   util.addTableSource[(Int, Long)]("leftT", 'a, 'b)
   util.addTableSource[(Int, Long)]("rightT", 'c, 'd)
-  util.addFunction("table_func", new StringSplit)
+  util.addTemporarySystemFunction("table_func", new StringSplit)
 
   @Test
   def testInWithUncorrelated_SimpleCondition1(): Unit = {

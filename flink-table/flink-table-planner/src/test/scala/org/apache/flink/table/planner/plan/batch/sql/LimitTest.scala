@@ -21,6 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 
+import org.junit.jupiter.api.BeforeEach
+
 /**
  * The plan of following unit test in LimitTest.xml is a bit diffirent from LegacyLimitTest.xml.
  * Because the TestValuesTableSource has implemented [[SupportsProjectionPushDown]] while the
@@ -30,6 +32,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
  */
 class LimitTest extends LegacyLimitTest {
 
+  @BeforeEach
   override def setup(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val ddl =

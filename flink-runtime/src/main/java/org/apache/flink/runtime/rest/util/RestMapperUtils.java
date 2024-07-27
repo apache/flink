@@ -26,23 +26,36 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Serializa
 
 /** This class contains utilities for mapping requests and responses to/from JSON. */
 public class RestMapperUtils {
-    private static final ObjectMapper objectMapper;
+    private static final ObjectMapper strictObjectMapper;
+    private static final ObjectMapper flexibleObjectMapper;
 
     static {
-        objectMapper = JacksonMapperFactory.createObjectMapper();
-        objectMapper.enable(
+        strictObjectMapper = JacksonMapperFactory.createObjectMapper();
+        strictObjectMapper.enable(
                 DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES,
                 DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES,
                 DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
-        objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        strictObjectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
+        flexibleObjectMapper = strictObjectMapper.copy();
+        flexibleObjectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 
     /**
-     * Returns a preconfigured {@link ObjectMapper}.
+     * Returns a preconfigured strict {@link ObjectMapper}.
      *
      * @return preconfigured object mapper
      */
     public static ObjectMapper getStrictObjectMapper() {
-        return objectMapper;
+        return strictObjectMapper;
+    }
+
+    /**
+     * Returns a preconfigured flexible {@link ObjectMapper}.
+     *
+     * @return preconfigured object mapper
+     */
+    public static ObjectMapper getFlexibleObjectMapper() {
+        return flexibleObjectMapper;
     }
 }

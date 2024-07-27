@@ -241,8 +241,8 @@ CREATE TABLE MyUserTableWithFilepath (
 
 **注意：** 对于 bulk formats 数据 (parquet、orc、avro)，滚动策略与 checkpoint 间隔（pending 状态的文件会在下个 checkpoint 完成）控制了 part 文件的大小和个数。
 
-**注意：** 对于 row formats 数据 (csv、json)，如果想使得分区文件更快在文件系统中可见，可以设置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 属性以及在 flink-conf.yaml 中的 `execution.checkpointing.interval` 属性。
-对于其他 formats (avro、orc)，可以只设置 flink-conf.yaml 中的 `execution.checkpointing.interval` 属性。
+**注意：** 对于 row formats 数据 (csv、json)，如果想使得分区文件更快在文件系统中可见，可以设置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 属性以及在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 `execution.checkpointing.interval` 属性。
+对于其他 formats (avro、orc)，可以只设置 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 `execution.checkpointing.interval` 属性。
 
 <a name="file-compaction"></a>
 

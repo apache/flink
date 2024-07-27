@@ -29,6 +29,7 @@ import org.apache.flink.util.FileUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,7 +52,7 @@ class RestAPIDocGeneratorTest {
                                 "This REST API should also not appear in the generated documentation.")),
                 RuntimeRestAPIVersion.V0,
                 file.toPath());
-        String actual = FileUtils.readFile(file, "UTF-8");
+        String actual = FileUtils.readFile(file, StandardCharsets.UTF_8);
 
         assertThat(actual).containsSequence("/test/empty1");
         assertThat(actual).containsSequence("This is a testing REST API.");

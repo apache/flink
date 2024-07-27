@@ -18,30 +18,29 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AscendingTimestampsWatermarks} class. */
-public class BoundedOutOfOrdernessWatermarksTest {
+class BoundedOutOfOrdernessWatermarksTest {
 
     @Test
-    public void testWatermarkBeforeRecords() {
+    void testWatermarkBeforeRecords() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final BoundedOutOfOrdernessWatermarks<Object> watermarks =
                 new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
 
         watermarks.onPeriodicEmit(output);
 
-        assertNotNull(output.lastWatermark());
-        assertEquals(Long.MIN_VALUE, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark()).isNotNull();
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
     }
 
     @Test
-    public void testWatermarkAfterEvent() {
+    void testWatermarkAfterEvent() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final BoundedOutOfOrdernessWatermarks<Object> watermarks =
                 new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
@@ -49,11 +48,11 @@ public class BoundedOutOfOrdernessWatermarksTest {
         watermarks.onEvent(new Object(), 1337L, output);
         watermarks.onPeriodicEmit(output);
 
-        assertEquals(1326L, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(1326L);
     }
 
     @Test
-    public void testWatermarkAfterNonMonotonousEvents() {
+    void testWatermarkAfterNonMonotonousEvents() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final BoundedOutOfOrdernessWatermarks<Object> watermarks =
                 new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
@@ -64,11 +63,11 @@ public class BoundedOutOfOrdernessWatermarksTest {
         watermarks.onEvent(new Object(), 12280L, output);
         watermarks.onPeriodicEmit(output);
 
-        assertEquals(12334L, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(12334L);
     }
 
     @Test
-    public void testRepeatedProbe() {
+    void testRepeatedProbe() {
         final TestingWatermarkOutput output = new TestingWatermarkOutput();
         final BoundedOutOfOrdernessWatermarks<Object> watermarks =
                 new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
@@ -78,6 +77,6 @@ public class BoundedOutOfOrdernessWatermarksTest {
 
         watermarks.onPeriodicEmit(output);
 
-        assertEquals(723445L, output.lastWatermark().getTimestamp());
+        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(723445L);
     }
 }

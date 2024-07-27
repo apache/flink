@@ -95,5 +95,7 @@ public class TestingSqlGatewayRestEndpoint extends SqlGatewayRestEndpoint {
     }
 
     @Override
-    protected void startInternal() {}
+    protected void startInternal() {
+        super.startInternal();
+    }
 }

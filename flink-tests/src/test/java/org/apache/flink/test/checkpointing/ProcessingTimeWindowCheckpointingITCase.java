@@ -109,7 +109,9 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -170,7 +172,9 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 

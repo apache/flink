@@ -29,7 +29,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -45,7 +45,6 @@ import org.apache.flink.util.CollectionUtil
 import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.regex.Pattern
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.Seq
 import _root_.scala.collection.mutable.ArrayBuffer
 import _root_.scala.util.Sorting
 import org.apache.calcite.rel.RelNode
@@ -58,15 +57,11 @@ import org.junit.jupiter.api.{AfterEach, BeforeEach}
 class BatchTestBase extends BatchAbstractTestBase {
 
   protected var settings = EnvironmentSettings.newInstance().inBatchMode().build()
-  protected var testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
-    .create(settings, catalogManager = None, TableConfig.getDefault)
-  protected var tEnv: TableEnvironment = testingTableEnv
-  tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
-  protected var planner =
-    tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-  protected var env: StreamExecutionEnvironment = planner.getExecEnv
-  env.getConfig.enableObjectReuse()
-  protected var tableConfig: TableConfig = tEnv.getConfig
+  protected var testingTableEnv: TestingTableEnvironment = _
+  protected var tEnv: TableEnvironment = _
+  protected var planner: PlannerBase = _
+  protected var env: StreamExecutionEnvironment = _
+  protected var tableConfig: TableConfig = _
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile(
@@ -75,9 +70,21 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @throws(classOf[Exception])
   @BeforeEach
-  def before(): Unit = {
+  def setupEnv(): Unit = {
+    testingTableEnv = TestingTableEnvironment
+      .create(settings, catalogManager = None, TableConfig.getDefault)
+    tEnv = testingTableEnv
+    tEnv.getConfig.set(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, Boolean.box(false))
+    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    env = planner.getExecEnv
+    env.getConfig.enableObjectReuse()
+    tableConfig = tEnv.getConfig
     BatchTestBase.configForMiniCluster(tableConfig)
   }
+
+  @throws(classOf[Exception])
+  @BeforeEach
+  def before(): Unit = {}
 
   @AfterEach
   def after(): Unit = {
@@ -411,26 +418,6 @@ class BatchTestBase extends BatchAbstractTestBase {
       name: String,
       functionClass: Class[_ <: UserDefinedFunction]): Unit = {
     testingTableEnv.createTemporarySystemFunction(name, functionClass)
-  }
-
-  /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  def registerFunction(name: String, function: ScalarFunction): Unit = {
-    testingTableEnv.registerFunction(name, function)
-  }
-
-  /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: AggregateFunction[T, ACC]): Unit = {
-    testingTableEnv.registerFunction(name, f)
-  }
-
-  /** @deprecated Use [[registerTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
-    testingTableEnv.registerFunction(name, tf)
   }
 
   def registerRange(name: String, end: Long): Unit = {

@@ -51,10 +51,39 @@ object ComparatorCodeGenerator {
       name: String,
       inputType: RowType,
       sortSpec: SortSpec): GeneratedRecordComparator = {
-    val className = newName(name)
+    gen(tableConfig, classLoader, name, inputType, sortSpec, null)
+  }
+
+  /**
+   * Generates a [[RecordComparator]] that can be passed to a Java compiler.
+   *
+   * @param tableConfig
+   *   Table config.
+   * @param classLoader
+   *   user ClassLoader.
+   * @param name
+   *   Class name of the function. Does not need to be unique but has to be a valid Java class
+   *   identifier.
+   * @param inputType
+   *   input type.
+   * @param sortSpec
+   *   sort specification.
+   * @param parentCtx
+   *   parent CodeGeneratorContext to avoid name conflicts.
+   * @return
+   *   A GeneratedRecordComparator
+   */
+  def gen(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      name: String,
+      inputType: RowType,
+      sortSpec: SortSpec,
+      parentCtx: CodeGeneratorContext): GeneratedRecordComparator = {
     val baseClass = classOf[RecordComparator]
 
-    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader, parentCtx)
+    val className = newName(ctx, name)
     val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, "o1", "o2")
 
     val code =

@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
@@ -50,7 +49,6 @@ import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
-import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
@@ -79,7 +77,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlCastFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -111,18 +108,13 @@ public class CommonPythonUtil {
     }
 
     public static Configuration extractPythonConfiguration(
-            StreamExecutionEnvironment env, ReadableConfig tableConfig, ClassLoader classLoader) {
+            ReadableConfig tableConfig, ClassLoader classLoader) {
         Class<?> clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS, classLoader);
         try {
-            StreamExecutionEnvironment realEnv = getRealEnvironment(env);
             Method method =
-                    clazz.getDeclaredMethod(
-                            "extractPythonConfiguration", List.class, ReadableConfig.class);
-            return (Configuration) method.invoke(null, realEnv.getCachedFiles(), tableConfig);
-        } catch (NoSuchFieldException
-                | IllegalAccessException
-                | NoSuchMethodException
-                | InvocationTargetException e) {
+                    clazz.getDeclaredMethod("extractPythonConfiguration", ReadableConfig.class);
+            return (Configuration) method.invoke(null, tableConfig);
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new TableException("Method extractPythonConfiguration accessed failed.", e);
         }
     }
@@ -161,7 +153,7 @@ public class CommonPythonUtil {
             Configuration config, ClassLoader classLoader) {
         Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS, classLoader);
         try {
-            return config.getBoolean(
+            return config.get(
                     (ConfigOption<Boolean>) (clazz.getField("USE_MANAGED_MEMORY").get(null)));
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new TableException("Field USE_MANAGED_MEMORY accessed failed.", e);
@@ -173,7 +165,7 @@ public class CommonPythonUtil {
             Configuration config, ClassLoader classLoader) {
         Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS, classLoader);
         try {
-            return config.getString(
+            return config.get(
                             (ConfigOption<String>)
                                     (clazz.getField("PYTHON_EXECUTION_MODE").get(null)))
                     .equalsIgnoreCase("process");
@@ -470,17 +462,6 @@ public class CommonPythonUtil {
             }
         }
         return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());
-    }
-
-    private static StreamExecutionEnvironment getRealEnvironment(StreamExecutionEnvironment env)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field realExecEnvField =
-                DummyStreamExecutionEnvironment.class.getDeclaredField("realExecEnv");
-        realExecEnvField.setAccessible(true);
-        while (env instanceof DummyStreamExecutionEnvironment) {
-            env = (StreamExecutionEnvironment) realExecEnvField.get(env);
-        }
-        return env;
     }
 
     private static BuiltInPythonAggregateFunction getBuiltInPythonAggregateFunction(

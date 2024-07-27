@@ -22,29 +22,34 @@ import org.apache.flink.table.api.{Tumble, ValidationException, _}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit._
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class OverWindowValidationTest extends TableTestBase {
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val overAgg = new OverAgg0
-    t.select('c.count, overAgg('b, 'a))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select('c.count, overAgg('b, 'a)))
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation2(): Unit = {
     val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
     val overAgg = new OverAgg0
-    table
-      .window(Tumble.over(5.milli).on('long).as('w))
-      .groupBy('string, 'w)
-      .select(overAgg('long, 'int))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            .window(Tumble.over(5.milli).on('long).as('w))
+            .groupBy('string, 'w)
+            .select(overAgg('long, 'int)))
   }
 }

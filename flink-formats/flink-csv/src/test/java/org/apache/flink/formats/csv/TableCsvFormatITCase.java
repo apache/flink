@@ -28,7 +28,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
@@ -58,7 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the CSV file format. */
-public class TableCsvFormatITCase extends AbstractTestBase {
+public class TableCsvFormatITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public ExpectedException exception = ExpectedException.none();
 

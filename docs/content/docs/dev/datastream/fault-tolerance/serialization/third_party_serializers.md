@@ -31,35 +31,37 @@ If you use a custom type in your Flink program which cannot be serialized by the
 Flink type serializer, Flink falls back to using the generic Kryo
 serializer. You may register your own serializer or a serialization system like
 Google Protobuf or Apache Thrift with Kryo. To do that, simply register the type
-class and the serializer in the `ExecutionConfig` of your Flink program.
+class and the serializer via the configuration option
+[pipeline.serialization-config]({{< ref "docs/deployment/config#pipeline-serialization-config" >}}):
 
+```yaml
+pipeline.serialization-config:
+  - org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}
+```
+
+You could also programmatically set it as follows:
 
 ```java
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+Configuration config = new Configuration();
 
 // register the class of the serializer as serializer for a type
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, MyCustomSerializer.class);
+config.set(PipelineOptions.SERIALIZATION_CONFIG, 
+    "[org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}]");
 
-// register an instance as serializer for a type
-MySerializer mySerializer = new MySerializer();
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, mySerializer);
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
 Note that your custom serializer has to extend Kryo's Serializer class. In the
 case of Google Protobuf or Apache Thrift, this has already been done for
-you:
+you.
 
-```java
-
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-// register the Google Protobuf serializer with Kryo
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, ProtobufSerializer.class);
-
-// register the serializer included with Apache Thrift as the standard serializer
-// TBaseSerializer states it should be initialized as a default Kryo serializer
-env.getConfig().addDefaultKryoSerializer(MyCustomType.class, TBaseSerializer.class);
-
+```yaml
+pipeline.serialization-config:
+# register the Google Protobuf serializer with Kryo
+  - org.example.MyCustomProtobufType: {type: kryo, kryo-type: registered, class: com.twitter.chill.protobuf.ProtobufSerializer}
+# register the serializer included with Apache Thrift as the standard serializer
+# TBaseSerializer states it should be initialized as a default Kryo serializer
+  - org.example.MyCustomThriftType: {type: kryo, kryo-type: default, class: com.twitter.chill.thrift.TBaseSerializer}
 ```
 
 For the above example to work, you need to include the necessary dependencies in

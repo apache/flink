@@ -467,7 +467,7 @@
         "savepointPath" : {
           "type" : "string"
         },
-        "restoreMode" : {
+        "claimMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         },
@@ -476,6 +476,10 @@
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         }
       }
     },
@@ -865,6 +869,10 @@
           "type" : "string",
           "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
         },
+        "job-type" : {
+          "type" : "string",
+          "enum" : [ "BATCH", "STREAMING" ]
+        },
         "start-time" : {
           "type" : "integer"
         },
@@ -893,6 +901,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexDetailsInfo",
             "properties" : {
               "id" : {
+                "type" : "any"
+              },
+              "slotSharingGroupId" : {
                 "type" : "any"
               },
               "name" : {
@@ -1971,6 +1982,9 @@
               "location" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "timestamp" : {
                 "type" : "integer"
               },
@@ -2014,6 +2028,9 @@
                   "location" : {
                     "type" : "string"
                   },
+                  "endpoint" : {
+                    "type" : "string"
+                  },
                   "taskManagerId" : {
                     "type" : "string"
                   },
@@ -2042,6 +2059,9 @@
                           "type" : "string"
                         },
                         "location" : {
+                          "type" : "string"
+                        },
+                        "endpoint" : {
                           "type" : "string"
                         },
                         "taskManagerId" : {
@@ -2598,6 +2618,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -2873,6 +2896,31 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/jm-operator-metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -2939,6 +2987,9 @@
                 "type" : "integer"
               },
               "host" : {
+                "type" : "string"
+              },
+              "endpoint" : {
                 "type" : "string"
               },
               "user-accumulators" : {
@@ -3031,6 +3082,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3140,6 +3194,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3338,6 +3395,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "duration" : {
                 "type" : "integer"
               },
@@ -3391,6 +3451,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
               "host" : {
+                "type" : "string"
+              },
+              "endpoint" : {
                 "type" : "string"
               },
               "status" : {

@@ -62,7 +62,7 @@ public interface TaskManagerRuntimeInfo {
      * @return The bind address of the TaskManager.
      */
     default String getTaskManagerBindAddress() {
-        return getConfiguration().getString(TaskManagerOptions.BIND_HOST);
+        return getConfiguration().get(TaskManagerOptions.BIND_HOST);
     }
 
     /**

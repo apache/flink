@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.io;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -49,9 +50,9 @@ public class CompressedHeaderlessChannelTest {
     @Parameterized.Parameters(name = "compressionFactory = {0}")
     public static BlockCompressionFactory[] compressionFactory() {
         return new BlockCompressionFactory[] {
-            BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
-            BlockCompressionFactory.createBlockCompressionFactory("LZO"),
-            BlockCompressionFactory.createBlockCompressionFactory("ZSTD")
+            BlockCompressionFactory.createBlockCompressionFactory(CompressionCodec.LZ4),
+            BlockCompressionFactory.createBlockCompressionFactory(CompressionCodec.LZO),
+            BlockCompressionFactory.createBlockCompressionFactory(CompressionCodec.ZSTD)
         };
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
@@ -381,7 +382,8 @@ class NormalizedKeySorterTest {
         @SuppressWarnings("unchecked")
         TypeComparator<Tuple2<Integer, String>> accessors =
                 TestData.getIntStringTupleTypeInfo()
-                        .createComparator(new int[] {1}, new boolean[] {true}, 0, null);
+                        .createComparator(
+                                new int[] {1}, new boolean[] {true}, 0, new ExecutionConfig());
         NormalizedKeySorter<Tuple2<Integer, String>> sorter =
                 new NormalizedKeySorter<>(
                         TestData.getIntStringTupleSerializer(), accessors, memory);
@@ -429,7 +431,8 @@ class NormalizedKeySorterTest {
         @SuppressWarnings("unchecked")
         TypeComparator<Tuple2<Integer, String>> accessors =
                 TestData.getIntStringTupleTypeInfo()
-                        .createComparator(new int[] {1}, new boolean[] {true}, 0, null);
+                        .createComparator(
+                                new int[] {1}, new boolean[] {true}, 0, new ExecutionConfig());
         NormalizedKeySorter<Tuple2<Integer, String>> sorter =
                 new NormalizedKeySorter<>(
                         TestData.getIntStringTupleSerializer(), accessors, memory);

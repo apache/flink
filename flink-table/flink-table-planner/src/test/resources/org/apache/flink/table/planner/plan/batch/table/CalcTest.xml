@@ -227,7 +227,7 @@ LogicalProject(_c0=[hashCode($2)], b=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[MyHashCode$(c) AS _c0, b])
+Calc(select=[hashCode(c) AS _c0, b])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>

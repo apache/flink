@@ -26,13 +26,13 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -126,7 +126,7 @@ class UnifiedSinkMigrationITCase {
     private JobClient executeJob(boolean restore) throws Exception {
         final Configuration conf = new Configuration();
         if (restore) {
-            conf.set(SavepointConfigOptions.SAVEPOINT_PATH, findSavepointPath());
+            conf.set(StateRecoveryOptions.SAVEPOINT_PATH, findSavepointPath());
         }
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(conf);

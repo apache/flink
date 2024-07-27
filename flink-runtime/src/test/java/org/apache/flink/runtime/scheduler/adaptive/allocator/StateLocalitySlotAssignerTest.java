@@ -44,8 +44,38 @@ import static org.hamcrest.Matchers.hasSize;
 
 /** {@link StateLocalitySlotAssigner} test. */
 class StateLocalitySlotAssignerTest {
+
     @Test
-    public void testSlotsAreNotWasted() {
+    public void testDownScaleWithUnevenStateSize() {
+        int newParallelism = 1;
+        VertexInformation vertex = createVertex(newParallelism);
+        AllocationID allocationWith100bytes = new AllocationID();
+        AllocationID allocationWith200bytes = new AllocationID();
+
+        List<VertexAllocationInformation> allocations =
+                Arrays.asList(
+                        new VertexAllocationInformation(
+                                allocationWith100bytes,
+                                vertex.getJobVertexID(),
+                                KeyGroupRange.of(0, 99),
+                                1),
+                        new VertexAllocationInformation(
+                                allocationWith200bytes,
+                                vertex.getJobVertexID(),
+                                KeyGroupRange.of(100, 100),
+                                200));
+
+        Collection<SlotAssignment> assignments =
+                assign(
+                        vertex,
+                        Arrays.asList(allocationWith100bytes, allocationWith200bytes),
+                        allocations);
+
+        verifyAssignments(assignments, newParallelism, allocationWith200bytes);
+    }
+
+    @Test
+    void testSlotsAreNotWasted() {
         VertexInformation vertex = createVertex(2);
         AllocationID alloc1 = new AllocationID();
         AllocationID alloc2 = new AllocationID();
@@ -53,15 +83,15 @@ class StateLocalitySlotAssignerTest {
         List<VertexAllocationInformation> allocations =
                 Arrays.asList(
                         new VertexAllocationInformation(
-                                alloc1, vertex.getJobVertexID(), KeyGroupRange.of(0, 9)),
+                                alloc1, vertex.getJobVertexID(), KeyGroupRange.of(0, 9), 1),
                         new VertexAllocationInformation(
-                                alloc2, vertex.getJobVertexID(), KeyGroupRange.of(10, 19)));
+                                alloc2, vertex.getJobVertexID(), KeyGroupRange.of(10, 19), 1));
 
         assign(vertex, Arrays.asList(alloc1, alloc2), allocations);
     }
 
     @Test
-    public void testUpScaling() {
+    void testUpScaling() {
         final int oldParallelism = 3;
         final int newParallelism = 7;
         final int numFreeSlots = 100;
@@ -76,7 +106,8 @@ class StateLocalitySlotAssignerTest {
                             iterator.next(),
                             vertex.getJobVertexID(),
                             KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
-                                    vertex.getMaxParallelism(), oldParallelism, i)));
+                                    vertex.getMaxParallelism(), oldParallelism, i),
+                            1));
         }
 
         Collection<SlotAssignment> assignments = assign(vertex, allocationIDs, prevAllocations);
@@ -90,7 +121,7 @@ class StateLocalitySlotAssignerTest {
     }
 
     @Test
-    public void testDownScaling() {
+    void testDownScaling() {
         final int oldParallelism = 5;
         final int newParallelism = 1;
         final int numFreeSlots = 100;
@@ -106,7 +137,8 @@ class StateLocalitySlotAssignerTest {
                 new VertexAllocationInformation(
                         biggestAllocation,
                         vertex.getJobVertexID(),
-                        KeyGroupRange.of(0, halfOfKeyGroupRange - 1)));
+                        KeyGroupRange.of(0, halfOfKeyGroupRange - 1),
+                        1));
 
         // and the remaining subtasks had only one key group each
         for (int subtaskIdx = 1; subtaskIdx < oldParallelism; subtaskIdx++) {
@@ -115,7 +147,8 @@ class StateLocalitySlotAssignerTest {
                     new VertexAllocationInformation(
                             iterator.next(),
                             vertex.getJobVertexID(),
-                            KeyGroupRange.of(keyGroup, keyGroup)));
+                            KeyGroupRange.of(keyGroup, keyGroup),
+                            1));
         }
 
         Collection<SlotAssignment> assignments = assign(vertex, allocationIDs, prevAllocations);

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
@@ -194,8 +195,13 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
     }
 
     @Override
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<T> createSerializer(SerializerConfig config) {
         return typeSerializer;
+    }
+
+    @Override
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

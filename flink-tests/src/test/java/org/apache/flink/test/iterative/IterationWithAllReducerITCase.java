@@ -22,14 +22,14 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.util.List;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Test iterator with an all-reduce. */
-public class IterationWithAllReducerITCase extends JavaProgramTestBase {
+public class IterationWithAllReducerITCase extends JavaProgramTestBaseJUnit4 {
     private static final String EXPECTED = "1\n";
 
     @Override

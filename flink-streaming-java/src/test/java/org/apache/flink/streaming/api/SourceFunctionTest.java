@@ -23,35 +23,35 @@ import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.SourceFunctionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SourceFunction}. */
-public class SourceFunctionTest {
+class SourceFunctionTest {
 
     @Test
-    public void fromElementsTest() throws Exception {
+    void fromElementsTest() throws Exception {
         List<Integer> expectedList = Arrays.asList(1, 2, 3);
         List<Integer> actualList =
                 SourceFunctionUtil.runSourceFunction(
                         CommonTestUtils.createCopySerializable(
                                 new FromElementsFunction<Integer>(
                                         IntSerializer.INSTANCE, 1, 2, 3)));
-        assertEquals(expectedList, actualList);
+        assertThat(actualList).isEqualTo(expectedList);
     }
 
     @Test
-    public void fromCollectionTest() throws Exception {
+    void fromCollectionTest() throws Exception {
         List<Integer> expectedList = Arrays.asList(1, 2, 3);
         List<Integer> actualList =
                 SourceFunctionUtil.runSourceFunction(
                         CommonTestUtils.createCopySerializable(
                                 new FromElementsFunction<Integer>(
                                         IntSerializer.INSTANCE, Arrays.asList(1, 2, 3))));
-        assertEquals(expectedList, actualList);
+        assertThat(actualList).isEqualTo(expectedList);
     }
 }

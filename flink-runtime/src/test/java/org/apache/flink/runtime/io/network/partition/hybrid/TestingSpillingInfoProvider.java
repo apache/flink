@@ -198,14 +198,16 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
 
         public Builder addSubpartitionBuffers(
                 int subpartitionId, List<BufferIndexAndChannel> subpartitionBuffers) {
-            allBuffers.computeIfAbsent(subpartitionId, ArrayList::new).addAll(subpartitionBuffers);
+            allBuffers
+                    .computeIfAbsent(subpartitionId, k -> new ArrayList<>())
+                    .addAll(subpartitionBuffers);
             return this;
         }
 
         public Builder addSpillBuffers(
                 int subpartitionId, List<Integer> subpartitionSpillBufferIndexes) {
             spillBufferIndexes
-                    .computeIfAbsent(subpartitionId, HashSet::new)
+                    .computeIfAbsent(subpartitionId, k -> new HashSet<>())
                     .addAll(subpartitionSpillBufferIndexes);
             return this;
         }
@@ -213,7 +215,7 @@ public class TestingSpillingInfoProvider implements HsSpillingInfoProvider {
         public Builder addConsumedBuffers(
                 int subpartitionId, List<Integer> subpartitionConsumedBufferIndexes) {
             consumedBufferIndexes
-                    .computeIfAbsent(subpartitionId, HashSet::new)
+                    .computeIfAbsent(subpartitionId, k -> new HashSet<>())
                     .addAll(subpartitionConsumedBufferIndexes);
             return this;
         }

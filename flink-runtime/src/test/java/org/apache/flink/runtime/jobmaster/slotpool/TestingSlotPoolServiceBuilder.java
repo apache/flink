@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nonnull;
@@ -43,8 +42,8 @@ import java.util.function.Function;
 /** {@link SlotPoolServiceFactory} which creates a {@link TestingSlotPoolService}. */
 public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
 
-    private TriConsumer<? super JobMasterId, ? super String, ? super ComponentMainThreadExecutor>
-            startConsumer = (ignoredA, ignoredB, ignoredC) -> {};
+    private BiFunction<? super JobMasterId, ? super String, Void> startConsumer =
+            (ignoredA, ignoredB) -> null;
     private Runnable closeRunnable = () -> {};
     private TriFunction<
                     ? super TaskManagerLocation,
@@ -71,7 +70,9 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
     @Nonnull
     @Override
     public SlotPoolService createSlotPoolService(
-            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+            @Nonnull JobID jobId,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new TestingSlotPoolService(
                 jobId,
                 startConsumer,

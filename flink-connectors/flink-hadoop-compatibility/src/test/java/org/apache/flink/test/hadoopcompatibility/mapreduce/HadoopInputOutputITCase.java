@@ -25,22 +25,23 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.OperatingSystem;
 
-import org.junit.Assume;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT cases for both the {@link HadoopInputFormat} and {@link HadoopOutputFormat}. */
-public class HadoopInputOutputITCase extends JavaProgramTestBase {
+class HadoopInputOutputITCase extends JavaProgramTestBase {
 
-    protected String textPath;
-    protected String resultPath;
+    private String textPath;
+    private String resultPath;
 
-    @Before
-    public void checkOperatingSystem() {
+    @BeforeEach
+    void checkOperatingSystem() {
         // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-        Assume.assumeTrue(
-                "This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows())
+                .as("This test can't run successfully on Windows.")
+                .isFalse();
     }
 
     @Override

@@ -26,10 +26,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link StreamMap}. These test that:
@@ -40,7 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class StreamFlatMapTest {
+class StreamFlatMapTest {
 
     private static final class MyFlatMap implements FlatMapFunction<Integer, Integer> {
 
@@ -56,7 +57,7 @@ public class StreamFlatMapTest {
     }
 
     @Test
-    public void testFlatMap() throws Exception {
+    void testFlatMap() throws Exception {
         StreamFlatMap<Integer, Integer> operator =
                 new StreamFlatMap<Integer, Integer>(new MyFlatMap());
 
@@ -93,7 +94,7 @@ public class StreamFlatMapTest {
     }
 
     @Test
-    public void testOpenClose() throws Exception {
+    void testOpenClose() throws Exception {
         StreamFlatMap<String, String> operator =
                 new StreamFlatMap<String, String>(new TestOpenCloseFlatMapFunction());
 
@@ -108,9 +109,10 @@ public class StreamFlatMapTest {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseFlatMapFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        assertThat(TestOpenCloseFlatMapFunction.closeCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
+        assertThat(testHarness.getOutput()).as("Output contains no elements.").isNotEmpty();
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -124,26 +126,20 @@ public class StreamFlatMapTest {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+            assertThat(closeCalled).as("Close called before open.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public void flatMap(String value, Collector<String> out) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             out.collect(value);
         }
     }

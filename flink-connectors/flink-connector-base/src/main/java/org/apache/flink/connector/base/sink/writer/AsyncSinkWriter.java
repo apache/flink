@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.BasicRequestInfo;
 import org.apache.flink.connector.base.sink.writer.strategy.BasicResultInfo;
@@ -40,6 +41,9 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -83,6 +87,9 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private final long maxBatchSizeInBytes;
     private final long maxTimeInBufferMS;
     private final long maxRecordSizeInBytes;
+
+    private final long requestTimeoutMS;
+    private final boolean failOnTimeout;
 
     /**
      * The ElementConverter provides a mapping between for the elements of a stream to request
@@ -180,6 +187,9 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * <p>During checkpointing, the sink needs to ensure that there are no outstanding in-flight
      * requests.
      *
+     * <p>This method is {@deprecated} in favor of {@code submitRequestEntries(List<RequestEntryT>
+     * requestEntries, ResultHandler<RequestEntryT> resultHandler)}
+     *
      * @param requestEntries a set of request entries that should be sent to the destination
      * @param requestToRetry the {@code accept} method should be called on this Consumer once the
      *     processing of the {@code requestEntries} are complete. Any entries that encountered
@@ -187,8 +197,78 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *     including that element in the collection of {@code RequestEntryT}s passed to the {@code
      *     accept} method. All other elements are assumed to have been successfully persisted.
      */
-    protected abstract void submitRequestEntries(
-            List<RequestEntryT> requestEntries, Consumer<List<RequestEntryT>> requestToRetry);
+    @Deprecated
+    protected void submitRequestEntries(
+            List<RequestEntryT> requestEntries, Consumer<List<RequestEntryT>> requestToRetry) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated. Please override the method that accepts a ResultHandler.");
+    }
+
+    /**
+     * This method specifies how to persist buffered request entries into the destination. It is
+     * implemented when support for a new destination is added.
+     *
+     * <p>The method is invoked with a set of request entries according to the buffering hints (and
+     * the valid limits of the destination). The logic then needs to create and execute the request
+     * asynchronously against the destination (ideally by batching together multiple request entries
+     * to increase efficiency). The logic also needs to identify individual request entries that
+     * were not persisted successfully and resubmit them using the {@code requestToRetry} callback.
+     *
+     * <p>From a threading perspective, the mailbox thread will call this method and initiate the
+     * asynchronous request to persist the {@code requestEntries}. NOTE: The client must support
+     * asynchronous requests and the method called to persist the records must asynchronously
+     * execute and return a future with the results of that request. A thread from the destination
+     * client thread pool should complete the request and trigger the {@code resultHandler} to
+     * complete the processing of the request entries. The {@code resultHandler} actions will run on
+     * the mailbox thread.
+     *
+     * <p>An example implementation of this method is included:
+     *
+     * <pre>{@code
+     * @Override
+     * protected void submitRequestEntries
+     *   (List<RequestEntryT> records, ResultHandler<RequestEntryT> resultHandler) {
+     *     Future<Response> response = destinationClient.putRecords(records);
+     *     response.whenComplete(
+     *         (response, error) -> {
+     *             if(error != null && isFatal(error)){
+     *                  resultHandler.completeExceptionally(error);
+     *             }else if(error != null){
+     *                 List<RequestEntryT> retryableFailedRecords = getRetryableFailed(response);
+     *                 resultHandler.retryForEntries(retryableFailedRecords);
+     *             }else{
+     *                 resultHandler.complete();
+     *             }
+     *         }
+     *     );
+     * }
+     *
+     * }</pre>
+     *
+     * <p>During checkpointing, the sink needs to ensure that there are no outstanding in-flight
+     * requests.
+     *
+     * @param requestEntries a set of request entries that should be sent to the destination
+     * @param resultHandler the {@code complete} method should be called on this ResultHandler once
+     *     the processing of the {@code requestEntries} are complete. Any entries that encountered
+     *     difficulties in persisting should be re-queued through {@code retryForEntries} by
+     *     including that element in the collection of {@code RequestEntryT}s passed to the {@code
+     *     retryForEntries} method. All other elements are assumed to have been successfully
+     *     persisted. In case of encountering fatal exceptions, the {@code completeExceptionally}
+     *     method should be called.
+     */
+    protected void submitRequestEntries(
+            List<RequestEntryT> requestEntries, ResultHandler<RequestEntryT> resultHandler) {
+        submitRequestEntries(
+                requestEntries,
+                requestsToRetry -> {
+                    if (requestsToRetry.isEmpty()) {
+                        resultHandler.complete();
+                    } else {
+                        resultHandler.retryForEntries(requestsToRetry);
+                    }
+                });
+    }
 
     /**
      * This method allows the getting of the size of a {@code RequestEntryT} in bytes. The size in
@@ -256,6 +336,11 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                 states);
     }
 
+    /**
+     * Should be removed along {@link
+     * org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter}.
+     */
+    @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
             Sink.InitContext context,
@@ -286,6 +371,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         this.maxTimeInBufferMS = configuration.getMaxTimeInBufferMS();
         this.maxRecordSizeInBytes = configuration.getMaxRecordSizeInBytes();
         this.rateLimitingStrategy = configuration.getRateLimitingStrategy();
+        this.requestTimeoutMS = configuration.getRequestTimeoutMS();
+        this.failOnTimeout = configuration.isFailOnTimeout();
 
         this.inFlightRequestsCount = 0;
         this.bufferedRequestEntriesTotalSizeInBytes = 0;
@@ -305,6 +392,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         elementConverter.open(context);
         initializeState(states);
+    }
+
+    public AsyncSinkWriter(
+            ElementConverter<InputT, RequestEntryT> elementConverter,
+            WriterInitContext context,
+            AsyncSinkWriterConfiguration configuration,
+            Collection<BufferedRequestState<RequestEntryT>> states) {
+        this(elementConverter, new Sink.InitContextWrapper(context), configuration, states);
     }
 
     private void registerCallback() {
@@ -369,23 +464,16 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         }
 
         List<RequestEntryT> batch = createNextAvailableBatch(requestInfo);
-        if (batch.size() == 0) {
+        if (batch.isEmpty()) {
             return;
         }
 
-        int batchSize = requestInfo.getBatchSize();
         long requestTimestamp = System.currentTimeMillis();
-        Consumer<List<RequestEntryT>> requestToRetry =
-                failedRequestEntries ->
-                        mailboxExecutor.execute(
-                                () ->
-                                        completeRequest(
-                                                failedRequestEntries, batchSize, requestTimestamp),
-                                "Mark in-flight request as completed and requeue %d request entries",
-                                failedRequestEntries.size());
+
         rateLimitingStrategy.registerInFlightRequest(requestInfo);
         inFlightRequestsCount++;
-        submitRequestEntries(batch, requestToRetry);
+        submitRequestEntries(
+                batch, new AsyncSinkWriterResultHandler(requestTimestamp, batch, requestInfo));
     }
 
     private int getNextBatchSize() {
@@ -518,5 +606,79 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     protected Consumer<Exception> getFatalExceptionCons() {
         return fatalExceptionCons;
+    }
+
+    /** An implementation of {@link ResultHandler} that supports timeout. */
+    private class AsyncSinkWriterResultHandler implements ResultHandler<RequestEntryT> {
+        private final ScheduledFuture<?> scheduledFuture;
+        private final long requestTimestamp;
+        private final int batchSize;
+        private final AtomicBoolean isCompleted = new AtomicBoolean(false);
+        private final List<RequestEntryT> batchEntries;
+
+        public AsyncSinkWriterResultHandler(
+                long requestTimestamp, List<RequestEntryT> batchEntries, RequestInfo requestInfo) {
+            this.scheduledFuture =
+                    timeService.registerTimer(
+                            timeService.getCurrentProcessingTime() + requestTimeoutMS,
+                            instant -> this.timeout());
+            this.requestTimestamp = requestTimestamp;
+            this.batchEntries = batchEntries;
+            this.batchSize = requestInfo.getBatchSize();
+        }
+
+        @Override
+        public void complete() {
+            if (isCompleted.compareAndSet(false, true)) {
+                scheduledFuture.cancel(false);
+                mailboxExecutor.execute(
+                        () -> completeRequest(Collections.emptyList(), batchSize, requestTimestamp),
+                        "Mark in-flight request as completed successfully for batch with size %d",
+                        batchSize);
+            }
+        }
+
+        @Override
+        public void completeExceptionally(Exception e) {
+            if (isCompleted.compareAndSet(false, true)) {
+                scheduledFuture.cancel(false);
+                mailboxExecutor.execute(
+                        () -> getFatalExceptionCons().accept(e),
+                        "Mark in-flight request as failed with fatal exception %s",
+                        e.getMessage());
+            }
+        }
+
+        @Override
+        public void retryForEntries(List<RequestEntryT> requestEntriesToRetry) {
+            if (isCompleted.compareAndSet(false, true)) {
+                scheduledFuture.cancel(false);
+                mailboxExecutor.execute(
+                        () -> completeRequest(requestEntriesToRetry, batchSize, requestTimestamp),
+                        "Mark in-flight request as completed with %d failed request entries",
+                        requestEntriesToRetry.size());
+            }
+        }
+
+        public void timeout() {
+            if (isCompleted.compareAndSet(false, true)) {
+                mailboxExecutor.execute(
+                        () -> {
+                            if (failOnTimeout) {
+                                getFatalExceptionCons()
+                                        .accept(
+                                                new TimeoutException(
+                                                        "Request timed out after "
+                                                                + requestTimeoutMS
+                                                                + "ms with failOnTimeout set to true."));
+                            } else {
+                                // Retry the request on timeout
+                                completeRequest(batchEntries, batchSize, requestTimestamp);
+                            }
+                        },
+                        "Mark in-flight request as completed with timeout after %l",
+                        requestTimeoutMS);
+            }
+        }
     }
 }

@@ -22,13 +22,15 @@ import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.annotation.DataTypeHint
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.JList
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.fail
 
 import java.util
 
@@ -429,11 +431,24 @@ abstract class SplittableTableFunction[A, B] extends TableFunction[Tuple3[String
 
 @SerialVersionUID(1L)
 class PojoTableFunc extends TableFunction[PojoUser] {
-  def eval(user: String) {
+  def eval(user: String): Unit = {
     if (user.contains("#")) {
       val splits = user.split("#")
       collect(new PojoUser(splits(0), splits(1).toInt))
     }
+  }
+
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.STRING())
+      .outputTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[PojoUser],
+            DataTypes.FIELD("name", DataTypes.STRING()),
+            DataTypes.FIELD("age", DataTypes.INT())
+          )))
+      .build
   }
 }
 
@@ -469,17 +484,17 @@ class RichTableFunc0 extends TableFunction[String] {
   override def open(context: FunctionContext): Unit = {
     super.open(context)
     if (closeCalled) {
-      Assert.fail("Close called before open.")
+      fail("Close called before open.")
     }
     openCalled = true
   }
 
   def eval(str: String): Unit = {
     if (!openCalled) {
-      Assert.fail("Open was not called before eval.")
+      fail("Open was not called before eval.")
     }
     if (closeCalled) {
-      Assert.fail("Close called before eval.")
+      fail("Close called before eval.")
     }
 
     if (!str.contains("#")) {
@@ -490,7 +505,7 @@ class RichTableFunc0 extends TableFunction[String] {
   override def close(): Unit = {
     super.close()
     if (!openCalled) {
-      Assert.fail("Open was not called before close.")
+      fail("Open was not called before close.")
     }
     closeCalled = true
   }

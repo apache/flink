@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -57,8 +57,8 @@ class PekkoRpcActorOversizedResponseMessageTest {
     static void setupClass() throws Exception {
         final Configuration configuration = new Configuration();
         // some tests explicitly test local communication where no serialization should occur
-        configuration.set(AkkaOptions.FORCE_RPC_INVOCATION_SERIALIZATION, false);
-        configuration.setString(AkkaOptions.FRAMESIZE, FRAMESIZE + " b");
+        configuration.set(RpcOptions.FORCE_RPC_INVOCATION_SERIALIZATION, false);
+        configuration.set(RpcOptions.FRAMESIZE, FRAMESIZE + " b");
 
         rpcService1 =
                 PekkoRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0)

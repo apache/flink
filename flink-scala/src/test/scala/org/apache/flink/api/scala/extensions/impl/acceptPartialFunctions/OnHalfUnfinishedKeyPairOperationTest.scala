@@ -24,7 +24,7 @@ import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OnHalfUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
 

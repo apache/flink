@@ -20,9 +20,9 @@ package org.apache.flink.api.scala.operators
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBaseJUnit4, TestBaseUtils}
 
+import MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -58,7 +58,7 @@ class PojoWithPojo(var myString: String, var myInt: Int, var nested: Nested) {
 }
 
 @RunWith(classOf[Parameterized])
-class ExamplesITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class ExamplesITCase(mode: TestExecutionMode) extends MultipleProgramsTestBaseJUnit4(mode) {
   private var resultPath: String = null
   private var expected: String = null
   private val _tempFolder = new TemporaryFolder()

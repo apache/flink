@@ -70,7 +70,7 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
-import org.junit.{Before, BeforeClass}
+import org.junit.jupiter.api.{BeforeAll, BeforeEach}
 
 import java.math.BigDecimal
 import java.time.Duration
@@ -108,7 +108,7 @@ class FlinkRelMdHandlerTestBase {
   var batchPhysicalTraits: RelTraitSet = _
   var streamPhysicalTraits: RelTraitSet = _
 
-  @Before
+  @BeforeEach
   def setUp(): Unit = {
     relBuilder = plannerContext.createRelBuilder()
 
@@ -309,6 +309,9 @@ class FlinkRelMdHandlerTestBase {
     relBuilder.push(scan)
     relBuilder.watermark(4, watermarkRexNode).build()
   }
+
+  protected lazy val streamMiniBatchAssigner: RelNode =
+    new StreamPhysicalMiniBatchAssigner(cluster, streamPhysicalTraits, studentStreamScan)
 
   // id, name, score, age, height, sex, class, 1
   // id, null, score, age, height, sex, class, 4
@@ -3730,7 +3733,7 @@ class TestRel(cluster: RelOptCluster, traits: RelTraitSet, input: RelNode)
 }
 
 object FlinkRelMdHandlerTestBase {
-  @BeforeClass
+  @BeforeAll
   def beforeAll(): Unit = {
     RelMetadataQueryBase.THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))

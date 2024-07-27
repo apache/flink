@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.operators.UserFunctionProvider;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -46,7 +46,7 @@ import java.util.List;
  * @param <T> The type of the elements in the input {@code LegacySinkTransformation}
  */
 @Internal
-public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
+public class LegacySinkTransformation<T> extends TransformationWithLineage<T> {
 
     private final Transformation<T> input;
 
@@ -136,7 +136,7 @@ public class LegacySinkTransformation<T> extends PhysicalTransformation<T> {
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         List<Transformation<?>> result = Lists.newArrayList();
         result.add(this);
         result.addAll(input.getTransitivePredecessors());

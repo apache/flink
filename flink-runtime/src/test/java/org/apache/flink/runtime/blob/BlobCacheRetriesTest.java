@@ -68,8 +68,8 @@ class BlobCacheRetriesTest {
     @Test
     void testBlobFetchRetriesHa() throws IOException {
         final Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStoreService = null;
@@ -138,8 +138,8 @@ class BlobCacheRetriesTest {
     @Test
     void testBlobForJobFetchWithTooManyFailuresHa() throws IOException {
         final Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, tempDir.toString());
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, tempDir.toString());
 
         BlobStoreService blobStoreService = null;
 

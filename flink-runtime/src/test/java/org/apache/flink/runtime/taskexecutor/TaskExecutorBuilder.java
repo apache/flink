@@ -139,6 +139,7 @@ public class TaskExecutorBuilder {
                             VoidPermanentBlobService.INSTANCE,
                             UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                             Executors.newDirectExecutorService(),
+                            rpcService.getScheduledExecutor(),
                             throwable -> {},
                             workingDirectory);
         } else {

@@ -119,8 +119,8 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
 
             RuntimeContext runtimeCtx = getRuntimeContext();
 
-            final long stepSize = runtimeCtx.getNumberOfParallelSubtasks();
-            final long congruence = runtimeCtx.getIndexOfThisSubtask();
+            final long stepSize = runtimeCtx.getTaskInfo().getNumberOfParallelSubtasks();
+            final long congruence = runtimeCtx.getTaskInfo().getIndexOfThisSubtask();
             final long toCollect =
                     (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
 
@@ -177,7 +177,7 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
         @Override
         public Long map(Long value) throws Exception {
             if (!markerCreated) {
-                int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+                int taskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
                 touchFile(new File(coordinateDir, READY_MARKER_FILE_PREFIX + taskIndex));
                 markerCreated = true;
             }
@@ -200,8 +200,8 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
 
         @Override
         public void open(OpenContext openContext) throws IOException {
-            stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
-            congruence = getRuntimeContext().getIndexOfThisSubtask();
+            stepSize = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            congruence = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
         }
 

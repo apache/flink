@@ -29,16 +29,17 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -338,10 +339,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
         final File savepointDir = temporaryFolder.newFolder();
 
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-        config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(StateRecoveryOptions.LOCAL_RECOVERY, localRecovery);
 
         // Configure DFS DSTL for this test as it might produce too much GC pressure if
         // ChangelogStateBackend is used.
@@ -353,9 +353,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         // ZooKeeper recovery mode?
         if (zooKeeperQuorum != null) {
             final File haDir = temporaryFolder.newFolder();
-            config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-            config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
-            config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+            config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+            config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
+            config.set(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
         }
 
         MiniClusterWithClientResource cluster =
@@ -402,15 +402,30 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             MiniClusterWithClientResource cluster,
             RestoreMode restoreMode)
             throws Exception {
-        JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint, restoreMode);
+        // complete at least two checkpoints so that the initial checkpoint can be subsumed
+        return runJobAndGetExternalizedCheckpoint(
+                backend, externalCheckpoint, cluster, restoreMode, new Configuration(), 2, true);
+    }
+
+    static String runJobAndGetExternalizedCheckpoint(
+            StateBackend backend,
+            @Nullable String externalCheckpoint,
+            MiniClusterWithClientResource cluster,
+            RestoreMode restoreMode,
+            Configuration jobConfig,
+            int consecutiveCheckpoints,
+            boolean retainCheckpoints)
+            throws Exception {
+        JobGraph initialJobGraph =
+                getJobGraph(backend, externalCheckpoint, restoreMode, jobConfig, retainCheckpoints);
         NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
         cluster.getClusterClient().submitJob(initialJobGraph).get();
 
         // wait until all sources have been started
         NotifyingInfiniteTupleSource.countDownLatch.await();
 
-        // complete at least two checkpoints so that the initial checkpoint can be subsumed
-        waitForCheckpoint(initialJobGraph.getJobID(), cluster.getMiniCluster(), 2);
+        waitForCheckpoint(
+                initialJobGraph.getJobID(), cluster.getMiniCluster(), consecutiveCheckpoints);
         cluster.getClusterClient().cancel(initialJobGraph.getJobID()).get();
         waitUntilJobCanceled(initialJobGraph.getJobID(), cluster.getClusterClient());
 
@@ -423,15 +438,22 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
     }
 
     private static JobGraph getJobGraph(
-            StateBackend backend, @Nullable String externalCheckpoint, RestoreMode restoreMode) {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            StateBackend backend,
+            @Nullable String externalCheckpoint,
+            RestoreMode restoreMode,
+            Configuration jobConfig,
+            boolean retainCheckpoints) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(jobConfig);
 
         env.enableCheckpointing(500);
         env.setStateBackend(backend);
         env.setParallelism(PARALLELISM);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        retainCheckpoints
+                                ? ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION
+                                : ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         env.addSource(new NotifyingInfiniteTupleSource(10_000))

@@ -24,17 +24,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWri
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.rex.RexWindowBounds;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test json serialization/deserialization for {@link RexWindowBound}. */
-public class RexWindowBoundSerdeTest {
+class RexWindowBoundSerdeTest {
 
     @Test
-    public void testSerde() throws IOException {
+    void testSerde() throws IOException {
         SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);

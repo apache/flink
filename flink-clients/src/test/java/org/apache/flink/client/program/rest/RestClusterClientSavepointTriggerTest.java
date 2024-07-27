@@ -62,6 +62,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -91,10 +92,10 @@ class RestClusterClientSavepointTriggerTest {
 
     static {
         final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 10);
-        config.setLong(RestOptions.RETRY_DELAY, 0);
-        config.setInteger(RestOptions.PORT, 0);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RestOptions.RETRY_MAX_ATTEMPTS, 10);
+        config.set(RestOptions.RETRY_DELAY, Duration.ofMillis(0L));
+        config.set(RestOptions.PORT, 0);
 
         REST_CONFIG = new UnmodifiableConfiguration(config);
     }
@@ -346,7 +347,7 @@ class RestClusterClientSavepointTriggerTest {
     private RestClusterClient<StandaloneClusterId> createRestClusterClient(final int port)
             throws Exception {
         final Configuration clientConfig = new Configuration(REST_CONFIG);
-        clientConfig.setInteger(RestOptions.PORT, port);
+        clientConfig.set(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
                 new RestClient(REST_CONFIG, executor),

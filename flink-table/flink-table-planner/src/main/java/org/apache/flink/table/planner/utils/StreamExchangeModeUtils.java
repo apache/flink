@@ -52,6 +52,10 @@ public class StreamExchangeModeUtils {
         final BatchShuffleMode shuffleMode = config.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
         if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
             return StreamExchangeMode.BATCH;
+        } else if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL) {
+            return StreamExchangeMode.HYBRID_FULL;
+        } else if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE) {
+            return StreamExchangeMode.HYBRID_SELECTIVE;
         }
 
         return StreamExchangeMode.UNDEFINED;

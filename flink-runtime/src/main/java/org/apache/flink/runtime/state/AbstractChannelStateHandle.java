@@ -18,14 +18,14 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -66,15 +66,12 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
         this.size = size;
     }
 
-    public static Set<StreamStateHandle> collectUniqueDelegates(
-            Collection<? extends AbstractChannelStateHandle<?>>... collections) {
-        Set<StreamStateHandle> result = new HashSet<>();
-        for (Collection<? extends AbstractChannelStateHandle<?>> collection : collections) {
-            for (AbstractChannelStateHandle<?> handle : collection) {
-                result.add(handle.getDelegate());
-            }
-        }
-        return result;
+    public static Stream<StreamStateHandle> collectUniqueDelegates(
+            Stream<StateObjectCollection<? extends AbstractChannelStateHandle<?>>> collections) {
+        return collections
+                .flatMap(Collection::stream)
+                .map(AbstractChannelStateHandle::getDelegate)
+                .distinct();
     }
 
     @Override
@@ -132,6 +129,8 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
                 + delegate
                 + ", offsets="
                 + offsets
+                + ", size="
+                + size
                 + '}';
     }
 

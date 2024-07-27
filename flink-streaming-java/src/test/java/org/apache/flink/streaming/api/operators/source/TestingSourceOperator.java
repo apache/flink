@@ -26,11 +26,14 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -124,13 +127,16 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             boolean emitProgressiveWatermarks)
             throws Exception {
 
+        AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
+        Environment env = new MockEnvironmentBuilder().build();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         final OperatorStateStore operatorStateStore =
-                new HashMapStateBackend()
-                        .createOperatorStateBackend(
-                                new MockEnvironmentBuilder().build(),
+                abstractStateBackend.createOperatorStateBackend(
+                        new OperatorStateBackendParametersImpl(
+                                env,
                                 "test-operator",
                                 Collections.emptyList(),
-                                new CloseableRegistry());
+                                cancelStreamRegistry));
 
         final StateInitializationContext stateContext =
                 new StateInitializationContextImpl(null, operatorStateStore, null, null, null);

@@ -21,7 +21,9 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.api.DataTypes;
@@ -38,9 +40,14 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.specific.SpecificRecord;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,8 +73,9 @@ class AvroSchemaConverterTest {
         validateUserSchema(AvroSchemaConverter.convertToDataType(schema));
     }
 
-    @Test
-    void testAddingOptionalField() throws IOException {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testAddingOptionalField(AvroEncoding encoding) throws IOException {
         Schema oldSchema =
                 SchemaBuilder.record("record")
                         .fields()
@@ -92,14 +100,21 @@ class AvroSchemaConverterTest {
                                 .set("category_id", 1L)
                                 .set("name", "test")
                                 .build(),
-                        oldSchema);
+                        oldSchema,
+                        encoding);
         GenericDatumReader<GenericRecord> datumReader =
                 new GenericDatumReader<>(oldSchema, newSchema);
-        GenericRecord newRecord =
-                datumReader.read(
-                        null,
-                        DecoderFactory.get()
-                                .binaryDecoder(serializedRecord, 0, serializedRecord.length, null));
+        Decoder decoder;
+        if (encoding == AvroEncoding.JSON) {
+            ByteArrayInputStream input = new ByteArrayInputStream(serializedRecord);
+            decoder = DecoderFactory.get().jsonDecoder(oldSchema, input);
+        } else {
+            decoder =
+                    DecoderFactory.get()
+                            .binaryDecoder(serializedRecord, 0, serializedRecord.length, null);
+        }
+
+        GenericRecord newRecord = datumReader.read(null, decoder);
         assertThat(newRecord)
                 .isEqualTo(
                         new GenericRecordBuilder(newSchema)
@@ -520,6 +535,47 @@ class AvroSchemaConverterTest {
         assertThat(schema).isEqualTo(new Schema.Parser().parse(schemaStr));
     }
 
+    @Test
+    void testTimestampsSchemaToDataTypeToSchemaLegacyTimestampMapping() {
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> testData =
+                AvroTestUtils.getTimestampTestData();
+        String schemaStr = testData.f1.getSchema().toString();
+        DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr);
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(dataType.getLogicalType()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Avro does not support TIMESTAMP type with precision: 6, it only supports precision less than 3.");
+    }
+
+    @Test
+    void testTimestampsSchemaToTypeInfoLegacyTimestampMapping() {
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> testData =
+                AvroTestUtils.getTimestampTestData();
+        String schemaStr = testData.f1.getSchema().toString();
+        TypeInformation<Row> typeInfo = AvroSchemaConverter.convertToTypeInfo(schemaStr);
+        validateLegacyTimestampsSchema(typeInfo);
+    }
+
+    @Test
+    void testTimestampsSchemaToDataTypeToSchemaNewMapping() {
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> testData =
+                AvroTestUtils.getTimestampTestData();
+        String schemaStr = testData.f1.getSchema().toString();
+        DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr, false);
+        Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType(), false);
+        DataType dataType2 = AvroSchemaConverter.convertToDataType(schema.toString(), false);
+        validateTimestampsSchema(dataType2);
+    }
+
+    @Test
+    void testTimestampsSchemaToTypeInfoNewMapping() {
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> testData =
+                AvroTestUtils.getTimestampTestData();
+        String schemaStr = testData.f1.getSchema().toString();
+        TypeInformation<Row> typeInfo = AvroSchemaConverter.convertToTypeInfo(schemaStr, false);
+        validateTimestampsSchema(typeInfo);
+    }
+
     private void validateUserSchema(TypeInformation<?> actual) {
         final TypeInformation<Row> address =
                 Types.ROW_NAMED(
@@ -585,6 +641,78 @@ class AvroSchemaConverterTest {
 
         final RowTypeInfo userRowInfo = (RowTypeInfo) user;
         assertThat(userRowInfo.schemaEquals(actual)).isTrue();
+    }
+
+    private void validateTimestampsSchema(TypeInformation<?> actual) {
+        final TypeInformation<Row> timestamps =
+                Types.ROW_NAMED(
+                        new String[] {
+                            "type_timestamp_millis",
+                            "type_timestamp_micros",
+                            "type_local_timestamp_millis",
+                            "type_local_timestamp_micros"
+                        },
+                        Types.INSTANT,
+                        Types.INSTANT,
+                        Types.LOCAL_DATE_TIME,
+                        Types.LOCAL_DATE_TIME);
+        final RowTypeInfo timestampsRowTypeInfo = (RowTypeInfo) timestamps;
+        assertThat(timestampsRowTypeInfo.schemaEquals(actual)).isTrue();
+    }
+
+    private void validateLegacyTimestampsSchema(TypeInformation<?> actual) {
+        final TypeInformation<Row> timestamps =
+                Types.ROW_NAMED(
+                        new String[] {
+                            "type_timestamp_millis",
+                            "type_timestamp_micros",
+                            "type_local_timestamp_millis",
+                            "type_local_timestamp_micros"
+                        },
+                        Types.SQL_TIMESTAMP,
+                        Types.SQL_TIMESTAMP,
+                        Types.LONG,
+                        Types.LONG);
+        final RowTypeInfo timestampsRowTypeInfo = (RowTypeInfo) timestamps;
+        assertThat(timestampsRowTypeInfo.schemaEquals(actual)).isTrue();
+    }
+
+    private void validateLegacyTimestampsSchema(DataType actual) {
+        final DataType timestamps =
+                DataTypes.ROW(
+                                DataTypes.FIELD(
+                                        "type_timestamp_millis", DataTypes.TIMESTAMP(3).notNull()),
+                                DataTypes.FIELD(
+                                        "type_timestamp_micros", DataTypes.TIMESTAMP(6).notNull()),
+                                DataTypes.FIELD(
+                                        "type_local_timestamp_millis",
+                                        DataTypes.BIGINT().notNull()),
+                                DataTypes.FIELD(
+                                        "type_local_timestamp_micros",
+                                        DataTypes.BIGINT().notNull()))
+                        .notNull();
+
+        assertThat(actual).isEqualTo(timestamps);
+    }
+
+    private void validateTimestampsSchema(DataType actual) {
+        final DataType timestamps =
+                DataTypes.ROW(
+                                DataTypes.FIELD(
+                                        "type_timestamp_millis",
+                                        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull()),
+                                DataTypes.FIELD(
+                                        "type_timestamp_micros",
+                                        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).notNull()),
+                                DataTypes.FIELD(
+                                        "type_local_timestamp_millis",
+                                        DataTypes.TIMESTAMP(3).notNull()),
+                                DataTypes.FIELD(
+                                        "type_local_timestamp_micros",
+                                        DataTypes.TIMESTAMP(6).notNull()))
+                        .notNull();
+
+        assertThat(actual).isEqualTo(timestamps);
     }
 
     private void validateUserSchema(DataType actual) {

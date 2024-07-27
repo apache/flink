@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /** {@link TableChange} represents the modification of the table. */
@@ -78,6 +79,22 @@ public interface TableChange {
      */
     static AddUniqueConstraint add(UniqueConstraint constraint) {
         return new AddUniqueConstraint(constraint);
+    }
+
+    /**
+     * A table change to add a distribution.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; ADD DISTRIBUTION ...
+     * </pre>
+     *
+     * @param distribution the added distribution
+     * @return a TableChange represents the modification.
+     */
+    static AddDistribution add(TableDistribution distribution) {
+        return new AddDistribution(distribution);
     }
 
     /**
@@ -214,6 +231,22 @@ public interface TableChange {
     }
 
     /**
+     * A table change to modify a distribution.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY DISTRIBUTION ...;
+     * </pre>
+     *
+     * @param distribution the modified distribution.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyDistribution modify(TableDistribution distribution) {
+        return new ModifyDistribution(distribution);
+    }
+
+    /**
      * A table change to modify a watermark.
      *
      * <p>It is equal to the following statement:
@@ -277,6 +310,21 @@ public interface TableChange {
     }
 
     /**
+     * A table change to drop a table's distribution.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP DISTRIBUTION
+     * </pre>
+     *
+     * @return a TableChange represents the modification.
+     */
+    static DropDistribution dropDistribution() {
+        return DropDistribution.INSTANCE;
+    }
+
+    /**
      * A table change to set the table option.
      *
      * <p>It is equal to the following statement:
@@ -307,6 +355,29 @@ public interface TableChange {
      */
     static ResetOption reset(String key) {
         return new ResetOption(key);
+    }
+
+    /**
+     * A table change to modify materialized table refresh status.
+     *
+     * @param refreshStatus the modified refresh status.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyRefreshStatus modifyRefreshStatus(
+            CatalogMaterializedTable.RefreshStatus refreshStatus) {
+        return new ModifyRefreshStatus(refreshStatus);
+    }
+
+    /**
+     * A table change to modify materialized table refresh handler.
+     *
+     * @param refreshHandlerDesc the modified refresh handler description.
+     * @param refreshHandlerBytes the modified refresh handler bytes.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyRefreshHandler modifyRefreshHandler(
+            String refreshHandlerDesc, byte[] refreshHandlerBytes) {
+        return new ModifyRefreshHandler(refreshHandlerDesc, refreshHandlerBytes);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -409,6 +480,52 @@ public interface TableChange {
         @Override
         public String toString() {
             return "AddUniqueConstraint{" + "constraint=" + constraint + '}';
+        }
+    }
+
+    /**
+     * A table change to add a distribution.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; ADD DISTRIBUTION ...;
+     * </pre>
+     */
+    @PublicEvolving
+    class AddDistribution implements TableChange {
+
+        private final TableDistribution distribution;
+
+        private AddDistribution(TableDistribution distribution) {
+            this.distribution = distribution;
+        }
+
+        /** Returns the unique constraint to add. */
+        public TableDistribution getDistribution() {
+            return distribution;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof AddDistribution)) {
+                return false;
+            }
+            AddDistribution that = (AddDistribution) o;
+            return Objects.equals(distribution, that.distribution);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(distribution);
+        }
+
+        @Override
+        public String toString() {
+            return "AddDistribution{" + "distribution=" + distribution + '}';
         }
     }
 
@@ -768,6 +885,52 @@ public interface TableChange {
     }
 
     /**
+     * A table change to modify a distribution.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; MODIFY DISTRIBUTION ...;
+     * </pre>
+     */
+    @PublicEvolving
+    class ModifyDistribution implements TableChange {
+
+        private final TableDistribution distribution;
+
+        private ModifyDistribution(TableDistribution distribution) {
+            this.distribution = distribution;
+        }
+
+        /** Returns the unique constraint to add. */
+        public TableDistribution getDistribution() {
+            return distribution;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ModifyDistribution)) {
+                return false;
+            }
+            ModifyDistribution that = (ModifyDistribution) o;
+            return Objects.equals(distribution, that.distribution);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(distribution);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyDistribution{" + "distribution=" + distribution + '}';
+        }
+    }
+
+    /**
      * A table change to modify the watermark.
      *
      * <p>It is equal to the following statement:
@@ -925,6 +1088,25 @@ public interface TableChange {
         @Override
         public String toString() {
             return "DropConstraint{" + "constraintName='" + constraintName + '\'' + '}';
+        }
+    }
+
+    /**
+     * A table change to drop a table's distribution.
+     *
+     * <p>It is equal to the following statement:
+     *
+     * <pre>
+     *    ALTER TABLE &lt;table_name&gt; DROP DISTRIBUTION
+     * </pre>
+     */
+    @PublicEvolving
+    class DropDistribution implements TableChange {
+        static final DropDistribution INSTANCE = new DropDistribution();
+
+        @Override
+        public String toString() {
+            return "DropDistribution";
         }
     }
 
@@ -1094,6 +1276,102 @@ public interface TableChange {
         @Override
         public String toString() {
             return String.format("AFTER %s", EncodingUtils.escapeIdentifier(column));
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Materialized table change
+    // --------------------------------------------------------------------------------------------
+    /** {@link MaterializedTableChange} represents the modification of the materialized table. */
+    @PublicEvolving
+    interface MaterializedTableChange extends TableChange {}
+
+    /** A table change to modify materialized table refresh status. */
+    @PublicEvolving
+    class ModifyRefreshStatus implements MaterializedTableChange {
+
+        private final CatalogMaterializedTable.RefreshStatus refreshStatus;
+
+        public ModifyRefreshStatus(CatalogMaterializedTable.RefreshStatus refreshStatus) {
+            this.refreshStatus = refreshStatus;
+        }
+
+        public CatalogMaterializedTable.RefreshStatus getRefreshStatus() {
+            return refreshStatus;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ModifyRefreshStatus that = (ModifyRefreshStatus) o;
+            return refreshStatus == that.refreshStatus;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(refreshStatus);
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyRefreshStatus{" + "refreshStatus=" + refreshStatus + '}';
+        }
+    }
+
+    /** A table change to modify materialized table refresh handler. */
+    @PublicEvolving
+    class ModifyRefreshHandler implements MaterializedTableChange {
+
+        private final String refreshHandlerDesc;
+        private final byte[] refreshHandlerBytes;
+
+        public ModifyRefreshHandler(String refreshHandlerDesc, byte[] refreshHandlerBytes) {
+            this.refreshHandlerDesc = refreshHandlerDesc;
+            this.refreshHandlerBytes = refreshHandlerBytes;
+        }
+
+        public String getRefreshHandlerDesc() {
+            return refreshHandlerDesc;
+        }
+
+        public byte[] getRefreshHandlerBytes() {
+            return refreshHandlerBytes;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ModifyRefreshHandler that = (ModifyRefreshHandler) o;
+            return Objects.equals(refreshHandlerDesc, that.refreshHandlerDesc)
+                    && Arrays.equals(refreshHandlerBytes, that.refreshHandlerBytes);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(refreshHandlerDesc);
+            result = 31 * result + Arrays.hashCode(refreshHandlerBytes);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyRefreshHandler{"
+                    + "refreshHandlerDesc='"
+                    + refreshHandlerDesc
+                    + '\''
+                    + ", refreshHandlerBytes="
+                    + Arrays.toString(refreshHandlerBytes)
+                    + '}';
         }
     }
 }

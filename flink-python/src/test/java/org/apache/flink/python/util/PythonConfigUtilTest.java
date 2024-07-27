@@ -39,7 +39,7 @@ class PythonConfigUtilTest {
         config.set(PipelineOptions.NAME, jobName);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 
-        env.fromCollection(Collections.singletonList("test")).sinkTo(new DiscardingSink<>());
+        env.fromData(Collections.singletonList("test")).sinkTo(new DiscardingSink<>());
         StreamGraph streamGraph = env.getStreamGraph(true);
         assertThat(streamGraph.getJobName()).isEqualTo(jobName);
     }

@@ -30,29 +30,29 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils}
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.{Assert, Before, Rule, Test}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
-import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.io.TempDir
 
 import java.io.{File, FileFilter}
 import java.lang.{Long => JLong}
+import java.nio.file.Path
 import java.util
 
-import scala.annotation.meta.getter
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
-class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
-  @(Rule @getter)
-  val tempFolder: TemporaryFolder = new TemporaryFolder()
+  @TempDir
+  var tempFolder: Path = _
 
   var tEnv: TableEnvironment = _
 
@@ -62,7 +62,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     EnvironmentSettings.newInstance().inBatchMode().build()
   }
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     tableEnvName match {
       case "TableEnvironment" =>
@@ -76,7 +76,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
   }
 
-  @Test
+  @TestTemplate
   def testExecuteTwiceUsingSameTableEnv(): Unit = {
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -106,7 +106,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertLastValues(sink2Path)
   }
 
-  @Test
+  @TestTemplate
   def testExplainAndExecuteSingleSink(): Unit = {
     val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -118,7 +118,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFirstValues(sinkPath)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSqlWithInsertInto(): Unit = {
     val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -130,14 +130,14 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFirstValues(sinkPath)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSqlWithInsertOverwrite(): Unit = {
     if (isStreaming) {
       // Streaming mode not support overwrite for FileSystemTableSink.
       return
     }
 
-    val sinkPath = tempFolder.newFolder().toString
+    val sinkPath = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink (
@@ -159,7 +159,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFirstValues(sinkPath)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSqlAndExecuteInsert(): Unit = {
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -187,7 +187,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertLastValues(sink2Path)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSqlAndToDataStream(): Unit = {
     if (!tableEnvName.equals("StreamTableEnvironment")) {
       return
@@ -202,7 +202,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
-    val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
+    val resultSet = streamTableEnv.toDataStream(table)
     val sink = new TestingAppendSink
     resultSet.addSink(sink)
 
@@ -221,7 +221,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFileNotExist(sink1Path)
   }
 
-  @Test
+  @TestTemplate
   def testToDataStreamAndExecuteSql(): Unit = {
     if (!tableEnvName.equals("StreamTableEnvironment")) {
       return
@@ -236,7 +236,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
-    val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
+    val resultSet = streamTableEnv.toDataStream(table)
     val sink = new TestingAppendSink
     resultSet.addSink(sink)
 
@@ -263,7 +263,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testFromToDataStreamAndExecuteSql(): Unit = {
     if (!tableEnvName.equals("StreamTableEnvironment")) {
       return
@@ -281,7 +281,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
-    val resultSet = streamTableEnv.toAppendStream[Row](table)
+    val resultSet = streamTableEnv.toDataStream(table)
     val sink = new TestingAppendSink
     resultSet.addSink(sink)
 
@@ -309,7 +309,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertEquals(getExpectedLastValues.sorted, sink.getAppendResults.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteInsert(): Unit = {
     val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -322,7 +322,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFirstValues(sinkPath)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteInsert2(): Unit = {
     val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -334,13 +334,13 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFirstValues(sinkPath)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteInsertOverwrite(): Unit = {
     if (isStreaming) {
       // Streaming mode not support overwrite for FileSystemTableSink.
       return
     }
-    val sinkPath = tempFolder.newFolder().toString
+    val sinkPath = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink (
@@ -361,10 +361,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFirstValues(sinkPath)
   }
 
-  @Test
+  @TestTemplate
   def testTableDMLSync(): Unit = {
     tEnv.getConfig.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true))
-    val sink1Path = tempFolder.newFolder().toString
+    val sink1Path = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink1 (
@@ -378,7 +378,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
        """.stripMargin
     )
 
-    val sink2Path = tempFolder.newFolder().toString
+    val sink2Path = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink2 (
@@ -391,7 +391,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
        """.stripMargin
     )
 
-    val sink3Path = tempFolder.newFolder().toString
+    val sink3Path = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink3 (
@@ -428,7 +428,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     tableResult2.await()
   }
 
-  @Test
+  @TestTemplate
   def testStatementSet(): Unit = {
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -472,7 +472,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertLastValues(sink2Path)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteStatementSet(): Unit = {
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv,
@@ -497,13 +497,13 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertLastValues(sink2Path)
   }
 
-  @Test
+  @TestTemplate
   def testStatementSetWithOverwrite(): Unit = {
     if (isStreaming) {
       // Streaming mode not support overwrite for FileSystemTableSink.
       return
     }
-    val sink1Path = tempFolder.newFolder().toString
+    val sink1Path = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink1 (
@@ -516,7 +516,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
        """.stripMargin
     )
 
-    val sink2Path = tempFolder.newFolder().toString
+    val sink2Path = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink2 (
@@ -557,13 +557,13 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertLastValues(sink2Path)
   }
 
-  @Test
+  @TestTemplate
   def testStatementSetWithSameSinkTableNames(): Unit = {
     if (isStreaming) {
       // Streaming mode not support overwrite for FileSystemTableSink.
       return
     }
-    val sinkPath = tempFolder.newFolder().toString
+    val sinkPath = TempDirUtils.newFolder(tempFolder).toString
     tEnv.executeSql(
       s"""
          |create table MySink (
@@ -588,7 +588,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
       "default_catalog.default_database.MySink_2")
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSelect(): Unit = {
     val query = {
       """
@@ -630,7 +630,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertEquals(expected, actual)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSelectWithUpdateChanges(): Unit = {
     val tableResult = tEnv.sqlQuery("select count(*) as c from MyTable").execute()
     assertTrue(tableResult.getJobClient.isPresent)
@@ -663,7 +663,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertEquals(expected, actual)
   }
 
-  @Test
+  @TestTemplate
   def testExecuteSelectWithTimeAttribute(): Unit = {
     val data = Seq("Mary")
     val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
@@ -688,7 +688,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFalse(it.hasNext)
   }
 
-  @Test
+  @TestTemplate
   def testClearOperation(): Unit = {
     TestCollectionTableFactory.reset()
     val tableEnv = TableEnvironmentImpl.create(settings)
@@ -699,7 +699,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     try {
       // it would fail due to query and sink type mismatch
       tableEnv.executeSql("insert into dest1 select count(*) from src")
-      Assert.fail("insert is expected to fail due to type mismatch")
+      fail("insert is expected to fail due to type mismatch")
     } catch {
       case _: Exception => // expected
     }
@@ -779,7 +779,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 }
 
 object TableEnvironmentITCase {
-  @Parameterized.Parameters(name = "{0}:isStream={1}")
+  @Parameters(name = "{0}:isStream={1}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
       Array("TableEnvironment", true),

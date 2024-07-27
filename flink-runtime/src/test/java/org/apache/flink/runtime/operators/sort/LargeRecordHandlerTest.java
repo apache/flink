@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -65,7 +66,7 @@ class LargeRecordHandlerTest {
                             TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {});
 
             final TypeSerializer<Tuple2<Long, String>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple2<Long, String>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
@@ -122,7 +123,7 @@ class LargeRecordHandlerTest {
                             TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {});
 
             final TypeSerializer<Tuple2<Long, String>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple2<Long, String>> comparator =
                     typeInfo.createComparator(
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
@@ -212,7 +213,7 @@ class LargeRecordHandlerTest {
                             TypeInformation.of(new TypeHint<Tuple3<Long, String, Byte>>() {});
 
             final TypeSerializer<Tuple3<Long, String, Byte>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple3<Long, String, Byte>> comparator =
                     typeInfo.createComparator(
                             new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());

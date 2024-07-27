@@ -126,7 +126,7 @@ public class RocksDbTtlCompactFiltersManager {
                     columnFamilyOptionsMap.get(stateDesc.getName());
             Preconditions.checkNotNull(columnFamilyOptions);
             columnFamilyOptions.setPeriodicCompactionSeconds(
-                    rocksdbCompactFilterCleanupStrategy.getPeriodicCompactionTime().toSeconds());
+                    rocksdbCompactFilterCleanupStrategy.getPeriodicCompactionTime().getSeconds());
 
             long queryTimeAfterNumEntries =
                     rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries();

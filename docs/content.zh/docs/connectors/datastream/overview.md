@@ -33,9 +33,10 @@ under the License.
 [预定义 data sources]({{< ref "docs/dev/datastream/overview" >}}#data-sources) 支持从文件、目录、socket，以及 collections 和 iterators 中读取数据。
 [预定义 data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sinks) 支持把数据写入文件、标准输出（stdout）、标准错误输出（stderr）和 socket。
 
-## 附带的连接器
+## 附带的连接器Flink Project Connectors
 
-连接器可以和多种多样的第三方系统进行交互。目前支持以下系统:
+连接器可以和多种多样的第三方系统进行交互。目前支持以下系统。
+Currently these systems are supported as part of the Apache Flink project:
 
  * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)

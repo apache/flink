@@ -22,8 +22,8 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Base plan test for calc merge, the difference between FlinkCalcMergeRuleTest is this test
@@ -37,8 +37,8 @@ public abstract class CalcMergeTestBase extends TableTestBase {
 
     protected abstract TableTestUtil getTableTestUtil();
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = getTableTestUtil();
 
         util.tableEnv()
@@ -53,63 +53,64 @@ public abstract class CalcMergeTestBase extends TableTestBase {
                                 + isBatchMode()
                                 + "'\n"
                                 + ")");
-        util.addFunction("random_udf", new JavaUserDefinedScalarFunctions.NonDeterministicUdf());
+        util.addTemporarySystemFunction(
+                "random_udf", new JavaUserDefinedScalarFunctions.NonDeterministicUdf());
     }
 
     @Test
-    public void testCalcMergeWithSameDigest() {
+    void testCalcMergeWithSameDigest() {
         util.verifyExecPlan("SELECT a, b FROM (SELECT * FROM MyTable WHERE a = b) t WHERE b = a");
     }
 
     @Test
-    public void testCalcMergeWithNonDeterministicExpr1() {
+    void testCalcMergeWithNonDeterministicExpr1() {
         util.verifyExecPlan(
                 "SELECT a, a1 FROM (SELECT a, random_udf(a) AS a1 FROM MyTable) t WHERE a1 > 10");
     }
 
     @Test
-    public void testCalcMergeWithNonDeterministicExpr2() {
+    void testCalcMergeWithNonDeterministicExpr2() {
         util.verifyExecPlan(
                 "SELECT random_udf(a1) as a2 FROM (SELECT random_udf(a) as"
                         + " a1, b FROM MyTable) t WHERE b > 10");
     }
 
     @Test
-    public void testCalcMergeWithTopMultiNonDeterministicExpr() {
+    void testCalcMergeWithTopMultiNonDeterministicExpr() {
         util.verifyExecPlan(
                 "SELECT random_udf(a1) as a2, random_udf(a1) as a3 FROM"
                         + " (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10");
     }
 
     @Test
-    public void testCalcMergeTopFilterHasNonDeterministicExpr() {
+    void testCalcMergeTopFilterHasNonDeterministicExpr() {
         util.verifyExecPlan(
                 "SELECT a, c FROM"
                         + " (SELECT a, random_udf(b) as b1, c FROM MyTable) t WHERE b1 > 10");
     }
 
     @Test
-    public void testCalcMergeWithBottomMultiNonDeterministicExpr() {
+    void testCalcMergeWithBottomMultiNonDeterministicExpr() {
         util.verifyExecPlan(
                 "SELECT a1, b2 FROM"
                         + " (SELECT random_udf(a) as a1, random_udf(b) as b2, c FROM MyTable) t WHERE c > 10");
     }
 
     @Test
-    public void testCalcMergeWithBottomMultiNonDeterministicInConditionExpr() {
+    void testCalcMergeWithBottomMultiNonDeterministicInConditionExpr() {
         util.verifyExecPlan(
                 "SELECT c FROM"
                         + " (SELECT random_udf(a) as a1, random_udf(b) as b2, c FROM MyTable) t WHERE a1 > b2");
     }
 
     @Test
-    public void testCalcMergeWithoutInnerNonDeterministicExpr() {
+    void testCalcMergeWithoutInnerNonDeterministicExpr() {
         util.verifyExecPlan(
                 "SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10");
     }
 
     @Test
-    public void testCalcMergeWithNonDeterministicNestedExpr() {
+    void testCalcMergeWithNonDeterministicNestedExpr() {
         util.verifyExecPlan(
                 "SELECT a, a1 FROM (SELECT a, substr(cast(random_udf(a) as varchar), 1, 2) AS a1 FROM MyTable) t WHERE a1 > '10'");
     }

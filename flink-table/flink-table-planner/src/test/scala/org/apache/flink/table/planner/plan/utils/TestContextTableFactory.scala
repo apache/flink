@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.TestContextTableFactory.REQUIRE
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 
 import java.{lang, util}
 
@@ -48,16 +48,16 @@ class TestContextTableFactory[T](
   }
 
   override def createTableSource(context: TableSourceFactory.Context): TableSource[T] = {
-    Assert.assertTrue(context.getConfiguration.get(REQUIRED_KEY))
-    Assert.assertEquals(sourceIdentifier, context.getObjectIdentifier)
+    assertTrue(context.getConfiguration.get(REQUIRED_KEY))
+    assertEquals(sourceIdentifier, context.getObjectIdentifier)
     hasInvokedSource = true
     TableFactoryUtil.findAndCreateTableSource(context)
   }
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[T] = {
-    Assert.assertTrue(context.getConfiguration.get(REQUIRED_KEY))
-    Assert.assertEquals(isBatch, context.isBounded)
-    Assert.assertEquals(sinkIdentifier, context.getObjectIdentifier)
+    assertTrue(context.getConfiguration.get(REQUIRED_KEY))
+    assertEquals(isBatch, context.isBounded)
+    assertEquals(sinkIdentifier, context.getObjectIdentifier)
     hasInvokedSink = true
     TableFactoryUtil.findAndCreateTableSink(context)
   }

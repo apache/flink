@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
@@ -58,7 +59,7 @@ abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
     Map[String, TypeInformation[_]]("A" -> elementTypeInfo).asJava
 
   @PublicEvolving
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T]
+  def createSerializer(serializerConfig: SerializerConfig): TypeSerializer[T]
 
   override def equals(other: Any): Boolean = {
     other match {

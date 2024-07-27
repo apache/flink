@@ -75,12 +75,12 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT>
      * @param configuration The configuration to load defaults from
      */
     public static void initDefaultsFromConfiguration(Configuration configuration) {
-        final boolean overwrite = configuration.getBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE);
+        final boolean overwrite = configuration.get(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE);
 
         DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE;
 
         final boolean alwaysCreateDirectory =
-                configuration.getBoolean(CoreOptions.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY);
+                configuration.get(CoreOptions.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY);
 
         DEFAULT_OUTPUT_DIRECTORY_MODE =
                 alwaysCreateDirectory ? OutputDirectoryMode.ALWAYS : OutputDirectoryMode.PARONLY;
@@ -92,7 +92,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT>
     private static final Logger LOG = LoggerFactory.getLogger(FileOutputFormat.class);
 
     /** The key under which the name of the target path is stored in the configuration. */
-    public static final String FILE_PARAMETER_KEY = "flink.output.file";
+    @Deprecated public static final String FILE_PARAMETER_KEY = "flink.output.file";
 
     /** The path of the file to be written. */
     protected Path outputFilePath;

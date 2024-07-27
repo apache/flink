@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -25,6 +26,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle;
 
 /** Options used in sql client. */
+@PublicEvolving
 public class SqlClientOptions {
     private SqlClientOptions() {}
 
@@ -55,10 +57,8 @@ public class SqlClientOptions {
                             "Determine whether to output the verbose output to the console. If set the option true, it will print the exception stack. Otherwise, it only output the cause.");
 
     // Display options
-    /**
-     * Deprecated. Please use {@link TableConfigOptions#DISPLAY_MAX_COLUMN_WIDTH} instead. Please
-     * refer to FLINK-30862 for the reason that no @Deprecated has been used
-     */
+    /** @deprecated Please use {@link TableConfigOptions#DISPLAY_MAX_COLUMN_WIDTH} instead. */
+    @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> DISPLAY_MAX_COLUMN_WIDTH =
             ConfigOptions.key("sql-client.display.max-column-width")
@@ -69,6 +69,14 @@ public class SqlClientOptions {
                             "Deprecated, please use table.display.max-column-width instead. When printing the query results, this parameter determines the number of characters shown on screen before truncating. "
                                     + "This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in streaming mode. "
                                     + "Fixed-length types and all types in batch mode are printed using a deterministic column width.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> DISPLAY_QUERY_TIME_COST =
+            ConfigOptions.key("sql-client.display.print-time-cost")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determine whether to display the time consumption of the query. By default, no query time cost will be displayed.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<String> DISPLAY_DEFAULT_COLOR_SCHEMA =

@@ -578,11 +578,7 @@ public abstract class AbstractParameterToolTest {
         if (parameter instanceof ParameterTool) {
             ParameterTool parameterTool = (ParameterTool) parameter;
             final Configuration config = parameterTool.getConfiguration();
-            assertThat(
-                            config.getLong(
-                                    ConfigOptions.key("expectedCount")
-                                            .longType()
-                                            .defaultValue(-1L)))
+            assertThat(config.get(ConfigOptions.key("expectedCount").longType().defaultValue(-1L)))
                     .isEqualTo(15L);
 
             final Properties props = parameterTool.getProperties();

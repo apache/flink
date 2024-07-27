@@ -29,43 +29,59 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@link ContinuousFileReaderOperator} test. */
-public class ContinuousFileReaderOperatorTest {
+class ContinuousFileReaderOperatorTest {
 
-    @Test(expected = ExpectedTestException.class)
-    public void testExceptionRethrownFromClose() throws Exception {
+    @Test
+    void testExceptionRethrownFromClose() throws Exception {
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
                 createHarness(failingFormat());
         harness.getExecutionConfig().setAutoWatermarkInterval(10);
         harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-        try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
-                harness) {
-            tester.open();
-        }
+
+        assertThatThrownBy(
+                        () -> {
+                            try (OneInputStreamOperatorTestHarness<
+                                            TimestampedFileInputSplit, String>
+                                    tester = harness) {
+                                tester.open();
+                            }
+                        })
+                .isInstanceOf(ExpectedTestException.class);
     }
 
-    @Test(expected = ExpectedTestException.class)
-    public void testExceptionRethrownFromProcessElement() throws Exception {
+    @Test
+    void testExceptionRethrownFromProcessElement() throws Exception {
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
                 createHarness(failingFormat());
         harness.getExecutionConfig().setAutoWatermarkInterval(10);
         harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-        try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
-                harness) {
-            tester.open();
-            tester.processElement(
-                    new StreamRecord<>(
-                            new TimestampedFileInputSplit(
-                                    0L, 1, new Path(), 0L, 0L, new String[] {})));
-            for (Mail m : harness.getTaskMailbox().drain()) {
-                m.run();
-            }
-            fail("should throw from processElement");
-        }
+
+        assertThatThrownBy(
+                        () -> {
+                            try (OneInputStreamOperatorTestHarness<
+                                            TimestampedFileInputSplit, String>
+                                    tester = harness) {
+                                tester.open();
+                                tester.processElement(
+                                        new StreamRecord<>(
+                                                new TimestampedFileInputSplit(
+                                                        0L,
+                                                        1,
+                                                        new Path(),
+                                                        0L,
+                                                        0L,
+                                                        new String[] {})));
+                                for (Mail m : harness.getTaskMailbox().drain()) {
+                                    m.run();
+                                }
+                            }
+                        })
+                .isInstanceOf(ExpectedTestException.class);
     }
 
     private FileInputFormat<String> failingFormat() {
@@ -102,6 +118,6 @@ public class ContinuousFileReaderOperatorTest {
                 new ContinuousFileReaderOperatorFactory<>(
                         format, TypeExtractor.getInputFormatTypes(format), config),
                 TypeExtractor.getForClass(TimestampedFileInputSplit.class)
-                        .createSerializer(config));
+                        .createSerializer(config.getSerializerConfig()));
     }
 }

@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -146,7 +147,11 @@ public class StreamSQLTestProgram {
         Table result = tEnv.sqlQuery(finalAgg);
         // convert Table into append-only DataStream
         DataStream<Row> resultStream =
-                tEnv.toAppendStream(result, Types.ROW(Types.INT, Types.SQL_TIMESTAMP));
+                tEnv.toDataStream(
+                        result,
+                        DataTypes.ROW(
+                                DataTypes.INT(),
+                                DataTypes.TIMESTAMP().bridgedTo(java.sql.Timestamp.class)));
 
         final StreamingFileSink<Row> sink =
                 StreamingFileSink.forRowFormat(

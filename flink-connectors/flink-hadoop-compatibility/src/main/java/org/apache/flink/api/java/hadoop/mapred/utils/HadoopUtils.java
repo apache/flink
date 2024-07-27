@@ -55,7 +55,7 @@ public final class HadoopUtils {
 
     /**
      * Returns a new Hadoop Configuration object using the path to the hadoop conf configured in the
-     * main configuration (flink-conf.yaml). This method is public because its being used in the
+     * main configuration (config.yaml). This method is public because its being used in the
      * HadoopDataSource.
      *
      * @param flinkConfiguration Flink configuration object

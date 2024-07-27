@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.dynamicfiltering;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.table.api.TableException;
@@ -127,7 +127,7 @@ class DynamicFilteringDataTest {
     private byte[] serialize(TypeInformation<RowData> typeInfo, RowData row) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            typeInfo.createSerializer(new ExecutionConfig())
+            typeInfo.createSerializer(new SerializerConfigImpl())
                     .serialize(row, new DataOutputViewStreamWrapper(baos));
         } catch (IOException e) {
             // throw as RuntimeException so the function can use in lambda

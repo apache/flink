@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -32,30 +33,23 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
-import org.hamcrest.core.IsEqual;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Iterator;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT case for the {@link HadoopReduceCombineFunction}. */
-@RunWith(Parameterized.class)
-public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase {
 
-    public HadoopReduceCombineFunctionITCase(TestExecutionMode mode) {
-        super(mode);
-    }
-
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Test
-    public void testStandardCountingWithCombiner() throws Exception {
+    @TestTemplate
+    void testStandardCountingWithCombiner(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, IntWritable>> ds =
@@ -68,7 +62,7 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
                                         IntWritable, IntWritable, IntWritable, IntWritable>(
                                         new SumReducer(), new SumReducer()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         counts.writeAsText(resultPath);
         env.execute();
@@ -78,8 +72,8 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testUngroupedHadoopReducer() throws Exception {
+    @TestTemplate
+    void testUngroupedHadoopReducer(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, IntWritable>> ds =
@@ -91,7 +85,7 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
                                 IntWritable, IntWritable, IntWritable, IntWritable>(
                                 new SumReducer(), new SumReducer()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         sum.writeAsText(resultPath);
         env.execute();
@@ -101,10 +95,9 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testCombiner() throws Exception {
-        org.junit.Assume.assumeThat(
-                mode, new IsEqual<TestExecutionMode>(TestExecutionMode.CLUSTER));
+    @TestTemplate
+    void testCombiner(@TempDir Path tempFolder) throws Exception {
+        assumeThat(mode).isEqualTo(TestExecutionMode.CLUSTER);
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, IntWritable>> ds =
@@ -117,7 +110,7 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
                                         IntWritable, IntWritable, IntWritable, IntWritable>(
                                         new SumReducer(), new KeyChangingReducer()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         counts.writeAsText(resultPath);
         env.execute();
@@ -127,8 +120,8 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testConfigurationViaJobConf() throws Exception {
+    @TestTemplate
+    void testConfigurationViaJobConf(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         JobConf conf = new JobConf();
@@ -144,7 +137,7 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
                                         IntWritable, Text, IntWritable, IntWritable>(
                                         new ConfigurableCntReducer(), conf));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         hellos.writeAsText(resultPath);
         env.execute();

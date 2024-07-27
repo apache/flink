@@ -23,15 +23,15 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableFunc0
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 /** tests for retraction */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
   // input data
   val data = List(
@@ -48,7 +48,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   )
 
   // keyed groupby + keyed groupby
-  @Test
+  @TestTemplate
   def testWordCount(): Unit = {
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
@@ -63,11 +63,11 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   // keyed groupby + non-keyed groupby
-  @Test
+  @TestTemplate
   def testGroupByAndNonKeyedGroupBy(): Unit = {
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
@@ -81,11 +81,11 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = Seq("10")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   // non-keyed groupby + keyed groupby
-  @Test
+  @TestTemplate
   def testNonKeyedGroupByAndGroupBy(): Unit = {
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'word, 'num)
@@ -99,12 +99,12 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = Seq("10,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   // test unique process, if the current output message of unbounded groupby equals the
   // previous message, unbounded groupby will ignore the current one.
-  @Test
+  @TestTemplate
   def testUniqueProcess(): Unit = {
     // data input
     val data = List(
@@ -154,11 +154,11 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "(true,18,1)",
       "(true,8,1)"
     )
-    assertEquals(expected.sorted, sink.getRawResults.sorted)
+    assertThat(sink.getRawResults.sorted).isEqualTo(expected.sorted)
   }
 
   // correlate should handle retraction messages correctly
-  @Test
+  @TestTemplate
   def testCorrelate(): Unit = {
     val func0 = new TableFunc0
 
@@ -176,6 +176,6 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

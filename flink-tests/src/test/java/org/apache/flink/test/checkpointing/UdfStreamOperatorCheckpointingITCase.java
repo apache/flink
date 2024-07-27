@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.EvictingQueue;
+import org.apache.flink.shaded.guava32.com.google.common.collect.EvictingQueue;
 
 import org.junit.Assert;
 
@@ -177,9 +177,19 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         @Override
         public void open(OpenContext openContext) throws Exception {
             long failurePosMin =
-                    (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.4
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
             long failurePosMax =
-                    (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.7
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
 
             failurePos =
                     (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;

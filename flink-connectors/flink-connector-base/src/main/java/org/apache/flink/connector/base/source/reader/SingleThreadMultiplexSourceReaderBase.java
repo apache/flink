@@ -74,10 +74,8 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
-        this(
-                new FutureCompletingBlockingQueue<>(
-                        config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)),
-                splitReaderSupplier,
+        super(
+                new SingleThreadFetcherManager<>(splitReaderSupplier, config),
                 recordEmitter,
                 config,
                 context);
@@ -87,7 +85,11 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
      * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
      * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
      * FutureCompletingBlockingQueue}.
+     *
+     * @deprecated Please use {@link #SingleThreadMultiplexSourceReaderBase(Supplier, RecordEmitter,
+     *     Configuration, SourceReaderContext)} instead.
      */
+    @Deprecated
     public SingleThreadMultiplexSourceReaderBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
@@ -106,7 +108,12 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
      * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
      * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
      * FutureCompletingBlockingQueue} and {@link SingleThreadFetcherManager}.
+     *
+     * @deprecated Please use {@link
+     *     #SingleThreadMultiplexSourceReaderBase(SingleThreadFetcherManager, RecordEmitter,
+     *     Configuration, SourceReaderContext)} instead.
      */
+    @Deprecated
     public SingleThreadMultiplexSourceReaderBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
@@ -121,7 +128,12 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
      * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
      * FutureCompletingBlockingQueue}, {@link SingleThreadFetcherManager} and {@link
      * RecordEvaluator}.
+     *
+     * @deprecated Please use {@link
+     *     #SingleThreadMultiplexSourceReaderBase(SingleThreadFetcherManager, RecordEmitter,
+     *     RecordEvaluator, Configuration, SourceReaderContext)} instead.
      */
+    @Deprecated
     public SingleThreadMultiplexSourceReaderBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
@@ -136,5 +148,33 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
                 eofRecordEvaluator,
                 config,
                 context);
+    }
+
+    /**
+     * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
+     * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
+     * FutureCompletingBlockingQueue} and {@link SingleThreadFetcherManager}.
+     */
+    public SingleThreadMultiplexSourceReaderBase(
+            SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
+            RecordEmitter<E, T, SplitStateT> recordEmitter,
+            Configuration config,
+            SourceReaderContext context) {
+        super(splitFetcherManager, recordEmitter, config, context);
+    }
+
+    /**
+     * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
+     * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
+     * FutureCompletingBlockingQueue}, {@link SingleThreadFetcherManager} and {@link
+     * RecordEvaluator}.
+     */
+    public SingleThreadMultiplexSourceReaderBase(
+            SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
+            RecordEmitter<E, T, SplitStateT> recordEmitter,
+            @Nullable RecordEvaluator<T> eofRecordEvaluator,
+            Configuration config,
+            SourceReaderContext context) {
+        super(splitFetcherManager, recordEmitter, eofRecordEvaluator, config, context);
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -28,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * Simple container class which contains the task state and key-group state handles for the sub
@@ -150,16 +152,16 @@ public class TaskState implements CompositeStateHandle {
 
     @Override
     public long getStateSize() {
-        long result = 0L;
+        return streamSubtaskState().mapToLong(StateObject::getStateSize).sum();
+    }
 
-        for (int i = 0; i < parallelism; i++) {
-            SubtaskState subtaskState = subtaskStates.get(i);
-            if (subtaskState != null) {
-                result += subtaskState.getStateSize();
-            }
-        }
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamSubtaskState().forEach(state -> state.collectSizeStats(collector));
+    }
 
-        return result;
+    private Stream<SubtaskState> streamSubtaskState() {
+        return subtaskStates.values().stream().filter(Objects::nonNull);
     }
 
     @Override

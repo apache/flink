@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -44,6 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
 
+    @Internal
     public static final ConfigOption<String> JOB_GRAPH_FILE_PATH =
             ConfigOptions.key("internal.jobgraph-path").stringType().defaultValue("job.graph");
 
@@ -84,6 +86,6 @@ public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetrieve
     public static FileJobGraphRetriever createFrom(
             Configuration configuration, @Nullable File usrLibDir) throws IOException {
         checkNotNull(configuration, "configuration");
-        return new FileJobGraphRetriever(configuration.getString(JOB_GRAPH_FILE_PATH), usrLibDir);
+        return new FileJobGraphRetriever(configuration.get(JOB_GRAPH_FILE_PATH), usrLibDir);
     }
 }

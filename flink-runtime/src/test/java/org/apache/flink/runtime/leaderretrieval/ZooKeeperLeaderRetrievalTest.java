@@ -83,8 +83,8 @@ class ZooKeeperLeaderRetrievalTest {
     @BeforeEach
     void before() throws Exception {
         config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
 
         highAvailabilityServices =

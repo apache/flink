@@ -43,7 +43,10 @@ public class ReduceTransformationTranslator<IN, KEY>
                         transformation.getReducer(),
                         transformation
                                 .getInputType()
-                                .createSerializer(context.getStreamGraph().getExecutionConfig()));
+                                .createSerializer(
+                                        context.getStreamGraph()
+                                                .getExecutionConfig()
+                                                .getSerializerConfig()));
         SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
         Collection<Integer> ids =
@@ -68,7 +71,10 @@ public class ReduceTransformationTranslator<IN, KEY>
                         transformation.getReducer(),
                         transformation
                                 .getInputType()
-                                .createSerializer(context.getStreamGraph().getExecutionConfig()));
+                                .createSerializer(
+                                        context.getStreamGraph()
+                                                .getExecutionConfig()
+                                                .getSerializerConfig()));
 
         SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());

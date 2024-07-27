@@ -112,6 +112,14 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     getProjectUniqueKeys(projects, input, mq, ignoreNulls)
   }
 
+  def getUniqueKeys(
+      rel: StreamPhysicalMiniBatchAssigner,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+
+    mq.getUniqueKeys(rel.getInput, ignoreNulls)
+  }
+
   private def getProjectUniqueKeys(
       projects: JList[RexNode],
       input: RelNode,

@@ -21,12 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -36,8 +36,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.InitializationStatus;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -59,7 +61,6 @@ import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
@@ -72,13 +73,13 @@ import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageAccess;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -110,9 +111,10 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -143,6 +145,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
+import static org.apache.flink.runtime.metrics.MetricNames.GATE_RESTORE_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZE_STATE_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.MAILBOX_START_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.READ_OUTPUT_DATA_DURATION;
+import static org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinatorImpl.openChannelStateWriter;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
@@ -315,6 +322,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
 
+    private long initializeStateEndTs;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -410,8 +419,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             resourceCloser.registerCloseable(mailboxProcessor);
 
             this.channelIOExecutor =
-                    Executors.newSingleThreadExecutor(
-                            new ExecutorThreadFactory("channel-state-unspilling"));
+                    MdcUtils.scopeToJob(
+                            environment.getJobID(),
+                            Executors.newSingleThreadExecutor(
+                                    new ExecutorThreadFactory("channel-state-unspilling")));
             resourceCloser.registerCloseable(channelIOExecutor::shutdown);
 
             this.recordWriter = createRecordWriterDelegate(configuration, environment);
@@ -430,13 +441,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // for simultaneous N ongoing concurrent checkpoints and for example clean up of one
             // aborted one.
             this.asyncOperationsThreadPool =
-                    new ThreadPoolExecutor(
-                            0,
-                            configuration.getMaxConcurrentCheckpoints() + 1,
-                            60L,
-                            TimeUnit.SECONDS,
-                            new LinkedBlockingQueue<>(),
-                            new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
+                    MdcUtils.scopeToJob(
+                            getEnvironment().getJobID(),
+                            new ThreadPoolExecutor(
+                                    0,
+                                    configuration.getMaxConcurrentCheckpoints() + 1,
+                                    60L,
+                                    TimeUnit.SECONDS,
+                                    new LinkedBlockingQueue<>(),
+                                    new ExecutorThreadFactory(
+                                            "AsyncOperations", uncaughtExceptionHandler)));
 
             // Register all asynchronous checkpoint threads.
             resourceCloser.registerCloseable(this::shutdownAsyncThreads);
@@ -458,7 +472,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointStorageAccess checkpointStorageAccess =
                     checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
             checkpointStorageAccess =
-                    applyFileMergingCheckpoint(
+                    tryApplyFileMergingCheckpoint(
                             checkpointStorageAccess,
                             environment.getTaskStateManager().getFileMergingSnapshotManager());
             environment.setCheckpointStorageAccess(checkpointStorageAccess);
@@ -471,27 +485,55 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
 
             this.systemTimerService = createTimerService("System Time Trigger for " + getName());
+            final CheckpointStorageAccess finalCheckpointStorageAccess = checkpointStorageAccess;
 
+            ChannelStateWriter channelStateWriter =
+                    configuration.isUnalignedCheckpointsEnabled()
+                            ? openChannelStateWriter(
+                                    getName(),
+                                    // Note: don't pass checkpointStorageAccess directly to channel
+                                    // state writer.
+                                    // The fileSystem of checkpointStorageAccess may be an instance
+                                    // of SafetyNetWrapperFileSystem, which close all held streams
+                                    // when thread exits. Channel state writers are invoked in other
+                                    // threads instead of task thread, therefore channel state
+                                    // writer cannot share file streams directly, otherwise
+                                    // conflicts will occur on job exit.
+                                    () -> {
+                                        if (finalCheckpointStorageAccess
+                                                instanceof FsMergingCheckpointStorageAccess) {
+                                            // FsMergingCheckpointStorageAccess using unguarded
+                                            // fileSystem, which can be shared.
+                                            return finalCheckpointStorageAccess;
+                                        } else {
+                                            // Other checkpoint storage access should be lazily
+                                            // initialized to avoid sharing.
+                                            return checkpointStorage.createCheckpointStorage(
+                                                    getEnvironment().getJobID());
+                                        }
+                                    },
+                                    environment,
+                                    configuration.getMaxSubtasksPerChannelStateFile())
+                            : ChannelStateWriter.NO_OP;
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
-                            checkpointStorage,
                             checkpointStorageAccess,
                             getName(),
                             actionExecutor,
                             getAsyncOperationsThreadPool(),
                             environment,
                             this,
-                            configuration.isUnalignedCheckpointsEnabled(),
+                            this::prepareInputSnapshot,
+                            configuration.getMaxConcurrentCheckpoints(),
+                            channelStateWriter,
                             configuration
                                     .getConfiguration()
                                     .get(
-                                            ExecutionCheckpointingOptions
+                                            CheckpointingOptions
                                                     .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
-                            this::prepareInputSnapshot,
-                            configuration.getMaxConcurrentCheckpoints(),
                             BarrierAlignmentUtil.createRegisterTimerCallback(
                                     mainMailboxExecutor, systemTimerService),
-                            configuration.getMaxSubtasksPerChannelStateFile());
+                            environment.getTaskStateManager().getFileMergingSnapshotManager());
             resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
             // Register to stop all timers and threads. Should be closed first.
@@ -514,21 +556,28 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
     }
 
-    private CheckpointStorageAccess applyFileMergingCheckpoint(
+    private CheckpointStorageAccess tryApplyFileMergingCheckpoint(
             CheckpointStorageAccess checkpointStorageAccess,
-            FileMergingSnapshotManager fileMergingSnapshotManager) {
+            @Nullable FileMergingSnapshotManager fileMergingSnapshotManager) {
         if (fileMergingSnapshotManager == null) {
             return checkpointStorageAccess;
         }
-
         try {
-            CheckpointStorageWorkerView mergingCheckpointStorageAccess =
-                    checkpointStorageAccess.toFileMergingStorage(
-                            fileMergingSnapshotManager, environment);
-            return (CheckpointStorageAccess) mergingCheckpointStorageAccess;
+            CheckpointStorageAccess mergingCheckpointStorageAccess =
+                    (CheckpointStorageAccess)
+                            checkpointStorageAccess.toFileMergingStorage(
+                                    fileMergingSnapshotManager, environment);
+            mergingCheckpointStorageAccess.initializeBaseLocationsForCheckpoint();
+            if (mergingCheckpointStorageAccess instanceof FsMergingCheckpointStorageAccess) {
+                resourceCloser.registerCloseable(
+                        () ->
+                                ((FsMergingCheckpointStorageAccess) mergingCheckpointStorageAccess)
+                                        .close());
+            }
+            return mergingCheckpointStorageAccess;
         } catch (IOException e) {
             LOG.warn(
-                    "Initiating FsMergingCheckpointStorageAccess failed"
+                    "Initiating FsMergingCheckpointStorageAccess failed "
                             + "with exception: {}, falling back to original checkpoint storage access {}.",
                     e.getMessage(),
                     checkpointStorageAccess.getClass(),
@@ -693,12 +742,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     //  Core work methods of the Stream Task
     // ------------------------------------------------------------------------
 
-    public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+    public StreamTaskStateInitializer createStreamTaskStateInitializer(
+            SubTaskInitializationMetricsBuilder initializationMetrics) {
         InternalTimeServiceManager.Provider timerServiceProvider =
                 configuration.getTimerServiceProvider(getUserCodeClassLoader());
         return new StreamTaskStateInitializerImpl(
                 getEnvironment(),
                 stateBackend,
+                initializationMetrics,
                 TtlTimeProvider.DEFAULT,
                 timerServiceProvider != null
                         ? timerServiceProvider
@@ -730,56 +781,88 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         getEnvironment().getMetricGroup().getIOMetricGroup().markTaskInitializationStarted();
         LOG.debug("Initializing {}.", getName());
 
-        operatorChain =
-                getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
-                        ? new FinishedOperatorChain<>(this, recordWriter)
-                        : new RegularOperatorChain<>(this, recordWriter);
-        mainOperator = operatorChain.getMainOperator();
+        SubTaskInitializationMetricsBuilder initializationMetrics =
+                new SubTaskInitializationMetricsBuilder(
+                        SystemClock.getInstance().absoluteTimeMillis());
+        try {
+            operatorChain =
+                    getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
+                            ? new FinishedOperatorChain<>(this, recordWriter)
+                            : new RegularOperatorChain<>(this, recordWriter);
+            mainOperator = operatorChain.getMainOperator();
 
-        getEnvironment()
-                .getTaskStateManager()
-                .getRestoreCheckpointId()
-                .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
+            getEnvironment()
+                    .getTaskStateManager()
+                    .getRestoreCheckpointId()
+                    .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
 
-        // task specific initialization
-        init();
+            // task specific initialization
+            init();
+            configuration.clearInitialConfigs();
 
-        // save the work of reloading state, etc, if the task is already canceled
-        ensureNotCanceled();
+            // save the work of reloading state, etc, if the task is already canceled
+            ensureNotCanceled();
 
-        // -------- Invoke --------
-        LOG.debug("Invoking {}", getName());
+            // -------- Invoke --------
+            LOG.debug("Invoking {}", getName());
 
-        // we need to make sure that any triggers scheduled in open() cannot be
-        // executed before all operators are opened
-        CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
+            // we need to make sure that any triggers scheduled in open() cannot be
+            // executed before all operators are opened
+            CompletableFuture<Void> allGatesRecoveredFuture =
+                    actionExecutor.call(() -> restoreStateAndGates(initializationMetrics));
 
-        // Run mailbox until all gates will be recovered.
-        mailboxProcessor.runMailboxLoop();
+            // Run mailbox until all gates will be recovered.
+            mailboxProcessor.runMailboxLoop();
 
-        ensureNotCanceled();
+            initializationMetrics.addDurationMetric(
+                    GATE_RESTORE_DURATION,
+                    SystemClock.getInstance().absoluteTimeMillis() - initializeStateEndTs);
 
-        checkState(
-                allGatesRecoveredFuture.isDone(),
-                "Mailbox loop interrupted before recovery was finished.");
+            ensureNotCanceled();
 
-        // we recovered all the gates, we can close the channel IO executor as it is no longer
-        // needed
-        channelIOExecutor.shutdown();
+            checkState(
+                    allGatesRecoveredFuture.isDone(),
+                    "Mailbox loop interrupted before recovery was finished.");
 
-        isRunning = true;
-        isRestoring = false;
+            // we recovered all the gates, we can close the channel IO executor as it is no longer
+            // needed
+            channelIOExecutor.shutdown();
+
+            isRunning = true;
+            isRestoring = false;
+            initializationMetrics.setStatus(InitializationStatus.COMPLETED);
+        } finally {
+            environment
+                    .getTaskStateManager()
+                    .reportInitializationMetrics(initializationMetrics.build());
+        }
     }
 
-    private CompletableFuture<Void> restoreGates() throws Exception {
+    private CompletableFuture<Void> restoreStateAndGates(
+            SubTaskInitializationMetricsBuilder initializationMetrics) throws Exception {
+
+        long mailboxStartTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                MAILBOX_START_DURATION,
+                mailboxStartTs - initializationMetrics.getInitializationStartTs());
+
         SequentialChannelStateReader reader =
                 getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
         reader.readOutputData(
                 getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
-        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+        long readOutputDataTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                READ_OUTPUT_DATA_DURATION, readOutputDataTs - mailboxStartTs);
 
+        operatorChain.initializeStateAndOpenOperators(
+                createStreamTaskStateInitializer(initializationMetrics));
+
+        initializeStateEndTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                INITIALIZE_STATE_DURATION, initializeStateEndTs - readOutputDataTs);
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
+
         channelIOExecutor.execute(
                 () -> {
                     try {
@@ -850,7 +933,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 || !environment
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getBoolean(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+                        .get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             return;
         }
         systemTimerService.registerTimer(
@@ -869,6 +952,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         for (IndexedInputGate inputGate : environment.getAllInputGates()) {
             inputGate.triggerDebloating();
         }
+    }
+
+    @VisibleForTesting
+    public boolean runSingleMailboxLoop() throws Exception {
+        return mailboxProcessor.runSingleMailboxLoop();
     }
 
     @VisibleForTesting
@@ -960,7 +1048,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private boolean areCheckpointsWithFinishedTasksEnabled() {
         return configuration
                         .getConfiguration()
-                        .get(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                        .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
                 && configuration.isCheckpointingEnabled();
     }
 
@@ -1041,6 +1129,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     public MailboxExecutorFactory getMailboxExecutorFactory() {
         return this.mailboxProcessor::getMailboxExecutor;
+    }
+
+    public boolean hasMail() {
+        return mailboxProcessor.hasMail();
     }
 
     private boolean taskIsAvailable() {
@@ -1382,11 +1474,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     String.format(
                             "Configured state backend (%s) does not support enforcing a full"
                                     + " snapshot. If you are restoring in %s mode, please"
-                                    + " consider choosing either %s or %s restore mode.",
-                            stateBackend,
-                            RestoreMode.NO_CLAIM,
-                            RestoreMode.CLAIM,
-                            RestoreMode.LEGACY));
+                                    + " consider choosing %s mode.",
+                            stateBackend, RestoreMode.NO_CLAIM, RestoreMode.CLAIM));
         } else if (checkpointOptions.getCheckpointType().isSavepoint()) {
             SavepointType savepointType = (SavepointType) checkpointOptions.getCheckpointType();
             if (!stateBackend.supportsSavepointFormat(savepointType.getFormatType())) {
@@ -1491,7 +1580,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 getEnvironment()
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+                        .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS)
+                        .toMillis();
         tryShutdownTimerService(timeoutMs, timerService);
         tryShutdownTimerService(timeoutMs, systemTimerService);
     }
@@ -1530,19 +1620,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
-        final Optional<Boolean> isChangelogEnabledOptional =
-                environment
-                        .getJobConfiguration()
-                        .getOptional(
-                                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION);
-        final TernaryBoolean isChangelogStateBackendEnableFromApplication =
-                isChangelogEnabledOptional.isPresent()
-                        ? TernaryBoolean.fromBoolean(isChangelogEnabledOptional.get())
-                        : TernaryBoolean.UNDEFINED;
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
-                isChangelogStateBackendEnableFromApplication,
+                getJobConfiguration(),
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);
@@ -1551,12 +1632,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
         final CheckpointStorage fromApplication =
                 configuration.getCheckpointStorage(getUserCodeClassLoader());
-        final Path savepointDir = configuration.getSavepointDir(getUserCodeClassLoader());
-
         return CheckpointStorageLoader.load(
                 fromApplication,
-                savepointDir,
                 backend,
+                getJobConfiguration(),
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

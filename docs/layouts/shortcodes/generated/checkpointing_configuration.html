@@ -9,58 +9,184 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>state.backend.incremental</h5></td>
-            <td style="word-wrap: break-word;">false</td>
+            <td><h5>execution.checkpointing.aligned-checkpoint-timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>Only relevant if <code class="highlighter-rouge">execution.checkpointing.unaligned.enabled</code> is enabled.<br /><br />If timeout is 0, checkpoints will always start unaligned.<br /><br />If timeout has a positive value, checkpoints will start aligned. If during checkpointing, checkpoint start delay exceeds this timeout, alignment will timeout and checkpoint barrier will start working as unaligned checkpoint.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.checkpoints-after-tasks-finish</h5></td>
+            <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>Option whether the state backend should create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API only represents the delta checkpoint size instead of full checkpoint size. Some state backends may not support incremental checkpoints and ignore this option.</td>
+            <td>Feature toggle for enabling checkpointing even if some of tasks have finished. Before you enable it, please take a look at <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta">the important considerations</a> </td>
         </tr>
         <tr>
-            <td><h5>state.backend.local-recovery</h5></td>
-            <td style="word-wrap: break-word;">false</td>
+            <td><h5>execution.checkpointing.cleaner.parallel-mode</h5></td>
+            <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>This option configures local recovery for this state backend. By default, local recovery is deactivated. Local recovery currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).</td>
+            <td>Option whether to discard a checkpoint's states in parallel using the ExecutorService passed into the cleaner</td>
         </tr>
         <tr>
-            <td><h5>state.checkpoint-storage</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">CheckpointStorageFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.</td>
+            <td><h5>execution.checkpointing.create-subdir</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to create sub-directories named by job id under the '<code class="highlighter-rouge">execution.checkpointing.dir</code>' to store the data files and meta data of checkpoints. The default value is true to enable user could run several jobs with the same checkpoint directory at the same time. If this value is set to false, pay attention not to run several jobs with the same directory simultaneously. <br />WARNING: This is an advanced configuration. If set to false, users must ensure that no multiple jobs are run with the same checkpoint directory, and that no files exist other than those necessary for the restoration of the current job when starting a new job.</td>
         </tr>
         <tr>
-            <td><h5>state.checkpoints.dir</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).</td>
-        </tr>
-        <tr>
-            <td><h5>state.checkpoints.num-retained</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>The maximum number of completed checkpoints to retain.</td>
-        </tr>
-        <tr>
-            <td><h5>state.savepoints.dir</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>The default directory for savepoints. Used by the state backends that write savepoints to file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).</td>
-        </tr>
-        <tr>
-            <td><h5>state.storage.fs.memory-threshold</h5></td>
+            <td><h5>execution.checkpointing.data-inline-threshold</h5></td>
             <td style="word-wrap: break-word;">20 kb</td>
             <td>MemorySize</td>
             <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.</td>
         </tr>
         <tr>
-            <td><h5>state.storage.fs.write-buffer-size</h5></td>
-            <td style="word-wrap: break-word;">4096</td>
-            <td>Integer</td>
-            <td>The default size of the write buffer for the checkpoint streams that write to file systems. The actual write buffer size is determined to be the maximum of the value of this option and option 'state.storage.fs.memory-threshold'.</td>
+            <td><h5>execution.checkpointing.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers). If the 'execution.checkpointing.storage' is set to 'jobmanager', only the meta data of checkpoints will be stored in this directory.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.state.local.root-dirs</h5></td>
+            <td><h5>execution.checkpointing.externalized-checkpoint-retention</h5></td>
+            <td style="word-wrap: break-word;">NO_EXTERNALIZED_CHECKPOINTS</td>
+            <td><p>Enum</p></td>
+            <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <code class="highlighter-rouge">JobStatus#FAILED</code> or <code class="highlighter-rouge">JobStatus#SUSPENDED</code>). In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <code class="highlighter-rouge">JobStatus#CANCELED</code>).<br /><br />The target directory for externalized checkpoints is configured via <code class="highlighter-rouge">execution.checkpointing.dir</code>.<br /><br />Possible values:<ul><li>"DELETE_ON_CANCELLATION": Checkpoint state is only kept when the owning job fails. It is deleted if the job is cancelled.</li><li>"RETAIN_ON_CANCELLATION": Checkpoint state is kept when the owning job is cancelled or fails.</li><li>"NO_EXTERNALIZED_CHECKPOINTS": Externalized checkpoints are disabled.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.across-checkpoint-boundary</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Only relevant if <code class="highlighter-rouge">execution.checkpointing.file-merging.enabled</code> is enabled.<br />Whether to allow merging data of multiple checkpoints into one physical file. If this option is set to false, only merge files within checkpoint boundaries. Otherwise, it is possible for the logical files of different checkpoints to share the same physical file.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable merging multiple checkpoint files into one, which will greatly reduce the number of small checkpoint files. This is an experimental feature under evaluation, make sure you're aware of the possible effects of enabling it.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.max-file-size</h5></td>
+            <td style="word-wrap: break-word;">32 mb</td>
+            <td>MemorySize</td>
+            <td>Max size of a physical file for merged checkpoints.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.max-space-amplification</h5></td>
+            <td style="word-wrap: break-word;">2.0</td>
+            <td>Float</td>
+            <td>Space amplification stands for the magnification of the occupied space compared to the amount of valid data. The more space amplification is, the more waste of space will be. This configs a space amplification above which a re-uploading for physical files will be triggered to reclaim space. Any value below 1f means disabling the space control.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.pool-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to use Blocking or Non-Blocking pool for merging physical files. A Non-Blocking pool will always provide usable physical file without blocking. It may create many physical files if poll file frequently. When poll a small file from a Blocking pool, it may be blocked until the file is returned.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.incremental</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Option whether to create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API only represents the delta checkpoint size instead of full checkpoint size. Some state backends may not support incremental checkpoints and ignore this option.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.interval</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Gets the interval in which checkpoints are periodically scheduled.<br /><br />This setting defines the base interval. Checkpoint triggering may be delayed by the settings <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code>, <code class="highlighter-rouge">execution.checkpointing.min-pause</code> and <code class="highlighter-rouge">execution.checkpointing.interval-during-backlog</code></td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.interval-during-backlog</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>If it is not null and any source reports isProcessingBacklog=true, it is the interval in which checkpoints are periodically scheduled.<br /><br />Checkpoint triggering may be delayed by the settings <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code> and <code class="highlighter-rouge">execution.checkpointing.min-pause</code>.<br /><br />Note: if it is not null, the value must either be 0, which means the checkpoint is disabled during backlog, or be larger than or equal to execution.checkpointing.interval.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.local-backup.dirs</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The config parameter defining the root directories for storing file-based state for local recovery. Local recovery currently only covers keyed state backends. If not configured it will default to &lt;WORKING_DIR&gt;/localState. The &lt;WORKING_DIR&gt; can be configured via <code class="highlighter-rouge">process.taskmanager.working-dir</code></td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.local-backup.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>This option configures local backup for the state backend, which indicates whether to make backup checkpoint on local disk.  If not configured, fallback to execution.state-recovery.from-local. By default, local backup is deactivated. Local backup currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.max-concurrent-checkpoints</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of checkpoint attempts that may be in progress at the same time. If this value is n, then no checkpoints will be triggered while n checkpoint attempts are currently in flight. For the next checkpoint to be triggered, one checkpoint attempt would need to finish or expire.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.min-pause</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The minimal pause between checkpointing attempts. This setting defines how soon thecheckpoint coordinator may trigger another checkpoint after it becomes possible to triggeranother checkpoint with respect to the maximum number of concurrent checkpoints(see <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code>).<br /><br />If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure that a minimum amount of time passes where no checkpoint is in progress at all.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.mode</h5></td>
+            <td style="word-wrap: break-word;">EXACTLY_ONCE</td>
+            <td><p>Enum</p></td>
+            <td>The checkpointing mode (exactly-once vs. at-least-once).<br /><br />Possible values:<ul><li>"EXACTLY_ONCE"</li><li>"AT_LEAST_ONCE"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.num-retained</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of completed checkpoints to retain.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.savepoint-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The default directory for savepoints. Used by the state backends that write savepoints to file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.storage</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">CheckpointStorageFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.<br />'execution.checkpointing.storage' and 'execution.checkpointing.dir' are usually combined to configure the checkpoint location. By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly. When 'execution.checkpointing.storage' is set to 'jobmanager', if 'execution.checkpointing.dir' is configured, the meta data of checkpoints will be persisted to the path specified by 'execution.checkpointing.dir'. Otherwise, the meta data will be stored in the JobManager's memory. When 'execution.checkpointing.storage' is set to 'filesystem', a valid path must be configured to 'execution.checkpointing.dir', and the checkpoint meta data and actual program state will both be persisted to the path.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.timeout</h5></td>
+            <td style="word-wrap: break-word;">10 min</td>
+            <td>Duration</td>
+            <td>The maximum time that a checkpoint may take before being discarded.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.tolerable-failed-checkpoints</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The tolerable checkpoint consecutive failure number. If set to 0, that means we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the Job Manager, failures in the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of checkpoint failures (such as checkpoint being subsumed) are being ignored.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.<br /><br />Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore.<br /><br />Unaligned checkpoints can only be enabled if <code class="highlighter-rouge">execution.checkpointing.mode</code> is <code class="highlighter-rouge">EXACTLY_ONCE</code> and if <code class="highlighter-rouge">execution.checkpointing.max-concurrent-checkpoints</code> is 1</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.forced</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.interruptible-timers.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Allows unaligned checkpoints to skip timers that are currently being fired. For this feature to be enabled, it must be also supported by the operator. Currently this is supported by all TableStreamOperators and CepOperator.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.max-subtasks-per-channel-state-file</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Defines the maximum number of subtasks that share the same channel state file. It can reduce the number of small files when enable unaligned checkpoint. Each subtask will create a new channel state file when this is configured to 1.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.write-buffer-size</h5></td>
+            <td style="word-wrap: break-word;">4096</td>
+            <td>Integer</td>
+            <td>The default size of the write buffer for the checkpoint streams that write to file systems. The actual write buffer size is determined to be the maximum of the value of this option and option 'execution.checkpointing.data-inline-threshold'.</td>
         </tr>
     </tbody>
 </table>

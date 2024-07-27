@@ -22,12 +22,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, String, String)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
@@ -192,7 +193,7 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
     verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testTooManyDistinctAggOnDifferentColumn(): Unit = {
     // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
@@ -203,7 +204,8 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
     val maxList = fieldNames.map(f => s"MAX($f)").mkString(", ")
     val sqlQuery = s"SELECT $distinctList, $maxList FROM MyTable64"
 
-    verifyPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => verifyPlan(sqlQuery))
   }
 
   private def verifyPlan(sqlQuery: String): Unit = {

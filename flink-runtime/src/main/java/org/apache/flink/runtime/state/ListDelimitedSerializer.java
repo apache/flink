@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -39,7 +38,8 @@ public final class ListDelimitedSerializer {
     private final DataInputDeserializer dataInputView = new DataInputDeserializer();
     private final DataOutputSerializer dataOutputView = new DataOutputSerializer(128);
 
-    public <T> List<T> deserializeList(byte[] valueBytes, TypeSerializer<T> elementSerializer) {
+    public <T> List<T> deserializeList(byte[] valueBytes, TypeSerializer<T> elementSerializer)
+            throws IOException {
         if (valueBytes == null) {
             return null;
         }
@@ -76,17 +76,13 @@ public final class ListDelimitedSerializer {
 
     /** Deserializes a single element from a serialized list. */
     public static <T> T deserializeNextElement(
-            DataInputDeserializer in, TypeSerializer<T> elementSerializer) {
-        try {
+            DataInputDeserializer in, TypeSerializer<T> elementSerializer) throws IOException {
+        if (in.available() > 0) {
+            T element = elementSerializer.deserialize(in);
             if (in.available() > 0) {
-                T element = elementSerializer.deserialize(in);
-                if (in.available() > 0) {
-                    in.readByte();
-                }
-                return element;
+                in.readByte();
             }
-        } catch (IOException e) {
-            throw new FlinkRuntimeException("Unexpected list element deserialization failure", e);
+            return element;
         }
         return null;
     }

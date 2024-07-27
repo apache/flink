@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,41 +29,30 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.types.Value;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link org.apache.flink.streaming.api.functions.source.FromElementsFunction}. */
-public class FromElementsFunctionTest {
+class FromElementsFunctionTest {
 
     private static final String[] STRING_ARRAY_DATA = {"Oh", "boy", "what", "a", "show", "!"};
     private static final List<String> STRING_LIST_DATA = Arrays.asList(STRING_ARRAY_DATA);
-
-    @Rule public final ExpectedException thrown = ExpectedException.none();
 
     private static <T> List<T> runSource(FromElementsFunction<T> source) throws Exception {
         List<T> result = new ArrayList<>();
@@ -72,56 +62,51 @@ public class FromElementsFunctionTest {
     }
 
     @Test
-    public void testStrings() {
-        try {
-            String[] data = {"Oh", "boy", "what", "a", "show", "!"};
+    void testStrings() throws Exception {
+        String[] data = {"Oh", "boy", "what", "a", "show", "!"};
 
-            FromElementsFunction<String> source =
-                    new FromElementsFunction<String>(
-                            BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-                            data);
+        FromElementsFunction<String> source =
+                new FromElementsFunction<>(
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
+                        data);
 
-            List<String> result = new ArrayList<String>();
-            source.run(new ListSourceContext<String>(result));
+        List<String> result = new ArrayList<>();
+        source.run(new ListSourceContext<>(result));
 
-            assertEquals(Arrays.asList(data), result);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(result).containsExactly(data);
     }
 
     @Test
-    public void testNullElement() throws Exception {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("contains a null element");
-
-        new FromElementsFunction<>("a", null, "b");
+    void testNullElement() {
+        assertThatThrownBy(() -> new FromElementsFunction<>("a", null, "b"))
+                .hasMessageContaining("contains a null element")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testSetOutputTypeWithNoSerializer() throws Exception {
+    void testSetOutputTypeWithNoSerializer() throws Exception {
         FromElementsFunction<String> source = new FromElementsFunction<>(STRING_ARRAY_DATA);
 
-        assertNull(source.getSerializer());
+        assertThat(source.getSerializer()).isNull();
 
         source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
-        assertNotNull(source.getSerializer());
-        assertEquals(
-                BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-                source.getSerializer());
+        assertThat(source.getSerializer())
+                .isNotNull()
+                .isEqualTo(
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                new SerializerConfigImpl()));
 
         List<String> result = runSource(source);
 
-        assertEquals(STRING_LIST_DATA, result);
+        assertThat(result).containsExactly(STRING_ARRAY_DATA);
     }
 
     @Test
-    public void testSetOutputTypeWithSameSerializer() throws Exception {
+    void testSetOutputTypeWithSameSerializer() throws Exception {
         FromElementsFunction<String> source =
                 new FromElementsFunction<>(
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
                         STRING_LIST_DATA);
 
         TypeSerializer<String> existingSerializer = source.getSerializer();
@@ -130,32 +115,37 @@ public class FromElementsFunctionTest {
 
         TypeSerializer<String> newSerializer = source.getSerializer();
 
-        assertEquals(existingSerializer, newSerializer);
+        assertThat(newSerializer).isEqualTo(existingSerializer);
 
         List<String> result = runSource(source);
 
-        assertEquals(STRING_LIST_DATA, result);
+        assertThat(result).containsExactly(STRING_ARRAY_DATA);
     }
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testSetOutputTypeWithIncompatibleType() throws Exception {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("not all subclasses of java.lang.Integer");
-
+    void testSetOutputTypeWithIncompatibleType() {
         FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
-        source.setOutputType((TypeInformation) BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
+
+        assertThatThrownBy(
+                        () ->
+                                source.setOutputType(
+                                        (TypeInformation) BasicTypeInfo.INT_TYPE_INFO,
+                                        new ExecutionConfig()))
+                .hasMessageContaining("not all subclasses of java.lang.Integer")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testSetOutputTypeWithExistingBrokenSerializer() throws Exception {
+    void testSetOutputTypeWithExistingBrokenSerializer() throws Exception {
         // the original serializer throws an exception
         TypeInformation<DeserializeTooMuchType> info =
                 new ValueTypeInfo<>(DeserializeTooMuchType.class);
 
         FromElementsFunction<DeserializeTooMuchType> source =
                 new FromElementsFunction<>(
-                        info.createSerializer(new ExecutionConfig()), new DeserializeTooMuchType());
+                        info.createSerializer(new SerializerConfigImpl()),
+                        new DeserializeTooMuchType());
 
         TypeSerializer<DeserializeTooMuchType> existingSerializer = source.getSerializer();
 
@@ -164,56 +154,53 @@ public class FromElementsFunctionTest {
 
         TypeSerializer<DeserializeTooMuchType> newSerializer = source.getSerializer();
 
-        assertNotEquals(existingSerializer, newSerializer);
+        assertThat(newSerializer).isNotEqualTo(existingSerializer);
 
         List<DeserializeTooMuchType> result = runSource(source);
 
-        assertThat(result, hasSize(1));
-        assertThat(result.get(0), instanceOf(DeserializeTooMuchType.class));
+        assertThat(result).hasSize(1).first().isInstanceOf(DeserializeTooMuchType.class);
     }
 
     @Test
-    public void testSetOutputTypeAfterTransferred() throws Exception {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(
-                "The output type should've been specified before shipping the graph to the cluster");
-
+    void testSetOutputTypeAfterTransferred() throws Exception {
         FromElementsFunction<String> source =
                 InstantiationUtil.clone(new FromElementsFunction<>(STRING_LIST_DATA));
-        source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
+
+        assertThatThrownBy(
+                        () ->
+                                source.setOutputType(
+                                        BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig()))
+                .hasMessageContaining(
+                        "The output type should've been specified before shipping the graph to the cluster")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testNoSerializer() throws Exception {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage("serializer not configured");
-
+    void testNoSerializer() {
         FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
-        runSource(source);
+
+        assertThatThrownBy(() -> runSource(source))
+                .hasMessageContaining("serializer not configured")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testNonJavaSerializableType() {
-        try {
-            MyPojo[] data = {new MyPojo(1, 2), new MyPojo(3, 4), new MyPojo(5, 6)};
+    void testNonJavaSerializableType() throws Exception {
+        MyPojo[] data = {new MyPojo(1, 2), new MyPojo(3, 4), new MyPojo(5, 6)};
 
-            FromElementsFunction<MyPojo> source =
-                    new FromElementsFunction<MyPojo>(
-                            TypeExtractor.getForClass(MyPojo.class)
-                                    .createSerializer(new ExecutionConfig()),
-                            data);
+        FromElementsFunction<MyPojo> source =
+                new FromElementsFunction<>(
+                        TypeExtractor.getForClass(MyPojo.class)
+                                .createSerializer(new SerializerConfigImpl()),
+                        data);
 
-            List<MyPojo> result = runSource(source);
+        List<MyPojo> result = runSource(source);
 
-            assertEquals(Arrays.asList(data), result);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(result).containsExactly(data);
     }
 
     @Test
-    public void testNonJavaSerializableTypeWithSetOutputType() throws Exception {
+    void testNonJavaSerializableTypeWithSetOutputType() throws Exception {
         MyPojo[] data = {new MyPojo(1, 2), new MyPojo(3, 4), new MyPojo(5, 6)};
 
         FromElementsFunction<MyPojo> source = new FromElementsFunction<>(data);
@@ -222,136 +209,100 @@ public class FromElementsFunctionTest {
 
         List<MyPojo> result = runSource(source);
 
-        assertEquals(Arrays.asList(data), result);
+        assertThat(result).containsExactly(data);
     }
 
     @Test
-    public void testSerializationError() {
-        try {
-            TypeInformation<SerializationErrorType> info =
-                    new ValueTypeInfo<SerializationErrorType>(SerializationErrorType.class);
+    void testSerializationError() {
+        TypeInformation<SerializationErrorType> info =
+                new ValueTypeInfo<>(SerializationErrorType.class);
 
-            try {
-                new FromElementsFunction<SerializationErrorType>(
-                        info.createSerializer(new ExecutionConfig()), new SerializationErrorType());
-
-                fail("should fail with an exception");
-            } catch (IOException e) {
-                assertTrue(ExceptionUtils.stringifyException(e).contains("test exception"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                new FromElementsFunction<>(
+                                        info.createSerializer(new SerializerConfigImpl()),
+                                        new SerializationErrorType()))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("test exception");
     }
 
     @Test
-    public void testDeSerializationError() {
-        try {
-            TypeInformation<DeserializeTooMuchType> info =
-                    new ValueTypeInfo<DeserializeTooMuchType>(DeserializeTooMuchType.class);
+    void testDeSerializationError() throws Exception {
+        TypeInformation<DeserializeTooMuchType> info =
+                new ValueTypeInfo<>(DeserializeTooMuchType.class);
 
-            FromElementsFunction<DeserializeTooMuchType> source =
-                    new FromElementsFunction<DeserializeTooMuchType>(
-                            info.createSerializer(new ExecutionConfig()),
-                            new DeserializeTooMuchType());
+        FromElementsFunction<DeserializeTooMuchType> source =
+                new FromElementsFunction<>(
+                        info.createSerializer(new SerializerConfigImpl()),
+                        new DeserializeTooMuchType());
 
-            try {
-                source.run(
-                        new ListSourceContext<DeserializeTooMuchType>(
-                                new ArrayList<DeserializeTooMuchType>()));
-                fail("should fail with an exception");
-            } catch (IOException e) {
-                assertTrue(
-                        ExceptionUtils.stringifyException(e)
-                                .contains("user-defined serialization"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> source.run(new ListSourceContext<>(new ArrayList<>())))
+                .hasMessageContaining("user-defined serialization")
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testCheckpointAndRestore() {
-        try {
-            final int numElements = 10000;
+    void testCheckpointAndRestore() throws Exception {
+        final int numElements = 10000;
 
-            List<Integer> data = new ArrayList<Integer>(numElements);
-            List<Integer> result = new ArrayList<Integer>(numElements);
+        List<Integer> data = new ArrayList<Integer>(numElements);
+        List<Integer> result = new ArrayList<Integer>(numElements);
 
-            for (int i = 0; i < numElements; i++) {
-                data.add(i);
-            }
-
-            final FromElementsFunction<Integer> source =
-                    new FromElementsFunction<>(IntSerializer.INSTANCE, data);
-            StreamSource<Integer, FromElementsFunction<Integer>> src = new StreamSource<>(source);
-            AbstractStreamOperatorTestHarness<Integer> testHarness =
-                    new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
-            testHarness.open();
-
-            final SourceFunction.SourceContext<Integer> ctx =
-                    new ListSourceContext<Integer>(result, 2L);
-
-            final Throwable[] error = new Throwable[1];
-
-            // run the source asynchronously
-            Thread runner =
-                    new Thread() {
-                        @Override
-                        public void run() {
-                            try {
-                                source.run(ctx);
-                            } catch (Throwable t) {
-                                error[0] = t;
-                            }
-                        }
-                    };
-            runner.start();
-
-            // wait for a bit
-            Thread.sleep(1000);
-
-            // make a checkpoint
-            List<Integer> checkpointData = new ArrayList<>(numElements);
-            OperatorSubtaskState handles = null;
-            synchronized (ctx.getCheckpointLock()) {
-                handles = testHarness.snapshot(566, System.currentTimeMillis());
-                checkpointData.addAll(result);
-            }
-
-            // cancel the source
-            source.cancel();
-            runner.join();
-
-            // check for errors
-            if (error[0] != null) {
-                System.err.println("Error in asynchronous source runner");
-                error[0].printStackTrace();
-                fail("Error in asynchronous source runner");
-            }
-
-            final FromElementsFunction<Integer> sourceCopy =
-                    new FromElementsFunction<>(IntSerializer.INSTANCE, data);
-            StreamSource<Integer, FromElementsFunction<Integer>> srcCopy =
-                    new StreamSource<>(sourceCopy);
-            AbstractStreamOperatorTestHarness<Integer> testHarnessCopy =
-                    new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
-            testHarnessCopy.setup();
-            testHarnessCopy.initializeState(handles);
-            testHarnessCopy.open();
-
-            // recovery run
-            SourceFunction.SourceContext<Integer> newCtx = new ListSourceContext<>(checkpointData);
-
-            sourceCopy.run(newCtx);
-
-            assertEquals(data, checkpointData);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        for (int i = 0; i < numElements; i++) {
+            data.add(i);
         }
+
+        final FromElementsFunction<Integer> source =
+                new FromElementsFunction<>(IntSerializer.INSTANCE, data);
+        StreamSource<Integer, FromElementsFunction<Integer>> src = new StreamSource<>(source);
+        AbstractStreamOperatorTestHarness<Integer> testHarness =
+                new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+        testHarness.open();
+
+        final SourceFunction.SourceContext<Integer> ctx =
+                new ListSourceContext<Integer>(result, 2L);
+
+        // run the source asynchronously
+        CheckedThread runner =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        source.run(ctx);
+                    }
+                };
+        runner.start();
+
+        // wait for a bit
+        Thread.sleep(1000);
+
+        // make a checkpoint
+        List<Integer> checkpointData = new ArrayList<>(numElements);
+        OperatorSubtaskState handles = null;
+        synchronized (ctx.getCheckpointLock()) {
+            handles = testHarness.snapshot(566, System.currentTimeMillis());
+            checkpointData.addAll(result);
+        }
+
+        // cancel the source
+        source.cancel();
+        runner.sync();
+
+        final FromElementsFunction<Integer> sourceCopy =
+                new FromElementsFunction<>(IntSerializer.INSTANCE, data);
+        StreamSource<Integer, FromElementsFunction<Integer>> srcCopy =
+                new StreamSource<>(sourceCopy);
+        AbstractStreamOperatorTestHarness<Integer> testHarnessCopy =
+                new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+        testHarnessCopy.setup();
+        testHarnessCopy.initializeState(handles);
+        testHarnessCopy.open();
+
+        // recovery run
+        SourceFunction.SourceContext<Integer> newCtx = new ListSourceContext<>(checkpointData);
+
+        sourceCopy.run(newCtx);
+
+        assertThat(checkpointData).isEqualTo(data);
     }
 
     // ------------------------------------------------------------------------

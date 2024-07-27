@@ -26,8 +26,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
-import java.io.IOException;
-
 /** An {@link AggregatingState} which keeps value for a single key at a time. */
 class BatchExecutionKeyAggregatingState<K, N, IN, ACC, OUT>
         extends MergingAbstractBatchExecutionKeyState<K, N, ACC, IN, OUT>
@@ -52,21 +50,15 @@ class BatchExecutionKeyAggregatingState<K, N, IN, ACC, OUT>
     }
 
     @Override
-    public void add(IN value) throws IOException {
+    public void add(IN value) {
         if (value == null) {
             clear();
             return;
         }
-
-        try {
-            if (getCurrentNamespaceValue() == null) {
-                setCurrentNamespaceValue(aggFunction.createAccumulator());
-            }
-            setCurrentNamespaceValue(aggFunction.add(value, getCurrentNamespaceValue()));
-        } catch (Exception e) {
-            throw new IOException(
-                    "Exception while applying AggregateFunction in aggregating state", e);
+        if (getCurrentNamespaceValue() == null) {
+            setCurrentNamespaceValue(aggFunction.createAccumulator());
         }
+        setCurrentNamespaceValue(aggFunction.add(value, getCurrentNamespaceValue()));
     }
 
     @SuppressWarnings("unchecked")

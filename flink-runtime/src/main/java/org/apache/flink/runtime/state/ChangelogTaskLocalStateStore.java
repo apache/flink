@@ -101,7 +101,7 @@ public class ChangelogTaskLocalStateStore extends TaskLocalStateStoreImpl {
     }
 
     public static Path getLocalTaskOwnedDirectory(
-            LocalRecoveryDirectoryProvider provider, JobID jobID) {
+            LocalSnapshotDirectoryProvider provider, JobID jobID) {
         File outDir =
                 provider.selectAllocationBaseDirectory(
                         (jobID.hashCode() & Integer.MAX_VALUE)

@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -39,10 +41,13 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -60,15 +65,32 @@ public interface RuntimeContext {
     /**
      * The ID of the current job. Note that Job ID can change in particular upon manual restart. The
      * returned ID should NOT be used for any job management tasks.
+     *
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the job should be
+     *     provided uniformly by {@link #getJobInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    JobID getJobId();
+    @Deprecated
+    default JobID getJobId() {
+        return getJobInfo().getJobId();
+    }
 
     /**
      * Returns the name of the task in which the UDF runs, as assigned during plan construction.
      *
      * @return The name of the task in which the UDF runs.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    String getTaskName();
+    @Deprecated
+    default String getTaskName() {
+        return getTaskInfo().getTaskName();
+    }
 
     /**
      * Returns the metric group for this parallel subtask.
@@ -82,46 +104,116 @@ public interface RuntimeContext {
      * Gets the parallelism with which the parallel task runs.
      *
      * @return The parallelism with which the parallel task runs.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    int getNumberOfParallelSubtasks();
+    @Deprecated
+    default int getNumberOfParallelSubtasks() {
+        return getTaskInfo().getNumberOfParallelSubtasks();
+    }
 
     /**
      * Gets the number of max-parallelism with which the parallel task runs.
      *
      * @return The max-parallelism with which the parallel task runs.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
+    @Deprecated
     @PublicEvolving
-    int getMaxNumberOfParallelSubtasks();
+    default int getMaxNumberOfParallelSubtasks() {
+        return getTaskInfo().getMaxNumberOfParallelSubtasks();
+    }
 
     /**
      * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
-     * parallelism-1 (parallelism as returned by {@link #getNumberOfParallelSubtasks()}).
+     * parallelism-1.
      *
      * @return The index of the parallel subtask.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    int getIndexOfThisSubtask();
+    @Deprecated
+    default int getIndexOfThisSubtask() {
+        return getTaskInfo().getIndexOfThisSubtask();
+    }
 
     /**
      * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
      *
      * @return Attempt number of the subtask.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    int getAttemptNumber();
+    @Deprecated
+    default int getAttemptNumber() {
+        return getTaskInfo().getAttemptNumber();
+    }
 
     /**
      * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
-     * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be {@link
-     * #getNumberOfParallelSubtasks()}, and 1 would be {@link #getAttemptNumber()}.
+     * where 3 would be (task index + 1), and 6 would be task parallelism, and 1 would be attempt
+     * number.
      *
      * @return The name of the task, with subtask indicator.
+     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
+     *     provided uniformly by {@link #getTaskInfo()}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
+     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
      */
-    String getTaskNameWithSubtasks();
+    @Deprecated
+    default String getTaskNameWithSubtasks() {
+        return getTaskInfo().getTaskNameWithSubtasks();
+    }
 
     /**
      * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
      * job.
+     *
+     * @deprecated This method has been deprecated and will be removed in the upcoming FLINK major
+     *     version FLINK-2.0. Users relying on this method should migrate to alternative getter
+     *     methods, such as {@link #getGlobalJobParameters()} or {@link #isObjectReuseEnabled()}.
      */
+    @Deprecated
     ExecutionConfig getExecutionConfig();
+
+    /**
+     * Create a serializer for a given type.
+     *
+     * @param typeInformation the type information of the object to be serialized
+     * @return the serializer for the given type
+     */
+    @PublicEvolving
+    <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation);
+
+    /**
+     * Get global job parameters.
+     *
+     * @return the global job parameters
+     */
+    @PublicEvolving
+    Map<String, String> getGlobalJobParameters();
+
+    /**
+     * Check if object reuse is enabled.
+     *
+     * @return true if object reuse is enabled, false otherwise
+     */
+    @PublicEvolving
+    boolean isObjectReuseEnabled();
 
     /**
      * Gets the ClassLoader to load classes that are not in system's classpath, but are part of the
@@ -440,4 +532,20 @@ public interface RuntimeContext {
      */
     @PublicEvolving
     <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+
+    /**
+     * Get the meta information of current job.
+     *
+     * @return the job meta information.
+     */
+    @PublicEvolving
+    JobInfo getJobInfo();
+
+    /**
+     * Get the meta information of current task.
+     *
+     * @return the task meta information.
+     */
+    @PublicEvolving
+    TaskInfo getTaskInfo();
 }

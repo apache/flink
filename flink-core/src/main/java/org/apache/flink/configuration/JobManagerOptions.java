@@ -18,9 +18,11 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import java.time.Duration;
 
@@ -429,22 +431,28 @@ public class JobManagerOptions {
 
     /** The timeout in milliseconds for requesting a slot from Slot Pool. */
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
+    public static final ConfigOption<Duration> SLOT_REQUEST_TIMEOUT =
             key("slot.request.timeout")
-                    .longType()
-                    .defaultValue(5L * 60L * 1000L)
-                    .withDescription(
-                            "The timeout in milliseconds for requesting a slot from Slot Pool.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5L * 60L * 1000L))
+                    .withDescription("The timeout for requesting a slot from Slot Pool.");
 
     /** The timeout in milliseconds for a idle slot in Slot Pool. */
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
+    public static final ConfigOption<Duration> SLOT_IDLE_TIMEOUT =
             key("slot.idle.timeout")
-                    .longType()
+                    .durationType()
                     // default matches heartbeat.timeout so that sticky allocation is not lost on
                     // timeouts for local recovery
                     .defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
-                    .withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+                    .withDescription("The timeout for a idle slot in Slot Pool.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> SLOT_REQUEST_MAX_INTERVAL =
+            key("slot.request.max-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(20L))
+                    .withDescription("The max interval duration for slots request.");
 
     /** Config parameter determining the scheduler implementation. */
     @Documentation.Section({
@@ -458,29 +466,42 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
-                                    .list(
-                                            text("'Default': Default scheduler"),
-                                            text(
-                                                    "'Adaptive': Adaptive scheduler. More details can be found %s.",
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler",
-                                                            "here")),
-                                            text(
-                                                    "'AdaptiveBatch': Adaptive batch scheduler. More details can be found %s.",
-                                                    link(
-                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler",
-                                                            "here")))
+                                            "Determines which scheduler implementation is used to schedule tasks. "
+                                                    + "If this option is not explicitly set, batch jobs will use the "
+                                                    + "'AdaptiveBatch' scheduler as the default, while streaming jobs "
+                                                    + "will default to the 'Default' scheduler. ")
                                     .build());
 
     /** Type of scheduler implementation. */
-    public enum SchedulerType {
+    public enum SchedulerType implements DescribedEnum {
         /** @deprecated Use {@link SchedulerType#Default} instead. */
         @Deprecated
-        Ng,
-        Default,
-        Adaptive,
-        AdaptiveBatch
+        Ng(text("Deprecated. Use Default scheduler instead.")),
+        Default(text("Default scheduler")),
+        Adaptive(
+                text(
+                        "Adaptive scheduler. More details can be found %s.",
+                        link(
+                                "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler",
+                                "here"))),
+        AdaptiveBatch(
+                text(
+                        "Adaptive batch scheduler. More details can be found %s.",
+                        link(
+                                "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler",
+                                "here")));
+
+        private final InlineElement description;
+
+        SchedulerType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
@@ -511,6 +532,32 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
+            key("jobmanager.adaptive-scheduler.scaling-interval.min")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    // rescaling and let the user increase the value for high workloads
+                    .withDescription("Determines the minimum time between scaling operations.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MAX =
+            key("jobmanager.adaptive-scheduler.scaling-interval.max")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines the maximum interval time after which a scaling operation is forced even if the %s aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.",
+                                            code(MIN_PARALLELISM_INCREASE.key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-wait-timeout")
                     .durationType()
@@ -531,6 +578,36 @@ public class JobManagerOptions {
                                             "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
                                             code(SCHEDULER_MODE.key()),
                                             code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT =
+            key("jobmanager.adaptive-scheduler.scale-on-failed-checkpoints-count")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.")
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_SCALE_TRIGGER =
+            key("jobmanager.adaptive-scheduler.max-delay-for-scale-trigger")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled "
+                                                    + "and the checkpointing interval multiplied by the by-1-incremented parameter value of %s if checkpointing is enabled).",
+                                            text(SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT.key()))
                                     .build());
 
     @Documentation.Section({

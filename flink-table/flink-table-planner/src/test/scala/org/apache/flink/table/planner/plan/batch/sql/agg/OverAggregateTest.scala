@@ -22,7 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -30,6 +31,7 @@ class OverAggregateTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addTableSource[(Int, Long, String, Long)]("MyTableWithProctime", 'a, 'b, 'c, 'proctime)
 
   @Test
   def testOverWindowWithoutPartitionByOrderBy(): Unit = {
@@ -44,6 +46,18 @@ class OverAggregateTest extends TableTestBase {
   @Test
   def testOverWindowWithoutPartitionBy(): Unit = {
     util.verifyExecPlan("SELECT c, SUM(a) OVER (ORDER BY b) FROM MyTable")
+  }
+
+  @Test
+  def testDenseRankOnOrder(): Unit = {
+    util.verifyExecPlan(
+      "SELECT a, DENSE_RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime")
+  }
+
+  @Test
+  def testRankOnOver(): Unit = {
+    util.verifyExecPlan(
+      "SELECT a, RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime")
   }
 
   @Test
@@ -216,7 +230,7 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testOverWindowRangeProhibitType(): Unit = {
     val sqlQuery =
       """
@@ -224,7 +238,8 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY c RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
   @Test
@@ -253,7 +268,7 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRowsWindowWithNegative(): Unit = {
     val sqlQuery =
       """
@@ -261,7 +276,8 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a ROWS BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
   @Test
@@ -320,7 +336,7 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testDistinct(): Unit = {
     val sqlQuery =
       """
@@ -328,22 +344,27 @@ class OverAggregateTest extends TableTestBase {
         |    OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
-    util.addFunction("overAgg", new OverAgg0)
-    util.verifyExecPlan("SELECT overAgg(b, a) FROM MyTable")
+    util.addTemporarySystemFunction("overAgg", new OverAgg0)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT overAgg(b, a) FROM MyTable"))
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation2(): Unit = {
     util.addTableSource[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
-    util.addFunction("overAgg", new OverAgg0)
+    util.addTemporarySystemFunction("overAgg", new OverAgg0)
 
-    util.verifyExecPlan("SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util.verifyExecPlan("SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"))
   }
 }

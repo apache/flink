@@ -80,8 +80,8 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
             }
         } else {
             // the first time the job is executed
-            final int stepSize = runtimeContext.getNumberOfParallelSubtasks();
-            final int taskIdx = runtimeContext.getIndexOfThisSubtask();
+            final int stepSize = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
+            final int taskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
             final long congruence = start + taskIdx;
 
             long totalNoOfElements = Math.abs(end - start + 1);

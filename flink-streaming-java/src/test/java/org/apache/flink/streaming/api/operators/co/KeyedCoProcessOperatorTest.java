@@ -33,20 +33,19 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests {@link KeyedCoProcessOperator}. */
-public class KeyedCoProcessOperatorTest extends TestLogger {
+class KeyedCoProcessOperatorTest {
 
     @Test
-    public void testTimestampAndWatermarkQuerying() throws Exception {
+    void testTimestampAndWatermarkQuerying() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new WatermarkQueryingProcessFunction());
@@ -83,7 +82,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
+    void testTimestampAndProcessingTimeQuerying() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new ProcessingTimeQueryingProcessFunction());
@@ -116,7 +115,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testEventTimeTimers() throws Exception {
+    void testEventTimeTimers() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new EventTimeTriggeringProcessFunction());
@@ -156,7 +155,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testProcessingTimeTimers() throws Exception {
+    void testProcessingTimeTimers() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new ProcessingTimeTriggeringProcessFunction());
@@ -192,7 +191,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
     /** Verifies that we don't have leakage between different keys. */
     @Test
-    public void testEventTimeTimerWithState() throws Exception {
+    void testEventTimeTimerWithState() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new EventTimeTriggeringStatefulProcessFunction());
@@ -243,7 +242,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
     /** Verifies that we don't have leakage between different keys. */
     @Test
-    public void testProcessingTimeTimerWithState() throws Exception {
+    void testProcessingTimeTimerWithState() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new ProcessingTimeTriggeringStatefulProcessFunction());
@@ -284,7 +283,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSnapshotAndRestore() throws Exception {
+    void testSnapshotAndRestore() throws Exception {
 
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new BothTriggeringProcessFunction());
@@ -337,7 +336,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testGetCurrentKeyFromContext() throws Exception {
+    void testGetCurrentKeyFromContext() throws Exception {
         KeyedCoProcessOperator<String, Integer, String, String> operator =
                 new KeyedCoProcessOperator<>(new AppendCurrentKeyProcessFunction());
 
@@ -441,8 +440,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-
-            assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(TimeDomain.EVENT_TIME);
             out.collect(ctx.getCurrentKey() + ":" + 1777);
         }
     }
@@ -484,7 +482,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-            assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(TimeDomain.EVENT_TIME);
             out.collect("STATE:" + getRuntimeContext().getState(state).value());
         }
     }
@@ -511,8 +509,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-
-            assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(TimeDomain.PROCESSING_TIME);
             out.collect("" + 1777);
         }
     }
@@ -586,7 +583,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-            assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(TimeDomain.PROCESSING_TIME);
             out.collect("STATE:" + getRuntimeContext().getState(state).value());
         }
     }

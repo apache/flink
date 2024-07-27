@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -80,7 +81,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
     @Override
     @PublicEvolving
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<T> createSerializer(SerializerConfig config) {
         if (config.hasGenericTypesDisabled()) {
             throw new UnsupportedOperationException(
                     "Generic types have been disabled in the ExecutionConfig and type "
@@ -89,6 +90,13 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
         }
 
         return new KryoSerializer<T>(this.typeClass, config);
+    }
+
+    @Override
+    @Deprecated
+    @PublicEvolving
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        return createSerializer(config.getSerializerConfig());
     }
 
     @SuppressWarnings("unchecked")
@@ -100,7 +108,9 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
             @SuppressWarnings("rawtypes")
             GenericTypeComparator comparator =
                     new GenericTypeComparator(
-                            sortOrderAscending, createSerializer(executionConfig), this.typeClass);
+                            sortOrderAscending,
+                            createSerializer(executionConfig.getSerializerConfig()),
+                            this.typeClass);
             return (TypeComparator<T>) comparator;
         }
 

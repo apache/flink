@@ -151,7 +151,7 @@ You can **re-attach to a YARN session** using the following command:
 ./bin/yarn-session.sh -id application_XXXX_YY
 ```
 
-Besides passing [configuration]({{< ref "docs/deployment/config" >}}) via the `conf/flink-conf.yaml` file, you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
+Besides passing [configuration]({{< ref "docs/deployment/config" >}}) via the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
 
 The YARN session client also has a few "shortcut arguments" for commonly used settings. They can be listed with `./bin/yarn-session.sh -h`.
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
+import org.apache.flink.table.api.OverWindowRange;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -111,9 +112,7 @@ public class OverConvertRule implements CallExpressionConvertRule {
                             .collect(Collectors.toList());
             // assemble bounds
             Expression preceding = children.get(2);
-            boolean isPhysical =
-                    fromDataTypeToLogicalType(((ResolvedExpression) preceding).getOutputDataType())
-                            .is(LogicalTypeRoot.BIGINT);
+            boolean isRows = isRows((ValueLiteralExpression) preceding);
             Expression following = children.get(3);
             RexWindowBound lowerBound = createBound(context, preceding, SqlKind.PRECEDING);
             RexWindowBound upperBound = createBound(context, following, SqlKind.FOLLOWING);
@@ -130,13 +129,23 @@ public class OverConvertRule implements CallExpressionConvertRule {
                                     orderKey,
                                     lowerBound,
                                     upperBound,
-                                    isPhysical,
+                                    isRows,
                                     true,
                                     false,
                                     isDistinct,
                                     false));
         }
         return Optional.empty();
+    }
+
+    private static boolean isRows(ValueLiteralExpression preceding) {
+        return preceding
+                .getValueAs(OverWindowRange.class)
+                .map(r -> r == OverWindowRange.CURRENT_ROW || r == OverWindowRange.UNBOUNDED_ROW)
+                .orElseGet(
+                        () ->
+                                fromDataTypeToLogicalType(preceding.getOutputDataType())
+                                        .is(LogicalTypeRoot.BIGINT));
     }
 
     private RexNode createCollation(
@@ -182,57 +191,59 @@ public class OverConvertRule implements CallExpressionConvertRule {
     }
 
     private RexWindowBound createBound(ConvertContext context, Expression bound, SqlKind sqlKind) {
-        if (bound instanceof CallExpression) {
-            CallExpression callExpr = (CallExpression) bound;
-            FunctionDefinition func = callExpr.getFunctionDefinition();
-            if (BuiltInFunctionDefinitions.UNBOUNDED_ROW.equals(func)
-                    || BuiltInFunctionDefinitions.UNBOUNDED_RANGE.equals(func)) {
+        if (bound instanceof ValueLiteralExpression) {
+            final ValueLiteralExpression literal = (ValueLiteralExpression) bound;
+            return literal.getValueAs(OverWindowRange.class)
+                    .map(r -> createSymbolBound(r, sqlKind))
+                    .orElseGet(
+                            () ->
+                                    createLiteralBound(
+                                            context, (ValueLiteralExpression) bound, sqlKind));
+        } else {
+            throw new TableException("Unexpected expression: " + bound);
+        }
+    }
+
+    private static RexWindowBound createLiteralBound(
+            ConvertContext context, ValueLiteralExpression bound, SqlKind sqlKind) {
+        RelDataType returnType =
+                context.getTypeFactory()
+                        .createFieldTypeFromLogicalType(new DecimalType(true, 19, 0));
+        SqlOperator sqlOperator =
+                new SqlPostfixOperator(
+                        sqlKind.name(), sqlKind, 2, new OrdinalReturnTypeInference(0), null, null);
+        SqlNode[] operands = new SqlNode[] {SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)};
+        SqlNode node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO);
+
+        RexNode literalRexNode =
+                bound.getValueAs(BigDecimal.class)
+                        .map(v -> context.getRelBuilder().literal(v))
+                        .orElse(context.getRelBuilder().literal(extractValue(bound, Object.class)));
+
+        List<RexNode> expressions = new ArrayList<>();
+        expressions.add(literalRexNode);
+        RexNode rexNode =
+                context.getRelBuilder()
+                        .getRexBuilder()
+                        .makeCall(returnType, sqlOperator, expressions);
+        return RexWindowBounds.create(node, rexNode);
+    }
+
+    private static RexWindowBound createSymbolBound(OverWindowRange bound, SqlKind sqlKind) {
+        switch (bound) {
+            case CURRENT_ROW:
+            case CURRENT_RANGE:
+                SqlNode currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO);
+                return RexWindowBounds.create(currentRow, null);
+            case UNBOUNDED_ROW:
+            case UNBOUNDED_RANGE:
                 SqlNode unbounded =
                         sqlKind.equals(SqlKind.PRECEDING)
                                 ? SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
                                 : SqlWindow.createUnboundedFollowing(SqlParserPos.ZERO);
                 return RexWindowBounds.create(unbounded, null);
-            } else if (BuiltInFunctionDefinitions.CURRENT_ROW.equals(func)
-                    || BuiltInFunctionDefinitions.CURRENT_RANGE.equals(func)) {
-                SqlNode currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO);
-                return RexWindowBounds.create(currentRow, null);
-            } else {
+            default:
                 throw new IllegalArgumentException("Unexpected expression: " + bound);
-            }
-        } else if (bound instanceof ValueLiteralExpression) {
-            RelDataType returnType =
-                    context.getTypeFactory()
-                            .createFieldTypeFromLogicalType(new DecimalType(true, 19, 0));
-            SqlOperator sqlOperator =
-                    new SqlPostfixOperator(
-                            sqlKind.name(),
-                            sqlKind,
-                            2,
-                            new OrdinalReturnTypeInference(0),
-                            null,
-                            null);
-            SqlNode[] operands =
-                    new SqlNode[] {SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)};
-            SqlNode node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO);
-
-            ValueLiteralExpression literalExpr = (ValueLiteralExpression) bound;
-            RexNode literalRexNode =
-                    literalExpr
-                            .getValueAs(BigDecimal.class)
-                            .map(v -> context.getRelBuilder().literal(v))
-                            .orElse(
-                                    context.getRelBuilder()
-                                            .literal(extractValue(literalExpr, Object.class)));
-
-            List<RexNode> expressions = new ArrayList<>();
-            expressions.add(literalRexNode);
-            RexNode rexNode =
-                    context.getRelBuilder()
-                            .getRexBuilder()
-                            .makeCall(returnType, sqlOperator, expressions);
-            return RexWindowBounds.create(node, rexNode);
-        } else {
-            throw new TableException("Unexpected expression: " + bound);
         }
     }
 }

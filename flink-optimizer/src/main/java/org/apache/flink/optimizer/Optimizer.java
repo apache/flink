@@ -354,7 +354,7 @@ public class Optimizer {
         this.costEstimator = estimator;
 
         // determine the default parallelism
-        this.defaultParallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+        this.defaultParallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
 
         if (defaultParallelism < 1) {
             this.defaultParallelism = CoreOptions.DEFAULT_PARALLELISM.defaultValue();

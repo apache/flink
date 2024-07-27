@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,12 +79,14 @@ public class BatchExecutionUtils {
     private static boolean isInputSelectable(StreamNode node) {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         Class<? extends StreamOperator> operatorClass =
-                node.getOperatorFactory().getStreamOperatorClass(classLoader);
+                Preconditions.checkNotNull(node.getOperatorFactory())
+                        .getStreamOperatorClass(classLoader);
         return InputSelectable.class.isAssignableFrom(operatorClass);
     }
 
     private static void adjustChainingStrategy(StreamNode node) {
-        StreamOperatorFactory<?> operatorFactory = node.getOperatorFactory();
+        StreamOperatorFactory<?> operatorFactory =
+                Preconditions.checkNotNull(node.getOperatorFactory());
         ChainingStrategy currentChainingStrategy = operatorFactory.getChainingStrategy();
         switch (currentChainingStrategy) {
             case ALWAYS:

@@ -69,7 +69,7 @@ export interface JobVertexSubTaskData {
   attempt: number;
   duration: number;
   'end-time': number;
-  host: string;
+  endpoint: string;
   start_time: number;
   status: string;
   subtask: number;
@@ -96,7 +96,7 @@ export interface JobVertexTaskManager {
 
 export interface VertexTaskManagerDetail {
   duration: number;
-  host: string;
+  endpoint: string;
   status: string;
   'start-time': number;
   'end-time': number;

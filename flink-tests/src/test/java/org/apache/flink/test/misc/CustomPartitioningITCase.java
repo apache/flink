@@ -23,13 +23,13 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Assert;
 
 /** Integration tests for custom {@link Partitioner}. */
 @SuppressWarnings("serial")
-public class CustomPartitioningITCase extends JavaProgramTestBase {
+public class CustomPartitioningITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void testProgram() throws Exception {
@@ -51,7 +51,7 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 
         @Override
         public Long map(Long value) throws Exception {
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 return value;
             } else {
                 throw new Exception("Received data in a partition other than partition 0");

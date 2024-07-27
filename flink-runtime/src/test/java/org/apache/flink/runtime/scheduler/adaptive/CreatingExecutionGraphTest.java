@@ -57,7 +57,7 @@ class CreatingExecutionGraphTest {
     private static final Logger LOG = LoggerFactory.getLogger(CreatingExecutionGraphTest.class);
 
     @RegisterExtension
-    MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext();
+    private MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext();
 
     @Test
     void testFailedExecutionGraphCreationTransitionsToFinished() {
@@ -93,8 +93,12 @@ class CreatingExecutionGraphTest {
                 ignored -> CreatingExecutionGraph.AssignmentResult.notPossible());
         context.setExpectWaitingForResources();
 
-        executionGraphWithVertexParallelismFuture.complete(
-                getGraph(new StateTrackingMockExecutionGraph()));
+        final StateTrackingMockExecutionGraph executionGraph =
+                new StateTrackingMockExecutionGraph();
+
+        executionGraphWithVertexParallelismFuture.complete(getGraph(executionGraph));
+
+        assertThat(executionGraph.getState()).isEqualTo(JobStatus.INITIALIZING);
     }
 
     @Test

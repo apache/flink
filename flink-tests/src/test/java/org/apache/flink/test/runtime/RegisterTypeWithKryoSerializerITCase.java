@@ -21,7 +21,7 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -40,7 +40,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultCollections;
 
 /** Test registering types with Kryo. */
 @RunWith(Parameterized.class)
-public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBase {
+public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public RegisterTypeWithKryoSerializerITCase(TestExecutionMode mode) {
         super(mode);

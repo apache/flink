@@ -18,11 +18,11 @@
 # set default streaming mode and tableau result mode
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT id, COUNT(*) as cnt, COUNT(DISTINCT str) as uv
@@ -38,7 +38,7 @@ GROUP BY id;
 !ok
 
 SET 'table.local-time-zone' = 'UTC';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -72,7 +72,7 @@ AS (VALUES
   ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
   ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -88,7 +88,7 @@ SELECT * from testUserData;
 !ok
 
 SET 'sql-client.display.max-column-width' = '10';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -104,7 +104,7 @@ SELECT * from testUserData;
 !ok
 
 SET 'sql-client.display.max-column-width' = '40';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -121,11 +121,11 @@ SELECT * from testUserData;
 
 -- post-test cleanup + setting back default max width value
 DROP TEMPORARY VIEW testUserData;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.display.max-column-width' = '30';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;

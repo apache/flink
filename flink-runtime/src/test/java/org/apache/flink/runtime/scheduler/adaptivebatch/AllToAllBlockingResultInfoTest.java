@@ -88,9 +88,9 @@ class AllToAllBlockingResultInfoTest {
 
         // record partitionBytes1 for subtask 0 and then reset it
         resultInfo.recordPartitionInfo(0, partitionBytes1);
-        assertThat(resultInfo.getNumOfRecordedPartitions()).isEqualTo(1);
+        assertThat(resultInfo.getNumOfRecordedPartitions()).isOne();
         resultInfo.resetPartitionInfo(0);
-        assertThat(resultInfo.getNumOfRecordedPartitions()).isEqualTo(0);
+        assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
 
         // record partitionBytes2 for subtask 0 and record partitionBytes3 for subtask 1
         resultInfo.recordPartitionInfo(0, partitionBytes2);
@@ -100,7 +100,7 @@ class AllToAllBlockingResultInfoTest {
         assertThat(resultInfo.getNumBytesProduced()).isEqualTo(576L);
         assertThat(resultInfo.getAggregatedSubpartitionBytes()).containsExactly(192L, 384L);
         // The raw info should be clear
-        assertThat(resultInfo.getNumOfRecordedPartitions()).isEqualTo(0);
+        assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
 
         // reset subtask 0 and then record partitionBytes4 for subtask 0
         resultInfo.resetPartitionInfo(0);
@@ -109,7 +109,7 @@ class AllToAllBlockingResultInfoTest {
         // The result info should still be (partitionBytes2 + partitionBytes3)
         assertThat(resultInfo.getNumBytesProduced()).isEqualTo(576L);
         assertThat(resultInfo.getAggregatedSubpartitionBytes()).containsExactly(192L, 384L);
-        assertThat(resultInfo.getNumOfRecordedPartitions()).isEqualTo(0);
+        assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
     }
 
     private void testGetNumBytesProduced(boolean isBroadcast, long expectedBytes) {

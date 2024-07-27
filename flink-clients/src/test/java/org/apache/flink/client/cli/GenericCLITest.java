@@ -69,8 +69,8 @@ class GenericCLITest {
     @Test
     void testWithPreexistingConfigurationInConstructor() throws CliArgsException {
         final Configuration loadedConfig = new Configuration();
-        loadedConfig.setInteger(CoreOptions.DEFAULT_PARALLELISM, 2);
-        loadedConfig.setBoolean(DeploymentOptions.ATTACHED, false);
+        loadedConfig.set(CoreOptions.DEFAULT_PARALLELISM, 2);
+        loadedConfig.set(DeploymentOptions.ATTACHED, false);
 
         final ConfigOption<List<Integer>> listOption =
                 key("test.list").intType().asList().noDefaultValue();
@@ -92,9 +92,9 @@ class GenericCLITest {
 
         final Configuration configuration = cliUnderTest.toConfiguration(commandLine);
 
-        assertThat(configuration.getString(DeploymentOptions.TARGET)).isEqualTo("test-executor");
-        assertThat(configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM)).isEqualTo(5);
-        assertThat(configuration.getBoolean(DeploymentOptions.ATTACHED)).isFalse();
+        assertThat(configuration.get(DeploymentOptions.TARGET)).isEqualTo("test-executor");
+        assertThat(configuration.get(CoreOptions.DEFAULT_PARALLELISM)).isEqualTo(5);
+        assertThat(configuration.get(DeploymentOptions.ATTACHED)).isFalse();
         assertThat(configuration.get(listOption)).isEqualTo(listValue);
     }
 
@@ -123,6 +123,6 @@ class GenericCLITest {
 
         final Configuration configuration = cliUnderTest.toConfiguration(commandLine);
         assertThat(configuration.get(DeploymentOptions.TARGET)).isEqualTo(expectedExecutorName);
-        assertThat(configuration.getInteger(configOption)).isEqualTo(expectedValue);
+        assertThat(configuration.get(configOption)).isEqualTo(expectedValue);
     }
 }

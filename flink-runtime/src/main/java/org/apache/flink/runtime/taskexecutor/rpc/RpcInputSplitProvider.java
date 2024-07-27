@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -29,19 +28,21 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 public class RpcInputSplitProvider implements InputSplitProvider {
     private final JobMasterGateway jobMasterGateway;
     private final JobVertexID jobVertexID;
     private final ExecutionAttemptID executionAttemptID;
-    private final Time timeout;
+    private final Duration timeout;
 
     public RpcInputSplitProvider(
             JobMasterGateway jobMasterGateway,
             JobVertexID jobVertexID,
             ExecutionAttemptID executionAttemptID,
-            Time timeout) {
+            Duration timeout) {
         this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
         this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
         this.executionAttemptID = Preconditions.checkNotNull(executionAttemptID);
@@ -58,7 +59,7 @@ public class RpcInputSplitProvider implements InputSplitProvider {
 
         try {
             SerializedInputSplit serializedInputSplit =
-                    futureInputSplit.get(timeout.getSize(), timeout.getUnit());
+                    futureInputSplit.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
             if (serializedInputSplit.isEmpty()) {
                 return null;

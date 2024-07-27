@@ -30,13 +30,11 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,20 +45,18 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}. */
 @SuppressWarnings("serial")
-public class StreamTaskTimerITCase extends TestLogger {
+@Timeout(value = 20, unit = TimeUnit.SECONDS)
+class StreamTaskTimerITCase {
 
     private StreamTaskTestHarness<?> testHarness;
     private ProcessingTimeService timeService;
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         testHarness = startTestHarness();
 
         StreamTask<?, ?> task = testHarness.getTask();
@@ -72,13 +68,13 @@ public class StreamTaskTimerITCase extends TestLogger {
                                                 testHarness.getStreamConfig().getChainIndex()));
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         stopTestHarness(testHarness, 4000L);
     }
 
     @Test
-    public void testOpenCloseAndTimestamps() throws InterruptedException {
+    void testOpenCloseAndTimestamps() throws InterruptedException {
         // Wait for StreamTask#invoke spawn the timeService threads for the throughput calculation.
         while (StreamTask.TRIGGER_THREAD_GROUP.activeCount() != 1) {
             Thread.sleep(1);
@@ -87,7 +83,7 @@ public class StreamTaskTimerITCase extends TestLogger {
     }
 
     @Test
-    public void testErrorReporting() throws Exception {
+    void testErrorReporting() throws Exception {
         AtomicReference<Throwable> errorRef = new AtomicReference<>();
         OneShotLatch latch = new OneShotLatch();
         testHarness
@@ -105,11 +101,11 @@ public class StreamTaskTimerITCase extends TestLogger {
 
         timeService.registerTimer(System.currentTimeMillis(), callback);
         latch.await();
-        assertThat(errorRef.get(), instanceOf(Exception.class));
+        assertThat(errorRef.get()).isInstanceOf(Exception.class);
     }
 
     @Test
-    public void checkScheduledTimestamps() throws Exception {
+    void checkScheduledTimestamps() throws Exception {
         ValidatingProcessingTimeCallback.numInSequence = 0;
         long currentTimeMillis = System.currentTimeMillis();
         ArrayList<ValidatingProcessingTimeCallback> timeCallbacks = new ArrayList<>();
@@ -133,7 +129,7 @@ public class StreamTaskTimerITCase extends TestLogger {
         for (ValidatingProcessingTimeCallback timeCallback : timeCallbacks) {
             timeCallback.assertExpectedValues();
         }
-        assertEquals(4, ValidatingProcessingTimeCallback.numInSequence);
+        assertThat(ValidatingProcessingTimeCallback.numInSequence).isEqualTo(4);
     }
 
     private static class ValidatingProcessingTimeCallback implements ProcessingTimeCallback {
@@ -153,8 +149,8 @@ public class StreamTaskTimerITCase extends TestLogger {
         @Override
         public void onProcessingTime(long timestamp) {
             try {
-                assertEquals(expectedTimestamp, timestamp);
-                assertEquals(expectedInSequence, numInSequence);
+                assertThat(timestamp).isEqualTo(expectedTimestamp);
+                assertThat(numInSequence).isEqualTo(expectedInSequence);
                 numInSequence++;
                 finished.complete(null);
             } catch (Throwable t) {
@@ -213,9 +209,8 @@ public class StreamTaskTimerITCase extends TestLogger {
             Thread.sleep(10);
         }
 
-        assertEquals(
-                "Trigger timer thread did not properly shut down",
-                0,
-                StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+        assertThat(StreamTask.TRIGGER_THREAD_GROUP.activeCount())
+                .as("Trigger timer thread did not properly shut down")
+                .isZero();
     }
 }

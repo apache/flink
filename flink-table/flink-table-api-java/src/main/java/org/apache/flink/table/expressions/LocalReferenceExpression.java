@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -60,6 +61,11 @@ public class LocalReferenceExpression implements ResolvedExpression {
     @Override
     public String asSummaryString() {
         return name;
+    }
+
+    @Override
+    public String asSerializableString() {
+        return EncodingUtils.escapeIdentifier(name);
     }
 
     @Override

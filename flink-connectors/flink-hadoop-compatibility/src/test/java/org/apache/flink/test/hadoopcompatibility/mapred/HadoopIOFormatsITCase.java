@@ -24,6 +24,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -35,11 +38,9 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.net.URI;
@@ -47,28 +48,44 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for Hadoop IO formats. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
     private static final int NUM_PROGRAMS = 2;
 
-    private final int curProgId;
+    @Parameter private int curProgId;
     private String[] resultPath;
     private String[] expectedResult;
     private String sequenceFileInPath;
     private String sequenceFileInPathNull;
 
-    public HadoopIOFormatsITCase(int curProgId) {
-        this.curProgId = curProgId;
+    @BeforeEach
+    void checkOperatingSystem() {
+        // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
+        assumeThat(OperatingSystem.isWindows())
+                .as("This test can't run successfully on Windows.")
+                .isFalse();
     }
 
-    @Before
-    public void checkOperatingSystem() {
-        // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-        Assume.assumeTrue(
-                "This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+    @Override
+    @TestTemplate
+    public void testJobWithObjectReuse() throws Exception {
+        super.testJobWithoutObjectReuse();
+    }
+
+    @Override
+    @TestTemplate
+    public void testJobWithoutObjectReuse() throws Exception {
+        super.testJobWithoutObjectReuse();
+    }
+
+    @Override
+    @TestTemplate
+    public void testJobCollectionExecution() throws Exception {
+        super.testJobCollectionExecution();
     }
 
     @Override
@@ -143,13 +160,13 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
         }
     }
 
-    @Parameters
-    public static Collection<Object[]> getConfigurations() {
+    @Parameters(name = "curProgId = {0}")
+    public static Collection<Integer> getConfigurations() {
 
-        Collection<Object[]> programIds = new ArrayList<>(NUM_PROGRAMS);
+        Collection<Integer> programIds = new ArrayList<>(NUM_PROGRAMS);
 
         for (int i = 1; i <= NUM_PROGRAMS; i++) {
-            programIds.add(new Object[] {i});
+            programIds.add(i);
         }
 
         return programIds;

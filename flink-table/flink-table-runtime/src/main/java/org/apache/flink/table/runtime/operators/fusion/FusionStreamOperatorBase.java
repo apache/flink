@@ -51,6 +51,7 @@ public abstract class FusionStreamOperatorBase extends AbstractStreamOperatorV2<
                         .getStreamConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 org.apache.flink.core.memory.ManagedMemoryUseCase.OPERATOR,
+                                getRuntimeContext().getJobConfiguration(),
                                 getRuntimeContext().getTaskManagerRuntimeInfo().getConfiguration(),
                                 getRuntimeContext().getUserCodeClassLoader());
         return getContainingTask()

@@ -417,7 +417,9 @@ public abstract class DataSet<T> {
     public List<T> collect() throws Exception {
         final String id = new AbstractID().toString();
         final TypeSerializer<T> serializer =
-                getType().createSerializer(getExecutionEnvironment().getConfig());
+                getType()
+                        .createSerializer(
+                                getExecutionEnvironment().getConfig().getSerializerConfig());
 
         this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
         JobExecutionResult res = getExecutionEnvironment().execute();
@@ -1564,7 +1566,7 @@ public abstract class DataSet<T> {
      * dataset.writeAsText("file:///path1"); }</pre>
      *   <li>A directory is always created when <a
      *       href="https://nightlies.apache.org/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
-     *       is set to true in flink-conf.yaml file, even when parallelism is set to 1.
+     *       is set to true in config.yaml file, even when parallelism is set to 1.
      *       <pre>{@code .
      * └── path1/
      *     └── 1 }</pre>

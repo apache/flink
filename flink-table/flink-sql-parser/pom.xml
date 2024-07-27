@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
@@ -265,7 +265,8 @@ under the License.
 									<groupId>org.apache.calcite</groupId>
 									<artifactId>calcite-core</artifactId>
 									<type>jar</type>
-									<overWrite>true</overWrite>
+									<!-- this lets us overwrite some of the Calcite's methods -->
+									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/</outputDirectory>
 									<includes>**/Parser.jj</includes>
 								</artifactItem>

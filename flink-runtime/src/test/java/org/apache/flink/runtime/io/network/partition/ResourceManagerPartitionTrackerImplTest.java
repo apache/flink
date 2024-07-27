@@ -24,9 +24,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,15 +37,10 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasKey;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link ResourceManagerPartitionTrackerImpl}. */
-public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
+class ResourceManagerPartitionTrackerImplTest {
 
     private static final ClusterPartitionReport EMPTY_PARTITION_REPORT =
             new ClusterPartitionReport(Collections.emptySet());
@@ -58,14 +52,14 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
     private static final ResultPartitionID PARTITION_ID_2 = new ResultPartitionID();
 
     @Test
-    public void testProcessEmptyClusterPartitionReport() {
+    void testProcessEmptyClusterPartitionReport() {
         TestClusterPartitionReleaser partitionReleaser = new TestClusterPartitionReleaser();
         final ResourceManagerPartitionTrackerImpl tracker =
                 new ResourceManagerPartitionTrackerImpl(partitionReleaser);
 
         reportEmpty(tracker, TASK_EXECUTOR_ID_1);
-        assertThat(partitionReleaser.releaseCalls, empty());
-        assertThat(tracker.areAllMapsEmpty(), is(true));
+        assertThat(partitionReleaser.releaseCalls).isEmpty();
+        assertThat(tracker.areAllMapsEmpty()).isTrue();
     }
 
     /**
@@ -73,7 +67,7 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
      * call if a subset of its partitions is lost.
      */
     @Test
-    public void testReportProcessingWithPartitionLossOnSameTaskExecutor() {
+    void testReportProcessingWithPartitionLossOnSameTaskExecutor() {
         TestClusterPartitionReleaser partitionReleaser = new TestClusterPartitionReleaser();
         final ResourceManagerPartitionTracker tracker =
                 new ResourceManagerPartitionTrackerImpl(partitionReleaser);
@@ -81,9 +75,8 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
         report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1, PARTITION_ID_2);
         report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_2);
 
-        assertThat(
-                partitionReleaser.releaseCalls,
-                contains(Tuple2.of(TASK_EXECUTOR_ID_1, Collections.singleton(DATA_SET_ID))));
+        assertThat(partitionReleaser.releaseCalls)
+                .contains(Tuple2.of(TASK_EXECUTOR_ID_1, Collections.singleton(DATA_SET_ID)));
     }
 
     /**
@@ -91,7 +84,7 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
      * partition of the data set is lost on another task executor.
      */
     @Test
-    public void testReportProcessingWithPartitionLossOnOtherTaskExecutor() {
+    void testReportProcessingWithPartitionLossOnOtherTaskExecutor() {
         TestClusterPartitionReleaser partitionReleaser = new TestClusterPartitionReleaser();
         final ResourceManagerPartitionTracker tracker =
                 new ResourceManagerPartitionTrackerImpl(partitionReleaser);
@@ -101,17 +94,16 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
 
         reportEmpty(tracker, TASK_EXECUTOR_ID_1);
 
-        assertThat(
-                partitionReleaser.releaseCalls,
-                contains(Tuple2.of(TASK_EXECUTOR_ID_2, Collections.singleton(DATA_SET_ID))));
+        assertThat(partitionReleaser.releaseCalls)
+                .contains(Tuple2.of(TASK_EXECUTOR_ID_2, Collections.singleton(DATA_SET_ID)));
     }
 
     @Test
-    public void testListDataSetsBasics() {
+    void testListDataSetsBasics() {
         final ResourceManagerPartitionTrackerImpl tracker =
                 new ResourceManagerPartitionTrackerImpl(new TestClusterPartitionReleaser());
 
-        assertThat(tracker.listDataSets().size(), is(0));
+        assertThat(tracker.listDataSets()).isEmpty();
 
         report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
         checkListedDataSets(tracker, 1, 2);
@@ -123,22 +115,22 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
         checkListedDataSets(tracker, 1, 2);
 
         reportEmpty(tracker, TASK_EXECUTOR_ID_2);
-        assertThat(tracker.listDataSets().size(), is(0));
+        assertThat(tracker.listDataSets()).isEmpty();
 
-        assertThat(tracker.areAllMapsEmpty(), is(true));
+        assertThat(tracker.areAllMapsEmpty()).isTrue();
     }
 
     private static void checkListedDataSets(
             ResourceManagerPartitionTracker tracker, int expectedRegistered, int expectedTotal) {
         final Map<IntermediateDataSetID, DataSetMetaInfo> listing = tracker.listDataSets();
-        assertThat(listing, hasKey(DATA_SET_ID));
+        assertThat(listing).containsKey(DATA_SET_ID);
         DataSetMetaInfo metaInfo = listing.get(DATA_SET_ID);
-        assertThat(metaInfo.getNumRegisteredPartitions().orElse(-1), is(expectedRegistered));
-        assertThat(metaInfo.getNumTotalPartitions(), is(expectedTotal));
+        assertThat(metaInfo.getNumRegisteredPartitions().orElse(-1)).isEqualTo(expectedRegistered);
+        assertThat(metaInfo.getNumTotalPartitions()).isEqualTo(expectedTotal);
     }
 
     @Test
-    public void testReleasePartition() {
+    void testReleasePartition() {
         TestClusterPartitionReleaser partitionReleaser = new TestClusterPartitionReleaser();
         final ResourceManagerPartitionTrackerImpl tracker =
                 new ResourceManagerPartitionTrackerImpl(partitionReleaser);
@@ -149,54 +141,52 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
         final CompletableFuture<Void> partitionReleaseFuture =
                 tracker.releaseClusterPartitions(DATA_SET_ID);
 
-        assertThat(
-                partitionReleaser.releaseCalls,
-                containsInAnyOrder(
+        assertThat(partitionReleaser.releaseCalls)
+                .containsExactlyInAnyOrder(
                         Tuple2.of(TASK_EXECUTOR_ID_1, Collections.singleton(DATA_SET_ID)),
-                        Tuple2.of(TASK_EXECUTOR_ID_2, Collections.singleton(DATA_SET_ID))));
+                        Tuple2.of(TASK_EXECUTOR_ID_2, Collections.singleton(DATA_SET_ID)));
 
         // the data set should still be tracked, since the partition release was not confirmed yet
         // by the task executors
-        assertThat(tracker.listDataSets().keySet(), contains(DATA_SET_ID));
+        assertThat(tracker.listDataSets().keySet()).contains(DATA_SET_ID);
 
         // ack the partition release
         reportEmpty(tracker, TASK_EXECUTOR_ID_1, TASK_EXECUTOR_ID_2);
 
-        assertThat(partitionReleaseFuture.isDone(), is(true));
-        assertThat(tracker.areAllMapsEmpty(), is(true));
+        assertThat(partitionReleaseFuture).isDone();
+        assertThat(tracker.areAllMapsEmpty()).isTrue();
     }
 
     @Test
-    public void testShutdownProcessing() {
+    void testShutdownProcessing() {
         TestClusterPartitionReleaser partitionReleaser = new TestClusterPartitionReleaser();
         final ResourceManagerPartitionTrackerImpl tracker =
                 new ResourceManagerPartitionTrackerImpl(partitionReleaser);
 
         tracker.processTaskExecutorShutdown(TASK_EXECUTOR_ID_1);
-        assertThat(partitionReleaser.releaseCalls, empty());
+        assertThat(partitionReleaser.releaseCalls).isEmpty();
 
         report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 3, PARTITION_ID_1, PARTITION_ID_2);
         report(tracker, TASK_EXECUTOR_ID_2, DATA_SET_ID, 3, new ResultPartitionID());
 
         tracker.processTaskExecutorShutdown(TASK_EXECUTOR_ID_1);
 
-        assertThat(
-                partitionReleaser.releaseCalls,
-                contains(Tuple2.of(TASK_EXECUTOR_ID_2, Collections.singleton(DATA_SET_ID))));
+        assertThat(partitionReleaser.releaseCalls)
+                .contains(Tuple2.of(TASK_EXECUTOR_ID_2, Collections.singleton(DATA_SET_ID)));
 
-        assertThat(tracker.areAllMapsEmpty(), is(false));
+        assertThat(tracker.areAllMapsEmpty()).isFalse();
 
         tracker.processTaskExecutorShutdown(TASK_EXECUTOR_ID_2);
 
-        assertThat(tracker.areAllMapsEmpty(), is(true));
+        assertThat(tracker.areAllMapsEmpty()).isTrue();
     }
 
     @Test
-    public void testGetClusterPartitionShuffleDescriptors() {
+    void testGetClusterPartitionShuffleDescriptors() {
         final ResourceManagerPartitionTrackerImpl tracker =
                 new ResourceManagerPartitionTrackerImpl(new TestClusterPartitionReleaser());
 
-        assertThat(tracker.listDataSets().size(), is(0));
+        assertThat(tracker.listDataSets()).isEmpty();
 
         List<ResultPartitionID> resultPartitionIDS = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
@@ -212,16 +202,16 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
 
         final List<ShuffleDescriptor> shuffleDescriptors =
                 tracker.getClusterPartitionShuffleDescriptors(DATA_SET_ID);
-        assertThat(shuffleDescriptors.size(), is(100));
+        assertThat(shuffleDescriptors).hasSize(100);
         assertThat(
-                shuffleDescriptors.stream()
-                        .map(ShuffleDescriptor::getResultPartitionID)
-                        .collect(Collectors.toList()),
-                contains(resultPartitionIDS.toArray()));
+                        shuffleDescriptors.stream()
+                                .map(ShuffleDescriptor::getResultPartitionID)
+                                .collect(Collectors.toList()))
+                .containsExactlyElementsOf(resultPartitionIDS);
 
         reportEmpty(tracker, TASK_EXECUTOR_ID_1);
         reportEmpty(tracker, TASK_EXECUTOR_ID_2);
-        assertThat(tracker.areAllMapsEmpty(), is(true));
+        assertThat(tracker.areAllMapsEmpty()).isTrue();
     }
 
     private static void reportEmpty(

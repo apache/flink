@@ -26,25 +26,24 @@ import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the event handling behaviour. */
-public class AbstractReaderTest {
+class AbstractReaderTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testTaskEvent() throws Exception {
+    void testTaskEvent() throws Exception {
         final AbstractReader reader = new MockReader(createInputGate(1));
 
         final EventListener<TaskEvent> listener1 = mock(EventListener.class);
@@ -64,10 +63,10 @@ public class AbstractReaderTest {
     }
 
     @Test
-    public void testEndOfPartitionEvent() throws Exception {
+    void testEndOfPartitionEvent() throws Exception {
         final AbstractReader reader = new MockReader(createInputGate(1));
 
-        assertTrue(reader.handleEvent(EndOfPartitionEvent.INSTANCE));
+        assertThat(reader.handleEvent(EndOfPartitionEvent.INSTANCE)).isTrue();
     }
 
     /**
@@ -75,78 +74,62 @@ public class AbstractReaderTest {
      * non-iterative reader.
      */
     @Test
-    public void testExceptionsNonIterativeReader() throws Exception {
+    void testExceptionsNonIterativeReader() {
 
         final AbstractReader reader = new MockReader(createInputGate(4));
 
         // Non-iterative reader cannot reach end of superstep
-        assertFalse(reader.hasReachedEndOfSuperstep());
+        assertThat(reader.hasReachedEndOfSuperstep()).isFalse();
 
-        try {
-            reader.startNextSuperstep();
+        assertThatThrownBy(reader::startNextSuperstep)
+                .withFailMessage(
+                        "Did not throw expected exception when starting next superstep with non-iterative reader.")
+                .isInstanceOf(IllegalStateException.class);
 
-            fail(
-                    "Did not throw expected exception when starting next superstep with non-iterative reader.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
-
-        try {
-            reader.handleEvent(EndOfSuperstepEvent.INSTANCE);
-
-            fail(
-                    "Did not throw expected exception when handling end of superstep event with non-iterative reader.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
+        assertThatThrownBy(() -> reader.handleEvent(EndOfSuperstepEvent.INSTANCE))
+                .withFailMessage(
+                        "Did not throw expected exception when handling end of superstep event with non-iterative reader.")
+                .hasCauseInstanceOf(IllegalStateException.class)
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testEndOfSuperstepEventLogic() throws IOException {
+    void testEndOfSuperstepEventLogic() throws IOException {
 
         final int numberOfInputChannels = 4;
         final AbstractReader reader = new MockReader(createInputGate(numberOfInputChannels));
 
         reader.setIterativeReader();
 
-        try {
-            // The first superstep does not need not to be explicitly started
-            reader.startNextSuperstep();
-
-            fail(
-                    "Did not throw expected exception when starting next superstep before receiving all end of superstep events.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
+        // The first superstep does not need not to be explicitly started
+        assertThatThrownBy(reader::startNextSuperstep)
+                .withFailMessage(
+                        "Did not throw expected exception when starting next superstep before receiving all end of superstep events.")
+                .isInstanceOf(IllegalStateException.class);
 
         EndOfSuperstepEvent eos = EndOfSuperstepEvent.INSTANCE;
 
         // One end of superstep event for each input channel. The superstep finishes with the last
         // received event.
         for (int i = 0; i < numberOfInputChannels - 1; i++) {
-            assertFalse(reader.handleEvent(eos));
-            assertFalse(reader.hasReachedEndOfSuperstep());
+            assertThat(reader.handleEvent(eos)).isFalse();
+            assertThat(reader.hasReachedEndOfSuperstep()).isFalse();
         }
 
-        assertTrue(reader.handleEvent(eos));
-        assertTrue(reader.hasReachedEndOfSuperstep());
+        assertThat(reader.handleEvent(eos)).isTrue();
+        assertThat(reader.hasReachedEndOfSuperstep()).isTrue();
 
-        try {
-            // Verify exception, when receiving too many end of superstep events.
-            reader.handleEvent(eos);
-
-            fail(
-                    "Did not throw expected exception when receiving too many end of superstep events.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
+        assertThatThrownBy(() -> reader.handleEvent(eos))
+                .withFailMessage(
+                        "Did not throw expected exception when receiving too many end of superstep events.")
+                .isInstanceOf(IOException.class);
 
         // Start next superstep.
         reader.startNextSuperstep();
-        assertFalse(reader.hasReachedEndOfSuperstep());
+        assertThat(reader.hasReachedEndOfSuperstep()).isFalse();
     }
 
-    private InputGate createInputGate(int numberOfInputChannels) {
+    private static InputGate createInputGate(int numberOfInputChannels) {
         final InputGate inputGate = mock(InputGate.class);
         when(inputGate.getNumberOfInputChannels()).thenReturn(numberOfInputChannels);
 

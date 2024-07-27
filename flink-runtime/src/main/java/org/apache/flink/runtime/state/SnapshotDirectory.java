@@ -172,7 +172,7 @@ public abstract class SnapshotDirectory {
 
     private static class PermanentSnapshotDirectory extends SnapshotDirectory {
 
-        PermanentSnapshotDirectory(@Nonnull Path directory) throws IOException {
+        PermanentSnapshotDirectory(@Nonnull Path directory) {
             super(directory);
         }
 
@@ -180,7 +180,7 @@ public abstract class SnapshotDirectory {
         public DirectoryStateHandle completeSnapshotAndGetHandle() throws IOException {
             if (State.COMPLETED == state.get()
                     || state.compareAndSet(State.ONGOING, State.COMPLETED)) {
-                return new DirectoryStateHandle(directory);
+                return DirectoryStateHandle.forPathWithSize(directory);
             } else {
                 throw new IOException(
                         "Expected state " + State.ONGOING + " but found state " + state.get());

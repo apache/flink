@@ -38,7 +38,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
  * When an operator receives this it will know that no more input will be arriving in the future.
  */
 @PublicEvolving
-public final class Watermark extends StreamElement {
+public class Watermark extends StreamElement {
 
     /** The watermark that signifies end-of-event-time. */
     public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
@@ -48,8 +48,7 @@ public final class Watermark extends StreamElement {
     // ------------------------------------------------------------------------
 
     /** The timestamp of the watermark in milliseconds. */
-    private final long timestamp;
-
+    protected final long timestamp;
     /** Creates a new watermark with the given timestamp in milliseconds. */
     public Watermark(long timestamp) {
         this.timestamp = timestamp;
@@ -66,7 +65,7 @@ public final class Watermark extends StreamElement {
     public boolean equals(Object o) {
         return this == o
                 || o != null
-                        && o.getClass() == Watermark.class
+                        && o.getClass() == this.getClass()
                         && ((Watermark) o).timestamp == timestamp;
     }
 

@@ -77,8 +77,8 @@ public class LocalExecutorITCase extends TestLogger {
             }
 
             final Configuration config = new Configuration();
-            config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-            config.setBoolean(DeploymentOptions.ATTACHED, true);
+            config.set(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+            config.set(DeploymentOptions.ATTACHED, true);
 
             Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
             wcPlan.setExecutionConfig(new ExecutionConfig());
@@ -99,7 +99,7 @@ public class LocalExecutorITCase extends TestLogger {
         runtimeExceptionPlan.setExecutionConfig(new ExecutionConfig());
 
         Configuration config = new Configuration();
-        config.setBoolean(DeploymentOptions.ATTACHED, true);
+        config.set(DeploymentOptions.ATTACHED, true);
 
         JobClient jobClient =
                 executor.execute(runtimeExceptionPlan, config, ClassLoader.getSystemClassLoader())

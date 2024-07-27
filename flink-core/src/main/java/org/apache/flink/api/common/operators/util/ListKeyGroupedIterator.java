@@ -64,7 +64,7 @@ public final class ListKeyGroupedIterator<E> {
         this.serializer = serializer;
         this.comparator = comparator;
 
-        this.done = input.isEmpty() ? true : false;
+        this.done = input.isEmpty();
     }
 
     /**

@@ -42,17 +42,17 @@ object RuntimeFilterCodeGenerator {
       probeIndices)
     ctx.addReusableInnerClass(probeGenProj.getClassName, probeGenProj.getCode)
 
-    val probeProjection = newName("probeToBinaryRow")
+    val probeProjection = newName(ctx, "probeToBinaryRow")
     ctx.addReusableMember(s"private transient ${probeGenProj.getClassName} $probeProjection;")
     val probeProjRefs = ctx.addReusableObject(probeGenProj.getReferences, "probeProjRefs")
     ctx.addReusableOpenStatement(
       s"$probeProjection = new ${probeGenProj.getClassName}($probeProjRefs);")
 
-    val buildComplete = newName("buildComplete")
+    val buildComplete = newName(ctx, "buildComplete")
     ctx.addReusableMember(s"private transient boolean $buildComplete;")
     ctx.addReusableOpenStatement(s"$buildComplete = false;")
 
-    val filter = newName("filter")
+    val filter = newName(ctx, "filter")
     val filterClass = className[BloomFilter]
     ctx.addReusableMember(s"private transient $filterClass $filter;")
 

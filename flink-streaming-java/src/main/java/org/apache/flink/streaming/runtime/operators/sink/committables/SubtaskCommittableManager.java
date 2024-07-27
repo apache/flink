@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
 import javax.annotation.Nullable;
@@ -45,10 +46,21 @@ class SubtaskCommittableManager<CommT> {
     private final int subtaskId;
     private int numDrained;
     private int numFailed;
+    private SinkCommitterMetricGroup metricGroup;
 
     SubtaskCommittableManager(
-            int numExpectedCommittables, int subtaskId, @Nullable Long checkpointId) {
-        this(Collections.emptyList(), numExpectedCommittables, 0, 0, subtaskId, checkpointId);
+            int numExpectedCommittables,
+            int subtaskId,
+            @Nullable Long checkpointId,
+            SinkCommitterMetricGroup metricGroup) {
+        this(
+                Collections.emptyList(),
+                numExpectedCommittables,
+                0,
+                0,
+                subtaskId,
+                checkpointId,
+                metricGroup);
     }
 
     SubtaskCommittableManager(
@@ -57,13 +69,15 @@ class SubtaskCommittableManager<CommT> {
             int numDrained,
             int numFailed,
             int subtaskId,
-            @Nullable Long checkpointId) {
+            @Nullable Long checkpointId,
+            SinkCommitterMetricGroup metricGroup) {
         this.checkpointId = checkpointId;
         this.subtaskId = subtaskId;
         this.numExpectedCommittables = numExpectedCommittables;
         this.requests = new ArrayDeque<>(checkNotNull(requests));
         this.numDrained = numDrained;
         this.numFailed = numFailed;
+        this.metricGroup = metricGroup;
     }
 
     void add(CommittableWithLineage<CommT> committable) {
@@ -72,7 +86,8 @@ class SubtaskCommittableManager<CommT> {
 
     void add(CommT committable) {
         checkState(requests.size() < numExpectedCommittables, "Already received all committables.");
-        requests.add(new CommitRequestImpl<>(committable));
+        requests.add(new CommitRequestImpl<>(committable, metricGroup));
+        metricGroup.getNumCommittablesTotalCounter().inc();
     }
 
     /**
@@ -189,6 +204,7 @@ class SubtaskCommittableManager<CommT> {
                 numDrained,
                 numFailed,
                 subtaskId,
-                checkpointId);
+                checkpointId,
+                metricGroup);
     }
 }

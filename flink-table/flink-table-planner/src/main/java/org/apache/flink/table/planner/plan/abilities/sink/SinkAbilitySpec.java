@@ -32,6 +32,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
+    @JsonSubTypes.Type(value = BucketingSpec.class),
     @JsonSubTypes.Type(value = OverwriteSpec.class),
     @JsonSubTypes.Type(value = PartitioningSpec.class),
     @JsonSubTypes.Type(value = WritingMetadataSpec.class),

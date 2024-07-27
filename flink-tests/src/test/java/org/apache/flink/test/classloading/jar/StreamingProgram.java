@@ -34,7 +34,7 @@ public class StreamingProgram {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<String> text = env.fromElements(WordCountData.TEXT).rebalance();
+        DataStream<String> text = env.fromData(WordCountData.TEXT).rebalance();
 
         DataStream<Word> counts = text.flatMap(new Tokenizer()).keyBy("word").sum("frequency");
 

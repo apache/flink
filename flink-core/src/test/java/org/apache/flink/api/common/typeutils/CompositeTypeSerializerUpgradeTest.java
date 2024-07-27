@@ -20,17 +20,20 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
 import org.apache.flink.types.Either;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link GenericArraySerializer}. */
 class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
@@ -87,14 +90,16 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
         }
 
         @Override
-        public Matcher<Either<String, Integer>> testDataMatcher() {
-            return is(new Either.Left<>("ApacheFlink"));
+        public Condition<Either<String, Integer>> testDataCondition() {
+            return new Condition<>(
+                    value -> new Either.Left<>("ApacheFlink").equals(value),
+                    "value is Either.Left(\"ApacheFlink\")");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Either<String, Integer>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<Either<String, Integer>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -115,8 +120,7 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
 
         @Override
         public String[] createTestData() {
-            String[] data = {"Apache", "Flink"};
-            return data;
+            return new String[] {"Apache", "Flink"};
         }
     }
 
@@ -132,15 +136,29 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
         }
 
         @Override
-        public Matcher<String[]> testDataMatcher() {
+        public Condition<String[]> testDataCondition() {
             String[] data = {"Apache", "Flink"};
-            return is(data);
+            return new Condition<>(
+                    value -> Arrays.equals(data, value), "data is " + Arrays.toString(data));
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<String[]>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
+    }
+
+    @Test
+    void testUpgradeFromDeprecatedSnapshot() {
+        GenericArraySerializer<String> genericArraySerializer =
+                new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE);
+        GenericArraySerializerConfigSnapshot<String> oldSnapshot =
+                new GenericArraySerializerConfigSnapshot<>(genericArraySerializer);
+        TypeSerializerSchemaCompatibility<String[]> schemaCompatibility =
+                genericArraySerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(oldSnapshot);
+        assertThat(schemaCompatibility.isCompatibleAsIs()).isTrue();
     }
 }

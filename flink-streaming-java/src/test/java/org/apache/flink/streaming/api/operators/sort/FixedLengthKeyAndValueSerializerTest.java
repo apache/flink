@@ -59,14 +59,14 @@ class FixedLengthKeyAndValueSerializerTest
 
     @Override
     @Test
-    public void testConfigSnapshotInstantiation() {
+    protected void testConfigSnapshotInstantiation() {
         assertThatThrownBy(() -> super.testConfigSnapshotInstantiation())
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Override
     @Test
-    public void testSnapshotConfigurationAndReconfigure() throws Exception {
+    protected void testSnapshotConfigurationAndReconfigure() {
         assertThatThrownBy(() -> super.testSnapshotConfigurationAndReconfigure())
                 .isInstanceOf(UnsupportedOperationException.class);
     }

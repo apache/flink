@@ -21,7 +21,7 @@ package org.apache.flink.test.actions;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests the methods that bring elements back to the client driver program. */
 @RunWith(Parameterized.class)
-public class CountCollectITCase extends MultipleProgramsTestBase {
+public class CountCollectITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public CountCollectITCase(TestExecutionMode mode) {
         super(mode);

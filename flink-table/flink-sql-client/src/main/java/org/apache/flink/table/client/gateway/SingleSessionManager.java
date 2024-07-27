@@ -96,6 +96,7 @@ public class SingleSessionManager implements SessionManager {
                                 sessionHandle,
                                 environment,
                                 operationExecutorService));
+        session.open();
         return session;
     }
 

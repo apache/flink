@@ -58,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Test for {@link CheckpointHandlers}. */
 class CheckpointHandlersTest {
@@ -188,6 +189,48 @@ class CheckpointHandlersTest {
         assertThat(checkpointTriggerResponseBody.resource().getCheckpointId())
                 .isEqualTo(COMPLETED_CHECKPOINT_ID);
         assertThat(checkpointTypeFuture.get()).isEqualTo(CheckpointType.DEFAULT);
+    }
+
+    @Test
+    void testDisallowTriggeringIncrementalCheckpoint() throws Exception {
+        final OperationResult<Long> successfulResult =
+                OperationResult.success(COMPLETED_CHECKPOINT_ID);
+        final CompletableFuture<CheckpointType> checkpointTypeFuture = new CompletableFuture<>();
+
+        final AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
+        final TestingRestfulGateway testingRestfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setTriggerCheckpointFunction(
+                                (AsynchronousJobOperationKey key,
+                                        CheckpointType checkpointType) -> {
+                                    keyReference.set(key);
+                                    checkpointTypeFuture.complete(checkpointType);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setGetCheckpointStatusFunction(
+                                (AsynchronousJobOperationKey operationKey) -> {
+                                    if (operationKey.equals(keyReference.get())) {
+                                        return CompletableFuture.completedFuture(successfulResult);
+                                    }
+                                    throw new RuntimeException(
+                                            "Expected operation key "
+                                                    + keyReference.get()
+                                                    + ", but received "
+                                                    + operationKey);
+                                })
+                        .build();
+
+        final CheckpointType checkpointType = CheckpointType.INCREMENTAL;
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        checkpointTriggerHandler
+                                .handleRequest(
+                                        triggerCheckpointRequest(checkpointType, null),
+                                        testingRestfulGateway)
+                                .get());
+        assertThat(checkpointTypeFuture.isDone()).isFalse();
     }
 
     @Test

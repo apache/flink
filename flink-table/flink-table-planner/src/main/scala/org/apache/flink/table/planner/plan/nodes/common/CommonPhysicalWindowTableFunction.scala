@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.logical.{CumulativeWindowSpec, HoppingWindowSpec, TimeAttributeWindowingStrategy, TumblingWindowSpec}
+import org.apache.flink.table.planner.plan.logical.{CumulativeWindowSpec, HoppingWindowSpec, SessionWindowSpec, TimeAttributeWindowingStrategy, TumblingWindowSpec}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -58,6 +58,8 @@ abstract class CommonPhysicalWindowTableFunction(
           val maxWindowsNum = (cumulateWindow.getMaxSize.toMillis /
             cumulateWindow.getStep.toMillis).asInstanceOf[Int]
           childRowCnt * maxWindowsNum
+        case sessionWindow: SessionWindowSpec =>
+          childRowCnt * sessionWindow.getGap.toMillis.asInstanceOf[Int]
         case windowSpec =>
           throw new TableException(s"Unknown window spec: ${windowSpec.getClass.getSimpleName}")
       }

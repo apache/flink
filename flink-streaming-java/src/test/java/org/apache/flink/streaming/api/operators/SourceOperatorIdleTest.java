@@ -22,48 +22,45 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for idle {@link SourceOperator}. */
 @SuppressWarnings("serial")
-public class SourceOperatorIdleTest {
+class SourceOperatorIdleTest {
 
     @Nullable private SourceOperatorTestContext context;
     @Nullable private SourceOperator<Integer, MockSourceSplit> operator;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         context = new SourceOperatorTestContext();
         operator = context.getOperator();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         context.close();
         context = null;
         operator = null;
     }
 
     @Test
-    public void testSameAvailabilityFuture() throws Exception {
+    void testSameAvailabilityFuture() throws Exception {
         operator.initializeState(context.createStateContext());
         operator.open();
         operator.emitNext(new CollectingDataOutput<>());
         final CompletableFuture<?> initialFuture = operator.getAvailableFuture();
-        assertFalse(initialFuture.isDone());
+        assertThat(initialFuture).isNotDone();
         final CompletableFuture<?> secondFuture = operator.getAvailableFuture();
-        assertThat(initialFuture, not(sameInstance(AvailabilityProvider.AVAILABLE)));
-        assertThat(secondFuture, sameInstance(initialFuture));
+        assertThat(initialFuture).isNotSameAs(AvailabilityProvider.AVAILABLE);
+        assertThat(secondFuture).isSameAs(initialFuture);
     }
 }

@@ -45,7 +45,7 @@ class StreamTableEnvironmentImplTest {
     val retention = Duration.ofMinutes(1)
     tEnv.getConfig.setIdleStateRetention(retention)
     val table = tEnv.fromDataStream(elements)
-    tEnv.toAppendStream[Row](table)
+    tEnv.toDataStream(table)
 
     assertThat(tEnv.getConfig.getMinIdleStateRetentionTime).isEqualTo(retention.toMillis)
     assertThat(tEnv.getConfig.getMaxIdleStateRetentionTime).isEqualTo(retention.toMillis * 3 / 2)

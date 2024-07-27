@@ -109,12 +109,12 @@ class HashWindowCodeGenerator(
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     // add logger
-    val logTerm = CodeGenUtils.newName("LOG")
+    val logTerm = newName(ctx, "LOG")
     ctx.addReusableLogger(logTerm, className)
 
     // gen code to do aggregate using aggregate map
-    val aggMapKey = newName("aggMapKey")
-    val aggMapKeyWriter = newName("aggMapKeyWriter")
+    val aggMapKey = newName(ctx, "aggMapKey")
+    val aggMapKeyWriter = newName(ctx, "aggMapKeyWriter")
     val (processElementPerWindow, outputResultFromMap) = genHashWindowAggCodes(
       buffLimitSize,
       windowSize,
@@ -218,7 +218,7 @@ class HashWindowCodeGenerator(
         } else {
           // Otherwise, each input will be assigned with overlapping windows.
           assert(assignTimestampExprs.size > 1)
-          val assignedWindows = newName("assignedWindows")
+          val assignedWindows = newName(ctx, "assignedWindows")
           ctx.addReusableMember(
             s"transient java.util.List<java.lang.Long> $assignedWindows" +
               s" = new java.util.ArrayList<java.lang.Long>();")
@@ -241,7 +241,7 @@ class HashWindowCodeGenerator(
               fromTypeInfoToLogicalType(new ListTypeInfo(Types.LONG)))
 
           // gen code to filter invalid overlapping windows
-          val assignedTimestamp = newName("assignedTimestamp")
+          val assignedTimestamp = newName(ctx, "assignedTimestamp")
           val timestampTerm = s"${getInputTimeValue(inputTerm, inputTimeFieldIndex)}"
           val checkValidWindow = s"$timestampTerm >= $assignedTimestamp " +
             s" && $timestampTerm < $assignedTimestamp + ${windowSize}L"
@@ -478,8 +478,8 @@ class HashWindowCodeGenerator(
       aggBufferTypeTerm: String,
       aggMapKeyType: RowType,
       aggBufferType: RowType): String = {
-    val keyComputerTerm = CodeGenUtils.newName("keyComputer")
-    val recordComparatorTerm = CodeGenUtils.newName("recordComparator")
+    val keyComputerTerm = newName(ctx, "keyComputer")
+    val recordComparatorTerm = newName(ctx, "recordComparator")
     val prepareSorterCode = HashAggCodeGenHelper.genKVSorterPrepareCode(
       ctx,
       keyComputerTerm,
@@ -490,7 +490,7 @@ class HashWindowCodeGenerator(
     val binaryRowSerializerTypeTerm = classOf[BinaryRowDataSerializer].getName
 
     val sorterBufferType = classOf[BinaryKVInMemorySortBuffer].getName
-    val sorterBufferTerm = newName("buffer")
+    val sorterBufferTerm = newName(ctx, "buffer")
 
     val createSorterBufferCode =
       s"""
@@ -506,9 +506,9 @@ class HashWindowCodeGenerator(
          |   );
        """.stripMargin
 
-    val reuseAggMapKeyTerm = newName("reusedKey")
-    val reuseAggBufferTerm = newName("reusedValue")
-    val reuseKVTerm = newName("reusedKV")
+    val reuseAggMapKeyTerm = newName(ctx, "reusedKey")
+    val reuseAggBufferTerm = newName(ctx, "reusedValue")
+    val reuseKVTerm = newName(ctx, "reusedKV")
     val binaryRow = classOf[BinaryRowData].getName
     val kvType = classOf[JTuple2[_, _]].getName
     ctx.addReusableMember(
@@ -524,8 +524,8 @@ class HashWindowCodeGenerator(
     // gen code to create a buffer to group all the elements having the same grouping key
     val windowElementType = getWindowsGroupingElementInfo()
     // project into aggregate map key and value into prepared window element
-    val bufferWindowElementTerm = newName("prepareWinElement")
-    val bufferWindowElementWriterTerm = newName("prepareWinElementWriter")
+    val bufferWindowElementTerm = newName(ctx, "prepareWinElement")
+    val bufferWindowElementWriterTerm = newName(ctx, "prepareWinElementWriter")
     val exprCodegen = new ExprCodeGenerator(ctx, false)
     // TODO refine this. Is it possible to reuse grouping key projection?
     val accessKeyExprs =
@@ -554,11 +554,11 @@ class HashWindowCodeGenerator(
     // ---------------------------------------------------------------------------------------------
     // gen code to apply aggregate functions to grouping window elements
     val timeWindowType = classOf[TimeWindow].getName
-    val currentWindow = newName("currentWindow")
+    val currentWindow = newName(ctx, "currentWindow")
     ctx.addReusableMember(s"transient $timeWindowType $currentWindow = null;")
 
     // gen code to assign window and aggregate
-    val windowsGrouping = CodeGenUtils.newName("windowsGrouping")
+    val windowsGrouping = newName(ctx, "windowsGrouping")
     val (processCode, endCode) = if (grouping.isEmpty) {
       val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
         enablePreAcc = true,
@@ -583,8 +583,8 @@ class HashWindowCodeGenerator(
       (process, endWindowAgg)
     } else {
       // project grouping keys from aggregate map's key
-      val groupKeyTerm = newName("groupKey")
-      val groupKeyWriterTerm = newName("groupKeyWriter")
+      val groupKeyTerm = newName(ctx, "groupKey")
+      val groupKeyWriterTerm = newName(ctx, "groupKeyWriter")
       val projGroupingKeyCode = ProjectionCodeGenerator
         .generateProjectionExpression(
           ctx,
@@ -608,7 +608,7 @@ class HashWindowCodeGenerator(
         groupKeyWriterTerm)
 
       // gen code to check group key changed
-      val lastKeyTerm = newName("lastKey")
+      val lastKeyTerm = newName(ctx, "lastKey")
       ctx.addReusableMember(s"transient $BINARY_ROW $lastKeyTerm = null;")
       val keyNotEqualsCode = genGroupKeyChangedCheckCode(groupKeyTerm, lastKeyTerm)
 
@@ -698,7 +698,7 @@ class HashWindowCodeGenerator(
     val windowAggOutputExpr = if (isFinal) {
       // project group key if exists
       val (groupKey, projGroupKeyCode) = if (!grouping.isEmpty) {
-        val groupKey = newName("groupKey")
+        val groupKey = newName(ctx, "groupKey")
         val keyProjectionCode = ProjectionCodeGenerator
           .generateProjectionExpression(
             ctx,
@@ -707,7 +707,7 @@ class HashWindowCodeGenerator(
             grouping.indices.toArray,
             inputTerm = reuseAggMapKeyTerm,
             outRecordTerm = groupKey,
-            outRecordWriterTerm = newName("groupKeyWriter")
+            outRecordWriterTerm = newName(ctx, "groupKeyWriter")
           )
           .code
         (Some(groupKey), keyProjectionCode)
@@ -736,7 +736,7 @@ class HashWindowCodeGenerator(
 
       // update current window
       val timeWindowType = classOf[TimeWindow].getName
-      val currentWindow = newName("currentWindow")
+      val currentWindow = newName(ctx, "currentWindow")
       ctx.addReusableMember(s"transient $timeWindowType $currentWindow = null;")
       val assignedTsIndex = grouping.length
       val currentWindowCode =
@@ -786,7 +786,7 @@ class HashWindowCodeGenerator(
     // gen code to iterating the aggregate map and output to downstream
     val iteratorType = classOf[KeyValueIterator[_, _]].getCanonicalName
     val rowDataType = classOf[RowData].getCanonicalName
-    val iteratorTerm = CodeGenUtils.newName("iterator")
+    val iteratorTerm = newName(ctx, "iterator")
     s"""
        |$iteratorType<$rowDataType, $rowDataType> $iteratorTerm =
        |  $aggregateMapTerm.getEntryIterator(false); // reuse key/value during iterating
@@ -810,15 +810,15 @@ class HashWindowCodeGenerator(
       aggMapKey: String,
       logTerm: String): (String, String) = {
     // prepare aggregate map
-    val aggMapKeyTypesTerm = CodeGenUtils.newName("aggMapKeyTypes")
-    val aggBufferTypesTerm = CodeGenUtils.newName("aggBufferTypes")
+    val aggMapKeyTypesTerm = newName(ctx, "aggMapKeyTypes")
+    val aggBufferTypesTerm = newName(ctx, "aggBufferTypes")
     prepareHashAggKVTypes(
       ctx,
       aggMapKeyTypesTerm,
       aggBufferTypesTerm,
       aggMapKeyRowType,
       aggBufferRowType)
-    val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
+    val aggregateMapTerm = newName(ctx, "aggregateMap")
     prepareHashAggMap(ctx, aggMapKeyTypesTerm, aggBufferTypesTerm, aggregateMapTerm)
 
     val binaryRowTypeTerm = classOf[BinaryRowData].getName

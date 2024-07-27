@@ -85,7 +85,9 @@ public final class DataSetUtils {
                             counter++;
                         }
                         out.collect(
-                                new Tuple2<>(getRuntimeContext().getIndexOfThisSubtask(), counter));
+                                new Tuple2<>(
+                                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                        counter));
                     }
                 });
     }
@@ -161,7 +163,10 @@ public final class DataSetUtils {
 
                                 // compute the offset for each partition
                                 for (int i = 0;
-                                        i < getRuntimeContext().getIndexOfThisSubtask();
+                                        i
+                                                < getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask();
                                         i++) {
                                     start += offsets.get(i).f1;
                                 }
@@ -208,8 +213,13 @@ public final class DataSetUtils {
                     @Override
                     public void open(OpenContext openContext) throws Exception {
                         super.open(openContext);
-                        shifter = getBitSize(getRuntimeContext().getNumberOfParallelSubtasks() - 1);
-                        taskId = getRuntimeContext().getIndexOfThisSubtask();
+                        shifter =
+                                getBitSize(
+                                        getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks()
+                                                - 1);
+                        taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
                     }
 
                     @Override

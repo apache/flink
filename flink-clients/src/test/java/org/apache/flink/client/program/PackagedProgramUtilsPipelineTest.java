@@ -114,10 +114,10 @@ public class PackagedProgramUtilsPipelineTest {
 
         Configuration config = new Configuration();
         config.set(
-                PipelineOptions.KRYO_DEFAULT_SERIALIZERS,
+                PipelineOptions.SERIALIZATION_CONFIG,
                 Collections.singletonList(
                         String.format(
-                                "class:%s,serializer:%s",
+                                "%s: {type: kryo, kryo-type: default, class: %s}",
                                 PackagedProgramUtilsPipelineTest.class.getName(),
                                 userSerializerClassName)));
 
@@ -129,6 +129,7 @@ public class PackagedProgramUtilsPipelineTest {
 
         assertThat(
                         executionConfig
+                                .getSerializerConfig()
                                 .getDefaultKryoSerializerClasses()
                                 .get(PackagedProgramUtilsPipelineTest.class)
                                 .getName())
@@ -201,7 +202,7 @@ public class PackagedProgramUtilsPipelineTest {
     public static class DataStreamTestProgram {
         public static void main(String[] args) throws Exception {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements("hello").print();
+            env.fromData("hello").print();
             env.execute();
         }
     }

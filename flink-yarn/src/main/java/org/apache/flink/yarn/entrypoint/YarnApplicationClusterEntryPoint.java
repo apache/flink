@@ -59,7 +59,7 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 
     @Override
     protected String getRPCPortRange(Configuration configuration) {
-        return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
+        return configuration.get(YarnConfigOptions.APPLICATION_MASTER_PORT);
     }
 
     public static void main(final String[] args) {

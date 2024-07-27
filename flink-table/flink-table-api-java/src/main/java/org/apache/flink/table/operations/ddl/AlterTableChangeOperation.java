@@ -58,7 +58,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String changes =
-                tableChanges.stream().map(this::toString).collect(Collectors.joining(",\n"));
+                tableChanges.stream()
+                        .map(AlterTableChangeOperation::toString)
+                        .collect(Collectors.joining(",\n"));
         return String.format(
                 "ALTER TABLE %s%s\n%s",
                 ignoreIfTableNotExists ? "IF EXISTS " : "",
@@ -66,7 +68,7 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                 changes);
     }
 
-    private String toString(TableChange tableChange) {
+    public static String toString(TableChange tableChange) {
         if (tableChange instanceof TableChange.SetOption) {
             TableChange.SetOption setChange = (TableChange.SetOption) tableChange;
             return String.format("  SET '%s' = '%s'", setChange.getKey(), setChange.getValue());
@@ -79,6 +81,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                     "  ADD %s %s",
                     addColumn.getColumn(),
                     addColumn.getPosition() == null ? "" : addColumn.getPosition());
+        } else if (tableChange instanceof TableChange.AddDistribution) {
+            TableChange.AddDistribution addDistribution = (TableChange.AddDistribution) tableChange;
+            return String.format("  ADD %s", addDistribution.getDistribution());
         } else if (tableChange instanceof TableChange.AddWatermark) {
             TableChange.AddWatermark addWatermark = (TableChange.AddWatermark) tableChange;
             return String.format("  ADD %s", addWatermark.getWatermark());
@@ -121,6 +126,10 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                     "  MODIFY %s %s",
                     modifyColumn.getNewColumn(),
                     modifyColumn.getNewPosition() == null ? "" : modifyColumn.getNewPosition());
+        } else if (tableChange instanceof TableChange.ModifyDistribution) {
+            TableChange.ModifyDistribution modifyDistribution =
+                    (TableChange.ModifyDistribution) tableChange;
+            return String.format("  MODIFY %s", modifyDistribution.getDistribution());
         } else if (tableChange instanceof TableChange.ModifyWatermark) {
             TableChange.ModifyWatermark modifyWatermark = (TableChange.ModifyWatermark) tableChange;
             return String.format("  MODIFY %s", modifyWatermark.getNewWatermark());
@@ -135,6 +144,8 @@ public class AlterTableChangeOperation extends AlterTableOperation {
         } else if (tableChange instanceof TableChange.DropConstraint) {
             TableChange.DropConstraint dropConstraint = (TableChange.DropConstraint) tableChange;
             return String.format("  DROP CONSTRAINT %s", dropConstraint.getConstraintName());
+        } else if (tableChange instanceof TableChange.DropDistribution) {
+            return "  DROP DISTRIBUTION";
         } else if (tableChange instanceof TableChange.DropWatermark) {
             return "  DROP WATERMARK";
         } else {

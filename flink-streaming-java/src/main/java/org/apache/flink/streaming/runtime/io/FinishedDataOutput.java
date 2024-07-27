@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
@@ -52,5 +53,10 @@ public class FinishedDataOutput<IN> implements PushingAsyncDataInput.DataOutput<
     @Override
     public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
         LOG.debug("Unexpected latency marker after finish() received.");
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        LOG.debug("Unexpected recordAttributes after finish() received.");
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -116,7 +117,8 @@ class RocksDBHandle implements AutoCloseable {
     void openDB(
             @Nonnull List<ColumnFamilyDescriptor> columnFamilyDescriptors,
             @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-            @Nonnull Path restoreSourcePath)
+            @Nonnull Path restoreSourcePath,
+            @Nonnull ICloseableRegistry cancelStreamRegistryForRestore)
             throws IOException {
         this.columnFamilyDescriptors = columnFamilyDescriptors;
         this.columnFamilyHandles = new ArrayList<>(columnFamilyDescriptors.size() + 1);
@@ -125,7 +127,9 @@ class RocksDBHandle implements AutoCloseable {
         // Register CF handlers
         for (int i = 0; i < stateMetaInfoSnapshots.size(); i++) {
             getOrRegisterStateColumnFamilyHandle(
-                    columnFamilyHandles.get(i), stateMetaInfoSnapshots.get(i));
+                    columnFamilyHandles.get(i),
+                    stateMetaInfoSnapshots.get(i),
+                    cancelStreamRegistryForRestore);
         }
     }
 
@@ -149,7 +153,9 @@ class RocksDBHandle implements AutoCloseable {
     }
 
     RocksDbKvStateInfo getOrRegisterStateColumnFamilyHandle(
-            ColumnFamilyHandle columnFamilyHandle, StateMetaInfoSnapshot stateMetaInfoSnapshot) {
+            ColumnFamilyHandle columnFamilyHandle,
+            StateMetaInfoSnapshot stateMetaInfoSnapshot,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
 
         RocksDbKvStateInfo registeredStateMetaInfoEntry =
                 kvStateInformation.get(stateMetaInfoSnapshot.getName());
@@ -166,7 +172,8 @@ class RocksDBHandle implements AutoCloseable {
                                 db,
                                 columnFamilyOptionsFactory,
                                 ttlCompactFiltersManager,
-                                writeBufferManagerCapacity);
+                                writeBufferManagerCapacity,
+                                cancelStreamRegistryForRestore);
             } else {
                 registeredStateMetaInfoEntry =
                         new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
@@ -184,6 +191,37 @@ class RocksDBHandle implements AutoCloseable {
 
         return registeredStateMetaInfoEntry;
     }
+
+    /**
+     * Registers a new column family and imports data from the given export.
+     *
+     * @param stateMetaInfo info about the state to create.
+     * @param cfMetaDataList the data to import.
+     */
+    /*
+    void registerStateColumnFamilyHandleWithImport(
+            RegisteredStateMetaInfoBase stateMetaInfo,
+            List<ExportImportFilesMetaData> cfMetaDataList,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
+
+        Preconditions.checkState(!kvStateInformation.containsKey(stateMetaInfo.getName()));
+
+        RocksDbKvStateInfo stateInfo =
+                RocksDBOperationUtils.createStateInfo(
+                        stateMetaInfo,
+                        db,
+                        columnFamilyOptionsFactory,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity,
+                        cfMetaDataList,
+                        cancelStreamRegistryForRestore);
+
+        RocksDBOperationUtils.registerKvStateInformation(
+                kvStateInformation, nativeMetricMonitor, stateMetaInfo.getName(), stateInfo);
+
+        columnFamilyHandles.add(stateInfo.columnFamilyHandle);
+    }
+    */
 
     /**
      * This recreates the new working directory of the recovered RocksDB instance and links/copies

@@ -37,7 +37,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Ascii;
+import org.apache.flink.shaded.guava32.com.google.common.base.Ascii;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,7 +76,7 @@ public abstract class AbstractHandler<
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+    protected static final ObjectMapper MAPPER = RestMapperUtils.getFlexibleObjectMapper();
 
     /**
      * Other response payload overhead (in bytes). If we truncate response payload, we should leave

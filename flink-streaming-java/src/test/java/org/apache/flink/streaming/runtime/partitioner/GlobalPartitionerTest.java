@@ -19,22 +19,22 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GlobalPartitioner}. */
-public class GlobalPartitionerTest extends StreamPartitionerTest {
+class GlobalPartitionerTest extends StreamPartitionerTest {
 
     @Override
-    public StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new GlobalPartitioner<>();
-        assertFalse(partitioner.isBroadcast());
+        assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;
     }
 
     @Test
-    public void testSelectChannels() {
+    void testSelectChannels() {
         assertSelectedChannelWithSetup(0, 1);
         assertSelectedChannelWithSetup(0, 2);
         assertSelectedChannelWithSetup(0, 1024);

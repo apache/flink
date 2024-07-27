@@ -57,7 +57,7 @@ import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.isInBlockingBufferRequest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -87,7 +87,7 @@ public class TaskCancelAsyncProducerConsumerITCase {
     private static Configuration getFlinkConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 9);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 9);
         return config;
     }
 

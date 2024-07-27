@@ -73,10 +73,10 @@ class SystemResourcesMetricsITCase {
 
     private static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(SYSTEM_RESOURCE_METRICS, true);
-        configuration.setString(REPORTERS_LIST, "test_reporter");
-        configuration.setString(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
-        configuration.setString(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
+        configuration.set(SYSTEM_RESOURCE_METRICS, true);
+        configuration.set(REPORTERS_LIST, "test_reporter");
+        configuration.set(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
+        configuration.set(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
         MetricOptions.forReporter(configuration, "test_reporter")
                 .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter.class.getName());
         return configuration;

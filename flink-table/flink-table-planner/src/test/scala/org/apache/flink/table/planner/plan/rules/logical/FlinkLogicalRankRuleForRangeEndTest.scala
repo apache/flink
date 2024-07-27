@@ -22,7 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 /** Test for [[FlinkLogicalRankRuleForRangeEnd]]. */
 class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
@@ -77,9 +78,9 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a, c) rk FROM MyTable) t
         |WHERE rk > 2
       """.stripMargin
-    thrown.expectMessage("Rank end is not specified.")
-    thrown.expect(classOf[TableException])
-    util.verifyRelPlan(sqlQuery)
+    assertThatThrownBy(() => util.verifyRelPlan(sqlQuery))
+      .hasMessageContaining("Rank end is not specified.")
+      .isInstanceOf[TableException]
   }
 
   @Test

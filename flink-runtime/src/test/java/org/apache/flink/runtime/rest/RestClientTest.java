@@ -25,6 +25,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.testutils.TestingUtils;
@@ -33,6 +34,7 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.CheckedSupplier;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
@@ -45,14 +47,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,9 +79,25 @@ class RestClientTest {
     private static final long TIMEOUT = 10L;
 
     @Test
+    void testErrorResponseBodyHasSpecificStrictureForErrorHandling() {
+        List<Field> annotatedFields =
+                Arrays.stream(ErrorResponseBody.class.getDeclaredFields())
+                        .filter(
+                                field ->
+                                        Arrays.stream(field.getDeclaredAnnotations())
+                                                .map(Annotation::annotationType)
+                                                .anyMatch(c -> c.equals(JsonProperty.class)))
+                        .collect(Collectors.toList());
+        assertThat(annotatedFields).hasSize(1);
+
+        Field field = annotatedFields.get(0);
+        assertThat(field.getName().equals("errors") && field.getType().equals(List.class)).isTrue();
+    }
+
+    @Test
     void testConnectionTimeout() throws Exception {
         final Configuration config = new Configuration();
-        config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
+        config.set(RestOptions.CONNECTION_TIMEOUT, Duration.ofMillis(1L));
         try (final RestClient restClient = new RestClient(config, Executors.directExecutor())) {
             CompletableFuture<?> future =
                     restClient.sendRequest(
@@ -114,7 +138,7 @@ class RestClientTest {
     @Test
     void testConnectionClosedHandling() throws Exception {
         final Configuration config = new Configuration();
-        config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
+        config.set(RestOptions.IDLENESS_TIMEOUT, Duration.ofMillis(5000L));
         try (final ServerSocket serverSocket = new ServerSocket(0);
                 final RestClient restClient =
                         new RestClient(config, EXECUTOR_EXTENSION.getExecutor())) {
@@ -161,7 +185,7 @@ class RestClientTest {
     @Test
     void testRestClientClosedHandling() throws Exception {
         final Configuration config = new Configuration();
-        config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
+        config.set(RestOptions.IDLENESS_TIMEOUT, Duration.ofMillis(5000L));
 
         Socket connectionSocket = null;
 

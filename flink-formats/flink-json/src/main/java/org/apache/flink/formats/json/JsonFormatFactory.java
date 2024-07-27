@@ -46,6 +46,7 @@ import java.util.Set;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.DECODE_JSON_PARSER_ENABLED;
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
 import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
@@ -147,6 +148,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
 
         final boolean encodeDecimalAsPlainNumber =
                 formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        final boolean ignoreNullFields = formatOptions.get(ENCODE_IGNORE_NULL_FIELDS);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -158,7 +160,8 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                         timestampOption,
                         mapNullKeyMode,
                         mapNullKeyLiteral,
-                        encodeDecimalAsPlainNumber);
+                        encodeDecimalAsPlainNumber,
+                        ignoreNullFields);
             }
 
             @Override
@@ -187,6 +190,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ENCODE_IGNORE_NULL_FIELDS);
         return options;
     }
 
@@ -197,6 +201,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ENCODE_IGNORE_NULL_FIELDS);
         return options;
     }
 }

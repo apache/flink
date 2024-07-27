@@ -23,7 +23,8 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.batch.table.JoinTest.Merger
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class JoinTest extends TableTestBase {
 
@@ -140,31 +141,34 @@ class JoinTest extends TableTestBase {
     util.verifyExecPlan(results)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFullJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyExecPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g)))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyExecPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g)))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRightJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyExecPlan(ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g)))
   }
 
   @Test

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -33,88 +34,80 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for handling missing type information either by calling {@code returns()} or having an
  * explicit type information parameter.
  */
 @SuppressWarnings("serial")
-public class TypeFillTest {
+class TypeFillTest {
 
     @Test
-    public void test() {
+    void test() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        try {
-            env.addSource(new TestSource<Integer>()).print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> env.addSource(new TestSource<Integer>()).print())
+                .isInstanceOf(InvalidTypesException.class);
 
-        DataStream<Long> source = env.generateSequence(1, 10);
+        DataStream<Long> source = env.fromSequence(1, 10);
 
-        try {
-            source.map(new TestMap<Long, Long>()).print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> source.map(new TestMap<Long, Long>()).print())
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.flatMap(new TestFlatMap<Long, Long>()).print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> source.flatMap(new TestFlatMap<Long, Long>()).print())
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.connect(source).map(new TestCoMap<Long, Long, Integer>()).print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                source.connect(source)
+                                        .map(new TestCoMap<Long, Long, Integer>())
+                                        .print())
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>()).print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                source.connect(source)
+                                        .flatMap(new TestCoFlatMap<Long, Long, Integer>())
+                                        .print())
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.keyBy(new TestKeySelector<Long, String>()).print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> source.keyBy(new TestKeySelector<Long, String>()).print())
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.connect(source)
-                    .keyBy(new TestKeySelector<Long, String>(), new TestKeySelector<>());
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                source.connect(source)
+                                        .keyBy(
+                                                new TestKeySelector<Long, String>(),
+                                                new TestKeySelector<>()))
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.coGroup(source).where(new TestKeySelector<>()).equalTo(new TestKeySelector<>());
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                source.coGroup(source)
+                                        .where(new TestKeySelector<>())
+                                        .equalTo(new TestKeySelector<>()))
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.join(source).where(new TestKeySelector<>()).equalTo(new TestKeySelector<>());
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                source.join(source)
+                                        .where(new TestKeySelector<>())
+                                        .equalTo(new TestKeySelector<>()))
+                .isInstanceOf(InvalidTypesException.class);
 
-        try {
-            source.keyBy((in) -> in)
-                    .intervalJoin(source.keyBy((in) -> in))
-                    .between(Time.milliseconds(10L), Time.milliseconds(10L))
-                    .process(new TestProcessJoinFunction<>())
-                    .print();
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                source.keyBy((in) -> in)
+                                        .intervalJoin(source.keyBy((in) -> in))
+                                        .between(Time.milliseconds(10L), Time.milliseconds(10L))
+                                        .process(new TestProcessJoinFunction<>())
+                                        .print())
+                .isInstanceOf(InvalidTypesException.class);
 
         env.addSource(new TestSource<Integer>()).returns(Integer.class);
         source.map(new TestMap<Long, Long>()).returns(Long.class).print();
@@ -145,9 +138,8 @@ public class TypeFillTest {
                 .between(Time.milliseconds(10L), Time.milliseconds(10L))
                 .process(new TestProcessJoinFunction<>(), Types.STRING);
 
-        assertEquals(
-                BasicTypeInfo.LONG_TYPE_INFO,
-                source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
+        assertThat(source.map(new TestMap<Long, Long>()).returns(Long.class).getType())
+                .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
 
         SingleOutputStreamOperator<String> map =
                 source.map(
@@ -160,11 +152,8 @@ public class TypeFillTest {
                         });
 
         map.print();
-        try {
-            map.returns(String.class);
-            fail();
-        } catch (Exception ignored) {
-        }
+        assertThatThrownBy(() -> map.returns(String.class))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private static class TestSource<T> implements SourceFunction<T> {

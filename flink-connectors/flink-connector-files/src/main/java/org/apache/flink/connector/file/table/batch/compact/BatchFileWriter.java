@@ -85,8 +85,8 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
                     new PartitionTempFileManager(
                             fsFactory,
                             tmpPath,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber(),
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber(),
                             outputFileConfig);
             Configuration config =
                     getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();

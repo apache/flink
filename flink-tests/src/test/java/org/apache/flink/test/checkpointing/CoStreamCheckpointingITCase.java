@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Collector;
 
@@ -57,7 +57,7 @@ import static org.junit.Assert.assertTrue;
  * reflects the "exactly once" semantics.
  */
 @SuppressWarnings({"serial", "deprecation"})
-public class CoStreamCheckpointingITCase extends AbstractTestBase {
+public class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
 
     private static final long NUM_STRINGS = 10_000L;
     private static final int PARALLELISM = 4;
@@ -171,10 +171,10 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 
             final Object lockingObject = ctx.getCheckpointLock();
 
-            final int step = getRuntimeContext().getNumberOfParallelSubtasks();
+            final int step = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
             if (index < 0) {
                 // not been restored, so initialize
-                index = getRuntimeContext().getIndexOfThisSubtask();
+                index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             }
 
             while (isRunning && index < numElements) {
@@ -227,7 +227,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 numCompletedCheckpoints++;
             }
         }
@@ -262,7 +262,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -296,9 +296,19 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
         @Override
         public void open(OpenContext openContext) {
             long failurePosMin =
-                    (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.4
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
             long failurePosMax =
-                    (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+                    (long)
+                            (0.7
+                                    * numElements
+                                    / getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks());
 
             failurePos =
                     (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
@@ -333,7 +343,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 
         @Override
         public void close() {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -380,7 +390,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
     }
 
@@ -420,7 +430,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
     }
 

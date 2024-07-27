@@ -18,13 +18,25 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** ITCase to test avro format for {@link AvroFileSystemFormatFactory} in stream mode. */
-public class AvroFilesystemStreamITCase extends FsStreamingSinkITCaseBase {
+class AvroFilesystemStreamITCase extends FsStreamingSinkITCaseBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
     @Override
     public String[] additionalProperties() {

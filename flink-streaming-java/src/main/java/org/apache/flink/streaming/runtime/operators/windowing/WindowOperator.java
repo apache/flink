@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.AppendingState;
@@ -56,8 +57,11 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
@@ -372,10 +376,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
                 if (triggerResult.isFire()) {
                     ACC contents = windowState.get();
-                    if (contents == null) {
-                        continue;
+                    if (contents != null) {
+                        emitWindowContents(actualWindow, contents);
                     }
-                    emitWindowContents(actualWindow, contents);
                 }
 
                 if (triggerResult.isPurge()) {
@@ -405,10 +408,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
                 if (triggerResult.isFire()) {
                     ACC contents = windowState.get();
-                    if (contents == null) {
-                        continue;
+                    if (contents != null) {
+                        emitWindowContents(window, contents);
                     }
-                    emitWindowContents(window, contents);
                 }
 
                 if (triggerResult.isPurge()) {
@@ -524,6 +526,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
             // need to make sure to update the merging state in state
             mergingWindows.persist();
         }
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        boolean isOutputOnlyAfterEndOfStream =
+                windowAssigner instanceof GlobalWindows
+                        && trigger instanceof GlobalWindows.EndOfStreamTrigger;
+        return new OperatorAttributesBuilder()
+                .setOutputOnlyAfterEndOfStream(isOutputOnlyAfterEndOfStream)
+                .build();
     }
 
     /**
@@ -670,7 +682,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
         public AbstractPerWindowStateStore(
                 KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
-            super(keyedStateBackend, executionConfig);
+            super(
+                    keyedStateBackend,
+                    new SerializerFactory() {
+                        @Override
+                        public <T> TypeSerializer<T> createSerializer(
+                                TypeInformation<T> typeInformation) {
+                            return typeInformation.createSerializer(
+                                    executionConfig.getSerializerConfig());
+                        }
+                    });
         }
     }
 
@@ -846,7 +867,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
             ValueStateDescriptor<S> stateDesc =
                     new ValueStateDescriptor<>(
-                            name, stateType.createSerializer(getExecutionConfig()), defaultState);
+                            name,
+                            stateType.createSerializer(getExecutionConfig().getSerializerConfig()),
+                            defaultState);
             return getPartitionedState(stateDesc);
         }
 

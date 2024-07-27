@@ -24,14 +24,14 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 /**
  * Test where the test data is constructed such that the merge join zig zag has an early out,
  * leaving elements on the static path input unconsumed.
  */
 @SuppressWarnings("serial")
-public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramTestBase {
+public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramTestBaseJUnit4 {
 
     @Override
     protected void testProgram() throws Exception {

@@ -21,18 +21,18 @@ package org.apache.flink.core.fs.local;
 import org.apache.flink.core.fs.AbstractRecoverableWriterTest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for the {@link LocalRecoverableWriter}. */
-public class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
+class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tempFolder;
 
     @Override
     public Path getBasePath() throws Exception {
-        return new Path(TEMP_FOLDER.newFolder().toURI());
+        return new Path(TempDirUtils.newFolder(tempFolder).toURI());
     }
 
     @Override

@@ -20,13 +20,14 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class MatchRecognizeTest extends TableTestBase {
 
   protected val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     val ddl =
       """
@@ -223,13 +224,6 @@ class MatchRecognizeTest extends TableTestBase {
 
   @Test
   def testMatchRowtimeWithoutArgumentOnRowtimeLTZ(): Unit = {
-    thrown.expectMessage(
-      "MATCH_ROWTIME(rowtimeField) should be used when input stream " +
-        "contains rowtime attribute with TIMESTAMP_LTZ type.\n" +
-        "Please pass rowtime attribute field as input argument of " +
-        "MATCH_ROWTIME(rowtimeField) function.")
-    thrown.expect(classOf[AssertionError])
-
     val sqlQuery =
       s"""
          |SELECT
@@ -252,14 +246,18 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
          |""".stripMargin
-    util.verifyRelPlan(sqlQuery)
+
+    assertThatThrownBy(() => util.verifyRelPlan(sqlQuery))
+      .hasMessageContaining(
+        "MATCH_ROWTIME(rowtimeField) should be used when input stream " +
+          "contains rowtime attribute with TIMESTAMP_LTZ type.\n" +
+          "Please pass rowtime attribute field as input argument of " +
+          "MATCH_ROWTIME(rowtimeField) function.")
+      .isInstanceOf[AssertionError]
   }
 
   @Test
   def testMatchRowtimeWithMultipleArgs(): Unit = {
-    thrown.expectMessage("Invalid number of arguments to function 'MATCH_ROWTIME'.")
-    thrown.expect(classOf[ValidationException])
-
     val sqlQuery =
       s"""
          |SELECT
@@ -282,16 +280,14 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
          |""".stripMargin
-    util.verifyRelPlan(sqlQuery)
+
+    assertThatThrownBy(() => util.verifyRelPlan(sqlQuery))
+      .hasMessageContaining("Invalid number of arguments to function 'MATCH_ROWTIME'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testMatchRowtimeWithNonRowTimeAttributeAsArgs(): Unit = {
-    thrown.expectMessage(
-      "The function MATCH_ROWTIME requires argument to be a row time attribute type, " +
-        "but is 'INTEGER'.")
-    thrown.expect(classOf[ValidationException])
-
     val sqlQuery =
       s"""
          |SELECT
@@ -314,16 +310,16 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
          |""".stripMargin
-    util.verifyRelPlan(sqlQuery)
+
+    assertThatThrownBy(() => util.verifyRelPlan(sqlQuery))
+      .hasMessageContaining(
+        "The function MATCH_ROWTIME requires argument to be a row time attribute type, " +
+          "but is 'INTEGER'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testMatchRowtimeWithRexCallAsArg(): Unit = {
-    thrown.expectMessage(
-      "The function MATCH_ROWTIME requires a field reference as argument, " +
-        "but actual argument is not a simple field reference.")
-    thrown.expect(classOf[ValidationException])
-
     val sqlQuery =
       s"""
          |SELECT
@@ -346,6 +342,10 @@ class MatchRecognizeTest extends TableTestBase {
          |) AS T
          |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
          |""".stripMargin
-    util.verifyRelPlan(sqlQuery)
+
+    assertThatThrownBy(() => util.verifyRelPlan(sqlQuery))
+      .hasMessageContaining("The function MATCH_ROWTIME requires a field reference as argument, " +
+        "but actual argument is not a simple field reference.")
+      .isInstanceOf[ValidationException]
   }
 }

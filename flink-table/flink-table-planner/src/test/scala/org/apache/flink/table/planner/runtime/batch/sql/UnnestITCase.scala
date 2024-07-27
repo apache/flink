@@ -303,4 +303,16 @@ class UnnestITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testUnnestWithValuesBatch(): Unit = {
+    checkResult("SELECT * FROM UNNEST(ARRAY[1,2,3])", Seq(row(1), row(2), row(3)))
+  }
+
+  @Test
+  def testUnnestWithValuesBatch2(): Unit = {
+    checkResult(
+      "SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3])",
+      Seq(row('a', 1), row('a', 2), row('a', 3)))
+  }
+
 }

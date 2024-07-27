@@ -45,9 +45,10 @@ public class StreamOperatorContextBuilderTest {
                 StateBackendOptions.STATE_BACKEND,
                 CustomStateBackendFactory.class.getCanonicalName());
 
+        MockStreamingRuntimeContext context = new MockStreamingRuntimeContext(true, 1, 0);
         StreamOperatorContextBuilder builder =
                 new StreamOperatorContextBuilder(
-                        new MockStreamingRuntimeContext(true, 1, 0),
+                        context,
                         configuration,
                         new OperatorState(new OperatorID(), 1, 128),
                         new PrioritizedOperatorSubtaskStateInputSplit() {
@@ -63,7 +64,8 @@ public class StreamOperatorContextBuilderTest {
                             }
                         },
                         new CloseableRegistry(),
-                        null);
+                        null,
+                        context.getExecutionConfig());
 
         builder.build(LOG);
     }

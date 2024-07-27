@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.util;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -64,31 +66,27 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
 
     // ------------------------------------------------------------------------
 
-    protected final TestExecutionMode mode;
-
-    public MultipleProgramsTestBase(TestExecutionMode mode) {
-        this.mode = mode;
-    }
+    @Parameter protected TestExecutionMode mode;
 
     // ------------------------------------------------------------------------
     //  Environment setup & teardown
     // ------------------------------------------------------------------------
 
-    @Before
+    @BeforeEach
     public void setupEnvironment() {
         TestEnvironment testEnvironment;
         switch (mode) {
             case CLUSTER:
                 // This only works because of the quirks we built in the TestEnvironment.
                 // We should refactor this in the future!!!
-                testEnvironment = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+                testEnvironment = MINI_CLUSTER_EXTENSION.getTestEnvironment();
                 testEnvironment.getConfig().disableObjectReuse();
                 testEnvironment.setAsContext();
                 break;
             case CLUSTER_OBJECT_REUSE:
                 // This only works because of the quirks we built in the TestEnvironment.
                 // We should refactor this in the future!!!
-                testEnvironment = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+                testEnvironment = MINI_CLUSTER_EXTENSION.getTestEnvironment();
                 testEnvironment.getConfig().enableObjectReuse();
                 testEnvironment.setAsContext();
                 break;
@@ -98,7 +96,7 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
         }
     }
 
-    @After
+    @AfterEach
     public void teardownEnvironment() {
         switch (mode) {
             case CLUSTER:
@@ -115,10 +113,8 @@ public class MultipleProgramsTestBase extends AbstractTestBase {
     //  Parametrization lets the tests run in cluster and collection mode
     // ------------------------------------------------------------------------
 
-    @Parameterized.Parameters(name = "Execution mode = {0}")
-    public static Collection<Object[]> executionModes() {
-        return Arrays.asList(
-                new Object[] {TestExecutionMode.CLUSTER},
-                new Object[] {TestExecutionMode.COLLECTION});
+    @Parameters(name = "Execution mode = {0}")
+    public static Collection<TestExecutionMode> executionModes() {
+        return Arrays.asList(TestExecutionMode.CLUSTER, TestExecutionMode.COLLECTION);
     }
 }

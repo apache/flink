@@ -468,7 +468,8 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
     public void initializeState(FunctionInitializationContext context) throws Exception {
         this.helper =
                 new StreamingFileSinkHelper<>(
-                        bucketsBuilder.createBuckets(getRuntimeContext().getIndexOfThisSubtask()),
+                        bucketsBuilder.createBuckets(
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()),
                         context.isRestored(),
                         context.getOperatorStateStore(),
                         ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService(),

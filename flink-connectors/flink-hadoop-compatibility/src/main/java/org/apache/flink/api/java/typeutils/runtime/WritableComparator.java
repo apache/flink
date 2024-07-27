@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,6 +37,7 @@ import java.io.IOException;
  *
  * @param <T>
  */
+@Internal
 public class WritableComparator<T extends Writable & Comparable<T>> extends TypeComparator<T> {
 
     private static final long serialVersionUID = 1L;

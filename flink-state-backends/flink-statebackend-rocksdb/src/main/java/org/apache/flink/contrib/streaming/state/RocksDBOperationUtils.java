@@ -19,6 +19,8 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
@@ -123,7 +125,8 @@ public class RocksDBOperationUtils {
             RocksDB db,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nullable Long writeBufferManagerCapacity) {
+            @Nullable Long writeBufferManagerCapacity,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
 
         ColumnFamilyDescriptor columnFamilyDescriptor =
                 createColumnFamilyDescriptor(
@@ -131,8 +134,17 @@ public class RocksDBOperationUtils {
                         columnFamilyOptionsFactory,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
-        return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(
-                createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
+
+        final ColumnFamilyHandle columnFamilyHandle;
+        try {
+            columnFamilyHandle =
+                    createColumnFamily(columnFamilyDescriptor, db, cancelStreamRegistryForRestore);
+        } catch (Exception ex) {
+            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+        }
+
+        return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfoBase);
     }
 
     /**
@@ -146,15 +158,17 @@ public class RocksDBOperationUtils {
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nullable Long writeBufferManagerCapacity) {
 
-        ColumnFamilyOptions options =
-                createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
-        if (ttlCompactFiltersManager != null) {
-            ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
-        }
         byte[] nameBytes = metaInfoBase.getName().getBytes(ConfigConstants.DEFAULT_CHARSET);
         Preconditions.checkState(
                 !Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
                 "The chosen state name 'default' collides with the name of the default column family!");
+
+        ColumnFamilyOptions options =
+                createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
+
+        if (ttlCompactFiltersManager != null) {
+            ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
+        }
 
         if (writeBufferManagerCapacity != null) {
             // It'd be great to perform the check earlier, e.g. when creating write buffer manager.
@@ -181,8 +195,7 @@ public class RocksDBOperationUtils {
      * @return true if sanity check passes, false otherwise
      */
     static boolean sanityCheckArenaBlockSize(
-            long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity)
-            throws IllegalStateException {
+            long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity) {
 
         long defaultArenaBlockSize =
                 RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize);
@@ -221,13 +234,19 @@ public class RocksDBOperationUtils {
     }
 
     private static ColumnFamilyHandle createColumnFamily(
-            ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
-        try {
-            return db.createColumnFamily(columnDescriptor);
-        } catch (RocksDBException e) {
-            IOUtils.closeQuietly(columnDescriptor.getOptions());
-            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
+            ColumnFamilyDescriptor columnDescriptor,
+            RocksDB db,
+            ICloseableRegistry cancelStreamRegistryForRestore)
+            throws RocksDBException, InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            // abort recovery if the task thread was already interrupted
+            // e.g. because the task was cancelled
+            throw new InterruptedException("The thread was interrupted, aborting recovery");
+        } else if (cancelStreamRegistryForRestore.isClosed()) {
+            throw new CancelTaskException("The stream was closed, aborting recovery");
         }
+
+        return db.createColumnFamily(columnDescriptor);
     }
 
     public static void addColumnFamilyOptionsToCloseLater(

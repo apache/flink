@@ -161,12 +161,12 @@ public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
             }
             LOG.info(
                     "Subtask {} restored state: {}.",
-                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                     indexesToEmit);
         } else {
             // the first time the job is executed
-            final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
-            final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            final int stepSize = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            final int taskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             for (int i = taskIdx; i < arrowData.length; i += stepSize) {
                 this.indexesToEmit.add(Tuple2.of(i, 0));

@@ -22,6 +22,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -42,6 +43,7 @@ import org.rocksdb.RocksDBException;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -50,6 +52,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
+
 /** Encapsulates the process of restoring a RocksDB instance from a full snapshot. */
 public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
     private final FullSnapshotRestoreOperation<K> savepointRestoreOperation;
@@ -57,6 +61,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
     private final long writeBatchSize;
 
     private final RocksDBHandle rocksHandle;
+    private final ICloseableRegistry cancelStreamRegistryForRestore;
 
     public RocksDBFullRestoreOperation(
             KeyGroupRange keyGroupRange,
@@ -71,8 +76,10 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
         this.writeBatchSize = writeBatchSize;
+        this.cancelStreamRegistryForRestore = cancelStreamRegistryForRestore;
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -108,6 +115,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,
                 null,
+                null,
                 null);
     }
 
@@ -119,7 +127,8 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
         for (int i = 0; i < restoredMetaInfos.size(); i++) {
             StateMetaInfoSnapshot restoredMetaInfo = restoredMetaInfos.get(i);
             RocksDbKvStateInfo registeredStateCFHandle =
-                    this.rocksHandle.getOrRegisterStateColumnFamilyHandle(null, restoredMetaInfo);
+                    this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
+                            null, restoredMetaInfo, cancelStreamRegistryForRestore);
             columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
         }
 
@@ -137,7 +146,10 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+                        new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
+                Closeable ignored =
+                        cancelStreamRegistryForRestore.registerCloseableTemporarily(
+                                asCloseable(writeBatchWrapper))) {
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {
                 KeyGroup keyGroup = keyGroups.next();

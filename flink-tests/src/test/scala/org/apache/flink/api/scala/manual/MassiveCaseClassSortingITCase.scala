@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.manual
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.scala._
@@ -82,7 +83,7 @@ class MassiveCaseClassSortingITCase extends TestLogger {
         val typeInfo = implicitly[TypeInformation[StringTuple]]
           .asInstanceOf[CompositeType[StringTuple]]
 
-        val serializer = typeInfo.createSerializer(new ExecutionConfig)
+        val serializer = typeInfo.createSerializer(new SerializerConfigImpl)
         val comparator =
           typeInfo.createComparator(Array(0, 1), Array(true, true), 0, new ExecutionConfig)
 

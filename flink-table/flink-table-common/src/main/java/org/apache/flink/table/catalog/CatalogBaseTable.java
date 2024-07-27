@@ -39,6 +39,7 @@ public interface CatalogBaseTable {
     @PublicEvolving
     enum TableKind {
         TABLE,
+        MATERIALIZED_TABLE,
         VIEW
     }
 

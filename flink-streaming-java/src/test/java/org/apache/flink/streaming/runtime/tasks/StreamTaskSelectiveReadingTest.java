@@ -32,19 +32,19 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
-import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test selective reading. */
-public class StreamTaskSelectiveReadingTest {
+class StreamTaskSelectiveReadingTest {
 
     private static String elementToString(Object record) {
         return record instanceof StreamRecord
@@ -53,7 +53,7 @@ public class StreamTaskSelectiveReadingTest {
     }
 
     @Test
-    public void testAnyOrderedReading() throws Exception {
+    void testAnyOrderedReading() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
@@ -67,7 +67,7 @@ public class StreamTaskSelectiveReadingTest {
     }
 
     @Test
-    public void testAnyUnorderedReading() throws Exception {
+    void testAnyUnorderedReading() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[Operator0-2]: 1"));
@@ -81,7 +81,7 @@ public class StreamTaskSelectiveReadingTest {
     }
 
     @Test
-    public void testSequentialReading() throws Exception {
+    void testSequentialReading() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
@@ -95,7 +95,7 @@ public class StreamTaskSelectiveReadingTest {
     }
 
     @Test
-    public void testSpecialRuleReading() throws Exception {
+    void testSpecialRuleReading() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
@@ -113,21 +113,17 @@ public class StreamTaskSelectiveReadingTest {
     }
 
     @Test
-    public void testReadFinishedInput() throws Exception {
-        try {
-            testBase(
-                    new TestReadFinishedInputStreamOperator(),
-                    false,
-                    new ConcurrentLinkedQueue<>(),
-                    true);
-            fail("should throw an IOException");
-        } catch (Exception t) {
-            if (!ExceptionUtils.findThrowableWithMessage(
-                            t, "all selected inputs are already finished")
-                    .isPresent()) {
-                throw t;
-            }
-        }
+    void testReadFinishedInput() {
+        assertThatThrownBy(
+                        () ->
+                                testBase(
+                                        new TestReadFinishedInputStreamOperator(),
+                                        false,
+                                        new ConcurrentLinkedQueue<>(),
+                                        true))
+                .hasCauseInstanceOf(IOException.class)
+                .rootCause()
+                .hasMessageContaining("all selected inputs are already finished");
     }
 
     private void testBase(
@@ -196,7 +192,7 @@ public class StreamTaskSelectiveReadingTest {
                             .toArray(String[]::new);
             Arrays.sort(result);
 
-            assertArrayEquals("Output was not correct.", expectedResult, result);
+            assertThat(result).as("Output was not correct.").isEqualTo(expectedResult);
         }
     }
 

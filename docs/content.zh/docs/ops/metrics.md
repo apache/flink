@@ -1,6 +1,6 @@
 ---
 title: "指标"
-weight: 6
+weight: 5
 type: docs
 aliases:
   - /zh/ops/metrics.html
@@ -492,7 +492,7 @@ Every metric is assigned an identifier and a set of key-value pairs under which 
 The identifier is based on 3 components: a user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the system scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
-You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
+You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 ### User Scope
 
@@ -551,7 +551,7 @@ counter = runtime_context \
 
 The system scope contains context information about the metric, for example in which task it was registered or what job that task belongs to.
 
-Which context information should be included can be configured by setting the following keys in `conf/flink-conf.yaml`.
+Which context information should be included can be configured by setting the following keys in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 Each of these keys expect a format string that may contain constants (e.g. "taskmanager") and variables (e.g. "&lt;task_id&gt;") which will be replaced at runtime.
 
 - `metrics.scope.jm`
@@ -1358,6 +1358,27 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>The time in nanoseconds that elapsed between the creation of the last checkpoint and the time when the checkpointing process has started by this Task. This delay shows how long it takes for the first checkpoint barrier to reach the task. A high value indicates back-pressure. If only a specific task has a long start delay, the most likely reason is data skew.</td>
       <td>Gauge</td>
     </tr>
+    <tr>
+      <th rowspan="4"><strong>Job (only available on TaskManager)</strong></th>
+      <td>fileMerging.logicalFileCount</td>
+      <td>The number of logical files of file merging mechanism.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>fileMerging.logicalFileSize</td>
+      <td>The total size of logical files of file merging mechanism on one task manager for one job.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>fileMerging.physicalFileCount</td>
+      <td>The number of physical files of file merging mechanism.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>fileMerging.physicalFileSize</td>
+      <td>The total size of physical files of file merging mechanism on one task manager for one job, usually larger than <samp>fileMerging.logicalFileSize</samp>.</td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 
@@ -1632,7 +1653,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="24"><strong>Task</strong></th>
+      <th rowspan="27"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1693,6 +1714,16 @@ Note that the metrics are only available via reporters.
       <td>Meter</td>
     </tr>
     <tr>
+      <td>numFiredTimers</td>
+      <td>The total number of timers this task has fired.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numFiredTimersPerSecond</td>
+      <td>The number of timers this task fires per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
       <td>isBackPressured</td>
       <td>Whether the task is back-pressured.</td>
       <td>Gauge</td>
@@ -1734,7 +1765,7 @@ Note that the metrics are only available via reporters.
     </tr>
     <tr>
       <td>changelogBusyTimeMsPerSecond</td>
-      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'dstl.dfs.upload.max-in-flight' for more information.</td>
+      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'state.changelog.dstl.dfs.upload.max-in-flight' for more information.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -2241,12 +2272,12 @@ purposes.
 ## State access latency tracking
 
 Flink also allows to track the keyed state access latency for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
-To enable this feature you must set the `state.backend.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
+To enable this feature you must set the `state.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
 
-Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.backend.latency-track.sample-interval`.
+Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.latency-track.sample-interval`.
 This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
 
-As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
+As the type of this latency metrics is histogram, `state.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
 A larger value of this configuration will require more memory, but will provide a more accurate result.
 
 <span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance.
@@ -2272,6 +2303,7 @@ Request metrics aggregated across all entities of the respective type:
   - `/taskmanagers/metrics`
   - `/jobs/metrics`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics`
+  - `/jobs/<jobid>/vertices/<vertexid>/jm-operator-metrics`
 
 Request metrics aggregated over a subset of all entities of the respective type:
 

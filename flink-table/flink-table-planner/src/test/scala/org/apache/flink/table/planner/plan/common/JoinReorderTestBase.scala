@@ -24,9 +24,9 @@ import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
-import org.junit.{Before, Test}
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 
 import java.util
 
@@ -44,7 +44,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
 
   protected def getTableTestUtil: TableTestUtil
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)
 
@@ -145,7 +145,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
 
   }
 
-  @Test
+  @TestTemplate
   def testStarJoinCondition1(): Unit = {
     val sql =
       s"""
@@ -155,7 +155,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testStarJoinCondition2(): Unit = {
     val sql =
       s"""
@@ -165,7 +165,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testBushyJoinCondition1(): Unit = {
     val sql =
       s"""
@@ -175,7 +175,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testBushyJoinCondition2(): Unit = {
     val sql =
       s"""
@@ -185,7 +185,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testWithoutColumnStats(): Unit = {
     val sql =
       s"""
@@ -195,7 +195,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithProject(): Unit = {
     val sql =
       s"""
@@ -209,7 +209,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithFilter(): Unit = {
     val sql =
       s"""
@@ -222,7 +222,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllInnerJoin(): Unit = {
     val sql =
       s"""
@@ -236,7 +236,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerAndLeftOuterJoin(): Unit = {
     val sql =
       s"""
@@ -250,7 +250,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerAndRightOuterJoin(): Unit = {
     val sql =
       s"""
@@ -264,7 +264,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerAndFullOuterJoin(): Unit = {
     val sql =
       s"""
@@ -277,7 +277,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllLeftOuterJoin(): Unit = {
     val sql =
       s"""
@@ -292,7 +292,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllRightOuterJoin(): Unit = {
     val sql =
       s"""
@@ -306,7 +306,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllFullOuterJoin(): Unit = {
     val sql =
       s"""
@@ -320,7 +320,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin(): Unit = {
     val sql =
       s"""
@@ -334,7 +334,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin(): Unit = {
     val sql =
       s"""
@@ -348,7 +348,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinRightOuterJoinInnerJoinRightOuterJoin(): Unit = {
     val sql =
       s"""
@@ -362,7 +362,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testRightOuterJoinInnerJoinRightOuterJoinInnerJoin(): Unit = {
     val sql =
       s"""
@@ -376,7 +376,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinSemiJoin(): Unit = {
     val sql =
       s"""
@@ -390,7 +390,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinAntiJoin(): Unit = {
     val sql =
       s"""
@@ -404,14 +404,14 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testCrossJoin(): Unit = {
     val sql = "SELECT * FROM T1, T2, T3, T4, T5"
     // All table can reorder.
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinCrossJoin(): Unit = {
     val sql =
       s"""
@@ -422,7 +422,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinLeftOuterJoinCrossJoin(): Unit = {
     val sql =
       s"""
@@ -433,7 +433,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerJoinWithBushyTypeJoinCondition(): Unit = {
     // This case is to test whether can build a bushy join tree.
     // If variable isBushyJoinReorder is true, it can be built to
@@ -450,7 +450,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testDeriveNullFilterAfterJoinReorder(): Unit = {
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG)
     val builderA = ColumnStats.Builder
@@ -524,7 +524,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
 }
 
 object JoinReorderTestBase {
-  @Parameterized.Parameters(name = "isBushyJoinReorder={0}")
+  @Parameters(name = "isBushyJoinReorder={0}")
   def parameters(): util.Collection[Boolean] = {
     util.Arrays.asList(true, false)
   }

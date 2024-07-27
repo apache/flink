@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
@@ -32,7 +32,6 @@ import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.GenericInMemoryCatalogStore;
 import org.apache.flink.table.catalog.listener.CatalogListener1;
 import org.apache.flink.table.catalog.listener.CatalogListener2;
-import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +41,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
 class EnvironmentTest {
@@ -60,14 +58,14 @@ class EnvironmentTest {
                                         PipelineOptions.AUTO_WATERMARK_INTERVAL,
                                         Duration.ofMillis(800))
                                 .set(
-                                        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                        CheckpointingOptions.CHECKPOINTING_INTERVAL,
                                         Duration.ofSeconds(30)));
 
-        tEnv.createTemporaryView("test", env.fromElements(1, 2, 3));
+        tEnv.createTemporaryView("test", env.fromData(1, 2, 3));
 
         // trigger translation
         Table table = tEnv.sqlQuery("SELECT * FROM test");
-        tEnv.toAppendStream(table, Row.class);
+        tEnv.toDataStream(table);
 
         assertThat(env.getParallelism()).isEqualTo(128);
         assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(800);
@@ -169,6 +167,6 @@ class EnvironmentTest {
         configuration.setString("type", "generic_in_memory");
         tbEnv.createCatalog("test_catalog", CatalogDescriptor.of("test_catalog", configuration));
 
-        assertTrue(catalogStore.contains("test_catalog"));
+        assertThat(catalogStore.contains("test_catalog")).isTrue();
     }
 }

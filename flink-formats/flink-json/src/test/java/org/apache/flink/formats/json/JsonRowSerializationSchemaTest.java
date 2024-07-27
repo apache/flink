@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -32,9 +32,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
 import static org.apache.flink.formats.utils.SerializationSchemaMatcher.whenSerializedWith;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link JsonRowSerializationSchema}. */
 public class JsonRowSerializationSchemaTest {
@@ -63,10 +62,11 @@ public class JsonRowSerializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
         assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .andDeserializedWith(deserializationSchema)
-                        .equalsTo(row));
+                        whenSerializedWith(serializationSchema)
+                                .andDeserializedWith(deserializationSchema)
+                                .equalsTo(row)
+                                .matches(row))
+                .isTrue();
     }
 
     @Test
@@ -88,7 +88,7 @@ public class JsonRowSerializationSchemaTest {
         open(deserializationSchema);
 
         byte[] bytes = serializationSchema.serialize(row1);
-        assertEquals(row1, deserializationSchema.deserialize(bytes));
+        assertThat(deserializationSchema.deserialize(bytes)).isEqualTo(row1);
 
         final Row row2 = new Row(3);
         row2.setField(0, 10);
@@ -96,7 +96,7 @@ public class JsonRowSerializationSchemaTest {
         row2.setField(2, "newStr");
 
         bytes = serializationSchema.serialize(row2);
-        assertEquals(row2, deserializationSchema.deserialize(bytes));
+        assertThat(deserializationSchema.deserialize(bytes)).isEqualTo(row2);
     }
 
     @Test
@@ -134,7 +134,7 @@ public class JsonRowSerializationSchemaTest {
             String json = jsons[i];
             Row row = deserializationSchema.deserialize(json.getBytes());
             String result = new String(serializationSchema.serialize(row));
-            assertEquals(expected[i], result);
+            assertThat(result).isEqualTo(expected[i]);
         }
     }
 
@@ -161,10 +161,11 @@ public class JsonRowSerializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
         assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .andDeserializedWith(deserializationSchema)
-                        .equalsTo(row));
+                        whenSerializedWith(serializationSchema)
+                                .andDeserializedWith(deserializationSchema)
+                                .equalsTo(row)
+                                .matches(row))
+                .isTrue();
     }
 
     @Test
@@ -179,10 +180,8 @@ public class JsonRowSerializationSchemaTest {
         final JsonRowSerializationSchema serializationSchema =
                 new JsonRowSerializationSchema.Builder(rowSchema).build();
         open(serializationSchema);
-        assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .failsWithException(instanceOf(RuntimeException.class)));
+        assertThatThrownBy(() -> serializationSchema.serialize(row))
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -242,9 +241,10 @@ public class JsonRowSerializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
         assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .andDeserializedWith(deserializationSchema)
-                        .equalsTo(row));
+                        whenSerializedWith(serializationSchema)
+                                .andDeserializedWith(deserializationSchema)
+                                .equalsTo(row)
+                                .matches(row))
+                .isTrue();
     }
 }

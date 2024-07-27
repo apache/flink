@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
  * Base class for implementing a parallel data source that has access to context information (via
@@ -31,14 +32,13 @@ import org.apache.flink.api.common.functions.OpenContext;
  *
  * <ul>
  *   <li>Use {@link #getRuntimeContext()} to obtain the runtime context.
- *   <li>Use {@link
- *       org.apache.flink.api.common.functions.RuntimeContext#getNumberOfParallelSubtasks()} to
- *       determine the current parallelism. It is strongly encouraged to use this method, rather
- *       than hard-wiring the parallelism, because the configured parallelism may change depending
- *       on program configuration. The parallelism may also change after recovering failures, when
+ *   <li>Use the number of parallel subtasks in {@link RuntimeContext#getTaskInfo()} to determine
+ *       the current parallelism. It is strongly encouraged to use this method, rather than
+ *       hard-wiring the parallelism, because the configured parallelism may change depending on
+ *       program configuration. The parallelism may also change after recovering failures, when
  *       fewer than desired parallel worker as available.
- *   <li>Use {@link org.apache.flink.api.common.functions.RuntimeContext#getIndexOfThisSubtask()} to
- *       determine which subtask the current instance of the function executes.
+ *   <li>Use the index of task in {@link RuntimeContext#getTaskInfo()}} to determine which subtask
+ *       the current instance of the function executes.
  * </ul>
  *
  * @param <OUT> The type of the records produced by this source.

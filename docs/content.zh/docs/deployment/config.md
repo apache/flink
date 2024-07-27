@@ -27,15 +27,99 @@ under the License.
 
 # 配置参数
 
-All configuration is done in `conf/flink-conf.yaml`, which is expected to be a flat collection of [YAML key value pairs](http://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
+All configuration can be set in Flink configuration file in the `conf/` directory (see [Flink Configuration File section](#flink-configuration-file)).
 
 The configuration is parsed and evaluated when the Flink processes are started. Changes to the configuration file require restarting the relevant processes.
 
-The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in Flink configuration file if you want to manually override the Java runtime to use. Note that the configuration key `env.java.home` must be specified in a flattened format (i.e. one-line key-value format) in the configuration file.
 
 You can specify a different configuration directory location by defining the `FLINK_CONF_DIR` environment variable. For resource providers which provide non-session deployments, you can specify per-job configurations this way. Make a copy of the `conf` directory from the Flink distribution and modify the settings on a per-job basis. Note that this is not supported in Docker or standalone Kubernetes deployments. On Docker-based deployments, you can use the `FLINK_PROPERTIES` environment variable for passing configuration values.
 
 On session clusters, the provided configuration will only be used for configuring [execution](#execution) parameters, e.g. configuration parameters affecting the job, not the underlying cluster.
+
+# Flink 配置文件
+
+自 Flink-1.19 版本起，Flink 正式引入了对标准 YAML 1.2 语法的完整支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。为了利用这一新特性，用户需使用新引入的配置文件 `config.yaml`。原有的 `flink-conf.yaml` 配置文件不再推荐使用，并在即将到来的 Flink-2.0 版本中不再支持。为了确保平滑迁移，建议用户尽早将现有作业配置迁移到新的配置方式。
+
+本节将帮助用户理解如何通过 `config.yaml` 配置文件对 Flink 集群和作业进行配置，以及如何将老配置迁移至新的配置文件中。
+
+### 用法
+
+从 Flink-1.19 版本开始，默认的配置文件已更改为 `config.yaml`，并置于 `conf/` 目录下。用户在进行配置时应直接修改此文件。
+
+如果用户希望继续使用 Flink-1.19 之前的配置文件 `flink-conf.yaml`，只需将该文件拷贝到 `conf/` 目录下。一旦检测到 `flink-conf.yaml` 文件，Flink 会优先使用其作为配置文件。
+
+`config.yaml` 的配置方式如下：
+
+#### Config Key
+
+- 用户可以按照 Nested 的格式来组织 Config Key，如：
+
+```config.yaml
+restart-strategy:
+  type: failure-rate
+  failure-rate:
+    delay: 1 s
+    failure-rate-interval: 1 min
+    max-failures-per-interval: 1
+```
+
+- 此外，用户也可以按 Flatten 的格式组织 Config Key，如：
+
+```flink-conf.yaml
+restart-strategy.type: failure-rate
+restart-strategy.failure-rate.delay: 1 s
+restart-strategy.failure-rate.failure-rate-interval: 1 min
+restart-strategy.failure-rate.max-failures-per-interval: 1
+```
+
+#### Config Value
+
+`config.yaml` 配置文件支持用户按 [YAML 1.2 core schema](https://yaml.org/spec/1.2.2/#103-core-schema) 进行 value 的配置。
+
+用户可按如下格式配置 Value 对应的Config Type：
+
+{{< config_file_zh >}}
+
+此外，用户还可以按字符串格式配置所有 Config Type 的 Value，只需将原始值使用单引号或双引号括起来。
+
+### 从 flink-conf.yaml 迁移至 config.yaml
+#### 行为变更
+`config.yaml` 严格遵循 YAML1.2 语法，与 `flink-conf.yaml` 在大部分情况下都完全兼容，除了以下场景发生了行为变更:
+
+- Null value:
+    - `flink-conf.yaml`：仅支持留空。
+    - `config.yaml`：支持留空, null, Null, NULL 和 `~` 。
+
+- 注释:
+    - `flink-conf.yaml`：每一行中首次出现 `#` 以后的都认为是注释。
+    - `config.yaml`：`#` 号和它前面的内容之间至少有一个空格或者 `#` 号位于一行的开头时，后续内容才认为是注释。
+
+- 需要转义的特殊字符：
+    - `flink-conf.yaml`：仅需要对 List 和 Map的元素进行转义
+      - List 中的元素如果含有分号 ";" ，则需要进行转义。
+      - Map 中的元素如果含有逗号 "," 和冒号 ":" ，则需要进行转义。
+    - `config.yaml`：需要对 YAML 1.2 规范中的特殊字符进行转义，特殊字符的定义见[链接](https://yaml.org/spec/1.2.2/#53-indicator-characters)。
+
+- 重复Key：
+    - `flink-conf.yaml`：允许重复Key，取文件中最末端出现的对应Key的 key-value pair。
+    - `config.yaml`：不允许重复Key，加载配置时将报错。
+
+- 对非法配置的处理:
+    - `flink-conf.yaml`：非法的 key-value pair 将被忽略。
+    - `config.yaml`：加载配置时将报错。
+
+#### Migration Tool
+为了方便用户迁移，Flink 提供了一个配置文件迁移脚本，使用这个脚本可以自动化地完成迁移过程。使用方法如下：
+
+- 将旧的配置文件 `flink-conf.yaml` 放置在 `conf/` 目录下
+- 在 `$FLINK_HOME/` 目录执行如下指令
+````migrate-tool.sh
+bin/migrate-config-file.sh
+````
+运行上述指令后，该迁移脚本会自动读取 `conf/` 目录下的旧配置文件 `flink-conf.yaml`，并将迁移后的结果输出到 `conf/` 目录下的新配置文件 `config.yaml` 中。需要注意的是，因为老配置项解析器的限制，`flink-conf.yaml` 中所有的 value 会被识别为 `String` 类型，所以生成的 `config.yaml` 文件中的 value 也都为 `String` 类型，即部分 value 会被引号引起来。不过 Flink 会在后续的配置解析时将其转换为使用 `ConfigOption` 定义的实际类型。
+
+此外，用户需要在迁移完成后删除 `conf/` 目录下的 `flink-conf.yaml` 文件来使 `config.yaml` 文件生效。
 
 # Basic Setup
 
@@ -77,8 +161,8 @@ These values are configured as memory sizes, for example *1536m* or *2g*.
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
   - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap` or `rocksdb`.
-  - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
-  - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
+  - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
+  - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
 
 **Web UI**
@@ -131,6 +215,10 @@ The default restart strategy will only take effect if no job specific restart st
 
 {{< generated/fixed_delay_restart_strategy_configuration >}}
 
+**Exponential Delay Restart Strategy**
+
+{{< generated/exponential_delay_restart_strategy_configuration >}}
+
 **Failure Rate Restart Strategy**
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
@@ -156,7 +244,13 @@ These options control the basic setup of state backends and checkpointing behavi
 The options are only relevant for jobs/applications executing in a continuous streaming fashion.
 Jobs/applications executing in a batch fashion do not use state backends and checkpoints, but different internal data structures that are optimized for batch processing.
 
+**State Backends**
+
 {{< generated/common_state_backends_section >}}
+
+**Checkpoints**
+
+{{< generated/common_checkpointing_section >}}
 
 ### High Availability
 
@@ -283,6 +377,15 @@ Enabling RocksDB's native metrics may cause degraded performance and should be s
 ----
 ----
 
+# Traces
+
+Please refer to the [tracing system documentation]({{< ref "docs/ops/traces" >}}) for background on Flink's tracing infrastructure.
+
+{{< generated/trace_configuration >}}
+
+----
+----
+
 # History Server
 
 The history server keeps the information of completed jobs (graphs, runtimes, statistics). To enable it, you have to enable "job archiving" in the JobManager (`jobmanager.archive.fs.dir`).
@@ -305,20 +408,36 @@ See the [History Server Docs]({{< ref "docs/deployment/advanced/historyserver" >
 ----
 ----
 
+# User Artifact Management
+
+Flink is capable to upload and fetch local user artifacts in Application Mode. An artifact can be the actual job archive, a UDF that is packaged separately, etc.
+1. Uploading local artifacts to a DFS is a Kubernetes specific feature, see the [Kubernetes](#kubernetes) section and look for `kubernetes.artifacts.*` prefixed options.
+2. Fetching remote artifacts on the deployed application cluster is supported from DFS or an HTTP(S) endpoint.
+{{< hint info >}}
+**Note:** Artifact Fetching is supported in Standalone Application Mode and Native Kubernetes Application Mode.
+{{< /hint >}}
+
+{{< generated/artifact_fetch_configuration >}}
+
+----
+----
+
 # Execution
 
 {{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
 {{< generated/execution_configuration >}}
 
 ### Pipeline
 
 {{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
 
 ### Checkpointing
 
-{{< generated/execution_checkpointing_configuration >}}
+{{< generated/checkpointing_configuration >}}
+
+### Recovery
+
+{{< generated/state_recovery_configuration >}}
 
 ----
 ----
@@ -341,13 +460,13 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/expert_debugging_and_tuning_section >}}
 
-### Advanced State Backends Options
+### Advanced Checkpointing Options
 
-{{< generated/expert_state_backends_section >}}
+{{< generated/expert_checkpointing_section >}}
 
-### State Backends Latency Tracking Options
+### State Latency Tracking Options
 
-{{< generated/state_backend_latency_tracking_section >}}
+{{< generated/state_latency_tracking_section >}}
 
 ### Advanced RocksDB State Backends Options
 
@@ -358,12 +477,11 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
-using State Changelog. {{< hint warning >}} The feature is in experimental status. {{< /hint >}} {{<
-generated/state_backend_changelog_section >}}
+using State Changelog. {{< generated/state_changelog_section >}}
 
 #### FileSystem-based Changelog options
 
-These settings take effect when the `state.backend.changelog.storage`  is set to `filesystem` (see [above](#state-backend-changelog-storage)).
+These settings take effect when the `state.changelog.storage`  is set to `filesystem` (see [above](#state-changelog-storage)).
 {{< generated/fs_state_changelog_configuration >}}
 
 **RocksDB Configurable Options**
@@ -452,7 +570,7 @@ These options are for the network stack that handles the streaming and batch dat
 Flink uses Pekko for RPC between components (JobManager/TaskManager/ResourceManager).
 Flink does not use Pekko for data transport.
 
-{{< generated/akka_configuration >}}
+{{< generated/rpc_configuration >}}
 
 ----
 ----

@@ -112,6 +112,7 @@ public final class BackendSwitchSpecs {
                             TtlTimeProvider.DEFAULT,
                             LatencyTrackingStateConfig.disabled(),
                             new UnregisteredMetricsGroup(),
+                            (key, value) -> {},
                             stateHandles,
                             UncompressedStreamCompressionDecorator.INSTANCE,
                             new CloseableRegistry())

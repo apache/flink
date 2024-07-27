@@ -23,7 +23,11 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.traces.Span;
+import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.function.TriConsumer;
+
+import java.util.function.Consumer;
 
 /** <code>TestingMetricRegistry</code> is the test implementation for {@link MetricRegistry}. */
 public class TestingMetricRegistry implements MetricRegistry {
@@ -32,6 +36,7 @@ public class TestingMetricRegistry implements MetricRegistry {
     private final int numberReporters;
     private final TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer;
     private final TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer;
+    private final Consumer<Span> spanConsumer;
     private final ScopeFormats scopeFormats;
 
     private TestingMetricRegistry(
@@ -39,11 +44,13 @@ public class TestingMetricRegistry implements MetricRegistry {
             int numberReporters,
             TriConsumer<Metric, String, AbstractMetricGroup<?>> registerConsumer,
             TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer,
+            Consumer<Span> spanConsumer,
             ScopeFormats scopeFormats) {
         this.delimiter = delimiter;
         this.numberReporters = numberReporters;
         this.registerConsumer = registerConsumer;
         this.unregisterConsumer = unregisterConsumer;
+        this.spanConsumer = spanConsumer;
         this.scopeFormats = scopeFormats;
     }
 
@@ -55,6 +62,11 @@ public class TestingMetricRegistry implements MetricRegistry {
     @Override
     public int getNumberReporters() {
         return numberReporters;
+    }
+
+    @Override
+    public void addSpan(SpanBuilder spanBuilder) {
+        spanConsumer.accept(spanBuilder.build());
     }
 
     @Override
@@ -85,6 +97,7 @@ public class TestingMetricRegistry implements MetricRegistry {
                 (ignoreMetric, ignoreMetricName, ignoreGroup) -> {};
         private TriConsumer<Metric, String, AbstractMetricGroup<?>> unregisterConsumer =
                 (ignoreMetric, ignoreMetricName, ignoreGroup) -> {};
+        private Consumer<Span> spanConsumer = span -> {};
         private ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
 
         private TestingMetricRegistryBuilder() {}
@@ -111,6 +124,11 @@ public class TestingMetricRegistry implements MetricRegistry {
             return this;
         }
 
+        public TestingMetricRegistryBuilder setSpanConsumer(Consumer<Span> spanConsumer) {
+            this.spanConsumer = spanConsumer;
+            return this;
+        }
+
         public TestingMetricRegistryBuilder setScopeFormats(ScopeFormats scopeFormats) {
             this.scopeFormats = scopeFormats;
             return this;
@@ -118,7 +136,12 @@ public class TestingMetricRegistry implements MetricRegistry {
 
         public TestingMetricRegistry build() {
             return new TestingMetricRegistry(
-                    delimiter, numberReporters, registerConsumer, unregisterConsumer, scopeFormats);
+                    delimiter,
+                    numberReporters,
+                    registerConsumer,
+                    unregisterConsumer,
+                    spanConsumer,
+                    scopeFormats);
         }
     }
 }

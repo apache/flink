@@ -88,10 +88,11 @@ class DiskCacheManager {
      *
      * @param buffer to be managed by this class.
      * @param subpartitionId the subpartition of this record.
+     * @param flush whether it is allowed to flush the cache after this buffer is appended.
      */
-    void append(Buffer buffer, int subpartitionId) {
+    void append(Buffer buffer, int subpartitionId, boolean flush) {
         subpartitionCacheManagers[subpartitionId].append(buffer);
-        increaseNumCachedBytesAndCheckFlush(buffer.readableBytes());
+        increaseNumCachedBytesAndCheckFlush(buffer.readableBytes(), flush);
     }
 
     /**
@@ -103,7 +104,7 @@ class DiskCacheManager {
      */
     void appendEndOfSegmentEvent(ByteBuffer record, int subpartitionId) {
         subpartitionCacheManagers[subpartitionId].appendEndOfSegmentEvent(record);
-        increaseNumCachedBytesAndCheckFlush(record.remaining());
+        increaseNumCachedBytesAndCheckFlush(record.remaining(), true);
     }
 
     /**
@@ -133,9 +134,9 @@ class DiskCacheManager {
     //  Internal Methods
     // ------------------------------------------------------------------------
 
-    private void increaseNumCachedBytesAndCheckFlush(int numIncreasedCachedBytes) {
+    private void increaseNumCachedBytesAndCheckFlush(int numIncreasedCachedBytes, boolean flush) {
         numCachedBytesCounter += numIncreasedCachedBytes;
-        if (numCachedBytesCounter > maxCachedBytesBeforeFlush) {
+        if (flush && numCachedBytesCounter > maxCachedBytesBeforeFlush) {
             forceFlushCachedBuffers();
         }
     }

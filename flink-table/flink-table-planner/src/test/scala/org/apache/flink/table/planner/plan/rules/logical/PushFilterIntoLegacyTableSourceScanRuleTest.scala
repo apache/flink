@@ -26,13 +26,15 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import java.time.ZoneId
 
 /** Test for [[PushFilterIntoLegacyTableSourceScanRule]]. */
 class PushFilterIntoLegacyTableSourceScanRuleTest
   extends PushFilterIntoTableSourceScanRuleTestBase {
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util = batchTestUtil()
     util.asInstanceOf[BatchTableTestUtil].buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
@@ -110,5 +112,30 @@ class PushFilterIntoLegacyTableSourceScanRuleTest
       Set("a", "b"))
 
     super.testWithInterval()
+  }
+
+  @Test
+  override def testWithTimestampWithTimeZone(): Unit = {
+    val schema = TableSchema
+      .builder()
+      .field("a", DataTypes.TIMESTAMP_LTZ(3))
+      .field("b", DataTypes.TIMESTAMP)
+      .build()
+    val data = List(
+      Row.of(localDateTime("2024-05-13 08:00:00"), localDateTime("2024-05-13 08:00:00")))
+    TestLegacyFilterableTableSource.createTemporaryTable(
+      util.tableEnv,
+      schema,
+      "MTable",
+      isBounded = true,
+      data,
+      Set("a", "b"))
+    val preZoneId = util.tableEnv.getConfig.getLocalTimeZone
+    util.tableEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+    try {
+      super.testWithTimestampWithTimeZone()
+    } finally {
+      util.tableEnv.getConfig.setLocalTimeZone(preZoneId)
+    }
   }
 }

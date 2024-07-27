@@ -27,16 +27,18 @@ import org.apache.flink.util.OperatingSystem
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapred.{FileOutputFormat, JobConf, TextInputFormat, TextOutputFormat}
-import org.junit.{Assume, Before}
+import org.assertj.core.api.Assumptions.assumeThat
+import org.junit.jupiter.api.BeforeEach
 
 class WordCountMapredITCase extends JavaProgramTestBase {
   protected var textPath: String = null
   protected var resultPath: String = null
 
-  @Before
+  @BeforeEach
   def checkOperatingSystem() {
     // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-    Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows)
+    assumeThat(OperatingSystem.isWindows)
+      .isFalse()
   }
 
   override protected def preSubmit() {

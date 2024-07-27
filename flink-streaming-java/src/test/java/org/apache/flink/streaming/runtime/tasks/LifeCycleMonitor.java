@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A utility class to record the number of calls for each phase. */
 class LifeCycleMonitor implements Serializable {
@@ -48,10 +48,9 @@ class LifeCycleMonitor implements Serializable {
 
     public void assertCallTimes(int expectedTimes, LifeCyclePhase... phases) {
         for (LifeCyclePhase phase : phases) {
-            assertEquals(
-                    String.format("The phase %s has unexpected call times", phase),
-                    expectedTimes,
-                    callTimes.getOrDefault(phase, 0).intValue());
+            assertThat(callTimes.getOrDefault(phase, 0))
+                    .as("The phase %s has unexpected call times", phase)
+                    .isEqualTo(expectedTimes);
         }
     }
 }

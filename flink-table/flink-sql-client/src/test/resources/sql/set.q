@@ -17,11 +17,11 @@
 
 # test set a configuration
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # test "ctas"
@@ -34,7 +34,7 @@ CREATE TABLE foo with(
 !info
 
 RESET 'table.dml-sync';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from foo;
@@ -48,7 +48,7 @@ Received a total of 1 row
 
 # test add jar
 ADD JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -61,7 +61,7 @@ SHOW JARS;
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -69,48 +69,49 @@ Empty set
 !ok
 
 reset 'table.resources.download-dir';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # list the configured configuration
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
-|                                  rest.port |     $VAR_REST_PORT |
-|           sql-client.execution.result-mode |   tableau |
-|           table.exec.legacy-cast-behaviour |  DISABLED |
-+--------------------------------------------+-----------+
-11 rows in set
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|              sql-client.display.print-time-cost |     false |
+|                sql-client.execution.result-mode |   tableau |
+|                table.exec.legacy-cast-behaviour |  DISABLED |
++-------------------------------------------------+-----------+
+12 rows in set
 !ok
 
 # reset the configuration
 reset;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
-|                                  rest.port |     $VAR_REST_PORT |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
++-------------------------------------------------+-----------+
 9 rows in set
 !ok
 
@@ -135,56 +136,56 @@ Was expecting one of:
 !error
 
 set 'sql-client.verbose' = 'true';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
-|                                  rest.port |     $VAR_REST_PORT |
-|                         sql-client.verbose |      true |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|                              sql-client.verbose |      true |
++-------------------------------------------------+-----------+
 10 rows in set
 !ok
 
 set 'execution.attached' = 'false';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 reset 'execution.attached';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
-|                                  rest.port |     $VAR_REST_PORT |
-|                         sql-client.verbose |      true |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|                              sql-client.verbose |      true |
++-------------------------------------------------+-----------+
 10 rows in set
 !ok
 
 # test reset can work with add jar
 ADD JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -197,25 +198,25 @@ SHOW JARS;
 !ok
 
 set;
-+--------------------------------------------+-----------+
-|                                        key |     value |
-+--------------------------------------------+-----------+
-|                         execution.attached |      true |
-|           execution.savepoint-restore-mode |  NO_CLAIM |
-| execution.savepoint.ignore-unclaimed-state |     false |
-|        execution.shutdown-on-attached-exit |     false |
-|                           execution.target |    remote |
-|                     jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
-|                                  rest.port |     $VAR_REST_PORT |
-|                         sql-client.verbose |      true |
-+--------------------------------------------+-----------+
++-------------------------------------------------+-----------+
+|                                             key |     value |
++-------------------------------------------------+-----------+
+|                              execution.attached |      true |
+|             execution.shutdown-on-attached-exit |     false |
+|             execution.state-recovery.claim-mode |  NO_CLAIM |
+| execution.state-recovery.ignore-unclaimed-state |     false |
+|                                execution.target |    remote |
+|                          jobmanager.rpc.address | $VAR_JOBMANAGER_RPC_ADDRESS |
+|                             pipeline.classpaths |        [] |
+|                                   pipeline.jars |        [] |
+|                                       rest.port |     $VAR_REST_PORT |
+|                              sql-client.verbose |      true |
++-------------------------------------------------+-----------+
 10 rows in set
 !ok
 
 reset;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;
@@ -228,11 +229,15 @@ SHOW JARS;
 !ok
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
+!info
+
+SET 'sql-client.display.print-time-cost' = 'false';
+[INFO] Execute statement succeeded.
 !info
 
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
@@ -245,7 +250,7 @@ Received a total of 1 row
 !ok
 
 REMOVE JAR '$VAR_UDF_JAR_PATH';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SHOW JARS;

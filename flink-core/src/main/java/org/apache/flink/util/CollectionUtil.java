@@ -56,8 +56,19 @@ public final class CollectionUtil {
         throw new AssertionError();
     }
 
+    /** Returns true if the given collection is null or empty. */
     public static boolean isNullOrEmpty(Collection<?> collection) {
         return collection == null || collection.isEmpty();
+    }
+
+    /** Returns true if the given collection is empty or contains only null elements. */
+    public static boolean isEmptyOrAllElementsNull(Collection<?> collection) {
+        for (Object o : collection) {
+            if (o != null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean isNullOrEmpty(Map<?, ?> map) {
@@ -213,5 +224,36 @@ public final class CollectionUtil {
         return expectedSize < (Integer.MAX_VALUE / 2 + 1)
                 ? (int) Math.ceil(expectedSize / loadFactor)
                 : Integer.MAX_VALUE;
+    }
+
+    /**
+     * Casts the given collection to a subtype. This is an unchecked cast that can lead to runtime
+     * exceptions.
+     *
+     * @param collection the collection to cast.
+     * @return the collection unchecked-cast to a subtype.
+     * @param <T> the subtype to cast to.
+     */
+    public static <T> Collection<T> subTypeCast(Collection<? super T> collection) {
+        @SuppressWarnings("unchecked")
+        Collection<T> result = (Collection<T>) collection;
+        return result;
+    }
+
+    /**
+     * Casts the given collection to a subtype. This is a checked cast.
+     *
+     * @param collection the collection to cast.
+     * @param subTypeClass the class of the subtype to cast to.
+     * @return the collection checked and cast to a subtype.
+     * @param <T> the subtype to cast to.
+     */
+    public static <T> Collection<T> checkedSubTypeCast(
+            Collection<? super T> collection, Class<T> subTypeClass) {
+        for (Object o : collection) {
+            // probe each object, will throw ClassCastException on mismatch.
+            subTypeClass.cast(o);
+        }
+        return subTypeCast(collection);
     }
 }

@@ -34,27 +34,24 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test to verify that timer triggers are run according to operator precedence (combined with
  * yield() at operator level).
  */
-public class StreamTaskOperatorTimerTest extends TestLogger {
+class StreamTaskOperatorTimerTest {
     private static final String TRIGGER_PREFIX = "trigger:";
     private static final String RESULT_PREFIX = "timer:";
 
     @Test
-    public void testOperatorYieldExecutesSelectedTimers() throws Exception {
+    void testOperatorYieldExecutesSelectedTimers() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -79,8 +76,7 @@ public class StreamTaskOperatorTimerTest extends TestLogger {
         testHarness
                 .getOutput()
                 .forEach(element -> events.add(((StreamRecord<String>) element).getValue()));
-        assertThat(
-                events, is(Arrays.asList(trigger, RESULT_PREFIX + "1:0", RESULT_PREFIX + "0:0")));
+        assertThat(events).containsExactly(trigger, RESULT_PREFIX + "1:0", RESULT_PREFIX + "0:0");
     }
 
     private static class TestOperatorFactory extends AbstractStreamOperatorFactory<String>

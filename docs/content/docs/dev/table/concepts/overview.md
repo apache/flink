@@ -134,6 +134,39 @@ before. If a record with a key, whose state has been removed before, is processe
 be treated as if it was the first record with the respective key. For the example above this means
 that the count of a `word` would start again at `0`.
 
+#### Different Ways to Configure State TTL
+<table class="table table-bordered">
+<thead>
+<tr>
+	<th class="text-left">Configuration</th>
+	<th class="text-left">TableAPI/SQL Support</th>
+	<th class="text-left">Granularity</th>
+	<th class="text-left">Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+	<td>SET 'table.exec.state.ttl' = '...' </td>
+	<td>{{<label TableAPI>}}{{<label SQL>}}</td>
+	<td>Pipeline level, all stateful operators will use the value by default.</td>
+	<td>This is the default state TTL configuration and can be overridden by enabling the STATE_TTL hint or modifying the value of the serialized CompiledPlan.</td>
+</tr>
+<tr>
+	<td>SELECT /*+ STATE_TTL(...) */ ... </td>
+	<td>{{<label SQL>}}</td>
+	<td>Operator level with only regular join and group aggregation support.</td>
+	<td>The hint precedes the default table.exec.state.ttl. This value will be serialized to the CompiledPlan during the plan translation phase. See more at <a href="{{< ref "docs/dev/table/sql/queries/hints" >}}#state-ttl-hints">State TTL Hint</a>. </td>
+</tr>
+<tr>
+	<td>Modify serialized JSON content of CompiledPlan </td>
+	<td>{{<label TableAPI>}}{{<label SQL>}}</td>
+	<td>Operator level with a generalized support. The TTL for each stateful operator is explicitly serialized as an entry of the JSON. Modifying the JSON file can change the TTL for any stateful operator.</td>
+	<td>The TTL in CompiledPlan derives from either table.exec.state.ttl or STATE_TTL hint. If the job is submitted via CompiledPlan, 
+the ultimate TTL value is decided by the last modified state metadata.</td>
+</tr>
+</tbody>
+</table>
+
 #### Configure Operator-level State TTL
 --------------------------
 {{< hint warning >}}
@@ -145,15 +178,14 @@ If the pipeline only uses one state, you only need to set [`table.exec.state.ttl
 at pipeline level.
 {{< /hint >}}
 
-From Flink v1.18, Table API & SQL supports configuring fine-grained state TTL at operator-level to improve the state usage. 
+Table API & SQL supports configuring fine-grained state TTL at operator-level to improve the state usage. 
 The configurable granularity is defined as the number of incoming input edges for each state operator. 
 Specifically, `OneInputStreamOperator` can configure the TTL for one state, while `TwoInputStreamOperator` (such as regular join), which has two inputs, can configure the TTL for the left and right states separately. 
 More generally, for `MultipleInputStreamOperator` which has K inputs, K state TTLs can be configured.
 
 Typical use cases are as follows: 
 - Set different TTLs for [regular joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins). 
-Regular join generates a `TwoInputStreamOperator` with left state to keep left input and right state to keep right input. From Flink v1.18,
-you can set the different state TTL for left state and right state. 
+Regular join generates a `TwoInputStreamOperator` with left state to keep left input and right state to keep right input. You can set the different state TTL for left state and right state. 
 - Set different TTLs for different transformations within one pipeline.
 For example, there is an ETL pipeline which uses `ROW_NUMBER` to perform [deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}}),
 and then use `GROUP BY` to perform [aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}). 
@@ -225,18 +257,18 @@ compiledPlan.writeToFile("/path/to/plan.json")
 
 ```sql
 Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_orders
 > SELECT a.order_id, a.order_line_id, b.order_status, ...
 > FROM orders a JOIN line_orders b ON a.order_line_id = b.order_line_id;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 ```
 
 {{< /tab >}}
@@ -344,13 +376,13 @@ tableEnv.loadPlan(PlanReference.fromFile("/path/to/plan.json")).execute().await(
 
 ```sql
 Flink SQL> CREATE TABLE orders (order_id BIGINT, order_line_id BIGINT, buyer_id BIGINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE line_orders (order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE enriched_orders (order_id BIGINT, order_line_id BIGINT, order_status TINYINT, ...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> EXECUTE PLAN 'file:///path/to/plan.json';
 [INFO] Submitting SQL update statement to the cluster...
@@ -508,7 +540,7 @@ It performs a regular inner join with different state TTL for left and right sid
       ]
     ```
     The `"index"` indicates the current state is the i-th input the operator, and the index starts from zero.
-The current TTL value for both left and right side is `"0 ms"`, which means the state retention is not enabled. 
+The current TTL value for both left and right side is `"0 ms"`, which means the state never expires.
 Now change the value of left state to `"3000 ms"` and right state to `"9000 ms"`.
     ```json
     "state": [

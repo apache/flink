@@ -26,7 +26,7 @@ under the License.
 
 # Formats
 
-Flink provides a set of table formats that can be used with table connectors. A table format is a storage format defines how to map binary data onto table columns.
+Flink provides a set of table formats that can be used with table connectors. A table format is a storage format that defines how to map binary data onto table columns.
 
 Flink supports the following formats:
 
@@ -67,6 +67,10 @@ Flink supports the following formats:
           <td><a href="{{< ref "docs/connectors/table/formats/avro-confluent" >}}">Confluent Avro</a></td>
           <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
            <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a></td>
+        </tr>
+        <tr>
+          <td><a href="{{< ref "docs/connectors/table/formats/protobuf" >}}">Protobuf</a></td>
+          <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a></td>
         </tr>
         <tr>
          <td><a href="{{< ref "docs/connectors/table/formats/debezium" >}}">Debezium CDC</a></td>

@@ -146,6 +146,7 @@ public class JobDetailsHandler
                 executionGraph.getJobName(),
                 executionGraph.isStoppable(),
                 executionGraph.getState(),
+                executionGraph.getJobType(),
                 startTime,
                 endTime,
                 duration,
@@ -230,6 +231,7 @@ public class JobDetailsHandler
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),
+                ejv.getSlotSharingGroup().getSlotSharingGroupId(),
                 ejv.getName(),
                 ejv.getMaxParallelism(),
                 ejv.getParallelism(),

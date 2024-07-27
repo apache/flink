@@ -36,6 +36,7 @@ export class JobManagerComponent {
     { path: 'logs', title: 'Logs' },
     { path: 'stdout', title: 'Stdout' },
     { path: 'log', title: 'Log List' },
-    { path: 'thread-dump', title: 'Thread Dump' }
+    { path: 'thread-dump', title: 'Thread Dump' },
+    { path: 'profiler', title: 'Profiler' }
   ];
 }

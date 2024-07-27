@@ -55,7 +55,7 @@ public class TestingClusterEntrypointProcess extends TestJvmProcess {
     }
 
     @Override
-    public String[] getJvmArgs() {
+    public String[] getMainMethodArgs() {
         return new String[] {markerFile.getAbsolutePath()};
     }
 
@@ -80,8 +80,8 @@ public class TestingClusterEntrypointProcess extends TestJvmProcess {
                 final File markerFile = new File(args[0]);
 
                 final Configuration config = new Configuration();
-                config.setInteger(JobManagerOptions.PORT, 0);
-                config.setString(RestOptions.BIND_PORT, "0");
+                config.set(JobManagerOptions.PORT, 0);
+                config.set(RestOptions.BIND_PORT, "0");
 
                 final TestingClusterEntrypoint clusterEntrypoint =
                         new TestingClusterEntrypoint(config, markerFile);

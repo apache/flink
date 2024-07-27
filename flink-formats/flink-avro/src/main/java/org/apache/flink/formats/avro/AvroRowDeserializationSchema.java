@@ -18,6 +18,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -58,7 +59,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
 import java.util.HashMap;
 import java.util.List;
@@ -159,12 +162,17 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 
     @Override
     public Row deserialize(byte[] message) throws IOException {
+        return deserialize(message, true);
+    }
+
+    @VisibleForTesting
+    Row deserialize(byte[] message, boolean legacyTimestampMapping) throws IOException {
         try {
             inputStream.setBuffer(message);
             record = datumReader.read(record, decoder);
-            return convertAvroRecordToRow(schema, typeInfo, record);
+            return convertAvroRecordToRow(schema, typeInfo, record, legacyTimestampMapping);
         } catch (Exception e) {
-            throw new IOException("Failed to deserialize Avro record.", e);
+            throw new RuntimeException("Failed to deserialize Avro record.", e);
         }
     }
 
@@ -193,19 +201,27 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 
     // --------------------------------------------------------------------------------------------
 
-    private Row convertAvroRecordToRow(Schema schema, RowTypeInfo typeInfo, IndexedRecord record) {
+    private Row convertAvroRecordToRow(
+            Schema schema,
+            RowTypeInfo typeInfo,
+            IndexedRecord record,
+            boolean legacyTimestampMapping) {
         final List<Schema.Field> fields = schema.getFields();
         final TypeInformation<?>[] fieldInfo = typeInfo.getFieldTypes();
         final int length = fields.size();
         final Row row = new Row(length);
         for (int i = 0; i < length; i++) {
             final Schema.Field field = fields.get(i);
-            row.setField(i, convertAvroType(field.schema(), fieldInfo[i], record.get(i)));
+            row.setField(
+                    i,
+                    convertAvroType(
+                            field.schema(), fieldInfo[i], record.get(i), legacyTimestampMapping));
         }
         return row;
     }
 
-    private Object convertAvroType(Schema schema, TypeInformation<?> info, Object object) {
+    private Object convertAvroType(
+            Schema schema, TypeInformation<?> info, Object object, boolean legacyTimestampMapping) {
         // we perform the conversion based on schema information but enriched with pre-computed
         // type information where useful (i.e., for arrays)
 
@@ -216,7 +232,10 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
             case RECORD:
                 if (object instanceof IndexedRecord) {
                     return convertAvroRecordToRow(
-                            schema, (RowTypeInfo) info, (IndexedRecord) object);
+                            schema,
+                            (RowTypeInfo) info,
+                            (IndexedRecord) object,
+                            legacyTimestampMapping);
                 }
                 throw new IllegalStateException(
                         "IndexedRecord expected but was: " + object.getClass());
@@ -227,11 +246,13 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
                 if (info instanceof BasicArrayTypeInfo) {
                     final TypeInformation<?> elementInfo =
                             ((BasicArrayTypeInfo<?, ?>) info).getComponentInfo();
-                    return convertToObjectArray(schema.getElementType(), elementInfo, object);
+                    return convertToObjectArray(
+                            schema.getElementType(), elementInfo, object, legacyTimestampMapping);
                 } else {
                     final TypeInformation<?> elementInfo =
                             ((ObjectArrayTypeInfo<?, ?>) info).getComponentInfo();
-                    return convertToObjectArray(schema.getElementType(), elementInfo, object);
+                    return convertToObjectArray(
+                            schema.getElementType(), elementInfo, object, legacyTimestampMapping);
                 }
             case MAP:
                 final MapTypeInfo<?, ?> mapTypeInfo = (MapTypeInfo<?, ?>) info;
@@ -243,7 +264,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
                             convertAvroType(
                                     schema.getValueType(),
                                     mapTypeInfo.getValueTypeInfo(),
-                                    entry.getValue()));
+                                    entry.getValue(),
+                                    legacyTimestampMapping));
                 }
                 return convertedMap;
             case UNION:
@@ -260,7 +282,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
                     // generic type
                     return object;
                 }
-                return convertAvroType(actualSchema, info, object);
+                return convertAvroType(actualSchema, info, object, legacyTimestampMapping);
             case FIXED:
                 final byte[] fixedBytes = ((GenericFixed) object).bytes();
                 if (info == Types.BIG_DEC) {
@@ -285,7 +307,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
             case LONG:
                 if (info == Types.SQL_TIMESTAMP) {
                     return convertToTimestamp(
-                            object, schema.getLogicalType() == LogicalTypes.timestampMicros());
+                            object,
+                            schema.getLogicalType() == LogicalTypes.timestampMicros()
+                                    || schema.getLogicalType()
+                                            == LogicalTypes.localTimestampMicros(),
+                            legacyTimestampMapping);
                 } else if (info == Types.SQL_TIME) {
                     return convertToTime(object);
                 }
@@ -339,7 +365,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
         return new Time(millis - LOCAL_TZ.getOffset(millis));
     }
 
-    private Timestamp convertToTimestamp(Object object, boolean isMicros) {
+    private Timestamp convertToTimestamp(
+            Object object, boolean isMicros, boolean legacyTimestampMapping) {
         final long millis;
         if (object instanceof Long) {
             if (isMicros) {
@@ -362,13 +389,15 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
             }
         } else if (object instanceof Instant) {
             Instant instant = (Instant) object;
-            int offsetMillis = LOCAL_TZ.getOffset(instant.toEpochMilli());
-
-            long seconds = instant.getEpochSecond() - offsetMillis / 1000;
-            int nanos = instant.getNano() - offsetMillis % 1000 * 1000;
-            Timestamp timestamp = new Timestamp(seconds * 1000L);
-            timestamp.setNanos(nanos);
-            return timestamp;
+            return convertToTimestamp(instant);
+        } else if (object instanceof LocalDateTime) {
+            if (legacyTimestampMapping) {
+                throw new IllegalArgumentException(
+                        "Unexpected object type for DATE logical type. Received: " + object);
+            } else {
+                Instant instant = ((LocalDateTime) object).toInstant(ZoneOffset.UTC);
+                return convertToTimestamp(instant);
+            }
         } else if (jodaConverter != null) {
             millis = jodaConverter.convertTimestamp(object);
         } else {
@@ -378,13 +407,28 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
         return new Timestamp(millis - LOCAL_TZ.getOffset(millis));
     }
 
+    private Timestamp convertToTimestamp(Instant instant) {
+        int offsetMillis = LOCAL_TZ.getOffset(instant.toEpochMilli());
+
+        long seconds = instant.getEpochSecond() - offsetMillis / 1000;
+        int nanos = instant.getNano() - offsetMillis % 1000 * 1000;
+        Timestamp timestamp = new Timestamp(seconds * 1000L);
+        timestamp.setNanos(nanos);
+        return timestamp;
+    }
+
     private Object[] convertToObjectArray(
-            Schema elementSchema, TypeInformation<?> elementInfo, Object object) {
+            Schema elementSchema,
+            TypeInformation<?> elementInfo,
+            Object object,
+            boolean legacyTimestampMapping) {
         final List<?> list = (List<?>) object;
         final Object[] convertedArray =
                 (Object[]) Array.newInstance(elementInfo.getTypeClass(), list.size());
         for (int i = 0; i < list.size(); i++) {
-            convertedArray[i] = convertAvroType(elementSchema, elementInfo, list.get(i));
+            convertedArray[i] =
+                    convertAvroType(
+                            elementSchema, elementInfo, list.get(i), legacyTimestampMapping);
         }
         return convertedArray;
     }

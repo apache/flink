@@ -24,7 +24,8 @@ import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.TimestampString
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 import java.util
 
@@ -37,7 +38,7 @@ class ExpandTest extends RelNodeTestBase {
     DataTypes.BIGINT().getLogicalType)
   private lazy val logicalTableScan = buildLogicalTableScan(fieldNames, fieldTypes)
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testUnsupportedExpandProjectsWithDifferentLength(): Unit = {
     val inputFields = logicalTableScan.getRowType.getFieldList
     val expandProjects: util.List[util.List[RexNode]] = new util.ArrayList()
@@ -54,10 +55,18 @@ class ExpandTest extends RelNodeTestBase {
     project2.add(rexBuilder.makeBigintLiteral(new JBigDecimal(1)))
     expandProjects.add(project2)
 
-    new LogicalExpand(cluster, logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
+    assertThatThrownBy(
+      () =>
+        new LogicalExpand(
+          cluster,
+          logicalTableScan.getTraitSet,
+          logicalTableScan,
+          expandProjects,
+          2))
+      .isInstanceOf(classOf[AssertionError])
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testUnsupportedExpandProjectsWithRexCall(): Unit = {
     val inputFields = logicalTableScan.getRowType.getFieldList
     val expandProjects: util.List[util.List[RexNode]] = new util.ArrayList()
@@ -79,10 +88,18 @@ class ExpandTest extends RelNodeTestBase {
     project2.add(rexBuilder.makeBigintLiteral(new JBigDecimal(1)))
     expandProjects.add(project2)
 
-    new LogicalExpand(cluster, logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
+    assertThatThrownBy(
+      () =>
+        new LogicalExpand(
+          cluster,
+          logicalTableScan.getTraitSet,
+          logicalTableScan,
+          expandProjects,
+          2))
+      .isInstanceOf(classOf[AssertionError])
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testUnsupportedExpandProjectsWithNoCommonTypes(): Unit = {
     val inputFields = logicalTableScan.getRowType.getFieldList
     val expandProjects: util.List[util.List[RexNode]] = new util.ArrayList()
@@ -100,6 +117,14 @@ class ExpandTest extends RelNodeTestBase {
     project2.add(rexBuilder.makeBigintLiteral(new JBigDecimal(1)))
     expandProjects.add(project2)
 
-    new LogicalExpand(cluster, logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
+    assertThatThrownBy(
+      () =>
+        new LogicalExpand(
+          cluster,
+          logicalTableScan.getTraitSet,
+          logicalTableScan,
+          expandProjects,
+          2))
+      .isInstanceOf(classOf[AssertionError])
   }
 }

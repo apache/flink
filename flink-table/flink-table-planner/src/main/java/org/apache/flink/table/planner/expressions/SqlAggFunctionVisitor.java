@@ -85,6 +85,8 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
                 BuiltInFunctionDefinitions.COLLECT, FlinkSqlOperatorTable.COLLECT);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
+                BuiltInFunctionDefinitions.ARRAY_AGG, FlinkSqlOperatorTable.ARRAY_AGG);
+        AGG_DEF_SQL_OPERATOR_MAPPING.put(
                 BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL,
                 FlinkSqlOperatorTable.JSON_OBJECTAGG_NULL_ON_NULL);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(

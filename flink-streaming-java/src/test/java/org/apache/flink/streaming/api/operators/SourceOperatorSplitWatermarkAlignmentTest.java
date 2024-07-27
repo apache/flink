@@ -54,8 +54,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for split alignment in {@link SourceOperator}. */
-public class SourceOperatorSplitWatermarkAlignmentTest {
-    public static final WatermarkGenerator<Integer> WATERMARK_GENERATOR =
+class SourceOperatorSplitWatermarkAlignmentTest {
+    private static final WatermarkGenerator<Integer> WATERMARK_GENERATOR =
             new WatermarkGenerator<Integer>() {
 
                 private long maxWatermark = Long.MIN_VALUE;
@@ -75,7 +75,7 @@ public class SourceOperatorSplitWatermarkAlignmentTest {
             };
 
     @Test
-    public void testSplitWatermarkAlignment() throws Exception {
+    void testSplitWatermarkAlignment() throws Exception {
 
         final SplitAligningSourceReader sourceReader = new SplitAligningSourceReader();
         SourceOperator<Integer, MockSourceSplit> operator =

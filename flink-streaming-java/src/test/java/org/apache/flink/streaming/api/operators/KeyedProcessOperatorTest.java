@@ -35,24 +35,19 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests {@link KeyedProcessOperator}. */
-public class KeyedProcessOperatorTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class KeyedProcessOperatorTest {
 
     @Test
-    public void testKeyQuerying() throws Exception {
+    void testKeyQuerying() throws Exception {
 
         class KeyQueryingProcessFunction
                 extends KeyedProcessFunction<Integer, Tuple2<Integer, String>, String> {
@@ -62,7 +57,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
                     Tuple2<Integer, String> value, Context ctx, Collector<String> out)
                     throws Exception {
 
-                assertTrue("Did not get expected key.", ctx.getCurrentKey().equals(value.f0));
+                assertThat(ctx.getCurrentKey()).as("Did not get expected key.").isEqualTo(value.f0);
 
                 // we check that we receive this output, to ensure that the assert was actually
                 // checked
@@ -93,7 +88,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testTimestampAndWatermarkQuerying() throws Exception {
+    void testTimestampAndWatermarkQuerying() throws Exception {
 
         KeyedProcessOperator<Integer, Integer, String> operator =
                 new KeyedProcessOperator<>(new QueryingFlatMapFunction(TimeDomain.EVENT_TIME));
@@ -125,7 +120,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
+    void testTimestampAndProcessingTimeQuerying() throws Exception {
 
         KeyedProcessOperator<Integer, Integer, String> operator =
                 new KeyedProcessOperator<>(new QueryingFlatMapFunction(TimeDomain.PROCESSING_TIME));
@@ -155,7 +150,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testEventTimeTimers() throws Exception {
+    void testEventTimeTimers() throws Exception {
 
         final int expectedKey = 17;
 
@@ -190,7 +185,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testProcessingTimeTimers() throws Exception {
+    void testProcessingTimeTimers() throws Exception {
 
         final int expectedKey = 17;
 
@@ -222,7 +217,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
     /** Verifies that we don't have leakage between different keys. */
     @Test
-    public void testEventTimeTimerWithState() throws Exception {
+    void testEventTimeTimerWithState() throws Exception {
 
         KeyedProcessOperator<Integer, Integer, String> operator =
                 new KeyedProcessOperator<>(
@@ -266,7 +261,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
     /** Verifies that we don't have leakage between different keys. */
     @Test
-    public void testProcessingTimeTimerWithState() throws Exception {
+    void testProcessingTimeTimerWithState() throws Exception {
 
         KeyedProcessOperator<Integer, Integer, String> operator =
                 new KeyedProcessOperator<>(
@@ -305,7 +300,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testSnapshotAndRestore() throws Exception {
+    void testSnapshotAndRestore() throws Exception {
 
         final int expectedKey = 5;
 
@@ -352,7 +347,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testNullOutputTagRefusal() throws Exception {
+    void testNullOutputTagRefusal() throws Exception {
         KeyedProcessOperator<Integer, Integer, String> operator =
                 new KeyedProcessOperator<>(new NullOutputTagEmittingProcessFunction());
 
@@ -365,8 +360,8 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
         testHarness.setProcessingTime(17);
         try {
-            expectedException.expect(IllegalArgumentException.class);
-            testHarness.processElement(new StreamRecord<>(5));
+            assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>(5)))
+                    .isInstanceOf(IllegalArgumentException.class);
         } finally {
             testHarness.close();
         }
@@ -374,7 +369,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
     /** This also verifies that the timestamps ouf side-emitted records is correct. */
     @Test
-    public void testSideOutput() throws Exception {
+    void testSideOutput() throws Exception {
         KeyedProcessOperator<Integer, Integer, String> operator =
                 new KeyedProcessOperator<>(new SideOutputProcessFunction());
 
@@ -516,8 +511,8 @@ public class KeyedProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out)
                 throws Exception {
-            assertEquals(expectedKey, ctx.getCurrentKey());
-            assertEquals(expectedTimeDomain, ctx.timeDomain());
+            assertThat(ctx.getCurrentKey()).isEqualTo(expectedKey);
+            assertThat(ctx.timeDomain()).isEqualTo(expectedTimeDomain);
             out.collect(1777);
         }
     }
@@ -564,7 +559,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-            assertEquals(expectedTimeDomain, ctx.timeDomain());
+            assertThat(ctx.timeDomain()).isEqualTo(expectedTimeDomain);
             out.collect("STATE:" + getRuntimeContext().getState(state).value());
         }
     }
@@ -596,7 +591,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-            assertEquals(expectedKey, ctx.getCurrentKey());
+            assertThat(ctx.getCurrentKey()).isEqualTo(expectedKey);
 
             if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
                 out.collect("EVENT:1777");

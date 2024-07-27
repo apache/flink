@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.CompiledPlan;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 
@@ -35,7 +36,8 @@ import org.apache.flink.table.data.RowData;
  * or {@link InputFormatProvider}.
  */
 @PublicEvolving
-public interface DataStreamScanProvider extends ScanTableSource.ScanRuntimeProvider {
+public interface DataStreamScanProvider
+        extends ScanTableSource.ScanRuntimeProvider, ParallelismProvider {
 
     /**
      * Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}.

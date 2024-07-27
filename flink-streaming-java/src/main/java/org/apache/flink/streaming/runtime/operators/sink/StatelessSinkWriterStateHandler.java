@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -35,7 +35,7 @@ final class StatelessSinkWriterStateHandler<InputT> implements SinkWriterStateHa
 
     @Override
     public SinkWriter<InputT> createWriter(
-            InitContext initContext, StateInitializationContext context) throws Exception {
+            WriterInitContext initContext, StateInitializationContext context) throws Exception {
         return sink.createWriter(initContext);
     }
 

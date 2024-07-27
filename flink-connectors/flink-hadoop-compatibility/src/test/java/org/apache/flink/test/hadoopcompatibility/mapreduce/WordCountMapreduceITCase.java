@@ -36,22 +36,23 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.junit.Assume;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test WordCount with Hadoop input and output "mapreduce" (modern) formats. */
-public class WordCountMapreduceITCase extends JavaProgramTestBase {
+class WordCountMapreduceITCase extends JavaProgramTestBase {
 
-    protected String textPath;
-    protected String resultPath;
+    private String textPath;
+    private String resultPath;
 
-    @Before
-    public void checkOperatingSystem() {
+    @BeforeEach
+    void checkOperatingSystem() {
         // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-        Assume.assumeTrue(
-                "This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows())
+                .as("This test can't run successfully on Windows.")
+                .isFalse();
     }
 
     @Override

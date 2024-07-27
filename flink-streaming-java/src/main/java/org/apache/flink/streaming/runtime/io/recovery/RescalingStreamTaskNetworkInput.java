@@ -45,7 +45,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecords
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -232,7 +232,9 @@ public final class RescalingStreamTaskNetworkInput<T>
                             channelInfo.getGateIdx(), this::createPartitioner);
             // use a copy of partitioner to ensure that the filter of ambiguous virtual channels
             // have the same state across several subtasks
-            return new RecordFilter<>(partitioner.copy(), inputSerializer, subtaskIndex);
+            StreamPartitioner<T> partitionerCopy = partitioner.copy();
+            partitionerCopy.setup(numberOfChannels);
+            return new RecordFilter<>(partitionerCopy, inputSerializer, subtaskIndex);
         }
 
         private StreamPartitioner<T> createPartitioner(Integer index) {

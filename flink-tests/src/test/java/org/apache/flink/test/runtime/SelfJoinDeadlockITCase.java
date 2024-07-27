@@ -25,7 +25,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
@@ -39,7 +39,7 @@ import java.util.Random;
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1141">FLINK-1141</a>
  */
-public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
+public class SelfJoinDeadlockITCase extends JavaProgramTestBaseJUnit4 {
 
     protected String resultPath;
 

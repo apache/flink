@@ -20,14 +20,13 @@ package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.StatefulSequenceSourceTest.BlockingSourceContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.BlockingSourceContext;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,11 +36,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link DataGeneratorSource}. */
 public class DataGeneratorSourceTest {
 
     @Test
-    public void testRandomGenerator() throws Exception {
+    void testRandomGenerator() throws Exception {
         long min = 10;
         long max = 20;
         DataGeneratorSource<Long> source =
@@ -87,12 +88,12 @@ public class DataGeneratorSourceTest {
                 });
 
         for (Long l : results) {
-            Assert.assertTrue(l >= min && l <= max);
+            assertThat(l).isBetween(min, max);
         }
     }
 
     @Test
-    public void testSequenceCheckpointRestore() throws Exception {
+    void testSequenceCheckpointRestore() throws Exception {
         final int initElement = 0;
         final int maxElement = 100;
         final Set<Long> expectedOutput = new HashSet<>();
@@ -214,7 +215,7 @@ public class DataGeneratorSourceTest {
         runner3.start();
         runner3.join();
 
-        Assert.assertEquals(3, outputCollector.size()); // we have 3 tasks.
+        assertThat(outputCollector).hasSize(3); // we have 3 tasks.
 
         // test for at-most-once
         Set<T> dedupRes = new HashSet<>(expectedOutput.size());
@@ -223,21 +224,17 @@ public class DataGeneratorSourceTest {
             List<T> elements = outputCollector.get(key);
 
             // this tests the correctness of the latches in the test
-            Assert.assertTrue(elements.size() > 0);
+            assertThat(elements).isNotEmpty();
 
             for (T elem : elements) {
-                if (!dedupRes.add(elem)) {
-                    Assert.fail("Duplicate entry: " + elem);
-                }
+                assertThat(dedupRes.add(elem)).as("Duplicate entry: " + elem).isTrue();
 
-                if (!expectedOutput.contains(elem)) {
-                    Assert.fail("Unexpected element: " + elem);
-                }
+                assertThat(expectedOutput).as("Unexpected element: " + elem).contains(elem);
             }
         }
 
         // test for exactly-once
-        Assert.assertEquals(expectedOutput.size(), dedupRes.size());
+        assertThat(dedupRes).hasSameSizeAs(expectedOutput);
 
         latchToWait1.trigger();
         latchToWait2.trigger();

@@ -95,8 +95,8 @@ The file system table supports both partition inserting and overwrite inserting.
 
 The file system connector supports multiple formats:
 
- - CSV: [RFC-4180](https://tools.ietf.org/html/rfc4180). Uncompressed.
- - JSON: Note JSON format for file system connector is not a typical JSON file but uncompressed [newline delimited JSON](http://jsonlines.org/).
+ - CSV: [RFC-4180](https://tools.ietf.org/html/rfc4180).
+ - JSON: Note JSON format for file system connector is not a typical JSON file but [newline delimited JSON](http://jsonlines.org/).
  - Avro: [Apache Avro](http://avro.apache.org). Support compression by configuring `avro.codec`.
  - Parquet: [Apache Parquet](http://parquet.apache.org). Compatible with Hive.
  - Orc: [Apache Orc](http://orc.apache.org). Compatible with Hive.
@@ -249,8 +249,8 @@ a timeout that specifies the maximum duration for which a file can be open.
 **NOTE:** For bulk formats (parquet, orc, avro), the rolling policy in combination with the checkpoint interval(pending files
 become finished on the next checkpoint) control the size and number of these parts.
 
-**NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.rollover-interval` in the connector properties and parameter `execution.checkpointing.interval` in flink-conf.yaml together
-if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc), you can just set parameter `execution.checkpointing.interval` in flink-conf.yaml.
+**NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.rollover-interval` in the connector properties and parameter `execution.checkpointing.interval` in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) together
+if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc), you can just set parameter `execution.checkpointing.interval` in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ### File Compaction
 

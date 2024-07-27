@@ -26,7 +26,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
  * joins with the solution set.
  */
 @SuppressWarnings("serial")
-public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
+public class DependencyConnectedComponentsITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final int MAX_ITERATIONS = 20;
     private static final int parallelism = 1;

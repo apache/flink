@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -30,14 +32,19 @@ import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListen
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTieredStorageMemoryManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.util.NoOpTierShuffleDescriptor;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
@@ -49,7 +56,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -164,7 +173,8 @@ class TieredResultPartitionTest {
         assertThatThrownBy(
                         () ->
                                 resultPartition.createSubpartitionView(
-                                        0, new NoOpBufferAvailablityListener()))
+                                        new ResultSubpartitionIndexSet(0),
+                                        new NoOpBufferAvailablityListener()))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -176,12 +186,7 @@ class TieredResultPartitionTest {
                 createTieredStoreResultPartition(2, bufferPool, false)) {
             partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
-            IOMetrics ioMetrics = taskIOMetricGroup.createSnapshot();
-            assertThat(ioMetrics.getResultPartitionBytes()).hasSize(1);
-            ResultPartitionBytes partitionBytes =
-                    ioMetrics.getResultPartitionBytes().values().iterator().next();
-            assertThat(partitionBytes.getSubpartitionBytes())
-                    .containsExactly((long) 2 * bufferSize, bufferSize);
+            verifySubpartitionBytes((long) 2 * bufferSize, bufferSize);
         }
     }
 
@@ -192,13 +197,35 @@ class TieredResultPartitionTest {
         try (TieredResultPartition partition =
                 createTieredStoreResultPartition(2, bufferPool, true)) {
             partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
-            IOMetrics ioMetrics = taskIOMetricGroup.createSnapshot();
-            assertThat(ioMetrics.getResultPartitionBytes()).hasSize(1);
-            ResultPartitionBytes partitionBytes =
-                    ioMetrics.getResultPartitionBytes().values().iterator().next();
-            assertThat(partitionBytes.getSubpartitionBytes())
-                    .containsExactly(bufferSize, bufferSize);
+            verifySubpartitionBytes(bufferSize, bufferSize);
         }
+    }
+
+    @Test
+    void testRequestBuffersAfterPoolSizeDecreased() throws IOException {
+        final int numBuffers = 20;
+        final int numRecords = numBuffers / 2;
+
+        BufferPool bufferPool = globalPool.createBufferPool(1, numBuffers);
+        TieredResultPartition resultPartition =
+                createTieredStoreResultPartitionWithStorageManager(1, bufferPool, false);
+
+        ResultSubpartitionView subpartitionView =
+                resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+
+        // Emits some records to occupy some buffers of memory tier, these buffers would not be
+        // recycled until the subpartitionView is released manually.
+        for (int i = 0; i < numRecords; i++) {
+            resultPartition.emitRecord(ByteBuffer.allocate(NETWORK_BUFFER_SIZE), 0);
+        }
+        verifySubpartitionBytes(numRecords * NETWORK_BUFFER_SIZE);
+
+        bufferPool.setNumBuffers(1);
+        resultPartition.emitRecord(ByteBuffer.allocate(NETWORK_BUFFER_SIZE), 0);
+        verifySubpartitionBytes((numRecords + 1) * NETWORK_BUFFER_SIZE);
+
+        subpartitionView.releaseAllResources();
+        resultPartition.release();
     }
 
     private TieredResultPartition createTieredStoreResultPartition(
@@ -216,7 +243,7 @@ class TieredResultPartitionTest {
                         numSubpartitions,
                         numSubpartitions,
                         new ResultPartitionManager(),
-                        new BufferCompressor(NETWORK_BUFFER_SIZE, "LZ4"),
+                        new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
                         () -> bufferPool,
                         new TieredStorageProducerClient(
                                 numSubpartitions,
@@ -233,5 +260,59 @@ class TieredResultPartitionTest {
         tieredResultPartition.setup();
         tieredResultPartition.setMetricGroup(taskIOMetricGroup);
         return tieredResultPartition;
+    }
+
+    private TieredResultPartition createTieredStoreResultPartitionWithStorageManager(
+            int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
+            throws IOException {
+        TieredStorageConfiguration tieredStorageConfiguration =
+                TieredStorageConfiguration.fromConfiguration(new Configuration());
+        TieredStorageResourceRegistry tieredStorageResourceRegistry =
+                new TieredStorageResourceRegistry();
+        TieredStorageNettyServiceImpl tieredStorageNettyService =
+                new TieredStorageNettyServiceImpl(tieredStorageResourceRegistry);
+        TieredResultPartitionFactory tieredResultPartitionFactory =
+                new TieredResultPartitionFactory(
+                        tieredStorageConfiguration,
+                        tieredStorageNettyService,
+                        tieredStorageResourceRegistry);
+
+        List<TierShuffleDescriptor> tierShuffleDescriptors =
+                Arrays.asList(
+                        NoOpTierShuffleDescriptor.INSTANCE, NoOpTierShuffleDescriptor.INSTANCE);
+
+        TieredResultPartition resultPartition =
+                tieredResultPartitionFactory.createTieredResultPartition(
+                        "TieredStoreResultPartitionTest",
+                        0,
+                        new ResultPartitionID(),
+                        ResultPartitionType.HYBRID_SELECTIVE,
+                        numSubpartitions,
+                        numSubpartitions,
+                        Integer.MAX_VALUE,
+                        NETWORK_BUFFER_SIZE,
+                        isBroadcastOnly,
+                        new ResultPartitionManager(),
+                        new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
+                        tierShuffleDescriptors,
+                        () -> bufferPool,
+                        fileChannelManager,
+                        readBufferPool,
+                        readIOExecutor,
+                        false);
+        taskIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
+        resultPartition.setup();
+        resultPartition.setMetricGroup(taskIOMetricGroup);
+
+        return resultPartition;
+    }
+
+    private void verifySubpartitionBytes(long... expectedNumBytes) {
+        IOMetrics ioMetrics = taskIOMetricGroup.createSnapshot();
+        assertThat(ioMetrics.getResultPartitionBytes()).hasSize(1);
+        ResultPartitionBytes partitionBytes =
+                ioMetrics.getResultPartitionBytes().values().iterator().next();
+        assertThat(partitionBytes.getSubpartitionBytes()).containsExactly(expectedNumBytes);
     }
 }

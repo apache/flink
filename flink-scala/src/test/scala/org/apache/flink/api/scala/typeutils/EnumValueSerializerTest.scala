@@ -17,25 +17,26 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.util.TestLogger
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
-import org.junit.Assert._
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
-
-class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
+class EnumValueSerializerTest {
 
   /**
    * Tests that the snapshot configuration can be created and that the serializer is compatible when
    * being called with the created serializer snapshot
    */
   @Test
-  def testEnumValueSerializerEnsureCompatibilityIdempotency() {
+  def testEnumValueSerializerEnsureCompatibilityIdempotency(): Unit = {
     val enumSerializer = new EnumValueSerializer(Letters)
 
     val snapshot = enumSerializer.snapshotConfiguration()
 
-    assertTrue(snapshot.resolveSchemaCompatibility(enumSerializer).isCompatibleAsIs)
+    assertThat(
+      enumSerializer
+        .snapshotConfiguration()
+        .resolveSchemaCompatibility(snapshot)
+        .isCompatibleAsIs).isTrue
   }
 }
 

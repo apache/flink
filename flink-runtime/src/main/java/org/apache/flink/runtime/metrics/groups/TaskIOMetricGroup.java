@@ -55,6 +55,8 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final SumCounter numRecordsIn;
     private final SumCounter numRecordsOut;
     private final Counter numBuffersOut;
+    private final Counter numFiredTimers;
+    private final MeterView numFiredTimersRate;
     private final Counter numMailsProcessed;
 
     private final Meter numBytesInRate;
@@ -140,6 +142,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.accumulatedIdleTime =
                 gauge(MetricNames.ACC_TASK_IDLE_TIME, idleTimePerSecond::getAccumulatedCount);
 
+        this.numFiredTimers = counter(MetricNames.NUM_FIRED_TIMERS, new SimpleCounter());
+        this.numFiredTimersRate =
+                meter(MetricNames.NUM_FIRED_TIMERS_RATE, new MeterView(numFiredTimers));
+
         this.numMailsProcessed = new SimpleCounter();
         this.mailboxThroughput =
                 meter(MetricNames.MAILBOX_THROUGHPUT, new MeterView(numMailsProcessed));
@@ -205,6 +211,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     public Counter getNumBuffersOutCounter() {
         return numBuffersOut;
+    }
+
+    public Counter getNumFiredTimers() {
+        return numFiredTimers;
     }
 
     public Counter getNumMailsProcessedCounter() {

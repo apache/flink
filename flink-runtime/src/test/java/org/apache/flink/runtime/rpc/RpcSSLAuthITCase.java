@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -50,32 +50,32 @@ class RpcSSLAuthITCase {
     @Test
     void testConnectFailure() throws Exception {
         final Configuration baseConfig = new Configuration();
-        baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
+        baseConfig.set(RpcOptions.TCP_TIMEOUT, Duration.ofSeconds(1));
         // we start the RPC service with a very long timeout to ensure that the test
         // can only pass if the connection problem is not recognized merely via a timeout
-        baseConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
+        baseConfig.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
 
         // !!! This config has KEY_STORE_FILE / TRUST_STORE_FILE !!!
         Configuration sslConfig1 = new Configuration(baseConfig);
-        sslConfig1.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_FILE);
-        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
-        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
-        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
-        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-        sslConfig1.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        sslConfig1.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        sslConfig1.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_FILE);
+        sslConfig1.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
+        sslConfig1.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
+        sslConfig1.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
+        sslConfig1.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
+        sslConfig1.set(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
 
         // !!! This config has KEY_STORE_FILE / UNTRUSTED_KEY_STORE_FILE !!!
         // If this is presented by a client, it will trust the server, but the server will
         // not trust this client in case client auth is enabled.
         Configuration sslConfig2 = new Configuration(baseConfig);
-        sslConfig2.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_FILE);
-        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
-        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
-        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
-        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-        sslConfig2.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        sslConfig2.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        sslConfig2.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_FILE);
+        sslConfig2.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
+        sslConfig2.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
+        sslConfig2.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
+        sslConfig2.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
+        sslConfig2.set(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
 
         RpcService rpcService1 = null;
         RpcService rpcService2 = null;

@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -94,69 +95,46 @@ public interface StateBackend extends java.io.Serializable {
      *
      * <p><i>Keyed State</i> is state where each value is bound to a key.
      *
-     * @param env The environment of the task.
-     * @param jobID The ID of the job that the task belongs to.
-     * @param operatorIdentifier The identifier text of the operator.
-     * @param keySerializer The key-serializer for the operator.
-     * @param numberOfKeyGroups The number of key-groups aka max parallelism.
-     * @param keyGroupRange Range of key-groups for which the to-be-created backend is responsible.
-     * @param kvStateRegistry KvStateRegistry helper for this task.
-     * @param ttlTimeProvider Provider for TTL logic to judge about state expiration.
-     * @param metricGroup The parent metric group for all state backend metrics.
-     * @param stateHandles The state handles for restore.
-     * @param cancelStreamRegistry The registry to which created closeable objects will be
-     *     registered during restore.
+     * @param parameters The arguments bundle for creating {@link CheckpointableKeyedStateBackend}.
      * @param <K> The type of the keys by which the state is organized.
      * @return The Keyed State Backend for the given job, operator, and key group range.
      * @throws Exception This method may forward all exceptions that occur while instantiating the
      *     backend.
      */
     <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws Exception;
+            KeyedStateBackendParameters<K> parameters) throws Exception;
 
     /**
-     * Creates a new {@link CheckpointableKeyedStateBackend} with the given managed memory fraction.
-     * Backends that use managed memory are required to implement this interface.
+     * Creates a new {@link AsyncKeyedStateBackend} which supports to access <b>keyed state</b>
+     * asynchronously.
+     *
+     * <p><i>Keyed State</i> is state where each value is bound to a key.
+     *
+     * @param parameters The arguments bundle for creating {@link AsyncKeyedStateBackend}.
+     * @param <K> The type of the keys by which the state is organized.
+     * @return The Async Keyed State Backend for the given job, operator.
+     * @throws Exception This method may forward all exceptions that occur while instantiating the
+     *     backend.
      */
-    default <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry,
-            double managedMemoryFraction)
-            throws Exception {
+    @Experimental
+    default <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+            KeyedStateBackendParameters<K> parameters) throws Exception {
+        throw new UnsupportedOperationException(
+                "Don't support createAsyncKeyedStateBackend by default");
+    }
 
-        // ignore managed memory fraction by default
-        return createKeyedStateBackend(
-                env,
-                jobID,
-                operatorIdentifier,
-                keySerializer,
-                numberOfKeyGroups,
-                keyGroupRange,
-                kvStateRegistry,
-                ttlTimeProvider,
-                metricGroup,
-                stateHandles,
-                cancelStreamRegistry);
+    /**
+     * Tells if a state backend supports the {@link AsyncKeyedStateBackend}.
+     *
+     * <p>If a state backend supports {@code AsyncKeyedStateBackend}, it could use {@link
+     * #createAsyncKeyedStateBackend(KeyedStateBackendParameters)} to create an async keyed state
+     * backend to access <b>keyed state</b> asynchronously.
+     *
+     * @return If the state backend supports {@link AsyncKeyedStateBackend}.
+     */
+    @Experimental
+    default boolean supportsAsyncKeyedStateBackend() {
+        return false;
     }
 
     /**
@@ -165,19 +143,12 @@ public interface StateBackend extends java.io.Serializable {
      * <p>Operator state is state that is associated with parallel operator (or function) instances,
      * rather than with keys.
      *
-     * @param env The runtime environment of the executing task.
-     * @param operatorIdentifier The identifier of the operator whose state should be stored.
-     * @param stateHandles The state handles for restore.
-     * @param cancelStreamRegistry The registry to register streams to close if task canceled.
+     * @param parameters The arguments bundle for creating {@link OperatorStateBackend}.
      * @return The OperatorStateBackend for operator identified by the job and operator identifier.
      * @throws Exception This method may forward all exceptions that occur while instantiating the
      *     backend.
      */
-    OperatorStateBackend createOperatorStateBackend(
-            Environment env,
-            String operatorIdentifier,
-            @Nonnull Collection<OperatorStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
+    OperatorStateBackend createOperatorStateBackend(OperatorStateBackendParameters parameters)
             throws Exception;
 
     /** Whether the state backend uses Flink's managed memory. */
@@ -200,5 +171,76 @@ public interface StateBackend extends java.io.Serializable {
 
     default boolean supportsSavepointFormat(SavepointFormatType formatType) {
         return formatType == SavepointFormatType.CANONICAL;
+    }
+
+    /**
+     * Parameters passed to {@link
+     * StateBackend#createKeyedStateBackend(KeyedStateBackendParameters)}.
+     *
+     * @param <K> The type of the keys by which the state is organized.
+     */
+    @PublicEvolving
+    interface KeyedStateBackendParameters<K> {
+        /** @return The runtime environment of the executing task. */
+        Environment getEnv();
+
+        JobID getJobID();
+
+        String getOperatorIdentifier();
+
+        TypeSerializer<K> getKeySerializer();
+
+        int getNumberOfKeyGroups();
+
+        /** @return Range of key-groups for which the to-be-created backend is responsible. */
+        KeyGroupRange getKeyGroupRange();
+
+        TaskKvStateRegistry getKvStateRegistry();
+
+        /** @return Provider for TTL logic to judge about state expiration. */
+        TtlTimeProvider getTtlTimeProvider();
+
+        MetricGroup getMetricGroup();
+
+        @Nonnull
+        Collection<KeyedStateHandle> getStateHandles();
+
+        /**
+         * @return The registry to which created closeable objects will be * registered during
+         *     restore.
+         */
+        CloseableRegistry getCancelStreamRegistry();
+
+        double getManagedMemoryFraction();
+
+        CustomInitializationMetrics getCustomInitializationMetrics();
+    }
+
+    /**
+     * Parameters passed to {@link
+     * StateBackend#createOperatorStateBackend(OperatorStateBackendParameters)}.
+     */
+    @PublicEvolving
+    interface OperatorStateBackendParameters {
+        /** @return The runtime environment of the executing task. */
+        Environment getEnv();
+
+        String getOperatorIdentifier();
+
+        @Nonnull
+        Collection<OperatorStateHandle> getStateHandles();
+
+        /**
+         * @return The registry to which created closeable objects will be * registered during
+         *     restore.
+         */
+        CloseableRegistry getCancelStreamRegistry();
+
+        CustomInitializationMetrics getCustomInitializationMetrics();
+    }
+
+    @Experimental
+    interface CustomInitializationMetrics {
+        void addMetric(String name, long value);
     }
 }

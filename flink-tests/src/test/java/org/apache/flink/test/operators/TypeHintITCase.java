@@ -33,7 +33,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.test.operators.util.CollectionDataSets;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -43,7 +43,7 @@ import java.util.List;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Integration tests for {@link org.apache.flink.api.common.typeinfo.TypeHint}. */
-public class TypeHintITCase extends AbstractTestBase {
+public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testIdentityMapWithMissingTypesAndStringTypeHint() throws Exception {

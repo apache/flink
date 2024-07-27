@@ -31,10 +31,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * This class is a wrapper over multiple alternative {@link OperatorSubtaskState} that are (partial)
@@ -286,14 +290,14 @@ public class PrioritizedOperatorSubtaskState {
             }
 
             return new PrioritizedOperatorSubtaskState(
-                    resolvePrioritizedAlternatives(
+                    computePrioritizedAlternatives(
                             jobManagerState.getManagedKeyedState(),
                             managedKeyedAlternatives,
-                            eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
-                    resolvePrioritizedAlternatives(
+                            KeyedStateHandle::getKeyGroupRange),
+                    computePrioritizedAlternatives(
                             jobManagerState.getRawKeyedState(),
                             rawKeyedAlternatives,
-                            eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
+                            KeyedStateHandle::getKeyGroupRange),
                     resolvePrioritizedAlternatives(
                             jobManagerState.getManagedOperatorState(),
                             managedOperatorAlternatives,
@@ -314,21 +318,120 @@ public class PrioritizedOperatorSubtaskState {
         }
 
         /**
+         * This method creates an alternative recovery option by replacing as much job manager state
+         * with higher prioritized (=local) alternatives as possible.
+         *
+         * @param jobManagerState the state that the task got assigned from the job manager (this
+         *     state lives in remote storage).
+         * @param alternativesByPriority local alternatives to the job manager state, ordered by
+         *     priority.
+         * @param identityExtractor function to extract an identifier from a state object.
+         * @return prioritized state alternatives.
+         * @param <STATE_OBJ_TYPE> the type of the state objects we process.
+         * @param <ID_TYPE> the type of object that represents the id the state object type.
+         */
+        <STATE_OBJ_TYPE extends StateObject, ID_TYPE>
+                List<StateObjectCollection<STATE_OBJ_TYPE>> computePrioritizedAlternatives(
+                        StateObjectCollection<STATE_OBJ_TYPE> jobManagerState,
+                        List<StateObjectCollection<STATE_OBJ_TYPE>> alternativesByPriority,
+                        Function<STATE_OBJ_TYPE, ID_TYPE> identityExtractor) {
+
+            if (alternativesByPriority != null
+                    && !alternativesByPriority.isEmpty()
+                    && jobManagerState.hasState()) {
+
+                Optional<StateObjectCollection<STATE_OBJ_TYPE>> mergedAlternative =
+                        tryComputeMixedLocalAndRemoteAlternative(
+                                jobManagerState, alternativesByPriority, identityExtractor);
+
+                // Return the mix of local/remote state as first and pure remote state as second
+                // alternative (in case that we fail to recover from the local state, e.g. because
+                // of corruption).
+                if (mergedAlternative.isPresent()) {
+                    return Arrays.asList(mergedAlternative.get(), jobManagerState);
+                }
+            }
+
+            return Collections.singletonList(jobManagerState);
+        }
+
+        /**
+         * This method creates an alternative recovery option by replacing as much job manager state
+         * with higher prioritized (=local) alternatives as possible. Returns empty Optional if the
+         * JM state is empty or nothing could be replaced.
+         *
+         * @param jobManagerState the state that the task got assigned from the job manager (this
+         *     state lives in remote storage).
+         * @param alternativesByPriority local alternatives to the job manager state, ordered by
+         *     priority.
+         * @param identityExtractor function to extract an identifier from a state object.
+         * @return A state collection where all JM state handles for which we could find local *
+         *     alternatives are replaced by the alternative with the highest priority. Empty
+         *     optional if no state could be replaced.
+         * @param <STATE_OBJ_TYPE> the type of the state objects we process.
+         * @param <ID_TYPE> the type of object that represents the id the state object type.
+         */
+        static <STATE_OBJ_TYPE extends StateObject, ID_TYPE>
+                Optional<StateObjectCollection<STATE_OBJ_TYPE>>
+                        tryComputeMixedLocalAndRemoteAlternative(
+                                StateObjectCollection<STATE_OBJ_TYPE> jobManagerState,
+                                List<StateObjectCollection<STATE_OBJ_TYPE>> alternativesByPriority,
+                                Function<STATE_OBJ_TYPE, ID_TYPE> identityExtractor) {
+
+            List<STATE_OBJ_TYPE> result = Collections.emptyList();
+
+            // Build hash index over ids of the JM state
+            Map<ID_TYPE, STATE_OBJ_TYPE> indexById =
+                    jobManagerState.stream()
+                            .collect(Collectors.toMap(identityExtractor, Function.identity()));
+
+            // Move through all alternative in order from high to low priority
+            for (StateObjectCollection<STATE_OBJ_TYPE> alternative : alternativesByPriority) {
+                // Check all the state objects in the alternative if they can replace JM state
+                for (STATE_OBJ_TYPE stateHandle : alternative) {
+                    // Remove the current state object's id from the index to check for a match
+                    if (indexById.remove(identityExtractor.apply(stateHandle)) != null) {
+                        if (result.isEmpty()) {
+                            // Lazy init result collection
+                            result = new ArrayList<>(jobManagerState.size());
+                        }
+                        // If the id was still in the index, replace with higher prio alternative
+                        result.add(stateHandle);
+
+                        // If the index is empty we are already done, all JM state was replaces with
+                        // the best alternative.
+                        if (indexById.isEmpty()) {
+                            return Optional.of(new StateObjectCollection<>(result));
+                        }
+                    }
+                }
+            }
+
+            // Nothing useful to return
+            if (result.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // Add all remaining JM state objects that we could not replace from the index to the
+            // final result
+            result.addAll(indexById.values());
+            return Optional.of(new StateObjectCollection<>(result));
+        }
+
+        /**
          * This helper method resolves the dependencies between the ground truth of the operator
          * state obtained from the job manager and potential alternatives for recovery, e.g. from a
          * task-local source.
          */
-        protected <T extends StateObject>
-                List<StateObjectCollection<T>> resolvePrioritizedAlternatives(
-                        StateObjectCollection<T> jobManagerState,
-                        List<StateObjectCollection<T>> alternativesByPriority,
-                        BiFunction<T, T, Boolean> approveFun) {
+        <T extends StateObject> List<StateObjectCollection<T>> resolvePrioritizedAlternatives(
+                StateObjectCollection<T> jobManagerState,
+                List<StateObjectCollection<T>> alternativesByPriority,
+                BiFunction<T, T, Boolean> approveFun) {
 
             // Nothing to resolve if there are no alternatives, or the ground truth has already no
-            // state, or if we can
-            // assume that a rescaling happened because we find more than one handle in the JM state
-            // (this is more a sanity
-            // check).
+            // state, or if we can assume that a rescaling happened because we find more than one
+            // handle in the JM state
+            // (this is more a sanity check).
             if (alternativesByPriority == null
                     || alternativesByPriority.isEmpty()
                     || !jobManagerState.hasState()
@@ -347,8 +450,7 @@ public class PrioritizedOperatorSubtaskState {
             for (StateObjectCollection<T> alternative : alternativesByPriority) {
 
                 // We found an alternative to the JM state if it has state, we have a 1:1
-                // relationship, and the
-                // approve-function signaled true.
+                // relationship, and the approve-function signaled true.
                 if (alternative != null
                         && alternative.hasState()
                         && alternative.size() == 1

@@ -119,7 +119,7 @@ class JobManagerGroupTest {
     @Test
     void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_JM, "constant.<host>.foo.<host>");
+        cfg.set(MetricOptions.SCOPE_NAMING_JM, "constant.<host>.foo.<host>");
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 

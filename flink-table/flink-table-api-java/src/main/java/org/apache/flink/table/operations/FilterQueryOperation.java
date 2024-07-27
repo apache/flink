@@ -58,6 +58,15 @@ public class FilterQueryOperation implements QueryOperation {
     }
 
     @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT %s FROM (%s\n) WHERE %s",
+                OperationUtils.formatSelectColumns(getResolvedSchema()),
+                OperationUtils.indent(child.asSerializableString()),
+                condition.asSerializableString());
+    }
+
+    @Override
     public List<QueryOperation> getChildren() {
         return Collections.singletonList(child);
     }

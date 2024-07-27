@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -47,6 +46,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -55,7 +55,10 @@ import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link JobMaster} rpc gateway interface. */
@@ -184,14 +187,6 @@ public interface JobMasterGateway
     CompletableFuture<Void> heartbeatFromResourceManager(final ResourceID resourceID);
 
     /**
-     * Request the details of the executed job.
-     *
-     * @param timeout for the rpc call
-     * @return Future details of the executed job
-     */
-    CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
-
-    /**
      * Requests the current job status.
      *
      * @param timeout for the rpc call
@@ -309,6 +304,27 @@ public interface JobMasterGateway
      */
     CompletableFuture<?> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> partitionIds);
+
+    /**
+     * Get specified partitions and their metrics (identified by {@code expectedPartitions}), the
+     * metrics include sizes of sub-partitions in a result partition.
+     *
+     * @param timeout The timeout used for retrieve the specified partitions.
+     * @param expectedPartitions The set of identifiers for the result partitions whose metrics are
+     *     to be fetched.
+     * @return A future will contain a collection of the partitions with their metrics that could be
+     *     retrieved from the expected partitions within the specified timeout period.
+     */
+    default CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
+
+    /**
+     * Notify jobMaster to fetch and retain partitions on task managers. It will process for future
+     * TaskManager registrations and already registered TaskManagers.
+     */
+    default void startFetchAndRetainPartitionWithMetricsOnTaskManager() {}
 
     /**
      * Read current {@link JobResourceRequirements job resource requirements}.

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 /**
  * Allows expert users to implement a custom topology after {@link SinkWriter} and before {@link
@@ -30,18 +30,17 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  *
  * <p>It is recommended to use immutable committables because mutating committables can have
  * unexpected side-effects.
+ *
+ * @deprecated Please implement {@link org.apache.flink.api.connector.sink2.Sink}, {@link
+ *     org.apache.flink.api.connector.sink2.SupportsCommitter} and {@link SupportsPreCommitTopology}
+ *     instead.
  */
 @Experimental
+@Deprecated
 public interface WithPreCommitTopology<InputT, CommT>
-        extends TwoPhaseCommittingSink<InputT, CommT> {
-
-    /**
-     * Intercepts and modifies the committables sent on checkpoint or at end of input. Implementers
-     * need to ensure to modify all {@link CommittableMessage}s appropriately.
-     *
-     * @param committables the stream of committables.
-     * @return the custom topology before {@link Committer}.
-     */
-    DataStream<CommittableMessage<CommT>> addPreCommitTopology(
-            DataStream<CommittableMessage<CommT>> committables);
+        extends TwoPhaseCommittingSink<InputT, CommT>, SupportsPreCommitTopology<CommT, CommT> {
+    /** Defaults to {@link #getCommittableSerializer} for backward compatibility. */
+    default SimpleVersionedSerializer<CommT> getWriteResultSerializer() {
+        return getCommittableSerializer();
+    }
 }

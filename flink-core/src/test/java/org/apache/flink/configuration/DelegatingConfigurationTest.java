@@ -18,8 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -27,14 +26,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DelegatingConfiguration}. */
-public class DelegatingConfigurationTest {
+class DelegatingConfigurationTest {
 
     @Test
-    public void testIfDelegatesImplementAllMethods() throws IllegalArgumentException {
+    void testIfDelegatesImplementAllMethods() throws IllegalArgumentException {
 
         // For each method in the Configuration class...
         Method[] confMethods = Configuration.class.getDeclaredMethods();
@@ -70,27 +69,29 @@ public class DelegatingConfigurationTest {
                 }
             }
 
-            assertTrue(
-                    "Configuration method '"
-                            + configurationMethod.getName()
-                            + "' has not been wrapped correctly in DelegatingConfiguration wrapper",
-                    hasMethod);
+            assertThat(hasMethod)
+                    .as(
+                            "Configuration method '"
+                                    + configurationMethod.getName()
+                                    + "' has not been wrapped correctly in DelegatingConfiguration wrapper")
+                    .isTrue();
         }
     }
 
     @Test
-    public void testDelegationConfigurationWithNullPrefix() {
+    void testDelegationConfigurationWithNullOrEmptyPrefix() {
         Configuration backingConf = new Configuration();
         backingConf.setValueInternal("test-key", "value", false);
 
-        DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, null);
-        Set<String> keySet = configuration.keySet();
+        assertThatThrownBy(() -> new DelegatingConfiguration(backingConf, null))
+                .isInstanceOf(NullPointerException.class);
 
-        assertEquals(keySet, backingConf.keySet());
+        DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, "");
+        assertThat(backingConf.keySet()).isEqualTo(configuration.keySet());
     }
 
     @Test
-    public void testDelegationConfigurationWithPrefix() {
+    void testDelegationConfigurationWithPrefix() {
         String prefix = "pref-";
         String expectedKey = "key";
 
@@ -102,9 +103,7 @@ public class DelegatingConfigurationTest {
 
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
         Set<String> keySet = configuration.keySet();
-
-        assertEquals(keySet.size(), 1);
-        assertEquals(keySet.iterator().next(), expectedKey);
+        assertThat(keySet).hasSize(1).containsExactly(expectedKey);
 
         /*
          * Key does not match the prefix
@@ -113,13 +112,11 @@ public class DelegatingConfigurationTest {
         backingConf.setValueInternal("test-key", "value", false);
 
         configuration = new DelegatingConfiguration(backingConf, prefix);
-        keySet = configuration.keySet();
-
-        assertTrue(keySet.isEmpty());
+        assertThat(configuration.keySet()).isEmpty();
     }
 
     @Test
-    public void testDelegationConfigurationToMapConsistentWithAddAllToProperties() {
+    void testDelegationConfigurationToMapConsistentWithAddAllToProperties() {
         Configuration conf = new Configuration();
         conf.setString("k0", "v0");
         conf.setString("prefix.k1", "v1");
@@ -136,15 +133,97 @@ public class DelegatingConfigurationTest {
             mapProperties.put(entry.getKey(), entry.getValue());
         }
         // Verification
-        assertEquals(properties, mapProperties);
+        assertThat(mapProperties).isEqualTo(properties);
     }
 
     @Test
-    public void testSetReturnsDelegatingConfiguration() {
+    void testSetReturnsDelegatingConfiguration() {
         final Configuration conf = new Configuration();
         final DelegatingConfiguration delegatingConf = new DelegatingConfiguration(conf, "prefix.");
 
-        Assertions.assertThat(delegatingConf.set(CoreOptions.DEFAULT_PARALLELISM, 1))
-                .isSameAs(delegatingConf);
+        assertThat(delegatingConf.set(CoreOptions.DEFAULT_PARALLELISM, 1)).isSameAs(delegatingConf);
+    }
+
+    @Test
+    void testGetWithOverrideDefault() {
+        Configuration original = new Configuration();
+        final DelegatingConfiguration delegatingConf =
+                new DelegatingConfiguration(original, "prefix.");
+
+        // Test for integer
+        ConfigOption<Integer> integerOption =
+                ConfigOptions.key("integer.key").intType().noDefaultValue();
+
+        // integerOption doesn't exist in delegatingConf, and it should be overrideDefault.
+        original.setInteger(integerOption, 1);
+        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(2);
+        assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(2);
+
+        // integerOption exists in delegatingConf, and it should be value that set before.
+        delegatingConf.setInteger(integerOption, 3);
+        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(3);
+        assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
+
+        // Test for float
+        ConfigOption<Float> floatOption =
+                ConfigOptions.key("float.key").floatType().noDefaultValue();
+        original.setFloat(floatOption, 4f);
+        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(5f);
+        assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(5f);
+        delegatingConf.setFloat(floatOption, 6f);
+        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(6f);
+        assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(6f);
+
+        // Test for double
+        ConfigOption<Double> doubleOption =
+                ConfigOptions.key("double.key").doubleType().noDefaultValue();
+        original.setDouble(doubleOption, 7d);
+        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(8d);
+        assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(8d);
+        delegatingConf.setDouble(doubleOption, 9f);
+        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(9f);
+        assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(9f);
+
+        // Test for long
+        ConfigOption<Long> longOption = ConfigOptions.key("long.key").longType().noDefaultValue();
+        original.setLong(longOption, 10L);
+        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(11L);
+        assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(11L);
+        delegatingConf.setLong(longOption, 12L);
+        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(12L);
+        assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(12L);
+
+        // Test for boolean
+        ConfigOption<Boolean> booleanOption =
+                ConfigOptions.key("boolean.key").booleanType().noDefaultValue();
+        original.setBoolean(booleanOption, false);
+        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(true);
+        assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(true);
+        delegatingConf.setBoolean(booleanOption, false);
+        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(false);
+        assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(false);
+    }
+
+    @Test
+    void testRemoveKeyOrConfig() {
+        Configuration original = new Configuration();
+        final DelegatingConfiguration delegatingConf =
+                new DelegatingConfiguration(original, "prefix.");
+        ConfigOption<Integer> integerOption =
+                ConfigOptions.key("integer.key").intType().noDefaultValue();
+
+        // Test for removeConfig
+        delegatingConf.set(integerOption, 0);
+        assertThat(delegatingConf.get(integerOption)).isZero();
+        delegatingConf.removeConfig(integerOption);
+        assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
+        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
+
+        // Test for removeKey
+        delegatingConf.set(integerOption, 0);
+        assertThat(delegatingConf.getInteger(integerOption, -1)).isZero();
+        delegatingConf.removeKey(integerOption.key());
+        assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
+        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
     }
 }

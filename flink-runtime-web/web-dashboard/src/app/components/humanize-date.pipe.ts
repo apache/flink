@@ -32,7 +32,7 @@ export class HumanizeDatePipe implements PipeTransform {
     timezone?: string,
     locale?: string
   ): string | null | undefined {
-    if (value == null || value === '' || value !== value || value < 0) {
+    if (value == null || value === '' || value !== value || +value < 0) {
       return '–';
     }
 

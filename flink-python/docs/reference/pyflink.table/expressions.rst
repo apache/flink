@@ -138,6 +138,7 @@ arithmetic functions
     Expression.var_pop
     Expression.var_samp
     Expression.collect
+    Expression.array_agg
     Expression.alias
     Expression.cast
     Expression.try_cast
@@ -187,6 +188,8 @@ string functions
     Expression.right
     Expression.instr
     Expression.locate
+    Expression.url_decode
+    Expression.url_encode
     Expression.parse_url
     Expression.ltrim
     Expression.rtrim
@@ -234,11 +237,16 @@ advanced type helper functions
     Expression.array_reverse
     Expression.array_max
     Expression.array_slice
+    Expression.array_min
+    Expression.array_sort
     Expression.array_union
     Expression.map_entries
     Expression.map_keys
+    Expression.map_union
     Expression.map_values
-
+    Expression.array_except
+    Expression.array_intersect
+    Expression.split
 
 time definition functions
 -------------------------

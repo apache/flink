@@ -102,6 +102,8 @@ re-compilation:
 
 ### CodeStyle & Lint
 
+> Tips: Before committing, make sure you've run `npm run lint-staged` and that no errors are reported.
+
 ```bash
 $ npm run lint
 ```

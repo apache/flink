@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
@@ -42,6 +45,8 @@ public class ResultPartitionBuilder {
             BoundedBlockingSubpartitionType.AUTO;
 
     private int partitionIndex = 0;
+
+    private int numberOfPartitions = 1;
 
     private int numberOfSubpartitions = 1;
 
@@ -81,7 +86,7 @@ public class ResultPartitionBuilder {
 
     private boolean sslEnabled = false;
 
-    private String compressionCodec = "LZ4";
+    private CompressionCodec compressionCodec = CompressionCodec.LZ4;
 
     private int maxOverdraftBuffersPerGate = 5;
 
@@ -195,7 +200,7 @@ public class ResultPartitionBuilder {
         return this;
     }
 
-    public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
+    public ResultPartitionBuilder setCompressionCodec(CompressionCodec compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
     }
@@ -269,9 +274,34 @@ public class ResultPartitionBuilder {
                 partitionIndex,
                 partitionId,
                 partitionType,
+                numberOfPartitions,
                 numberOfSubpartitions,
                 numTargetKeyGroups,
                 isBroadcast,
-                factory);
+                new TestingShuffleDescriptor(partitionId, new ResourceID("test")),
+                factory,
+                false);
+    }
+
+    private static class TestingShuffleDescriptor implements ShuffleDescriptor {
+
+        private final ResultPartitionID resultPartitionId;
+
+        private final ResourceID location;
+
+        TestingShuffleDescriptor(ResultPartitionID resultPartitionId, ResourceID location) {
+            this.resultPartitionId = resultPartitionId;
+            this.location = location;
+        }
+
+        @Override
+        public ResultPartitionID getResultPartitionID() {
+            return resultPartitionId;
+        }
+
+        @Override
+        public Optional<ResourceID> storesLocalResourcesOn() {
+            return Optional.of(location);
+        }
     }
 }

@@ -18,15 +18,15 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
-import org.junit.Before
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.BeforeEach
 
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -37,19 +37,19 @@ class StreamingWithAggTestBase(
     backend: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, backend) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // in order to cover more code paths
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     if (aggMode.isLocalAggEnabled) {
       tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.TWO_PHASE.toString)
+        AggregatePhaseStrategy.TWO_PHASE)
     } else {
       tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.ONE_PHASE.toString)
+        AggregatePhaseStrategy.ONE_PHASE)
     }
   }
 }
@@ -63,7 +63,7 @@ object StreamingWithAggTestBase {
   val LocalGlobalOn = AggMode(isLocalAggEnabled = true)
   val LocalGlobalOff = AggMode(isLocalAggEnabled = false)
 
-  @Parameterized.Parameters(name = "LocalGlobal={0}, {1}, StateBackend={2}")
+  @Parameters(name = "LocalGlobal={0}, {1}, StateBackend={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(LocalGlobalOff, MiniBatchOff, HEAP_BACKEND),

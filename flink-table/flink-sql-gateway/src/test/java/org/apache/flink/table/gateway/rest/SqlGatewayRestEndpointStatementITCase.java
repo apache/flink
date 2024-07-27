@@ -44,6 +44,7 @@ import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointUtils;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -191,7 +192,11 @@ public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewaySta
                                 resultSchema.toPhysicalRowDataType(),
                                 DateTimeUtils.UTC_ZONE.toZoneId(),
                                 SqlGatewayRestEndpointStatementITCase.class.getClassLoader(),
-                                false)
+                                false,
+                                new CodeGeneratorContext(
+                                        new Configuration(),
+                                        SqlGatewayRestEndpointStatementITCase.class
+                                                .getClassLoader()))
                         : SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
                 new RowDataIterator(sessionHandle, operationHandle));
     }

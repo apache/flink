@@ -215,23 +215,23 @@ public class TaskExecutorProcessUtils {
     }
 
     private static int getNumSlots(final Configuration config) {
-        return config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+        return config.get(TaskManagerOptions.NUM_TASK_SLOTS);
     }
 
     public static double getCpuCoresWithFallbackConfigOption(
             final Configuration config, ConfigOption<Double> fallbackOption) {
-        double fallbackValue = config.getDouble(fallbackOption);
+        double fallbackValue = config.get(fallbackOption);
         return getCpuCoresWithFallback(config, fallbackValue).getValue().doubleValue();
     }
 
     public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
         final double cpuCores;
         if (config.contains(TaskManagerOptions.CPU_CORES)) {
-            cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
+            cpuCores = config.get(TaskManagerOptions.CPU_CORES);
         } else if (fallback > 0.0) {
             cpuCores = fallback;
         } else {
-            cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+            cpuCores = config.get(TaskManagerOptions.NUM_TASK_SLOTS);
         }
 
         if (cpuCores <= 0) {

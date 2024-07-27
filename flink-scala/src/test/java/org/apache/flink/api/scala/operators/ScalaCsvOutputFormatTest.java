@@ -22,11 +22,9 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,19 +33,20 @@ import java.util.List;
 
 import scala.Tuple3;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ScalaCsvOutputFormat}. */
-public class ScalaCsvOutputFormatTest {
+class ScalaCsvOutputFormatTest {
 
     private String path;
     private ScalaCsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat;
 
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tmpFolder;
 
-    @Before
-    public void setUp() throws Exception {
-        path = tmpFolder.newFile().getAbsolutePath();
+    @BeforeEach
+    void setUp() throws Exception {
+        path = tmpFolder.toFile().getAbsolutePath();
         csvOutputFormat = new ScalaCsvOutputFormat<>(new Path(path));
         csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
         csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
@@ -55,7 +54,7 @@ public class ScalaCsvOutputFormatTest {
     }
 
     @Test
-    public void testNullAllow() throws Exception {
+    void testNullAllow() throws Exception {
         try {
             csvOutputFormat.setAllowNullValues(true);
             csvOutputFormat.writeRecord(new Tuple3<>("One", null, 8));
@@ -63,22 +62,20 @@ public class ScalaCsvOutputFormatTest {
             csvOutputFormat.close();
         }
         java.nio.file.Path p = Paths.get(path);
-        Assert.assertTrue(Files.exists(p));
+        assertThat(p).exists();
         List<String> lines = Files.readAllLines(Paths.get(path), StandardCharsets.UTF_8);
-        Assert.assertEquals(1, lines.size());
-        Assert.assertEquals("One,,8", lines.get(0));
+        assertThat(lines).hasSize(1);
+        assertThat(lines.get(0)).isEqualTo("One,,8");
     }
 
     @Test
-    public void testNullDisallowOnDefault() throws Exception {
-        try {
-            csvOutputFormat.setAllowNullValues(false);
-            csvOutputFormat.writeRecord(new Tuple3<>("One", null, 8));
-            fail("should fail with an exception");
-        } catch (RuntimeException e) {
-            // expected
-        } finally {
-            csvOutputFormat.close();
-        }
+    void testNullDisallowOnDefault() throws Exception {
+        assertThatThrownBy(
+                        () -> {
+                            csvOutputFormat.setAllowNullValues(false);
+                            csvOutputFormat.writeRecord(new Tuple3<>("One", null, 8));
+                        })
+                .isInstanceOf(RuntimeException.class);
+        csvOutputFormat.close();
     }
 }

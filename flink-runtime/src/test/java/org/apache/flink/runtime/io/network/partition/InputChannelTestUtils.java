@@ -46,7 +46,6 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -76,7 +75,7 @@ public class InputChannelTestUtils {
         ResultPartitionManager manager = mock(ResultPartitionManager.class);
         when(manager.createSubpartitionView(
                         any(ResultPartitionID.class),
-                        anyInt(),
+                        any(ResultSubpartitionIndexSet.class),
                         any(BufferAvailabilityListener.class)))
                 .thenAnswer(viewCreator);
 
@@ -242,7 +241,7 @@ public class InputChannelTestUtils {
         for (BufferConsumer buffer : buffers) {
             subpartition.add(buffer);
         }
-        return subpartition.createReadView(() -> {});
+        return subpartition.createReadView((ResultSubpartitionView view) -> {});
     }
 
     /** Test stub for {@link MemorySegmentProvider}. */

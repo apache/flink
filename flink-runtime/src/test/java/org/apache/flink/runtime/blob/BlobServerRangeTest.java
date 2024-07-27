@@ -41,7 +41,7 @@ class BlobServerRangeTest {
     @Test
     void testOnEphemeralPort() throws IOException {
         Configuration conf = new Configuration();
-        conf.setString(BlobServerOptions.PORT, "0");
+        conf.set(BlobServerOptions.PORT, "0");
 
         BlobServer server = TestingBlobUtils.createServer(tempDir, conf);
         server.start();
@@ -61,7 +61,7 @@ class BlobServerRangeTest {
         }
 
         Configuration conf = new Configuration();
-        conf.setString(BlobServerOptions.PORT, String.valueOf(socket.getLocalPort()));
+        conf.set(BlobServerOptions.PORT, String.valueOf(socket.getLocalPort()));
 
         // this thing is going to throw an exception
         try {
@@ -87,7 +87,7 @@ class BlobServerRangeTest {
             }
         }
         Configuration conf = new Configuration();
-        conf.setString(
+        conf.set(
                 BlobServerOptions.PORT,
                 sockets[0].getLocalPort() + "," + sockets[1].getLocalPort() + ",50000-50050");
 

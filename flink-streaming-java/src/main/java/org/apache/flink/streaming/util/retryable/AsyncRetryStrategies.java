@@ -28,7 +28,12 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-/** Utility class to create concrete {@link AsyncRetryStrategy}. */
+/**
+ * Utility class to create concrete {@link AsyncRetryStrategy}.
+ *
+ * <p><b>NOTICE:</b> For performance reasons, this utility's {@link AsyncRetryStrategy}
+ * implementation assumes the attempt always start from 1 and will only increase by 1 each time.
+ */
 public class AsyncRetryStrategies {
     public static final NoRetryStrategy NO_RETRY_STRATEGY = new NoRetryStrategy();
 
@@ -151,10 +156,10 @@ public class AsyncRetryStrategies {
         private static final long serialVersionUID = 1L;
         private final int maxAttempts;
         private final long maxRetryDelay;
+        private final long initialDelay;
         private final double multiplier;
         private final Predicate<Collection<OUT>> resultPredicate;
         private final Predicate<Throwable> exceptionPredicate;
-
         private long lastRetryDelay;
 
         public ExponentialBackoffDelayRetryStrategy(
@@ -169,6 +174,7 @@ public class AsyncRetryStrategies {
             this.multiplier = multiplier;
             this.resultPredicate = resultPredicate;
             this.exceptionPredicate = exceptionPredicate;
+            this.initialDelay = initialDelay;
             this.lastRetryDelay = initialDelay;
         }
 
@@ -180,9 +186,11 @@ public class AsyncRetryStrategies {
         @Override
         public long getBackoffTimeMillis(int currentAttempts) {
             if (currentAttempts <= 1) {
-                // equivalent to initial delay
+                // reset to initialDelay
+                this.lastRetryDelay = initialDelay;
                 return lastRetryDelay;
             }
+
             long backoff = Math.min((long) (lastRetryDelay * multiplier), maxRetryDelay);
             this.lastRetryDelay = backoff;
             return backoff;

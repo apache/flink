@@ -23,12 +23,12 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
@@ -109,27 +109,27 @@ class ProcessFailureCancelingITCase {
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config.setString(
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
+        config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
-        config.setInteger(RestOptions.PORT, 0);
+        config.set(RestOptions.PORT, 0);
 
         final RpcService rpcService =
                 RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
         final int jobManagerPort = rpcService.getPort();
-        config.setInteger(JobManagerOptions.PORT, jobManagerPort);
+        config.set(JobManagerOptions.PORT, jobManagerPort);
 
         final DispatcherResourceManagerComponentFactory resourceManagerComponentFactory =
                 DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(

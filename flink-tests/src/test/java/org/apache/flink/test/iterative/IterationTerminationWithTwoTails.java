@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import java.util.List;
@@ -31,7 +31,7 @@ import java.util.List;
 import static org.apache.flink.test.util.TestBaseUtils.containsResultAsText;
 
 /** Test iteration with termination criterion consuming the iteration tail. */
-public class IterationTerminationWithTwoTails extends JavaProgramTestBase {
+public class IterationTerminationWithTwoTails extends JavaProgramTestBaseJUnit4 {
     private static final String EXPECTED = "22\n";
 
     @Override

@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -36,8 +38,12 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JarRunRequestBody extends JarRequestBody {
     private static final String FIELD_NAME_ALLOW_NON_RESTORED_STATE = "allowNonRestoredState";
+
     private static final String FIELD_NAME_SAVEPOINT_PATH = "savepointPath";
-    private static final String FIELD_NAME_SAVEPOINT_RESTORE_MODE = "restoreMode";
+
+    @Deprecated private static final String FIELD_NAME_SAVEPOINT_RESTORE_MODE = "restoreMode";
+
+    private static final String FIELD_NAME_SAVEPOINT_CLAIM_MODE = "claimMode";
 
     @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
     @Nullable
@@ -49,10 +55,41 @@ public class JarRunRequestBody extends JarRequestBody {
 
     @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE)
     @Nullable
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation
+    private RestoreMode deprecatedRestoreMode;
+
+    @JsonProperty(FIELD_NAME_SAVEPOINT_CLAIM_MODE)
+    @Nullable
     private RestoreMode restoreMode;
 
     public JarRunRequestBody() {
-        this(null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null, null);
+    }
+
+    /** Fallback constructor ONLY for tests. */
+    @VisibleForTesting
+    public JarRunRequestBody(
+            @Nullable String entryClassName,
+            @Nullable String programArguments,
+            @Nullable List<String> programArgumentsList,
+            @Nullable Integer parallelism,
+            @Nullable JobID jobId,
+            @Nullable Boolean allowNonRestoredState,
+            @Nullable String savepointPath,
+            @Nullable RestoreMode restoreMode,
+            @Nullable Map<String, String> flinkConfiguration) {
+        this(
+                entryClassName,
+                programArguments,
+                programArgumentsList,
+                parallelism,
+                jobId,
+                allowNonRestoredState,
+                savepointPath,
+                null,
+                restoreMode,
+                flinkConfiguration);
     }
 
     @JsonCreator
@@ -66,7 +103,9 @@ public class JarRunRequestBody extends JarRequestBody {
             @Nullable @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
                     Boolean allowNonRestoredState,
             @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath,
-            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE) RestoreMode restoreMode,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE)
+                    RestoreMode deprecatedRestoreMode,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_CLAIM_MODE) RestoreMode restoreMode,
             @Nullable @JsonProperty(FIELD_NAME_FLINK_CONFIGURATION)
                     Map<String, String> flinkConfiguration) {
         super(
@@ -78,6 +117,7 @@ public class JarRunRequestBody extends JarRequestBody {
                 flinkConfiguration);
         this.allowNonRestoredState = allowNonRestoredState;
         this.savepointPath = savepointPath;
+        this.deprecatedRestoreMode = deprecatedRestoreMode;
         this.restoreMode = restoreMode;
     }
 
@@ -96,6 +136,11 @@ public class JarRunRequestBody extends JarRequestBody {
     @Nullable
     @JsonIgnore
     public RestoreMode getRestoreMode() {
-        return restoreMode;
+        return restoreMode == null ? deprecatedRestoreMode : restoreMode;
+    }
+
+    @JsonIgnore
+    public boolean isDeprecatedRestoreModeHasValue() {
+        return deprecatedRestoreMode != null;
     }
 }

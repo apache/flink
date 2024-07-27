@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Integration tests for windowed join / coGroup operators. */
 @SuppressWarnings("serial")
-public class CoGroupJoinITCase extends AbstractTestBase {
+public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
 
     private static List<String> testResults;
 
@@ -387,9 +387,9 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(Tuple2.of("a", 0), Tuple2.of("b", 3));
+                env.fromData(Tuple2.of("a", 0), Tuple2.of("b", 3));
         DataStream<Tuple2<String, Integer>> source2 =
-                env.fromElements(Tuple2.of("a", 1), Tuple2.of("b", 6));
+                env.fromData(Tuple2.of("a", 1), Tuple2.of("b", 6));
 
         DataStream<String> coGroupWindow =
                 source1.coGroup(source2)

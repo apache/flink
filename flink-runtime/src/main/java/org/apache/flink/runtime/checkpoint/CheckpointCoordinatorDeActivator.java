@@ -31,15 +31,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CheckpointCoordinatorDeActivator implements JobStatusListener {
 
     private final CheckpointCoordinator coordinator;
+    private final boolean allTasksOutputNonBlocking;
 
-    public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator) {
+    public CheckpointCoordinatorDeActivator(
+            CheckpointCoordinator coordinator, boolean allTasksOutputNonBlocking) {
         this.coordinator = checkNotNull(coordinator);
+        this.allTasksOutputNonBlocking = allTasksOutputNonBlocking;
     }
 
     @Override
     public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
-        if (newJobStatus == JobStatus.RUNNING) {
-            // start the checkpoint scheduler
+        if (newJobStatus == JobStatus.RUNNING && allTasksOutputNonBlocking) {
+            // start the checkpoint scheduler if there is no blocking edge
             coordinator.startCheckpointScheduler();
         } else {
             // anything else should stop the trigger for now

@@ -22,13 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -37,7 +37,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -46,7 +46,8 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.lineage.LineageGraph;
+import org.apache.flink.streaming.api.lineage.LineageGraphUtils;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionCheckpointStorage;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
@@ -66,6 +67,7 @@ import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformationWrapper;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -86,7 +88,6 @@ import org.apache.flink.streaming.runtime.translators.SourceTransformationTransl
 import org.apache.flink.streaming.runtime.translators.TimestampsAndWatermarksTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,31 +156,18 @@ public class StreamGraphGenerator {
 
     private final CheckpointConfig checkpointConfig;
 
-    private final ReadableConfig configuration;
+    private final Configuration configuration;
 
     // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
-    private Path savepointDir;
-
     private StateBackend stateBackend;
 
-    private TernaryBoolean changelogStateBackendEnabled;
-
     private CheckpointStorage checkpointStorage;
-
-    private boolean chaining = true;
-
-    private boolean chainingOfOperatorsWithDifferentMaxParallelism = true;
-
-    private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
-            Collections.emptyList();
 
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     private SavepointRestoreSettings savepointRestoreSettings;
-
-    private long defaultBufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
 
     private boolean shouldExecuteInBatchMode;
 
@@ -241,7 +229,7 @@ public class StreamGraphGenerator {
             List<Transformation<?>> transformations,
             ExecutionConfig executionConfig,
             CheckpointConfig checkpointConfig,
-            ReadableConfig configuration) {
+            Configuration configuration) {
         this.transformations = checkNotNull(transformations);
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
@@ -250,47 +238,13 @@ public class StreamGraphGenerator {
         this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
 
-    public StreamGraphGenerator setSavepointDir(Path savepointDir) {
-        this.savepointDir = savepointDir;
-        return this;
-    }
-
     public StreamGraphGenerator setStateBackend(StateBackend stateBackend) {
         this.stateBackend = stateBackend;
         return this;
     }
 
-    public StreamGraphGenerator setChangelogStateBackendEnabled(
-            TernaryBoolean changelogStateBackendEnabled) {
-        this.changelogStateBackendEnabled = changelogStateBackendEnabled;
-        return this;
-    }
-
-    public StreamGraphGenerator setChaining(boolean chaining) {
-        this.chaining = chaining;
-        return this;
-    }
-
-    public StreamGraphGenerator setChainingOfOperatorsWithDifferentMaxParallelism(
-            boolean chainingOfOperatorsWithDifferentMaxParallelism) {
-        this.chainingOfOperatorsWithDifferentMaxParallelism =
-                chainingOfOperatorsWithDifferentMaxParallelism;
-        return this;
-    }
-
-    public StreamGraphGenerator setUserArtifacts(
-            Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
-        this.userArtifacts = checkNotNull(userArtifacts);
-        return this;
-    }
-
     public StreamGraphGenerator setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
         this.timeCharacteristic = timeCharacteristic;
-        return this;
-    }
-
-    public StreamGraphGenerator setDefaultBufferTimeout(long defaultBufferTimeout) {
-        this.defaultBufferTimeout = defaultBufferTimeout;
         return this;
     }
 
@@ -318,7 +272,9 @@ public class StreamGraphGenerator {
     }
 
     public StreamGraph generate() {
-        streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+        streamGraph =
+                new StreamGraph(
+                        configuration, executionConfig, checkpointConfig, savepointRestoreSettings);
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
@@ -327,10 +283,12 @@ public class StreamGraphGenerator {
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
         }
-
         streamGraph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         setFineGrainedGlobalStreamExchangeMode(streamGraph);
+
+        LineageGraph lineageGraph = LineageGraphUtils.convertToLineageGraph(transformations);
+        streamGraph.setLineageGraph(lineageGraph);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
@@ -368,10 +326,6 @@ public class StreamGraphGenerator {
     private void configureStreamGraph(final StreamGraph graph) {
         checkNotNull(graph);
 
-        graph.setChaining(chaining);
-        graph.setChainingOfOperatorsWithDifferentMaxParallelism(
-                chainingOfOperatorsWithDifferentMaxParallelism);
-        graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
         graph.setVertexNameIncludeIndexPrefix(
@@ -379,13 +333,12 @@ public class StreamGraphGenerator {
         graph.setAutoParallelismEnabled(
                 configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED));
         graph.setEnableCheckpointsAfterTasksFinish(
-                configuration.get(
-                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
+                configuration.get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
         setDynamic(graph);
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
-            setDefaultBufferTimeout(-1);
+            configuration.set(ExecutionOptions.BUFFER_TIMEOUT_ENABLED, false);
         } else {
             configureStreamGraphStreaming(graph);
         }
@@ -411,9 +364,7 @@ public class StreamGraphGenerator {
         graph.setJobName(deriveJobName(DEFAULT_STREAMING_JOB_NAME));
 
         graph.setStateBackend(stateBackend);
-        graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
         graph.setCheckpointStorage(checkpointStorage);
-        graph.setSavepointDirectory(savepointDir);
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
     }
 
@@ -464,12 +415,11 @@ public class StreamGraphGenerator {
         if (useStateBackend) {
             LOG.debug("Using BATCH execution state backend and timer service.");
             graph.setStateBackend(new BatchExecutionStateBackend());
-            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
+            graph.getJobConfiguration().set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
             graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
         } else {
             graph.setStateBackend(stateBackend);
-            graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
         }
     }
 
@@ -607,6 +557,8 @@ public class StreamGraphGenerator {
             transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
         } else if (transform instanceof CoFeedbackTransformation<?>) {
             transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
+        } else if (transform instanceof SourceTransformationWrapper<?>) {
+            transformedIds = transform(((SourceTransformationWrapper<?>) transform).getInput());
         } else {
             throw new IllegalStateException("Unknown transformation: " + transform);
         }
@@ -614,7 +566,7 @@ public class StreamGraphGenerator {
         if (transform.getBufferTimeout() >= 0) {
             streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
         } else {
-            streamGraph.setBufferTimeout(transform.getId(), defaultBufferTimeout);
+            streamGraph.setBufferTimeout(transform.getId(), getBufferTimeout());
         }
 
         if (transform.getUid() != null) {
@@ -649,6 +601,12 @@ public class StreamGraphGenerator {
                 transform.getManagedMemorySlotScopeUseCases());
 
         return transformedIds;
+    }
+
+    private long getBufferTimeout() {
+        return configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)
+                ? configuration.get(ExecutionOptions.BUFFER_TIMEOUT).toMillis()
+                : ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT;
     }
 
     /**
@@ -713,10 +671,10 @@ public class StreamGraphGenerator {
                 itSource.getId(),
                 null,
                 null,
-                iterate.getOutputType().createSerializer(executionConfig));
+                iterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()));
         streamGraph.setSerializers(
                 itSink.getId(),
-                iterate.getOutputType().createSerializer(executionConfig),
+                iterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()),
                 null,
                 null);
 
@@ -798,10 +756,10 @@ public class StreamGraphGenerator {
                 itSource.getId(),
                 null,
                 null,
-                coIterate.getOutputType().createSerializer(executionConfig));
+                coIterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()));
         streamGraph.setSerializers(
                 itSink.getId(),
-                coIterate.getOutputType().createSerializer(executionConfig),
+                coIterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()),
                 null,
                 null);
 
@@ -955,7 +913,7 @@ public class StreamGraphGenerator {
 
         @Override
         public long getDefaultBufferTimeout() {
-            return streamGraphGenerator.defaultBufferTimeout;
+            return streamGraphGenerator.getBufferTimeout();
         }
 
         @Override

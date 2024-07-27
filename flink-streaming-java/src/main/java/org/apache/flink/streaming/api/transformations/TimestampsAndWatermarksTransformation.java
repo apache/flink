@@ -25,7 +25,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -77,7 +77,7 @@ public class TimestampsAndWatermarksTransformation<IN> extends PhysicalTransform
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         List<Transformation<?>> transformations = Lists.newArrayList();
         transformations.add(this);
         transformations.addAll(input.getTransitivePredecessors());

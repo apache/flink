@@ -97,7 +97,7 @@ public class DataStreamBatchExecutionITCase {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
-        DataStreamSource<String> source = env.fromElements("foo", "bar");
+        DataStreamSource<String> source = env.fromData("foo", "bar");
 
         SingleOutputStreamOperator<String> mapped =
                 source.map(new SuffixAttemptId("a"))
@@ -126,7 +126,7 @@ public class DataStreamBatchExecutionITCase {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
-        DataStreamSource<String> source = env.fromElements("foo", "bar");
+        DataStreamSource<String> source = env.fromData("foo", "bar");
 
         SingleOutputStreamOperator<String> mapped =
                 source.map(new SuffixAttemptId("a"))
@@ -155,7 +155,7 @@ public class DataStreamBatchExecutionITCase {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
-        DataStreamSource<String> source = env.fromElements("foo", "bar");
+        DataStreamSource<String> source = env.fromData("foo", "bar");
         env.setParallelism(1);
 
         SingleOutputStreamOperator<String> mapped =
@@ -219,7 +219,7 @@ public class DataStreamBatchExecutionITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStream<Tuple2<String, Integer>> keyedInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular2", 4),
                                 Tuple2.of("regular1", 3),
                                 Tuple2.of("regular1", 2),
@@ -229,7 +229,7 @@ public class DataStreamBatchExecutionITCase {
                                         .withTimestampAssigner((in, ts) -> in.f1));
 
         DataStream<Tuple2<String, Integer>> regularInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular4", 4),
                                 Tuple2.of("regular3", 3),
                                 Tuple2.of("regular3", 2),
@@ -276,7 +276,7 @@ public class DataStreamBatchExecutionITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStream<Tuple2<String, Integer>> keyedInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular2", 4),
                                 Tuple2.of("regular1", 3),
                                 Tuple2.of("regular1", 2),
@@ -286,7 +286,7 @@ public class DataStreamBatchExecutionITCase {
                                         .withTimestampAssigner((in, ts) -> in.f1));
 
         DataStream<Tuple2<String, Integer>> regularInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular4", 4),
                                 Tuple2.of("regular3", 3),
                                 Tuple2.of("regular3", 2),
@@ -328,13 +328,13 @@ public class DataStreamBatchExecutionITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStream<Tuple2<String, Integer>> bcInput =
-                env.fromElements(Tuple2.of("bc1", 1), Tuple2.of("bc2", 2), Tuple2.of("bc3", 3))
+                env.fromData(Tuple2.of("bc1", 1), Tuple2.of("bc2", 2), Tuple2.of("bc3", 3))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
                                         .withTimestampAssigner((in, ts) -> in.f1));
 
         DataStream<Tuple2<String, Integer>> regularInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular1", 1),
                                 Tuple2.of("regular1", 2),
                                 Tuple2.of("regular2", 2),
@@ -385,13 +385,13 @@ public class DataStreamBatchExecutionITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStream<Tuple2<String, Integer>> bcInput =
-                env.fromElements(Tuple2.of("bc1", 1), Tuple2.of("bc2", 2), Tuple2.of("bc3", 3))
+                env.fromData(Tuple2.of("bc1", 1), Tuple2.of("bc2", 2), Tuple2.of("bc3", 3))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
                                         .withTimestampAssigner((in, ts) -> in.f1));
 
         DataStream<Tuple2<String, Integer>> regularInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular1", 1),
                                 Tuple2.of("regular1", 2),
                                 Tuple2.of("regular1", 3),
@@ -434,14 +434,14 @@ public class DataStreamBatchExecutionITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStream<Tuple2<String, Integer>> bcInput =
-                env.fromElements(Tuple2.of("bc3", 3), Tuple2.of("bc2", 2), Tuple2.of("bc1", 1))
+                env.fromData(Tuple2.of("bc3", 3), Tuple2.of("bc2", 2), Tuple2.of("bc1", 1))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
                                         .withTimestampAssigner((in, ts) -> in.f1))
                         .broadcast();
 
         DataStream<Tuple2<String, Integer>> regularInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular1", 1),
                                 Tuple2.of("regular1", 2),
                                 Tuple2.of("regular1", 3),
@@ -491,19 +491,19 @@ public class DataStreamBatchExecutionITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStream<Tuple2<String, Integer>> bc1Input =
-                env.fromElements(Tuple2.of("bc3", 3), Tuple2.of("bc2", 2))
+                env.fromData(Tuple2.of("bc3", 3), Tuple2.of("bc2", 2))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
                                         .withTimestampAssigner((in, ts) -> in.f1))
                         .broadcast();
         DataStream<Tuple2<String, Integer>> bc2Input =
-                env.fromElements(Tuple2.of("bc1", 1))
+                env.fromData(Tuple2.of("bc1", 1))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
                                         .withTimestampAssigner((in, ts) -> in.f1))
                         .broadcast();
         DataStream<Tuple2<String, Integer>> regularInput =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of("regular1", 1),
                                 Tuple2.of("regular1", 2),
                                 Tuple2.of("regular1", 3),
@@ -570,7 +570,7 @@ public class DataStreamBatchExecutionITCase {
 
         @Override
         public String map(String value) {
-            return value + "-" + suffix + getRuntimeContext().getAttemptNumber();
+            return value + "-" + suffix + getRuntimeContext().getTaskInfo().getAttemptNumber();
         }
     }
 
@@ -588,10 +588,10 @@ public class DataStreamBatchExecutionITCase {
 
         @Override
         public String map(String value) throws Exception {
-            if (getRuntimeContext().getAttemptNumber() <= 0) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() <= 0) {
                 throw new RuntimeException("FAILING");
             }
-            return value + "-" + suffix + getRuntimeContext().getAttemptNumber();
+            return value + "-" + suffix + getRuntimeContext().getTaskInfo().getAttemptNumber();
         }
     }
 

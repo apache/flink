@@ -23,7 +23,8 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -37,36 +38,35 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
 
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid function call:\nTop3(BIGINT)")
-
-    table
-      .window(Slide.over(2.hours).every(30.minutes).on('rowtime).as('w))
-      .groupBy('string, 'w)
-      .flatAggregate(call(top3, 'long)) // invalid args
-      .select('string, 'f0)
+    assertThatThrownBy(
+      () =>
+        table
+          .window(Slide.over(2.hours).every(30.minutes).on('rowtime).as('w))
+          .groupBy('string, 'w)
+          .flatAggregate(call(top3, 'long)) // invalid args
+          .select('string, 'f0))
+      .hasMessageContaining("Invalid function call:\nTop3(BIGINT)")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testInvalidStarInSelection(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Can not use * for window aggregate!")
-
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 
-    table
-      .window(Tumble.over(2.rows).on('proctime).as('w))
-      .groupBy('string, 'w)
-      .flatAggregate(top3('int))
-      .select('*)
+    assertThatThrownBy(
+      () =>
+        table
+          .window(Tumble.over(2.rows).on('proctime).as('w))
+          .groupBy('string, 'w)
+          .flatAggregate(top3('int))
+          .select('*))
+      .hasMessageContaining("Can not use * for window aggregate!")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testEmitStrategyNotSupported(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("Emit strategy has not been supported for Table Aggregate!")
-
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 
@@ -80,6 +80,8 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       .flatAggregate(top3('int))
       .select('string, 'f0, 'w.start)
 
-    util.verifyExecPlan(result)
+    assertThatThrownBy(() => util.verifyExecPlan(result))
+      .hasMessageContaining("Emit strategy has not been supported for Table Aggregate!")
+      .isInstanceOf[TableException]
   }
 }

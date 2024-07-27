@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.hints.batch;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 /** Test for Nest Loop join hint. */
-public class NestLoopJoinHintTest extends JoinHintTestBase {
+class NestLoopJoinHintTest extends JoinHintTestBase {
 
     @Override
     protected String getTestSingleJoinHint() {

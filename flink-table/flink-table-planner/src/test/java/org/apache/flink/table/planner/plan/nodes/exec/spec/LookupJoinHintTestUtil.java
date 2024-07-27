@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
+import org.apache.flink.table.api.config.LookupJoinHintOptions;
 import org.apache.flink.table.planner.hint.JoinStrategy;
-import org.apache.flink.table.planner.hint.LookupJoinHintOptions;
 
 import org.apache.calcite.rel.hint.RelHint;
 

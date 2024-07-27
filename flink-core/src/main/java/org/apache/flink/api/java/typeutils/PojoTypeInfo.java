@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -58,6 +59,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  *   <li>It is a fixed-length, null-aware composite type with non-deterministic field order. Every
  *       field can be null independent of the field's type.
  * </ul>
+ *
+ * Java Record classes can also be used as valid POJOs (even though they don't fulfill some of the
+ * above criteria). In this case Flink will use the record canonical constructor to create the
+ * objects.
  *
  * @param <T> The type represented by this type information.
  */
@@ -330,7 +335,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
     @Override
     @PublicEvolving
     @SuppressWarnings("unchecked")
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<T> createSerializer(SerializerConfig config) {
         if (config.isForceKryoEnabled()) {
             return new KryoSerializer<>(getTypeClass(), config);
         }
@@ -342,7 +347,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
         return createPojoSerializer(config);
     }
 
-    public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
+    public PojoSerializer<T> createPojoSerializer(SerializerConfig config) {
         TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
         Field[] reflectiveFields = new Field[fields.length];
 
@@ -352,6 +357,27 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
         }
 
         return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
+    }
+
+    @Override
+    @PublicEvolving
+    @Deprecated
+    @SuppressWarnings("unchecked")
+    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+        if (config.isForceKryoEnabled()) {
+            return new KryoSerializer<>(getTypeClass(), config.getSerializerConfig());
+        }
+
+        if (config.isForceAvroEnabled()) {
+            return AvroUtils.getAvroUtils().createAvroSerializer(getTypeClass());
+        }
+
+        return createPojoSerializer(config);
+    }
+
+    @Deprecated
+    public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
+        return createPojoSerializer(config.getSerializerConfig());
     }
 
     @Override
@@ -435,7 +461,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
             return new PojoComparator<T>(
                     keyFields.toArray(new Field[keyFields.size()]),
                     fieldComparators.toArray(new TypeComparator[fieldComparators.size()]),
-                    createSerializer(config),
+                    createSerializer(config.getSerializerConfig()),
                     getTypeClass());
         }
     }

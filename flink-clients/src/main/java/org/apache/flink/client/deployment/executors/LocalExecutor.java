@@ -22,18 +22,26 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.PerJobMiniClusterFactory;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.MalformedURLException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -42,11 +50,15 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** An {@link PipelineExecutor} for executing a {@link Pipeline} locally. */
 @Internal
 public class LocalExecutor implements PipelineExecutor {
+    private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
+    private final ExecutorService executorService =
+            Executors.newFixedThreadPool(1, new ExecutorThreadFactory("Flink-LocalExecutor-IO"));
 
     public static final String NAME = "local";
 
     private final Configuration configuration;
     private final Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory;
+    private final List<JobStatusChangedListener> jobStatusChangedListeners;
 
     public static LocalExecutor create(Configuration configuration) {
         return new LocalExecutor(configuration, MiniCluster::new);
@@ -63,6 +75,11 @@ public class LocalExecutor implements PipelineExecutor {
             Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {
         this.configuration = configuration;
         this.miniClusterFactory = miniClusterFactory;
+        this.jobStatusChangedListeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        Thread.currentThread().getContextClassLoader(),
+                        configuration,
+                        executorService);
     }
 
     @Override
@@ -77,12 +94,23 @@ public class LocalExecutor implements PipelineExecutor {
         effectiveConfig.addAll(configuration);
 
         // we only support attached execution with the local executor.
-        checkState(configuration.getBoolean(DeploymentOptions.ATTACHED));
+        checkState(configuration.get(DeploymentOptions.ATTACHED));
 
         final JobGraph jobGraph = getJobGraph(pipeline, effectiveConfig, userCodeClassloader);
 
         return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory)
-                .submitJob(jobGraph, userCodeClassloader);
+                .submitJob(jobGraph, userCodeClassloader)
+                .whenComplete(
+                        (ignored, throwable) -> {
+                            if (throwable == null) {
+                                PipelineExecutorUtils.notifyJobStatusListeners(
+                                        pipeline, jobGraph, jobStatusChangedListeners);
+                            } else {
+                                LOG.error(
+                                        "Failed to submit job graph to local mini cluster.",
+                                        throwable);
+                            }
+                        });
     }
 
     private JobGraph getJobGraph(
@@ -94,10 +122,10 @@ public class LocalExecutor implements PipelineExecutor {
         if (pipeline instanceof Plan) {
             Plan plan = (Plan) pipeline;
             final int slotsPerTaskManager =
-                    configuration.getInteger(
+                    configuration.get(
                             TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
             final int numTaskManagers =
-                    configuration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+                    configuration.get(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS);
 
             plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
         }

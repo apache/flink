@@ -21,18 +21,13 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.streaming.api.datastream.DataStream;
 
-/** Allows expert users to implement a custom topology before {@link SinkWriter}. */
+/**
+ * Allows expert users to implement a custom topology before {@link SinkWriter}.
+ *
+ * @deprecated Please implement {@link Sink} and {@link SupportsPreWriteTopology} instead.
+ */
 @Experimental
-public interface WithPreWriteTopology<InputT> extends Sink<InputT> {
-
-    /**
-     * Adds an arbitrary topology before the writer. The topology may be used to repartition the
-     * data.
-     *
-     * @param inputDataStream the stream of input records.
-     * @return the custom topology before {@link SinkWriter}.
-     */
-    DataStream<InputT> addPreWriteTopology(DataStream<InputT> inputDataStream);
-}
+@Deprecated
+public interface WithPreWriteTopology<InputT>
+        extends Sink<InputT>, SupportsPreWriteTopology<InputT> {}

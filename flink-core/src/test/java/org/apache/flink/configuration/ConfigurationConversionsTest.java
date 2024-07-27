@@ -18,33 +18,32 @@
 
 package org.apache.flink.configuration;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.startsWith;
-import static org.hamcrest.Matchers.closeTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link Configuration} conversion between types. Extracted from {@link
  * ConfigurationTest}.
  */
-@RunWith(Parameterized.class)
-public class ConfigurationConversionsTest {
+@SuppressWarnings("deprecation")
+@ExtendWith(ParameterizedTestExtension.class)
+class ConfigurationConversionsTest {
 
     private static final byte[] EMPTY_BYTES = new byte[0];
     private static final long TOO_LONG = Integer.MAX_VALUE + 10L;
@@ -52,8 +51,10 @@ public class ConfigurationConversionsTest {
 
     private Configuration pc;
 
-    @Before
-    public void init() {
+    @Parameter private TestSpec testSpec;
+
+    @BeforeEach
+    void init() {
         pc = new Configuration();
 
         pc.setInteger("int", 5);
@@ -69,10 +70,8 @@ public class ConfigurationConversionsTest {
         pc.setBoolean("boolean", true);
     }
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Parameterized.Parameters
-    public static Collection<TestSpec> getSpecs() {
+    @Parameters(name = "testSpec={0}")
+    private static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
                 // from integer
                 TestSpec.whenAccessed(conf -> conf.getInteger("int", 0)).expect(5),
@@ -153,12 +152,15 @@ public class ConfigurationConversionsTest {
                                 "For input string: \"2.1456776\"", NumberFormatException.class),
                 TestSpec.whenAccessed(conf -> conf.getFloat("float", 0)).expect(2.1456775f),
                 TestSpec.whenAccessed(conf -> conf.getDouble("float", 0))
-                        .expect(closeTo(2.1456775, 0.0000001)),
+                        .expect(
+                                new Condition<>(
+                                        d -> Math.abs(d - 2.1456775) < 0.0000001,
+                                        "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBoolean("float", true))
                         .expectException(
                                 "Unrecognized option for boolean: 2.1456776. Expected either true or false(case insensitive)"),
                 TestSpec.whenAccessed(conf -> conf.getString("float", "0"))
-                        .expect(startsWith("2.145677")),
+                        .expect(new Condition<>(s -> s.startsWith("2.145677"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("float", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 2.1456776 as a byte[] value"),
@@ -188,7 +190,7 @@ public class ConfigurationConversionsTest {
                         .expectException(
                                 "Unrecognized option for boolean: 3.141592653589793. Expected either true or false(case insensitive)"),
                 TestSpec.whenAccessed(conf -> conf.getString("double", "0"))
-                        .expect(startsWith("3.1415926535")),
+                        .expect(new Condition<>(s -> s.startsWith("3.141592"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("double", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 3.141592653589793 as a byte[] value"),
@@ -214,7 +216,7 @@ public class ConfigurationConversionsTest {
                         .expectException(
                                 "Unrecognized option for boolean: -1.0. Expected either true or false(case insensitive)"),
                 TestSpec.whenAccessed(conf -> conf.getString("negative_double", "0"))
-                        .expect(startsWith("-1")),
+                        .expect(new Condition<>(s -> s.startsWith("-1.0"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("negative_double", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value -1.0 as a byte[] value"),
@@ -239,7 +241,8 @@ public class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBoolean("zero", true))
                         .expectException(
                                 "Unrecognized option for boolean: 0.0. Expected either true or false(case insensitive)"),
-                TestSpec.whenAccessed(conf -> conf.getString("zero", "0")).expect(startsWith("0")),
+                TestSpec.whenAccessed(conf -> conf.getString("zero", "0"))
+                        .expect(new Condition<>(s -> s.startsWith("0"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("zero", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 0.0 as a byte[] value"),
@@ -361,22 +364,23 @@ public class ConfigurationConversionsTest {
                                 "Configuration cannot evaluate object of class class java.lang.Boolean as a class name"));
     }
 
-    @Parameterized.Parameter public TestSpec<?> testSpec;
+    @TestTemplate
+    void testConversions() throws Exception {
 
-    @Test
-    public void testConversions() throws Exception {
-        testSpec.getExpectedException()
-                .ifPresent(
-                        exception -> {
-                            thrown.expect(testSpec.getExceptionClass());
-                            thrown.expectMessage(exception);
-                        });
+        Optional<String> expectedException = testSpec.getExpectedException();
+
+        if (expectedException.isPresent()) {
+            assertThatThrownBy(() -> testSpec.assertConfiguration(pc))
+                    .isInstanceOf(testSpec.getExceptionClass())
+                    .hasMessageContaining(expectedException.get());
+            return;
+        }
 
         // workaround for type erasure
         testSpec.assertConfiguration(pc);
     }
 
-    private static class IsCloseTo extends TypeSafeMatcher<Float> {
+    private static class IsCloseTo extends Condition<Float> {
         private final float delta;
         private final float value;
 
@@ -385,23 +389,9 @@ public class ConfigurationConversionsTest {
             this.value = value;
         }
 
-        public boolean matchesSafely(Float item) {
+        @Override
+        public boolean matches(Float item) {
             return this.actualDelta(item) <= 0.0D;
-        }
-
-        public void describeMismatchSafely(Float item, Description mismatchDescription) {
-            mismatchDescription
-                    .appendValue(item)
-                    .appendText(" differed by ")
-                    .appendValue(this.actualDelta(item));
-        }
-
-        public void describeTo(Description description) {
-            description
-                    .appendText("a numeric value within ")
-                    .appendValue(this.delta)
-                    .appendText(" of ")
-                    .appendValue(this.value);
         }
 
         private double actualDelta(Float item) {
@@ -411,7 +401,7 @@ public class ConfigurationConversionsTest {
 
     private static class TestSpec<T> {
         private final ConfigurationAccessor<T> configurationAccessor;
-        private Matcher<T> matcher;
+        private Condition<T> condition;
         @Nullable private String expectedException = null;
         @Nullable private Class<? extends Exception> exceptionClass;
 
@@ -425,16 +415,17 @@ public class ConfigurationConversionsTest {
         }
 
         public static <T> TestSpec<T> whenAccessed(ConfigurationAccessor<T> configurationAccessor) {
-            return new TestSpec<T>(configurationAccessor);
+            return new TestSpec<>(configurationAccessor);
         }
 
-        public TestSpec<T> expect(Matcher<T> expected) {
-            this.matcher = expected;
+        public TestSpec<T> expect(Condition<T> expected) {
+            this.condition = expected;
             return this;
         }
 
         public TestSpec<T> expect(T expected) {
-            this.matcher = equalTo(expected);
+            this.condition =
+                    new Condition<>(value -> Objects.equals(value, expected), "Expected value");
             return this;
         }
 
@@ -461,7 +452,12 @@ public class ConfigurationConversionsTest {
         }
 
         void assertConfiguration(Configuration conf) throws Exception {
-            assertThat(configurationAccessor.access(conf), matcher);
+            assertThat(configurationAccessor.access(conf)).is(condition);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("accessor = %s, expected = %s", configurationAccessor, condition);
         }
     }
 }

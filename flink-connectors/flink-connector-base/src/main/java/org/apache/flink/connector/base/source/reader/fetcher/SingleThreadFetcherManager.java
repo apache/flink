@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
@@ -41,7 +41,7 @@ import java.util.function.Supplier;
  * via the same client. In the example of the file source, there is a single thread that reads the
  * files after another.
  */
-@Internal
+@PublicEvolving
 public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
         extends SplitFetcherManager<E, SplitT> {
 
@@ -53,14 +53,13 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      *     the same queue instance that is also passed to the {@link SourceReaderBase}.
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      *     system.
-     * @deprecated Please use {@link #SingleThreadFetcherManager(FutureCompletingBlockingQueue,
-     *     Supplier, Configuration)} instead.
+     * @deprecated Please use {@link #SingleThreadFetcherManager(Supplier, Configuration)} instead.
      */
     @Deprecated
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        this(elementsQueue, splitReaderSupplier, new Configuration());
+        super(elementsQueue, splitReaderSupplier, new Configuration());
     }
 
     /**
@@ -72,7 +71,9 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      *     system.
      * @param configuration The configuration to create the fetcher manager.
+     * @deprecated Please use {@link #SingleThreadFetcherManager(Supplier, Configuration)} instead.
      */
+    @Deprecated
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
@@ -90,14 +91,54 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
      *     system.
      * @param configuration The configuration to create the fetcher manager.
      * @param splitFinishedHook Hook for handling finished splits in split fetchers
+     * @deprecated Please use {@link #SingleThreadFetcherManager(Supplier, Configuration, Consumer)}
+     *     instead.
      */
     @VisibleForTesting
+    @Deprecated
     public SingleThreadFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
             Configuration configuration,
             Consumer<Collection<String>> splitFinishedHook) {
         super(elementsQueue, splitReaderSupplier, configuration, splitFinishedHook);
+    }
+
+    /**
+     * Creates a new SplitFetcherManager with a single I/O threads.
+     *
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     */
+    public SingleThreadFetcherManager(Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
+        super(splitReaderSupplier, new Configuration());
+    }
+
+    /**
+     * Creates a new SplitFetcherManager with a single I/O threads.
+     *
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     * @param configuration The configuration to create the fetcher manager.
+     */
+    public SingleThreadFetcherManager(
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier, Configuration configuration) {
+        super(splitReaderSupplier, configuration);
+    }
+
+    /**
+     * Creates a new SplitFetcherManager with a single I/O threads.
+     *
+     * @param splitReaderSupplier The factory for the split reader that connects to the source
+     *     system.
+     * @param configuration The configuration to create the fetcher manager.
+     * @param splitFinishedHook Hook for handling finished splits in split fetchers
+     */
+    public SingleThreadFetcherManager(
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration configuration,
+            Consumer<Collection<String>> splitFinishedHook) {
+        super(splitReaderSupplier, configuration, splitFinishedHook);
     }
 
     @Override

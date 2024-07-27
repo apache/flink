@@ -27,8 +27,8 @@
             },
             "partitionKeys": [],
             "options": {
-              "connector": "values",
-              "bounded": "false"
+              "bounded": "false",
+              "connector": "values"
             }
           }
         }

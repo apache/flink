@@ -92,12 +92,12 @@ class RestExternalHandlersITCase {
         final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
         final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-        config.setString(RestOptions.ADDRESS, loopbackAddress);
-        config.setString(Prio0OutboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT1_URL);
-        config.setString(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, REDIRECT1_URL);
-        config.setString(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT2_URL);
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.set(RestOptions.ADDRESS, loopbackAddress);
+        config.set(Prio0OutboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT1_URL);
+        config.set(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, REDIRECT1_URL);
+        config.set(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT2_URL);
         return config;
     }
 

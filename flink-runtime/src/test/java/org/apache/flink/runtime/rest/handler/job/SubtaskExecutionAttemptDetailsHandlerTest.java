@@ -31,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -115,6 +116,7 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         "test",
                         1,
                         1,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         emptyAccumulators);
 
@@ -125,7 +127,7 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         address -> null,
                         Executors.directExecutor(),
                         Time.milliseconds(1000L),
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
 
         // Instance the handler.
         final RestHandlerConfiguration restHandlerConfiguration =
@@ -188,6 +190,7 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         subtaskIndex,
                         expectedState,
                         attempt,
+                        "(unassigned)",
                         "(unassigned)",
                         -1L,
                         0L,

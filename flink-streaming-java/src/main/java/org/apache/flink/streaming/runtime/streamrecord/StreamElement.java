@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-/** An element in a data stream. Can be a record or a Watermark. */
+/** An element in a data stream. Can be a record, a Watermark, or a RecordAttributes. */
 @Internal
 public abstract class StreamElement {
 
@@ -32,7 +32,7 @@ public abstract class StreamElement {
      * @return True, if this element is a watermark, false otherwise.
      */
     public final boolean isWatermark() {
-        return getClass() == Watermark.class;
+        return this instanceof Watermark;
     }
 
     /**
@@ -60,6 +60,15 @@ public abstract class StreamElement {
      */
     public final boolean isLatencyMarker() {
         return getClass() == LatencyMarker.class;
+    }
+
+    /**
+     * Check whether this element is record attributes.
+     *
+     * @return True, if this element is record attributes, false otherwise.
+     */
+    public final boolean isRecordAttributes() {
+        return getClass() == RecordAttributes.class;
     }
 
     /**
@@ -102,5 +111,16 @@ public abstract class StreamElement {
      */
     public final LatencyMarker asLatencyMarker() {
         return (LatencyMarker) this;
+    }
+
+    /**
+     * Casts this element into a RecordAttributes.
+     *
+     * @return This element as a RecordAttributes.
+     * @throws java.lang.ClassCastException Thrown, if this element is actually not a
+     *     RecordAttributes.
+     */
+    public final RecordAttributes asRecordAttributes() {
+        return (RecordAttributes) this;
     }
 }

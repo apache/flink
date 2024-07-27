@@ -32,52 +32,55 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies that {@link StreamTask} {@link StreamTaskActionExecutor decorates execution} of actions
  * that potentially needs to be synchronized.
  */
-public class StreamTaskExecutionDecorationTest {
+class StreamTaskExecutionDecorationTest {
     private CountingStreamTaskActionExecutor decorator;
     private StreamTask<Object, StreamOperator<Object>> task;
     private TaskMailboxImpl mailbox;
 
     @Test
-    public void testAbortCheckpointOnBarrierIsDecorated() throws Exception {
+    void testAbortCheckpointOnBarrierIsDecorated() throws Exception {
         task.abortCheckpointOnBarrier(
                 1,
                 new CheckpointException(
                         CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        assertThat(decorator.wasCalled()).as("execution decorator was not called").isTrue();
     }
 
     @Test
-    public void testTriggerCheckpointOnBarrierIsDecorated() throws Exception {
+    void testTriggerCheckpointOnBarrierIsDecorated() throws Exception {
         task.triggerCheckpointOnBarrier(
                 new CheckpointMetaData(1, 2),
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
                         new CheckpointStorageLocationReference(new byte[] {1})),
                 null);
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        assertThat(decorator.wasCalled()).as("execution decorator was not called").isTrue();
     }
 
     @Test
-    public void testTriggerCheckpointAsyncIsDecorated() {
+    void testTriggerCheckpointAsyncIsDecorated() {
         task.triggerCheckpointAsync(
                 new CheckpointMetaData(1, 2),
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
                         new CheckpointStorageLocationReference(new byte[] {1})));
-        Assert.assertTrue("mailbox is empty", mailbox.hasMail());
-        Assert.assertFalse("execution decorator was called preliminary", decorator.wasCalled());
+        assertThat(mailbox.hasMail()).as("mailbox is empty").isTrue();
+        assertThat(decorator.wasCalled())
+                .as("execution decorator was called preliminary")
+                .isFalse();
         mailbox.drain()
                 .forEach(
                         m -> {
@@ -87,20 +90,20 @@ public class StreamTaskExecutionDecorationTest {
                                 throw new RuntimeException(e);
                             }
                         });
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        assertThat(decorator.wasCalled()).as("execution decorator was not called").isTrue();
     }
 
     @Test
-    public void testMailboxExecutorIsDecorated() throws Exception {
+    void testMailboxExecutorIsDecorated() throws Exception {
         task.mailboxProcessor
                 .getMainMailboxExecutor()
                 .execute(() -> task.mailboxProcessor.allActionsCompleted(), "");
         task.mailboxProcessor.runMailboxLoop();
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        assertThat(decorator.wasCalled()).as("execution decorator was not called").isTrue();
     }
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         mailbox = new TaskMailboxImpl();
         decorator = new CountingStreamTaskActionExecutor();
         task =
@@ -119,8 +122,8 @@ public class StreamTaskExecutionDecorationTest {
         task.operatorChain = new RegularOperatorChain<>(task, new NonRecordWriter<>());
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         decorator = null;
         task = null;
     }

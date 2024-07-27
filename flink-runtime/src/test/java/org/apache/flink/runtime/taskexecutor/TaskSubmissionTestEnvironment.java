@@ -35,6 +35,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -156,6 +157,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
+                        false,
                         false,
                         Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
@@ -288,7 +290,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             final InetSocketAddress socketAddress =
                     new InetSocketAddress(
                             InetAddress.getByName(testingRpcService.getAddress()),
-                            configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT));
+                            configuration.get(NettyShuffleEnvironmentOptions.DATA_PORT));
 
             final NettyConfig nettyConfig =
                     new NettyConfig(
@@ -302,13 +304,22 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     new NettyShuffleEnvironmentBuilder()
                             .setTaskManagerLocation(taskManagerLocation)
                             .setPartitionRequestInitialBackoff(
-                                    configuration.getInteger(
+                                    configuration.get(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_INITIAL))
                             .setPartitionRequestMaxBackoff(
-                                    configuration.getInteger(
+                                    configuration.get(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_MAX))
+                            .setResultPartitionManager(
+                                    new ResultPartitionManager(
+                                            (int)
+                                                    configuration
+                                                            .get(
+                                                                    NettyShuffleEnvironmentOptions
+                                                                            .NETWORK_PARTITION_REQUEST_TIMEOUT)
+                                                            .toMillis(),
+                                            testingRpcService.getScheduledExecutor()))
                             .setNettyConfig(localCommunication ? null : nettyConfig)
                             .build();
 

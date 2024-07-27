@@ -80,8 +80,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         this.eventQueue.add(
                 new OperatorStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber()));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber()));
         this.dispatcher.subscribe(receivedCommands::add, operatorID);
         this.state =
                 getKeyedStateBackend() != null
@@ -102,8 +102,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         eventQueue.add(
                 new CheckpointStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         context.getCheckpointId()));
         super.snapshotState(context);
     }
@@ -113,8 +113,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         eventQueue.add(
                 new CheckpointCompletedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         checkpointId));
         super.notifyCheckpointComplete(checkpointId);
     }
@@ -124,8 +124,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         eventQueue.add(
                 new OperatorFinishedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         lastDataSent,
                         new OperatorFinishedEvent.LastReceivedVertexDataInfo(lastDataReceived)));
         super.finish();
@@ -146,7 +146,7 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
                 new StreamRecord<>(
                         new TestDataElement(
                                 operatorID,
-                                getRuntimeContext().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                                 ++lastDataSent)));
         if (!timerRegistered) {
             registerTimer();
@@ -159,8 +159,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         eventQueue.add(
                 new WatermarkReceivedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         mark.getTimestamp(),
                         1));
         super.processWatermark(mark);
@@ -171,8 +171,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         eventQueue.add(
                 new InputEndedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         1));
     }
 
@@ -191,8 +191,8 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         eventQueue.add(
                 new TestCommandAckEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         cmd));
     }
 

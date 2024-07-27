@@ -170,9 +170,7 @@ public class SharedBufferEdge {
 
             private static final int VERSION = 1;
 
-            public SharedBufferEdgeSerializerSnapshot() {
-                super(SharedBufferEdgeSerializer.class);
-            }
+            public SharedBufferEdgeSerializerSnapshot() {}
 
             public SharedBufferEdgeSerializerSnapshot(
                     SharedBufferEdgeSerializer sharedBufferEdgeSerializer) {

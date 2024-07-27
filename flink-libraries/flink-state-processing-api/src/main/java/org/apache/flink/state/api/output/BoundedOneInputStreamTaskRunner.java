@@ -71,7 +71,10 @@ public class BoundedOneInputStreamTaskRunner<IN>
         super.open(openContext);
 
         env =
-                new SavepointEnvironment.Builder(getRuntimeContext(), maxParallelism)
+                new SavepointEnvironment.Builder(
+                                getRuntimeContext(),
+                                getRuntimeContext().getExecutionConfig(),
+                                maxParallelism)
                         .setConfiguration(streamConfig.getConfiguration())
                         .build();
     }

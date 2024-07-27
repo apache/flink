@@ -20,15 +20,15 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -57,7 +57,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
     @Override
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
+        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         // reduce file threshold to reproduce FLINK-28843
         configuration.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.parse("20b"));
         FsStateChangelogStorageFactory.configure(
@@ -148,8 +148,8 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
         env.enableChangelogStateBackend(enableChangelog);
         env.setParallelism(parallelism);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         return env;
     }
 
@@ -169,8 +169,8 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
                         0);
         env.enableChangelogStateBackend(changelogEnabled);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         return env;
     }
 

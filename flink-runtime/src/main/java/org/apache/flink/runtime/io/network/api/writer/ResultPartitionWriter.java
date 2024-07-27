@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
@@ -68,7 +69,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
      */
     void broadcastRecord(ByteBuffer record) throws IOException;
 
-    /** Writes the given {@link AbstractEvent} to all channels. */
+    /** Writes the given {@link AbstractEvent} to all subpartitions. */
     void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException;
 
     /** Timeout the aligned barrier to unaligned barrier. */
@@ -95,9 +96,10 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
     /** Sets the metric group for the {@link ResultPartitionWriter}. */
     void setMetricGroup(TaskIOMetricGroup metrics);
 
-    /** Returns a reader for the subpartition with the given index. */
+    /** Returns a reader for the subpartition with the given index range. */
     ResultSubpartitionView createSubpartitionView(
-            int index, BufferAvailabilityListener availabilityListener) throws IOException;
+            ResultSubpartitionIndexSet indexSet, BufferAvailabilityListener availabilityListener)
+            throws IOException;
 
     /** Manually trigger the consumption of data from all subpartitions. */
     void flushAll();

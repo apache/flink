@@ -44,13 +44,13 @@ public class HighAvailabilityModeTest extends TestLogger {
         assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
 
         // Check not equals default
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_MODE,
                 HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
         assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 
         // Check factory class
-        config.setString(HighAvailabilityOptions.HA_MODE, "factory.class.FQN");
+        config.set(HighAvailabilityOptions.HA_MODE, "factory.class.FQN");
         assertEquals(HighAvailabilityMode.FACTORY_CLASS, HighAvailabilityMode.fromConfig(config));
     }
 

@@ -17,22 +17,19 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.scalingpolicy;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 
-import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
-
 /**
- * Simple scaling policy for a reactive mode. The user can configure a minimum cumulative
- * parallelism increase to allow a scale up.
+ * Simple scaling policy. The user can configure a minimum cumulative parallelism increase to allow
+ * a scale up.
  */
 public class EnforceMinimalIncreaseRescalingController implements RescalingController {
 
     private final int minParallelismIncrease;
 
-    public EnforceMinimalIncreaseRescalingController(Configuration configuration) {
-        minParallelismIncrease = configuration.get(MIN_PARALLELISM_INCREASE);
+    public EnforceMinimalIncreaseRescalingController(int minParallelismIncrease) {
+        this.minParallelismIncrease = minParallelismIncrease;
     }
 
     @Override

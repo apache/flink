@@ -18,12 +18,12 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.core.fs.FileSystem
-import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
+import org.apache.flink.test.util.{AbstractTestBaseJUnit4, TestBaseUtils}
 
 import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 
-class StreamingOperatorsITCase extends AbstractTestBase {
+class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
 
   var resultPath1: String = _
   var resultPath2: String = _

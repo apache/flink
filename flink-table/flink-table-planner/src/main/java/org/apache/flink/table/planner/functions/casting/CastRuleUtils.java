@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -226,8 +227,10 @@ final class CastRuleUtils {
         }
 
         public CodeWriter forStmt(
-                String upperBound, BiConsumer<String, CodeWriter> bodyWriterConsumer) {
-            final String indexTerm = newName("i");
+                String upperBound,
+                BiConsumer<String, CodeWriter> bodyWriterConsumer,
+                CodeGeneratorContext codeGeneratorContext) {
+            final String indexTerm = newName(codeGeneratorContext, "i");
             final CodeWriter innerWriter = new CodeWriter();
 
             builder.append("for (int ")
@@ -278,15 +281,18 @@ final class CastRuleUtils {
 
         public CodeWriter tryCatchStmt(
                 Consumer<CodeWriter> bodyWriterConsumer,
-                BiConsumer<String, CodeWriter> catchConsumer) {
-            return tryCatchStmt(bodyWriterConsumer, Throwable.class, catchConsumer);
+                BiConsumer<String, CodeWriter> catchConsumer,
+                CodeGeneratorContext codeGeneratorContext) {
+            return tryCatchStmt(
+                    bodyWriterConsumer, Throwable.class, catchConsumer, codeGeneratorContext);
         }
 
         public CodeWriter tryCatchStmt(
                 Consumer<CodeWriter> bodyWriterConsumer,
                 Class<? extends Throwable> catchClass,
-                BiConsumer<String, CodeWriter> catchConsumer) {
-            final String exceptionTerm = newName("e");
+                BiConsumer<String, CodeWriter> catchConsumer,
+                CodeGeneratorContext codeGeneratorContext) {
+            final String exceptionTerm = newName(codeGeneratorContext, "e");
 
             final CodeWriter bodyWriter = new CodeWriter();
             final CodeWriter catchWriter = new CodeWriter();

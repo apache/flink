@@ -124,6 +124,25 @@ class TaskExecutorResourceUtilsTest {
     }
 
     @Test
+    void testUnusedOptionsAreIgnoredForLocalExecution() {
+        Configuration configuration = new Configuration();
+        configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(2024));
+        configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.ofMebiBytes(2024));
+        configuration.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, MemorySize.ofMebiBytes(2024));
+        configuration.set(
+                TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY, MemorySize.ofMebiBytes(2024));
+        configuration.set(TaskManagerOptions.JVM_METASPACE, MemorySize.ofMebiBytes(2024));
+        configuration.set(TaskManagerOptions.JVM_OVERHEAD_MIN, MemorySize.ofMebiBytes(2024));
+        configuration.set(TaskManagerOptions.JVM_OVERHEAD_MAX, MemorySize.ofMebiBytes(2024));
+        configuration.set(TaskManagerOptions.JVM_OVERHEAD_FRACTION, 2024.0f);
+
+        TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
+
+        assertThat(configuration)
+                .isEqualTo(TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration()));
+    }
+
+    @Test
     void testCalculateTotalFlinkMemoryWithAllFactorsBeingSet() {
         Configuration config = new Configuration();
 

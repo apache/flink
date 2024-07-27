@@ -23,6 +23,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -93,11 +94,13 @@ public interface RpcService extends AutoCloseableAsync {
     /**
      * Start a rpc server which forwards the remote procedure calls to the provided rpc endpoint.
      *
-     * @param rpcEndpoint Rpc protocol to dispatch the rpcs to
      * @param <C> Type of the rpc endpoint
+     * @param rpcEndpoint Rpc protocol to dispatch the rpcs to
+     * @param loggingContext
      * @return Self gateway to dispatch remote procedure calls to oneself
      */
-    <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint);
+    <C extends RpcEndpoint & RpcGateway> RpcServer startServer(
+            C rpcEndpoint, Map<String, String> loggingContext);
 
     /**
      * Stop the underlying rpc server of the provided self gateway.

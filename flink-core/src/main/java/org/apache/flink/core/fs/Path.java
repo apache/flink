@@ -63,6 +63,9 @@ public class Path implements IOReadableWritable, Serializable {
     /** A pre-compiled regex/state-machine to match the windows drive pattern. */
     private static final Pattern WINDOWS_ROOT_DIR_REGEX = Pattern.compile("/\\p{Alpha}+:/");
 
+    /** A pre-compiled regex to identify duplicate consecutive slashes. */
+    private static final Pattern DUPLICATE_CONSECUTIVE_SLASHES = Pattern.compile("/{2,}");
+
     /** The internal representation of the path, a hierarchical URI. */
     private URI uri;
 
@@ -245,7 +248,9 @@ public class Path implements IOReadableWritable, Serializable {
     private String normalizePath(String path) {
         // remove consecutive slashes & backslashes
         path = path.replace("\\", "/");
-        path = path.replaceAll("/+", "/");
+        if (path.contains("//")) {
+            path = DUPLICATE_CONSECUTIVE_SLASHES.matcher(path).replaceAll("/");
+        }
 
         // remove tailing separator
         if (path.endsWith(SEPARATOR)

@@ -21,9 +21,9 @@ import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBaseJUnit4, TestBaseUtils}
 
+import MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.junit.{After, Before, Rule, Test}
 import org.junit.Assert.fail
 import org.junit.rules.TemporaryFolder
@@ -33,7 +33,7 @@ import org.junit.runners.Parameterized
 /* The test cases are originally from the Apache Spark project. Like the ClosureCleaner itself. */
 
 @RunWith(classOf[Parameterized])
-class ClosureCleanerITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class ClosureCleanerITCase(mode: TestExecutionMode) extends MultipleProgramsTestBaseJUnit4(mode) {
 
   val _tempFolder = new TemporaryFolder()
   var resultPath: String = _

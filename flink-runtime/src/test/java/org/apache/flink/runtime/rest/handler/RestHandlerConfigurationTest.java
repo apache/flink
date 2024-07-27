@@ -72,7 +72,7 @@ class RestHandlerConfigurationTest {
             boolean reactiveMode,
             boolean expectedResult) {
         final Configuration config = new Configuration();
-        config.setBoolean(WebOptions.RESCALE_ENABLE, webRescaleEnabled);
+        config.set(WebOptions.RESCALE_ENABLE, webRescaleEnabled);
         if (adaptiveScheduler) {
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         } else {
@@ -88,7 +88,7 @@ class RestHandlerConfigurationTest {
 
     private static void testWebSubmitFeatureFlag(boolean webSubmitEnabled) {
         final Configuration config = new Configuration();
-        config.setBoolean(WebOptions.SUBMIT_ENABLE, webSubmitEnabled);
+        config.set(WebOptions.SUBMIT_ENABLE, webSubmitEnabled);
 
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
@@ -97,7 +97,7 @@ class RestHandlerConfigurationTest {
 
     private static void testWebCancelFeatureFlag(boolean webCancelEnabled) {
         final Configuration config = new Configuration();
-        config.setBoolean(WebOptions.CANCEL_ENABLE, webCancelEnabled);
+        config.set(WebOptions.CANCEL_ENABLE, webCancelEnabled);
 
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
@@ -120,7 +120,7 @@ class RestHandlerConfigurationTest {
     void testCheckpointCacheExpiryFallbackToRefreshInterval() {
         final long refreshInterval = 1000L;
         final Configuration config = new Configuration();
-        config.set(WebOptions.REFRESH_INTERVAL, refreshInterval);
+        config.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(refreshInterval));
 
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);

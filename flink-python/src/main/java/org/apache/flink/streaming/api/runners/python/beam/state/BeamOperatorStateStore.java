@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.runners.python.beam.state;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.MapState;
@@ -56,7 +56,7 @@ public class BeamOperatorStateStore implements BeamStateStore {
         this.operatorStateBackend = operatorStateBackend;
         this.valueSerializer =
                 PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
-                        new ExecutionConfig());
+                        new SerializerConfigImpl());
         this.stateDescriptorCache = new HashMap<>();
     }
 

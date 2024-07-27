@@ -21,7 +21,6 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
@@ -38,7 +37,7 @@ import java.util.HashMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, ?>> {
+class CombineTaskExternalITCase extends DriverTestBase<GroupReduceFunction<Record, ?>> {
 
     private static final long COMBINE_MEM = 3 * 1024 * 1024;
 

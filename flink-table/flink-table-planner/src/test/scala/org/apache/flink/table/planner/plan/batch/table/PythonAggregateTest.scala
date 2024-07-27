@@ -22,7 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.PandasAggregateFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class PythonAggregateTest extends TableTestBase {
 
@@ -50,7 +51,7 @@ class PythonAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMixedUsePandasAggAndJavaAgg(): Unit = {
     val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
@@ -60,6 +61,7 @@ class PythonAggregateTest extends TableTestBase {
       .groupBy('b)
       .select('b, func('a, 'c), 'a.count())
 
-    util.verifyExecPlan(resultTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(resultTable))
   }
 }

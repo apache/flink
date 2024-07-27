@@ -22,13 +22,13 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[CalcRankTransposeRule]]. */
 class CalcRankTransposeRuleTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.buildStreamProgram(FlinkStreamProgram.PHYSICAL)
 

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -113,7 +114,7 @@ class InnerJoinOperatorBaseTest implements Serializable {
                                 new Tuple2<>(3.0, "4")));
 
         try {
-            final TaskInfo taskInfo = new TaskInfo("op", 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl("op", 1, 0, 1, 0);
             ExecutionConfig executionConfig = new ExecutionConfig();
 
             executionConfig.disableObjectReuse();

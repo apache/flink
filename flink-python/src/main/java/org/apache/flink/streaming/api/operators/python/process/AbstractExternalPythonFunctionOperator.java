@@ -128,7 +128,7 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
                     dependencyInfo,
                     getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
                     systemEnvEnabled ? new HashMap<>(System.getenv()) : new HashMap<>(),
-                    getRuntimeContext().getJobId());
+                    getRuntimeContext().getJobInfo().getJobId());
         } else {
             throw new UnsupportedOperationException(
                     String.format(

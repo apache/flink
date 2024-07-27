@@ -20,7 +20,9 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
@@ -33,7 +35,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
-import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -87,6 +89,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -96,8 +99,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.configuration.TaskManagerOptions.SLOT_TIMEOUT;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -116,6 +121,20 @@ class TaskExecutorPartitionLifecycleTest {
             new SettableLeaderRetrievalService();
     private final JobID jobId = new JobID();
 
+    private Configuration configuration;
+
+    private TestingHeartbeatServices heartbeatServices;
+
+    private ResourceID jmResourceId;
+
+    private Duration duration = Duration.ofSeconds(15);
+
+    private Duration longDuration = Duration.ofSeconds(30);
+
+    private CompletableFuture<Void> disconnectTaskManagerFuture;
+
+    private final String jobMasterAddress = "jm";
+
     @TempDir private Path tempDir;
 
     @RegisterExtension
@@ -126,6 +145,10 @@ class TaskExecutorPartitionLifecycleTest {
     void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
         haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+        configuration = new Configuration();
+        heartbeatServices = new TestingHeartbeatServices(50000L, 50000L);
+        jmResourceId = ResourceID.generate();
+        disconnectTaskManagerFuture = new CompletableFuture<>();
     }
 
     @AfterEach
@@ -321,6 +344,75 @@ class TaskExecutorPartitionLifecycleTest {
     }
 
     @Test
+    void testEnableBatchJobRecoveryAndNotRetainPartitions() throws Exception {
+        testJMCrashedAndPossibleRetainPartitions(
+                false,
+                true,
+                // the release action will delay
+                releasePartitionsForJobFuture ->
+                        assertThatFuture(releasePartitionsForJobFuture)
+                                .willNotCompleteWithin(duration)
+                                .eventuallySucceeds()
+                                .isEqualTo(jobId));
+    }
+
+    @Test
+    void testEnableBatchJobRecoveryAndRetainPartitions() throws Exception {
+        testJMCrashedAndPossibleRetainPartitions(
+                true,
+                true,
+                // will not trigger release
+                releasePartitionsForJobFuture ->
+                        assertThatFuture(releasePartitionsForJobFuture)
+                                .willNotCompleteWithin(longDuration));
+    }
+
+    @Test
+    void testDisableBatchJobRecoveryAndReleasePartitions() throws Exception {
+        Consumer<CompletableFuture<JobID>> verifyAction =
+                releasePartitionsForJobFuture ->
+                        assertThatFuture(releasePartitionsForJobFuture)
+                                .succeedsWithin(duration)
+                                .isEqualTo(jobId);
+
+        // the release action will complete intermediately although enable retain partition
+        testJMCrashedAndPossibleRetainPartitions(true, false, verifyAction);
+    }
+
+    private void testJMCrashedAndPossibleRetainPartitions(
+            boolean enableRetainPartitions,
+            boolean enableBatchJobRecovery,
+            Consumer<CompletableFuture<JobID>> verifyAction)
+            throws Exception {
+        configuration.set(BatchExecutionOptions.JOB_RECOVERY_ENABLED, enableBatchJobRecovery);
+        configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, duration);
+        // the slot time out will try to release partition again, and we should avoid it
+        configuration.set(SLOT_TIMEOUT, Duration.ofMinutes(5));
+
+        final CompletableFuture<JobID> releasePartitionsForJobFuture = new CompletableFuture<>();
+
+        testPartitionRelease(
+                partitionTracker ->
+                        partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(
+                                releasePartitionsForJobFuture::complete),
+                (jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
+                    jobManagerLeaderRetriever.notifyListener(null, UUID.randomUUID());
+
+                    // wait trigger JM disconnect TM which means TM is waiting for JM to retain
+                    // partitions
+                    disconnectTaskManagerFuture.get();
+
+                    jobManagerLeaderRetriever.notifyListener(jobMasterAddress, UUID.randomUUID());
+
+                    if (enableRetainPartitions) {
+                        taskExecutor.getAndRetainPartitionWithMetrics(jobId);
+                    }
+
+                    verifyAction.accept(releasePartitionsForJobFuture);
+                });
+    }
+
+    @Test
     void testBlockingLocalPartitionReleaseDoesNotBlockTaskExecutor() throws Exception {
         BlockerSync sync = new BlockerSync();
         ResultPartitionManager blockingResultPartitionManager =
@@ -427,6 +519,7 @@ class TaskExecutorPartitionLifecycleTest {
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
+                        false,
                         Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                         Executors.directExecutor());
 
@@ -445,7 +538,7 @@ class TaskExecutorPartitionLifecycleTest {
                         .setRegisterTaskManagerFunction(
                                 (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
-                                                new JMTMRegistrationSuccess(ResourceID.generate())))
+                                                new JMTMRegistrationSuccess(jmResourceId)))
                         .setOfferSlotsFunction(
                                 (resourceID, slotOffers) -> {
                                     slotOfferedLatch.trigger();
@@ -457,6 +550,11 @@ class TaskExecutorPartitionLifecycleTest {
                                             == ExecutionState.FINISHED) {
                                         taskFinishedFuture.complete(null);
                                     }
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setDisconnectTaskManagerFunction(
+                                ignored -> {
+                                    disconnectTaskManagerFuture.complete(null);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .build();
@@ -489,7 +587,6 @@ class TaskExecutorPartitionLifecycleTest {
             final TaskExecutorGateway taskExecutorGateway =
                     taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
-            final String jobMasterAddress = "jm";
             rpc.registerGateway(jobMasterAddress, jobMasterGateway);
             rpc.registerGateway(
                     testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
@@ -583,7 +680,6 @@ class TaskExecutorPartitionLifecycleTest {
     private TestingTaskExecutor createTestingTaskExecutor(
             TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker)
             throws IOException {
-        final Configuration configuration = new Configuration();
         return new TestingTaskExecutor(
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
@@ -595,7 +691,7 @@ class TaskExecutorPartitionLifecycleTest {
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-                new HeartbeatServicesImpl(10_000L, 30_000L),
+                heartbeatServices,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
                 NoOpTaskExecutorBlobService.INSTANCE,

@@ -22,7 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{PandasAggregateFunction, TestPythonAggregateFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class PythonGroupWindowAggregateTest extends TableTestBase {
 
@@ -41,7 +42,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testPandasEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
     val sourceTable =
@@ -53,7 +54,8 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, func('a, 'c))
 
-    util.verifyExecPlan(resultTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(resultTable))
   }
 
   @Test
@@ -71,7 +73,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testPandasEventTimeSlidingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
     val sourceTable =
@@ -83,7 +85,8 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, func('a, 'c))
 
-    util.verifyExecPlan(resultTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(resultTable))
   }
 
   @Test
@@ -101,7 +104,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGeneralEventTimeTumblingGroupWindowOverTime(): Unit = {
     val util = batchTestUtil()
     val sourceTable =
@@ -113,6 +116,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, 'w.start, 'w.end, func('a, 'c))
 
-    util.verifyExecPlan(resultTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(resultTable))
   }
 }

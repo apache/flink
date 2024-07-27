@@ -93,10 +93,26 @@ public class TestBufferFactory {
      * @return a new buffer instance
      */
     public static Buffer createBuffer(int bufferSize, int dataSize) {
+        return createBuffer(bufferSize, dataSize, Buffer.DataType.DATA_BUFFER);
+    }
+
+    /**
+     * Creates a (network) buffer with default size, i.e. {@link #BUFFER_SIZE}, and unspecified data
+     * of the given size.
+     *
+     * @param dataSize size of the data in the buffer, i.e. the new writer index
+     * @param dataType type of the data in the buffer
+     * @return a new buffer instance
+     */
+    public static Buffer createBuffer(int dataSize, Buffer.DataType dataType) {
+        return createBuffer(BUFFER_SIZE, dataSize, dataType);
+    }
+
+    private static Buffer createBuffer(int bufferSize, int dataSize, Buffer.DataType dataType) {
         return new NetworkBuffer(
                 MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
                 RECYCLER,
-                Buffer.DataType.DATA_BUFFER,
+                dataType,
                 dataSize);
     }
 }

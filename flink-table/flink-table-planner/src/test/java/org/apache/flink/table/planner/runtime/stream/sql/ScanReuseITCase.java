@@ -23,19 +23,20 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Case for push project into source with sub plan reuse. */
-public class ScanReuseITCase extends StreamingTestBase {
+class ScanReuseITCase extends StreamingTestBase {
 
-    @Before
+    @Override
+    @BeforeEach
     public void before() throws Exception {
         super.before();
         String myTableDataId =
@@ -57,7 +58,7 @@ public class ScanReuseITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testProjectWithExpr() {
+    void testProjectWithExpr() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T2.c FROM"
                         + " (SELECT a, b + 1 as b FROM MyTable) T1, MyTable T2 WHERE T1.a = T2.a";
@@ -67,6 +68,6 @@ public class ScanReuseITCase extends StreamingTestBase {
                         .collect(Collectors.toList());
         actual.sort(String::compareTo);
         List<String> expected = Arrays.asList("+I[1, 2, 1]", "+I[2, 3, 2]", "+I[3, 4, 3]");
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 }

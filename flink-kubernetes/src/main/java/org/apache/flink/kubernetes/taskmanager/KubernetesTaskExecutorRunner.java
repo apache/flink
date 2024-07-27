@@ -57,7 +57,7 @@ public class KubernetesTaskExecutorRunner {
                     "The environment variable %s is not set, "
                             + "which is used to identify the node where the task manager is located.",
                     Constants.ENV_FLINK_POD_NODE_ID);
-            configuration.setString(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, nodeId);
+            configuration.set(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, nodeId);
         } catch (FlinkParseException fpe) {
             LOG.error("Could not load the configuration.", fpe);
             System.exit(TaskManagerRunner.FAILURE_EXIT_CODE);

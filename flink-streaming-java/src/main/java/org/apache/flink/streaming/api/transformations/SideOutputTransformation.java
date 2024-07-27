@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -53,7 +53,7 @@ public class SideOutputTransformation<T> extends Transformation<T> {
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         List<Transformation<?>> result = Lists.newArrayList();
         result.add(this);
         result.addAll(input.getTransitivePredecessors());

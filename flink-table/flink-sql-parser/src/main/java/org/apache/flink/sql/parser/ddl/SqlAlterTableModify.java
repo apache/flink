@@ -18,7 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -57,16 +56,16 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
             SqlNodeList modifiedColumns,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark watermark,
+            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
-        super(pos, tableName, modifiedColumns, constraints, watermark, ifTableExists);
+        super(pos, tableName, modifiedColumns, constraints, watermark, distribution, ifTableExists);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("MODIFY");
-        // unparse table schema
-        SqlUnparseUtils.unparseTableSchema(
-                writer, leftPrec, rightPrec, columnList, constraints, watermark);
+        // unparse table schema and distribution
+        unparseSchemaAndDistribution(writer, leftPrec, rightPrec);
     }
 }

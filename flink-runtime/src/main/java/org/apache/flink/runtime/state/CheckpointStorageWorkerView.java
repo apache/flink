@@ -80,7 +80,7 @@ public interface CheckpointStorageWorkerView {
 
     /**
      * Return {@link org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageAccess} if
-     * file merging is enabled Otherwise, return itself. File merging is supported by subclasses of
+     * file merging is enabled. Otherwise, return itself. File merging is supported by subclasses of
      * {@link org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess}.
      */
     default CheckpointStorageWorkerView toFileMergingStorage(

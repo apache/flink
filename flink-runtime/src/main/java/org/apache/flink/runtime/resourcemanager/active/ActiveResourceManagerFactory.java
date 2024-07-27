@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -64,21 +63,17 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
     @Override
     protected Configuration getEffectiveConfigurationForResourceManager(
             Configuration configuration) {
-        if (configuration.getBoolean(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT)) {
-            final Configuration copiedConfig = new Configuration(configuration);
+        final Configuration copiedConfig = new Configuration(configuration);
 
-            if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
-                logIgnoreTotalMemory(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
-            }
-
-            if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_FLINK_MEMORY)) {
-                logIgnoreTotalMemory(TaskManagerOptions.TOTAL_FLINK_MEMORY);
-            }
-
-            return copiedConfig;
+        if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_PROCESS_MEMORY)) {
+            logIgnoreTotalMemory(TaskManagerOptions.TOTAL_PROCESS_MEMORY);
         }
 
-        return configuration;
+        if (copiedConfig.removeConfig(TaskManagerOptions.TOTAL_FLINK_MEMORY)) {
+            logIgnoreTotalMemory(TaskManagerOptions.TOTAL_FLINK_MEMORY);
+        }
+
+        return copiedConfig;
     }
 
     private void logIgnoreTotalMemory(ConfigOption<MemorySize> option) {
@@ -141,7 +136,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
             throws Exception;
 
     public static ThresholdMeter createStartWorkerFailureRater(Configuration configuration) {
-        double rate = configuration.getDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
+        double rate = configuration.get(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
         if (rate <= 0) {
             throw new IllegalConfigurationException(
                     String.format(

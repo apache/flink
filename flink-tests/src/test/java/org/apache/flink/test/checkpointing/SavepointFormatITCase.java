@@ -31,11 +31,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -49,7 +49,6 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.TestLogger;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -58,6 +57,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
+
+import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
 import java.util.LinkedList;
@@ -88,17 +89,13 @@ public class SavepointFormatITCase extends TestLogger {
             new LoggerAuditingExtension(SavepointFormatITCase.class, Level.INFO);
 
     private static List<Arguments> parameters() {
-        // iterate through all valid combinations of backends, isIncremental, isChangelogEnabled
+        // iterate through all combinations of backends, isIncremental, isChangelogEnabled
         List<Arguments> result = new LinkedList<>();
         for (BiFunction<Boolean, Boolean, StateBackendConfig> builder :
                 StateBackendConfig.builders) {
             for (boolean incremental : new boolean[] {true, false}) {
                 for (boolean changelog : new boolean[] {true, false}) {
                     for (SavepointFormatType formatType : SavepointFormatType.values()) {
-                        if (changelog && formatType == SavepointFormatType.NATIVE) {
-                            // not supported
-                            continue;
-                        }
                         result.add(Arguments.of(formatType, builder.apply(incremental, changelog)));
                     }
                 }
@@ -146,7 +143,7 @@ public class SavepointFormatITCase extends TestLogger {
 
         public Configuration getConfiguration() {
             Configuration stateBackendConfig = new Configuration();
-            stateBackendConfig.setString(StateBackendOptions.STATE_BACKEND, getConfigName());
+            stateBackendConfig.set(StateBackendOptions.STATE_BACKEND, getConfigName());
             stateBackendConfig.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
             stateBackendConfig.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, changelogEnabled);
             return stateBackendConfig;
@@ -275,7 +272,7 @@ public class SavepointFormatITCase extends TestLogger {
         }
     }
 
-    @NotNull
+    @Nonnull
     private Predicate<OperatorState> hasKeyedState() {
         return op ->
                 op.hasSubtaskStates()

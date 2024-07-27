@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -82,6 +83,8 @@ public class TaskManagerServicesConfiguration {
 
     private final boolean localRecoveryEnabled;
 
+    private final boolean localBackupEnabled;
+
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
     private Optional<Time> systemResourceMetricsProbingInterval;
@@ -104,6 +107,7 @@ public class TaskManagerServicesConfiguration {
             String[] tmpDirPaths,
             Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
+            boolean localBackupEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
             int pageSize,
@@ -125,6 +129,7 @@ public class TaskManagerServicesConfiguration {
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
         this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localBackupEnabled = localBackupEnabled;
         this.queryableStateConfig = queryableStateConfig;
         this.numberOfSlots = numberOfSlots;
 
@@ -185,6 +190,10 @@ public class TaskManagerServicesConfiguration {
 
     boolean isLocalRecoveryEnabled() {
         return localRecoveryEnabled;
+    }
+
+    boolean isLocalBackupEnabled() {
+        return localBackupEnabled;
     }
 
     @Nullable
@@ -283,27 +292,26 @@ public class TaskManagerServicesConfiguration {
             localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
-        boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
+        boolean localRecoveryEnabled = configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        boolean localBackupEnabled = configuration.get(CheckpointingOptions.LOCAL_BACKUP_ENABLED);
 
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);
 
         long timerServiceShutdownTimeout =
-                configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION).toMillis();
+                configuration.get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-        final int externalDataPort =
-                configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+        final int externalDataPort = configuration.get(NettyShuffleEnvironmentOptions.DATA_PORT);
 
         String bindAddr =
-                configuration.getString(
-                        TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
+                configuration.get(TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
         InetAddress bindAddress = InetAddress.getByName(bindAddr);
 
         final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+                configuration.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
         final String[] alwaysParentFirstLoaderPatterns =
                 CoreOptions.getParentFirstLoaderPatterns(configuration);
@@ -328,7 +336,8 @@ public class TaskManagerServicesConfiguration {
                 localCommunicationOnly,
                 tmpDirs,
                 localStateDirs,
-                localRecoveryMode,
+                localRecoveryEnabled,
+                localBackupEnabled,
                 queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),
                 ConfigurationParserUtils.getPageSize(configuration),

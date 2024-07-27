@@ -22,34 +22,36 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link JoinedStreams}. */
-public class JoinedStreamsTest {
+class JoinedStreamsTest {
     private DataStream<String> dataStream1;
     private DataStream<String> dataStream2;
     private KeySelector<String, String> keySelector;
     private TumblingEventTimeWindows tsAssigner;
     private JoinFunction<String, String, String> joinFunction;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        dataStream1 = env.fromElements("a1", "a2", "a3");
-        dataStream2 = env.fromElements("a1", "a2");
+        dataStream1 = env.fromData("a1", "a2", "a3");
+        dataStream2 = env.fromData("a1", "a2");
         keySelector = element -> element;
-        tsAssigner = TumblingEventTimeWindows.of(Time.milliseconds(1));
+        tsAssigner = TumblingEventTimeWindows.of(Duration.ofMillis(1));
         joinFunction = (first, second) -> first + second;
     }
 
     @Test
-    public void testDelegateToCoGrouped() {
-        Time lateness = Time.milliseconds(42L);
+    void testDelegateToCoGrouped() {
+        Duration lateness = Duration.ofMillis(42L);
 
         JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
                 dataStream1
@@ -61,14 +63,13 @@ public class JoinedStreamsTest {
 
         withLateness.apply(joinFunction, BasicTypeInfo.STRING_TYPE_INFO);
 
-        Assert.assertEquals(
-                lateness.toMilliseconds(),
-                withLateness.getCoGroupedWindowedStream().getAllowedLateness().toMilliseconds());
+        assertThat(withLateness.getCoGroupedWindowedStream().getAllowedLatenessDuration())
+                .hasValue(lateness);
     }
 
     @Test
-    public void testSetAllowedLateness() {
-        Time lateness = Time.milliseconds(42L);
+    void testSetAllowedLateness() {
+        Duration lateness = Duration.ofMillis(42L);
 
         JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
                 dataStream1
@@ -78,7 +79,6 @@ public class JoinedStreamsTest {
                         .window(tsAssigner)
                         .allowedLateness(lateness);
 
-        Assert.assertEquals(
-                lateness.toMilliseconds(), withLateness.getAllowedLateness().toMilliseconds());
+        assertThat(withLateness.getAllowedLatenessDuration()).hasValue(lateness);
     }
 }

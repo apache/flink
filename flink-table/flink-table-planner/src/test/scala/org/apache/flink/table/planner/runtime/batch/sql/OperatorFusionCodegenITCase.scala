@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType}
@@ -261,7 +261,9 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   @TestTemplate
   def testLocalHashAggWithKey(): Unit = {
     tEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE)
     checkOpFusionCodegenResult("""
                                  |SELECT a, count(b) as cnt, avg(b) as pj FROM
                                  |  (SELECT a, b FROM x INNER JOIN y ON x.a = y.d) T1
@@ -286,6 +288,19 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   }
 
   @TestTemplate
+  def testMultipleHashAgg(): Unit = {
+    checkOpFusionCodegenResult(
+      """
+        |SELECT * FROM
+        |  (SELECT a, SUM(b) as b FROM x group by a) T1
+        |  INNER JOIN
+        |  (SELECT d, SUM(e) as e FROM y group by d) T2
+        |  ON T1.a = T2.d
+        |""".stripMargin
+    )
+  }
+
+  @TestTemplate
   def testGlobalHashAggWithKey2(): Unit = {
     checkOpFusionCodegenResult(
       """
@@ -302,7 +317,9 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   @TestTemplate
   def testLocalAndGlobalHashAggInTwoSeperatedFusionOperator(): Unit = {
     tEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE)
     checkOpFusionCodegenResult(
       """
         |WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
@@ -318,9 +335,11 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   @TestTemplate
   def testAdaptiveLocalHashAgg(): Unit = {
     tEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE)
     tEnv.getConfig.set(
-      HashAggCodeGenerator.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
+      ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
       Long.box(1L))
     checkOpFusionCodegenResult(
       """

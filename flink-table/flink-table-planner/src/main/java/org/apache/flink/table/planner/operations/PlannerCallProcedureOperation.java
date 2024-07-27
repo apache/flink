@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -39,6 +40,7 @@ import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.operations.CallProcedureOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.procedure.DefaultProcedureContext;
 import org.apache.flink.table.procedure.ProcedureContext;
@@ -125,14 +127,23 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
             TableConfig tableConfig, ClassLoader userClassLoader) {
         // should be [ProcedureContext, arg1, arg2, ..]
         Object[] argumentVal = new Object[1 + internalInputArguments.length];
-        StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(tableConfig.getConfiguration());
-        argumentVal[0] = new DefaultProcedureContext(env);
+        argumentVal[0] = getProcedureContext(tableConfig);
         for (int i = 0; i < internalInputArguments.length; i++) {
             argumentVal[i + 1] =
-                    toExternal(internalInputArguments[i], inputTypes[i], userClassLoader);
+                    (internalInputArguments[i] != null)
+                            ? toExternal(internalInputArguments[i], inputTypes[i], userClassLoader)
+                            : null;
         }
         return argumentVal;
+    }
+
+    private ProcedureContext getProcedureContext(TableConfig tableConfig) {
+        Configuration configuration =
+                new Configuration((Configuration) tableConfig.getRootConfiguration());
+        configuration.addAll(tableConfig.getConfiguration());
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        return new DefaultProcedureContext(env);
     }
 
     /** Convert the value with internal representation to the value with external representation. */
@@ -268,7 +279,8 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
                         userClassLoader,
                         tableConfig
                                 .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
-                                .isEnabled());
+                                .isEnabled(),
+                        new CodeGeneratorContext(tableConfig, userClassLoader));
         // create DataStructure converters
         DataStructureConverter<Object, Object> converter =
                 DataStructureConverters.getConverter(outputType);

@@ -33,8 +33,8 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-
-import org.junit.runners.Parameterized
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 
 import java.util
 
@@ -51,7 +51,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
         new MemoryStateBackend().configure(conf, classLoader)
 
       case ROCKSDB_BACKEND =>
-        new RocksDBStateBackend("file://" + tempFolder.newFolder().getAbsoluteFile)
+        new RocksDBStateBackend("file://" + TempDirUtils.newFolder(tempFolder).getAbsoluteFile)
     }
   }
 
@@ -116,7 +116,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
 
 object HarnessTestBase {
 
-  @Parameterized.Parameters(name = "StateBackend={0}")
+  @Parameters(name = "StateBackend={0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
   }

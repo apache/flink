@@ -67,7 +67,7 @@ class MetricFetcherTest {
                         jobID,
                         tmRID,
                         timeout,
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue(),
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis(),
                         0,
                         null);
 
@@ -108,8 +108,8 @@ class MetricFetcherTest {
                     .isEqualTo("1");
             assertThat(
                             store.getTaskMetricStore(jobID.toString(), "taskid")
-                                    .getJobManagerOperatorMetricStores("opname")
-                                    .getMetric("abc.joc"))
+                                    .getJobManagerOperatorMetricStore()
+                                    .getMetric("opname.abc.joc"))
                     .isEqualTo("3");
         }
     }

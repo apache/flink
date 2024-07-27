@@ -60,10 +60,12 @@ class BatchPhysicalExchange(
     val exchangeMode =
       getBatchStreamExchangeMode(unwrapTableConfig(this), StreamExchangeMode.UNDEFINED)
 
-    val damBehavior = if (exchangeMode eq StreamExchangeMode.BATCH) {
-      InputProperty.DamBehavior.BLOCKING
-    } else {
-      InputProperty.DamBehavior.PIPELINED
+    val damBehavior = exchangeMode match {
+      case StreamExchangeMode.BATCH | StreamExchangeMode.HYBRID_FULL |
+          StreamExchangeMode.HYBRID_SELECTIVE =>
+        InputProperty.DamBehavior.BLOCKING
+      case _ =>
+        InputProperty.DamBehavior.PIPELINED
     }
 
     InputProperty.builder

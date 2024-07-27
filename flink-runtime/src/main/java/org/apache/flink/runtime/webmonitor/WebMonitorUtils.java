@@ -74,7 +74,7 @@ public final class WebMonitorUtils {
 
             if (logFilePath == null) {
                 LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-                logFilePath = config.getString(WebOptions.LOG_PATH);
+                logFilePath = config.get(WebOptions.LOG_PATH);
             }
 
             // not configured, cannot serve log files

@@ -23,6 +23,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -66,6 +68,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     @VisibleForTesting static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
 
+    private final TaskIOMetricGroup taskIOMetricGroup;
     private final KeyGroupRange localKeyGroupRange;
     private final KeyContext keyContext;
     private final PriorityQueueSetFactory priorityQueueSetFactory;
@@ -75,12 +78,13 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
     private InternalTimeServiceManagerImpl(
+            TaskIOMetricGroup taskIOMetricGroup,
             KeyGroupRange localKeyGroupRange,
             KeyContext keyContext,
             PriorityQueueSetFactory priorityQueueSetFactory,
             ProcessingTimeService processingTimeService,
             StreamTaskCancellationContext cancellationContext) {
-
+        this.taskIOMetricGroup = taskIOMetricGroup;
         this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
         this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
         this.keyContext = Preconditions.checkNotNull(keyContext);
@@ -96,6 +100,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
+            TaskIOMetricGroup taskIOMetricGroup,
             CheckpointableKeyedStateBackend<K> keyedStateBackend,
             ClassLoader userClassloader,
             KeyContext keyContext,
@@ -107,6 +112,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
+                        taskIOMetricGroup,
                         keyGroupRange,
                         keyContext,
                         keyedStateBackend,
@@ -160,6 +166,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
             timerService =
                     new InternalTimerServiceImpl<>(
+                            taskIOMetricGroup,
                             localKeyGroupRange,
                             keyContext,
                             processingTimeService,
@@ -167,6 +174,54 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
                                     PROCESSING_TIMER_PREFIX + name, timerSerializer),
                             createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
                             cancellationContext);
+
+            timerServices.put(name, timerService);
+        }
+        return timerService;
+    }
+
+    @Override
+    public <N> InternalTimerService<N> getAsyncInternalTimerService(
+            String name,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            Triggerable<K, N> triggerable,
+            AsyncExecutionController<K> asyncExecutionController) {
+        checkNotNull(keySerializer, "Timers can only be used on keyed operators.");
+
+        // the following casting is to overcome type restrictions.
+        TimerSerializer<K, N> timerSerializer =
+                new TimerSerializer<>(keySerializer, namespaceSerializer);
+
+        InternalTimerServiceAsyncImpl<K, N> timerService =
+                registerOrGetAsyncTimerService(name, timerSerializer, asyncExecutionController);
+
+        timerService.startTimerService(
+                timerSerializer.getKeySerializer(),
+                timerSerializer.getNamespaceSerializer(),
+                triggerable);
+
+        return timerService;
+    }
+
+    <N> InternalTimerServiceAsyncImpl<K, N> registerOrGetAsyncTimerService(
+            String name,
+            TimerSerializer<K, N> timerSerializer,
+            AsyncExecutionController<K> asyncExecutionController) {
+        InternalTimerServiceAsyncImpl<K, N> timerService =
+                (InternalTimerServiceAsyncImpl<K, N>) timerServices.get(name);
+        if (timerService == null) {
+            timerService =
+                    new InternalTimerServiceAsyncImpl<>(
+                            taskIOMetricGroup,
+                            localKeyGroupRange,
+                            keyContext,
+                            processingTimeService,
+                            createTimerPriorityQueue(
+                                    PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
+                            cancellationContext,
+                            asyncExecutionController);
 
             timerServices.put(name, timerService);
         }
@@ -188,6 +243,17 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
             service.advanceWatermark(watermark.getTimestamp());
         }
+    }
+
+    @Override
+    public boolean tryAdvanceWatermark(
+            Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) throws Exception {
+        for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
+            if (!service.tryAdvanceWatermark(watermark.getTimestamp(), shouldStopAdvancingFn)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     //////////////////				Fault Tolerance Methods				///////////////////

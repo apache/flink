@@ -51,9 +51,9 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     protected final Path taskOwnedStateDirectory;
 
-    private final int fileSizeThreshold;
+    protected final int fileSizeThreshold;
 
-    private final int writeBufferSize;
+    protected final int writeBufferSize;
 
     private boolean baseLocationsInitialized = false;
 
@@ -69,6 +69,26 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
                 checkpointBaseDirectory.getFileSystem(),
                 checkpointBaseDirectory,
                 defaultSavepointDirectory,
+                true,
+                jobId,
+                fileSizeThreshold,
+                writeBufferSize);
+    }
+
+    public FsCheckpointStorageAccess(
+            Path checkpointBaseDirectory,
+            @Nullable Path defaultSavepointDirectory,
+            boolean createCheckpointSubDirs,
+            JobID jobId,
+            int fileSizeThreshold,
+            int writeBufferSize)
+            throws IOException {
+
+        this(
+                checkpointBaseDirectory.getFileSystem(),
+                checkpointBaseDirectory,
+                defaultSavepointDirectory,
+                createCheckpointSubDirs,
                 jobId,
                 fileSizeThreshold,
                 writeBufferSize);
@@ -78,6 +98,7 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
             FileSystem fs,
             Path checkpointBaseDirectory,
             @Nullable Path defaultSavepointDirectory,
+            boolean createCheckpointSubDirs,
             JobID jobId,
             int fileSizeThreshold,
             int writeBufferSize)
@@ -89,7 +110,10 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
         checkArgument(writeBufferSize >= 0);
 
         this.fileSystem = checkNotNull(fs);
-        this.checkpointsDirectory = getCheckpointDirectoryForJob(checkpointBaseDirectory, jobId);
+        this.checkpointsDirectory =
+                createCheckpointSubDirs
+                        ? getCheckpointDirectoryForJob(checkpointBaseDirectory, jobId)
+                        : checkpointBaseDirectory;
         this.sharedStateDirectory = new Path(checkpointsDirectory, CHECKPOINT_SHARED_STATE_DIR);
         this.taskOwnedStateDirectory =
                 new Path(checkpointsDirectory, CHECKPOINT_TASK_OWNED_STATE_DIR);
@@ -208,8 +232,7 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
             FileMergingSnapshotManager mergingSnapshotManager, Environment environment)
             throws IOException {
         return new FsMergingCheckpointStorageAccess(
-                fileSystem,
-                checkpointsDirectory.getParent(),
+                checkpointsDirectory,
                 getDefaultSavepointDirectory(),
                 environment.getJobID(),
                 fileSizeThreshold,

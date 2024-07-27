@@ -108,8 +108,7 @@ public class JobManagerProcessUtils {
     public static String generateJvmParametersStr(
             JobManagerProcessSpec processSpec, Configuration configuration) {
         return ProcessMemoryUtils.generateJvmParametersStr(
-                processSpec,
-                configuration.getBoolean(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
+                processSpec, configuration.get(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
     }
 
     public static String generateDynamicConfigsStr(

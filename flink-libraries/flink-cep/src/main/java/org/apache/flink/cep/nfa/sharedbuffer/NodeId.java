@@ -167,9 +167,7 @@ public class NodeId {
 
             private static final int VERSION = 1;
 
-            public NodeIdSerializerSnapshot() {
-                super(NodeIdSerializer.class);
-            }
+            public NodeIdSerializerSnapshot() {}
 
             public NodeIdSerializerSnapshot(NodeIdSerializer nodeIdSerializer) {
                 super(nodeIdSerializer);

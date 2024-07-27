@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -348,7 +348,7 @@ abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
         private static RowDataSerializer getRowSerializer() {
             RawValueDataSerializer<WrappedString> rawValueSerializer =
                     new RawValueDataSerializer<>(
-                            new KryoSerializer<>(WrappedString.class, new ExecutionConfig()));
+                            new KryoSerializer<>(WrappedString.class, new SerializerConfigImpl()));
             return new RowDataSerializer(
                     new LogicalType[] {new RawType(RawValueData.class, rawValueSerializer)},
                     new TypeSerializer[] {rawValueSerializer});

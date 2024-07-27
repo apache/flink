@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -27,16 +28,15 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
-import org.apache.flink.streaming.runtime.io.checkpointing.AlignedCheckpointsTest;
-import org.apache.flink.streaming.runtime.io.checkpointing.AlignedCheckpointsTest.CheckpointExceptionMatcher;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -44,9 +44,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Test checkpoint cancellation barrier. */
-public class StreamTaskCancellationBarrierTest {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(10);
+@Timeout(value = 10, unit = TimeUnit.SECONDS)
+class StreamTaskCancellationBarrierTest {
 
     /**
      * This test verifies (for onw input tasks) that the Stream tasks react the following way to
@@ -54,7 +53,7 @@ public class StreamTaskCancellationBarrierTest {
      * (to the JobManager) - emit a cancellation barrier downstream.
      */
     @Test
-    public void testDeclineCallOnCancelBarrierOneInput() throws Exception {
+    void testDeclineCallOnCancelBarrierOneInput() throws Exception {
 
         OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -92,10 +91,11 @@ public class StreamTaskCancellationBarrierTest {
 
         // a cancellation barrier should be downstream
         Object result = testHarness.getOutput().poll();
-        assertNotNull("nothing emitted", result);
-        assertTrue("wrong type emitted", result instanceof CancelCheckpointMarker);
-        assertEquals(
-                "wrong checkpoint id", 2L, ((CancelCheckpointMarker) result).getCheckpointId());
+        assertThat(result).as("nothing emitted").isNotNull();
+        assertThat(result).as("wrong type emitted").isInstanceOf(CancelCheckpointMarker.class);
+        assertThat(((CancelCheckpointMarker) result).getCheckpointId())
+                .as("wrong checkpoint id")
+                .isEqualTo(2L);
 
         // cancel and shutdown
         testHarness.endInput();
@@ -108,7 +108,7 @@ public class StreamTaskCancellationBarrierTest {
      * (to the JobManager) - emit a cancellation barrier downstream.
      */
     @Test
-    public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
+    void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
 
         TwoInputStreamTaskTestHarness<String, String, String> testHarness =
                 new TwoInputStreamTaskTestHarness<>(
@@ -139,16 +139,17 @@ public class StreamTaskCancellationBarrierTest {
                 .declineCheckpoint(
                         eq(2L),
                         argThat(
-                                new AlignedCheckpointsTest.CheckpointExceptionMatcher(
+                                new CheckpointExceptionMatcher(
                                         CheckpointFailureReason
                                                 .CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
         // a cancellation barrier should be downstream
         Object result = testHarness.getOutput().poll();
-        assertNotNull("nothing emitted", result);
-        assertTrue("wrong type emitted", result instanceof CancelCheckpointMarker);
-        assertEquals(
-                "wrong checkpoint id", 2L, ((CancelCheckpointMarker) result).getCheckpointId());
+        assertThat(result).as("nothing emitted").isNotNull();
+        assertThat(result).as("wrong type emitted").isInstanceOf(CancelCheckpointMarker.class);
+        assertThat(((CancelCheckpointMarker) result).getCheckpointId())
+                .as("wrong checkpoint id")
+                .isEqualTo(2L);
 
         // cancel and shutdown
         testHarness.endInput();
@@ -175,6 +176,28 @@ public class StreamTaskCancellationBarrierTest {
         @Override
         public String map2(String value) throws Exception {
             return value;
+        }
+    }
+
+    /** A validation matcher for checkpoint exception against failure reason. */
+    private static class CheckpointExceptionMatcher extends BaseMatcher<CheckpointException> {
+
+        private final CheckpointFailureReason failureReason;
+
+        private CheckpointExceptionMatcher(CheckpointFailureReason failureReason) {
+            this.failureReason = failureReason;
+        }
+
+        @Override
+        public boolean matches(Object o) {
+            return o != null
+                    && o.getClass() == CheckpointException.class
+                    && ((CheckpointException) o).getCheckpointFailureReason().equals(failureReason);
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description.appendText("CheckpointException - reason = " + failureReason);
         }
     }
 }

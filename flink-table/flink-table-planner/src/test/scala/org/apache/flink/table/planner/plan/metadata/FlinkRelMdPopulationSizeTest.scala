@@ -21,8 +21,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRan
 
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
 

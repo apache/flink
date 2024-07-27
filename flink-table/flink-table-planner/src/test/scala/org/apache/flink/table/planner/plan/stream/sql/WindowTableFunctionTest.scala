@@ -17,11 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.core.testutils.FlinkMatchers.containsCause
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
+
+import java.time.Duration
 
 /** Tests for window table-valued function. */
 class WindowTableFunctionTest extends TableTestBase {
@@ -118,12 +121,10 @@ class WindowTableFunctionTest extends TableTestBase {
         |FROM TABLE(
         | TUMBLE(TABLE v1, DESCRIPTOR(cur_time), INTERVAL '15' MINUTE))
         |""".stripMargin
-    thrown.expectCause(
-      containsCause(
-        new ValidationException(
-          "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3).")
-      ))
-    util.verifyRelPlan(sql)
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasCause(new ValidationException(
+        "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3)."))
   }
 
   @Test
@@ -140,9 +141,9 @@ class WindowTableFunctionTest extends TableTestBase {
         | TUMBLE(TABLE v1, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
         |""".stripMargin
 
-    thrown.expectMessage("Column 'window_start' is ambiguous")
-    thrown.expect(classOf[ValidationException])
-    util.verifyRelPlan(sql)
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasMessageContaining("Column 'window_start' is ambiguous")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -163,6 +164,20 @@ class WindowTableFunctionTest extends TableTestBase {
         |SELECT *
         |FROM TABLE(TUMBLE(
         |   TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE, INTERVAL '-5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTumbleTVFWithNamedParams(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(
+        |   DATA => TABLE MyTable,
+        |   TIMECOL => DESCRIPTOR(rowtime),
+        |   SIZE => INTERVAL '15' MINUTE,
+        |   `OFFSET` => INTERVAL '5' MINUTE))
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
@@ -200,6 +215,20 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
+  def testHopTVFWithNamedParams(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(
+        |   DATA => TABLE MyTable,
+        |   TIMECOL => DESCRIPTOR(rowtime),
+        |   SIZE => INTERVAL '15' MINUTE,
+        |   `OFFSET` => INTERVAL '5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testCumulateTVFWithOffset(): Unit = {
     val sql =
       """
@@ -230,4 +259,104 @@ class WindowTableFunctionTest extends TableTestBase {
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
+
+  @Test
+  def testSessionTVF(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSessionTVFProctime(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSessionTVFWithPartitionKeys(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(SESSION(TABLE MyTable PARTITION BY (b, a), DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSessionTVFWithNamedParams(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |     SESSION(
+        |         DATA => TABLE MyTable PARTITION BY (b, a),
+        |         TIMECOL => DESCRIPTOR(rowtime),
+        |         GAP => INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testWindowTVFWithNamedParamsOrderChange(): Unit = {
+    // the DATA param must be the first in FLIP-145
+    // change the order about GAP and TIMECOL
+    // TODO fix it in FLINK-34338
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |     SESSION(
+        |         DATA => TABLE MyTable PARTITION BY (b, a),
+        |         GAP => INTERVAL '15' MINUTE,
+        |         TIMECOL => DESCRIPTOR(rowtime)))
+        |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasMessage("fieldList must not be null, type = INTERVAL MINUTE")
+      .isInstanceOf[AssertionError]
+
+  }
+
+  @Test
+  def testProctimeWindowTVFWithMiniBatch(): Unit = {
+    enableMiniBatch()
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testRowtimeWindowTVFWithMiniBatch(): Unit = {
+    enableMiniBatch()
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  private def enableMiniBatch(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
+      java.lang.Boolean.TRUE)
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE,
+      java.lang.Long.valueOf(5L))
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
+      Duration.ofSeconds(5L))
+  }
+
 }

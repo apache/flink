@@ -21,13 +21,19 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableCollection;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
+import java.util.Objects;
 
 /** Container class for job information which is stored in the {@link ExecutionGraph}. */
 public class JobInformation implements Serializable {
@@ -37,6 +43,9 @@ public class JobInformation implements Serializable {
     /** Id of the job. */
     private final JobID jobId;
 
+    /** Type of the job. */
+    private final JobType jobType;
+
     /** Job name. */
     private final String jobName;
 
@@ -44,27 +53,32 @@ public class JobInformation implements Serializable {
     private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
     /** Configuration of the job. */
-    private final Configuration jobConfiguration;
+    private final UnmodifiableConfiguration jobConfiguration;
 
     /** Blob keys for the required jar files. */
-    private final Collection<PermanentBlobKey> requiredJarFileBlobKeys;
+    private final ImmutableCollection<PermanentBlobKey> requiredJarFileBlobKeys;
 
     /** URLs specifying the classpath to add to the class loader. */
-    private final Collection<URL> requiredClasspathURLs;
+    private final ImmutableCollection<URL> requiredClasspathURLs;
 
     public JobInformation(
             JobID jobId,
+            JobType jobType,
             String jobName,
             SerializedValue<ExecutionConfig> serializedExecutionConfig,
             Configuration jobConfiguration,
             Collection<PermanentBlobKey> requiredJarFileBlobKeys,
             Collection<URL> requiredClasspathURLs) {
         this.jobId = Preconditions.checkNotNull(jobId);
+        this.jobType = Preconditions.checkNotNull(jobType);
         this.jobName = Preconditions.checkNotNull(jobName);
         this.serializedExecutionConfig = Preconditions.checkNotNull(serializedExecutionConfig);
-        this.jobConfiguration = Preconditions.checkNotNull(jobConfiguration);
-        this.requiredJarFileBlobKeys = Preconditions.checkNotNull(requiredJarFileBlobKeys);
-        this.requiredClasspathURLs = Preconditions.checkNotNull(requiredClasspathURLs);
+        this.jobConfiguration =
+                new UnmodifiableConfiguration(Preconditions.checkNotNull(jobConfiguration));
+        this.requiredJarFileBlobKeys =
+                ImmutableList.copyOf(Preconditions.checkNotNull(requiredJarFileBlobKeys));
+        this.requiredClasspathURLs =
+                ImmutableList.copyOf(Preconditions.checkNotNull(requiredClasspathURLs));
     }
 
     public JobID getJobId() {
@@ -75,20 +89,57 @@ public class JobInformation implements Serializable {
         return jobName;
     }
 
+    public JobType getJobType() {
+        return jobType;
+    }
+
     public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
         return serializedExecutionConfig;
     }
 
-    public Configuration getJobConfiguration() {
+    public UnmodifiableConfiguration getJobConfiguration() {
         return jobConfiguration;
     }
 
-    public Collection<PermanentBlobKey> getRequiredJarFileBlobKeys() {
+    public ImmutableCollection<PermanentBlobKey> getRequiredJarFileBlobKeys() {
         return requiredJarFileBlobKeys;
     }
 
-    public Collection<URL> getRequiredClasspathURLs() {
+    public ImmutableCollection<URL> getRequiredClasspathURLs() {
         return requiredClasspathURLs;
+    }
+
+    // All fields are immutable, so return this directly.
+    public JobInformation deepCopy() {
+        return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JobInformation that = (JobInformation) o;
+        return Objects.equals(jobId, that.jobId)
+                && Objects.equals(jobName, that.jobName)
+                && Objects.equals(serializedExecutionConfig, that.serializedExecutionConfig)
+                && Objects.equals(jobConfiguration, that.jobConfiguration)
+                && Objects.equals(requiredJarFileBlobKeys, that.requiredJarFileBlobKeys)
+                && Objects.equals(requiredClasspathURLs, that.requiredClasspathURLs);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                jobId,
+                jobName,
+                serializedExecutionConfig,
+                jobConfiguration,
+                requiredJarFileBlobKeys,
+                requiredClasspathURLs);
     }
 
     // ------------------------------------------------------------------------

@@ -239,7 +239,8 @@ public class WindowReader<W extends Window> {
                         metadata.getOperatorState(uid),
                         stateBackend,
                         env.getConfiguration(),
-                        operator);
+                        operator,
+                        env.getConfig());
 
         return env.createInput(format, outputType);
     }

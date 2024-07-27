@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -55,6 +57,12 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int partitionRequestMaxBackoff;
 
+    private int partitionRequestTimeout =
+            (int)
+                    NettyShuffleEnvironmentOptions.NETWORK_PARTITION_REQUEST_TIMEOUT
+                            .defaultValue()
+                            .toMillis();
+
     private int networkBuffersPerChannel = 2;
 
     private int floatingNetworkBuffersPerGate = 8;
@@ -75,7 +83,7 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int maxOverdraftBuffersPerGate = 0;
 
-    private String compressionCodec = "LZ4";
+    private CompressionCodec compressionCodec = CompressionCodec.LZ4;
 
     private ResourceID taskManagerLocation = ResourceID.generate();
 
@@ -122,6 +130,11 @@ public class NettyShuffleEnvironmentBuilder {
     public NettyShuffleEnvironmentBuilder setPartitionRequestMaxBackoff(
             int partitionRequestMaxBackoff) {
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder setPartitionRequestTimeout(int partitionRequestTimeout) {
+        this.partitionRequestTimeout = partitionRequestTimeout;
         return this;
     }
 
@@ -183,7 +196,7 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
-    public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
+    public NettyShuffleEnvironmentBuilder setCompressionCodec(CompressionCodec compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
     }
@@ -246,6 +259,7 @@ public class NettyShuffleEnvironmentBuilder {
                         bufferSize,
                         partitionRequestInitialBackoff,
                         partitionRequestMaxBackoff,
+                        partitionRequestTimeout,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         maxRequiredBuffersPerGate,

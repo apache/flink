@@ -297,7 +297,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- Join(joinType=[InnerJoin], where=[(a0 = a1)], select=[a, b, a0, a1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[(a0 = a1)], select=[a, b, a0, a1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], miniBatch=[true])
    :- Exchange(distribution=[hash[a0]])
    :  +- Calc(select=[a, b, CAST(a AS BIGINT) AS a0])
    :     +- GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count$0) AS b])

@@ -49,7 +49,8 @@ public class TaskExecutorResourceUtils {
                     TaskManagerOptions.NETWORK_MEMORY_MAX,
                     TaskManagerOptions.MANAGED_MEMORY_SIZE);
 
-    private static final List<ConfigOption<?>> UNUSED_CONFIG_OPTIONS =
+    @VisibleForTesting
+    static final List<ConfigOption<?>> UNUSED_CONFIG_OPTIONS =
             Arrays.asList(
                     TaskManagerOptions.TOTAL_PROCESS_MEMORY,
                     TaskManagerOptions.TOTAL_FLINK_MEMORY,
@@ -76,7 +77,7 @@ public class TaskExecutorResourceUtils {
             throw new IllegalConfigurationException("Failed to create TaskExecutorResourceSpec", e);
         }
         return new TaskExecutorResourceSpec(
-                new CPUResource(config.getDouble(TaskManagerOptions.CPU_CORES)),
+                new CPUResource(config.get(TaskManagerOptions.CPU_CORES)),
                 config.get(TaskManagerOptions.TASK_HEAP_MEMORY),
                 config.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY),
                 config.get(TaskManagerOptions.NETWORK_MEMORY_MIN),
@@ -189,7 +190,8 @@ public class TaskExecutorResourceUtils {
     }
 
     public static Configuration adjustForLocalExecution(Configuration config) {
-        UNUSED_CONFIG_OPTIONS.forEach(option -> warnOptionHasNoEffectIfSet(config, option));
+        UNUSED_CONFIG_OPTIONS.forEach(
+                option -> warnAndRemoveOptionHasNoEffectIfSet(config, option));
 
         setConfigOptionToPassedMaxIfNotSet(
                 config, TaskManagerOptions.CPU_CORES, LOCAL_EXECUTION_CPU_CORES);
@@ -201,24 +203,20 @@ public class TaskExecutorResourceUtils {
         adjustNetworkMemoryForLocalExecution(config);
         setConfigOptionToDefaultIfNotSet(
                 config, TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
-        silentlySetConfigOptionIfNotSet(
-                config,
+
+        // Set valid default values for unused config options which should have been removed.
+        config.set(
                 TaskManagerOptions.FRAMEWORK_HEAP_MEMORY,
                 TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.defaultValue());
-        silentlySetConfigOptionIfNotSet(
-                config,
+        config.set(
                 TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY,
                 TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.defaultValue());
-        silentlySetConfigOptionIfNotSet(
-                config,
-                TaskManagerOptions.JVM_METASPACE,
-                TaskManagerOptions.JVM_METASPACE.defaultValue());
-        silentlySetConfigOptionIfNotSet(
-                config,
+        config.set(
+                TaskManagerOptions.JVM_METASPACE, TaskManagerOptions.JVM_METASPACE.defaultValue());
+        config.set(
                 TaskManagerOptions.JVM_OVERHEAD_MAX,
                 TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
-        silentlySetConfigOptionIfNotSet(
-                config,
+        config.set(
                 TaskManagerOptions.JVM_OVERHEAD_MIN,
                 TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
 
@@ -244,20 +242,15 @@ public class TaskExecutorResourceUtils {
                 config, TaskManagerOptions.NETWORK_MEMORY_MAX, DEFAULT_SHUFFLE_MEMORY_SIZE);
     }
 
-    private static void warnOptionHasNoEffectIfSet(Configuration config, ConfigOption<?> option) {
+    private static void warnAndRemoveOptionHasNoEffectIfSet(
+            Configuration config, ConfigOption<?> option) {
         if (config.contains(option)) {
             LOG.warn(
                     "The resource configuration option {} is set but it will have no effect for local execution, "
                             + "only the following options matter for the resource configuration: {}",
                     option,
-                    UNUSED_CONFIG_OPTIONS);
-        }
-    }
-
-    private static <T> void silentlySetConfigOptionIfNotSet(
-            Configuration config, ConfigOption<T> option, T value) {
-        if (!config.contains(option)) {
-            config.set(option, value);
+                    CONFIG_OPTIONS);
+            config.removeConfig(option);
         }
     }
 

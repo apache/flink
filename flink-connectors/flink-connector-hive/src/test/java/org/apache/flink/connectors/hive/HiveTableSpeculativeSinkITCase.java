@@ -52,7 +52,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,8 +89,7 @@ class HiveTableSpeculativeSinkITCase {
     }
 
     @Test
-    void testBatchWritingWithoutCompactionWithSpeculativeSink()
-            throws ExecutionException, InterruptedException {
+    void testBatchWritingWithoutCompactionWithSpeculativeSink() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configure(new Configuration()));
         StreamTableEnvironment tEnv =
@@ -101,79 +99,95 @@ class HiveTableSpeculativeSinkITCase {
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
-        tEnv.executeSql("create database db1");
-        tEnv.useDatabase("db1");
+        TableEnvExecutorUtil.executeInSeparateDatabase(
+                tEnv,
+                true,
+                () -> {
+                    tEnv.executeSql(
+                            "create table append_table("
+                                    + "i int, "
+                                    + "j int) TBLPROPERTIES ("
+                                    + "'sink.parallelism' ='"
+                                    + PARALLELISM
+                                    + "')"
+                                    + "");
+                    DataStream<Row> slowStream =
+                            tEnv.toChangelogStream(tEnv.sqlQuery("select 0, 0"));
+                    slowStream =
+                            slowStream
+                                    .map(
+                                            new RichMapFunction<Row, Row>() {
+                                                @Override
+                                                public Row map(Row value) throws Exception {
+                                                    if (getRuntimeContext()
+                                                                    .getTaskInfo()
+                                                                    .getAttemptNumber()
+                                                            <= 0) {
+                                                        Thread.sleep(Integer.MAX_VALUE);
+                                                    }
+                                                    assert getRuntimeContext()
+                                                                    .getTaskInfo()
+                                                                    .getAttemptNumber()
+                                                            > 0;
+                                                    value.setField(
+                                                            1,
+                                                            getRuntimeContext()
+                                                                    .getTaskInfo()
+                                                                    .getAttemptNumber());
+                                                    return value;
+                                                }
+                                            })
+                                    .name("slowMap")
+                                    .returns(
+                                            Types.ROW_NAMED(
+                                                    new String[] {"i", "j"}, Types.INT, Types.INT))
+                                    .setParallelism(PARALLELISM);
 
-        tEnv.executeSql(
-                "create table append_table("
-                        + "i int, "
-                        + "j int) TBLPROPERTIES ("
-                        + "'sink.parallelism' ='"
-                        + PARALLELISM
-                        + "')"
-                        + "");
-        DataStream<Row> slowStream = tEnv.toChangelogStream(tEnv.sqlQuery("select 0, 0"));
-        slowStream =
-                slowStream
-                        .map(
-                                new RichMapFunction<Row, Row>() {
-                                    @Override
-                                    public Row map(Row value) throws Exception {
-                                        if (getRuntimeContext().getAttemptNumber() <= 0) {
-                                            Thread.sleep(Integer.MAX_VALUE);
-                                        }
-                                        assert getRuntimeContext().getAttemptNumber() > 0;
-                                        value.setField(1, getRuntimeContext().getAttemptNumber());
-                                        return value;
-                                    }
-                                })
-                        .name("slowMap")
-                        .returns(Types.ROW_NAMED(new String[] {"i", "j"}, Types.INT, Types.INT))
-                        .setParallelism(PARALLELISM);
+                    Table t =
+                            tEnv.fromChangelogStream(
+                                    slowStream,
+                                    Schema.newBuilder()
+                                            .column("i", DataTypes.INT())
+                                            .column("j", DataTypes.INT())
+                                            .build(),
+                                    ChangelogMode.insertOnly());
 
-        Table t =
-                tEnv.fromChangelogStream(
-                        slowStream,
-                        Schema.newBuilder()
-                                .column("i", DataTypes.INT())
-                                .column("j", DataTypes.INT())
-                                .build(),
-                        ChangelogMode.insertOnly());
+                    tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+                    tEnv.createTemporaryView("mappedTable", t);
+                    String insertQuery = "insert into append_table select * from mappedTable";
 
-        tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
-        tEnv.createTemporaryView("mappedTable", t);
-        String insertQuery = "insert into append_table select * from mappedTable";
+                    // assert that the SlowMap operator is chained with the hive table sink, which
+                    // will lead
+                    // to a slow sink as well.
+                    StreamTableEnvironmentImpl tEnvImpl = (StreamTableEnvironmentImpl) tEnv;
+                    JobGraph jobGraph =
+                            tEnvImpl.execEnv()
+                                    .generateStreamGraph(
+                                            tEnvImpl.getPlanner()
+                                                    .translate(
+                                                            Collections.singletonList(
+                                                                    (ModifyOperation)
+                                                                            tEnvImpl.getParser()
+                                                                                    .parse(
+                                                                                            insertQuery)
+                                                                                    .get(0))))
+                                    .getJobGraph();
 
-        // assert that the SlowMap operator is chained with the hive table sink, which will lead
-        // to a slow sink as well.
-        StreamTableEnvironmentImpl tEnvImpl = (StreamTableEnvironmentImpl) tEnv;
-        JobGraph jobGraph =
-                tEnvImpl.execEnv()
-                        .generateStreamGraph(
-                                tEnvImpl.getPlanner()
-                                        .translate(
-                                                Collections.singletonList(
-                                                        (ModifyOperation)
-                                                                tEnvImpl.getParser()
-                                                                        .parse(insertQuery)
-                                                                        .get(0))))
-                        .getJobGraph();
+                    for (JobVertex jobVertex : jobGraph.getVertices()) {
+                        if (jobVertex.getName().contains("slowMap")) {
+                            assertThat(jobVertex.getName().contains("Sink")).isTrue();
+                        }
+                    }
+                    tEnv.executeSql(insertQuery).await();
 
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            if (jobVertex.getName().contains("slowMap")) {
-                assertThat(jobVertex.getName().contains("Sink")).isTrue();
-            }
-        }
-        tEnv.executeSql(insertQuery).await();
+                    List<Row> rows =
+                            CollectionUtil.iteratorToList(
+                                    tEnv.executeSql("select * from append_table").collect());
+                    rows.sort(Comparator.comparingInt(o -> (int) o.getField(0)));
 
-        List<Row> rows =
-                CollectionUtil.iteratorToList(
-                        tEnv.executeSql("select * from append_table").collect());
-        rows.sort(Comparator.comparingInt(o -> (int) o.getField(0)));
-
-        // Finally we will get the output value with attemptNumber larger than 0
-        assertThat(rows).isEqualTo(Collections.singletonList(Row.of(0, 1)));
-        tEnv.executeSql("drop database db1 cascade");
+                    // Finally we will get the output value with attemptNumber larger than 0
+                    assertThat(rows).isEqualTo(Collections.singletonList(Row.of(0, 1)));
+                });
     }
 
     private static Configuration configure(Configuration configuration) {

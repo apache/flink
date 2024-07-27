@@ -22,10 +22,10 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -56,27 +56,27 @@ class SinkV1AdapterTest {
     private static List<Arguments> provideSinkCombinations() {
         return Arrays.asList(
                 Arguments.of(new DefaultSinkV1(), Collections.singletonList(Sink.class)),
-                Arguments.of(new StateFulSinkV1(), Arrays.asList(Sink.class, StatefulSink.class)),
                 Arguments.of(
-                        new CommittingSinkV1(),
-                        Arrays.asList(Sink.class, TwoPhaseCommittingSink.class)),
+                        new StateFulSinkV1(), Arrays.asList(Sink.class, SupportsWriterState.class)),
+                Arguments.of(
+                        new CommittingSinkV1(), Arrays.asList(Sink.class, SupportsCommitter.class)),
                 Arguments.of(
                         new StatefulCommittingSinkV1(),
                         Arrays.asList(
-                                Sink.class, StatefulSink.class, TwoPhaseCommittingSink.class)),
+                                Sink.class, SupportsWriterState.class, SupportsCommitter.class)),
                 Arguments.of(
                         new GlobalCommittingSinkV1(),
                         Arrays.asList(
                                 Sink.class,
-                                TwoPhaseCommittingSink.class,
-                                WithPostCommitTopology.class)),
+                                SupportsCommitter.class,
+                                SupportsPostCommitTopology.class)),
                 Arguments.of(
                         new StatefulGlobalCommittingSinkV1(),
                         Arrays.asList(
                                 Sink.class,
-                                StatefulSink.class,
-                                TwoPhaseCommittingSink.class,
-                                WithPostCommitTopology.class)));
+                                SupportsWriterState.class,
+                                SupportsCommitter.class,
+                                SupportsPostCommitTopology.class)));
     }
 
     private static class DefaultSinkV1

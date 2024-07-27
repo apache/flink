@@ -381,7 +381,7 @@ class StreamingFileWriterTest {
 
     private Configuration getPartitionCommitTriggerConf(long commitDelay) {
         Configuration configuration = new Configuration();
-        configuration.setString(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
+        configuration.set(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
         configuration.setString(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER.key(), "yyyy-MM-dd");
         configuration.setString(SINK_PARTITION_COMMIT_TRIGGER.key(), "partition-time");
         configuration.setLong(SINK_PARTITION_COMMIT_DELAY.key(), commitDelay);
@@ -391,7 +391,7 @@ class StreamingFileWriterTest {
 
     private Configuration getProcTimeCommitTriggerConf(long commitDelay) {
         Configuration configuration = new Configuration();
-        configuration.setString(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
+        configuration.set(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
         configuration.setString(SINK_PARTITION_COMMIT_TRIGGER.key(), "process-time");
         configuration.setLong(SINK_PARTITION_COMMIT_DELAY.key(), commitDelay);
         configuration.setString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC");

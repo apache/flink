@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.TimestampData
@@ -26,7 +27,7 @@ import org.apache.flink.table.planner.plan.stream.sql.RelTimeIndicatorConverterT
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.BigIntType
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -83,7 +84,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
 
   @Test
   def testTableFunction(): Unit = {
-    util.addFunction("tableFunc", new TableFunc)
+    util.addTemporarySystemFunction("tableFunc", new TableFunc)
     val sqlQuery =
       """
         |SELECT rowtime, proctime, s
@@ -200,6 +201,14 @@ object RelTimeIndicatorConverterTest {
   class TableFunc extends TableFunction[String] {
     val t = new Timestamp(0L)
 
+    @FunctionHint(
+      input = Array(
+        new DataTypeHint(
+          value = "TIMESTAMP(3)",
+          bridgedTo = classOf[org.apache.flink.table.data.TimestampData]),
+        new DataTypeHint(value = "TIMESTAMP_LTZ(3)", bridgedTo = classOf[java.sql.Timestamp]),
+        new DataTypeHint("STRING")
+      ))
     def eval(time1: TimestampData, time2: Timestamp, string: String): Unit = {
       collect(time1.toString + time2.after(t) + string)
     }

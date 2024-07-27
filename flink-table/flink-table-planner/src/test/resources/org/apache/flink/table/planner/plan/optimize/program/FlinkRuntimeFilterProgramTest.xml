@@ -461,7 +461,7 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
 :     :           +- Calc(select=[dim_date_sk, amount])
 :     :              +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price, dim_date_sk], metadata=[]]], fields=[amount, price, dim_date_sk])
 :     +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
-+- HashJoin(joinType=[InnerJoin], where=[=(dim_date_sk, dim_date_sk0)], select=[dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])
++- HashJoin(joinType=[InnerJoin], where=[=(dim_date_sk, dim_date_sk0)], select=[dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[left])
    :- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(price) AS EXPR$1])
    :  +- Exchange(distribution=[hash[dim_date_sk]])
    :     +- Calc(select=[dim_date_sk, price])
@@ -474,7 +474,7 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
 		</Resource>
 		<Resource name="optimized exec plan">
 			<![CDATA[
-MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, name, amount, price, fact_date_sk, dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])\n:- [#1] Exchange(distribution=[hash[fact_date_sk]])\n+- HashJoin(joinType=[InnerJoin], where=[(dim_date_sk = dim_date_sk0)], select=[dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])\n   :- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(price) AS EXPR$1])\n   :  +- [#2] Exchange(distribution=[hash[dim_date_sk]])\n   +- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(amount) AS EXPR$1])\n      +- [#3] Exchange(distribution=[hash[dim_date_sk]])\n])
+MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, name, amount, price, fact_date_sk, dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])\n:- [#1] Exchange(distribution=[hash[fact_date_sk]])\n+- HashJoin(joinType=[InnerJoin], where=[(dim_date_sk = dim_date_sk0)], select=[dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[left])\n   :- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(price) AS EXPR$1])\n   :  +- [#2] Exchange(distribution=[hash[dim_date_sk]])\n   +- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(amount) AS EXPR$1])\n      +- [#3] Exchange(distribution=[hash[dim_date_sk]])\n])
 :- Exchange(distribution=[hash[fact_date_sk]])
 :  +- MultipleInput(readOrder=[0,1], members=[\nRuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.9998779296875])\n:- [#1] Exchange(distribution=[broadcast])\n+- [#2] TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])\n])
 :     :- Exchange(distribution=[broadcast])
@@ -1146,8 +1146,8 @@ HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id,
 :  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[(price < 500)])(reuse_id=[1])
 :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 +- Exchange(distribution=[hash[fact_date_sk]])
-   +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])\n])
-      :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[broadcast], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])\n])
+      :- Exchange(distribution=[broadcast], shuffle_mode=[BATCH])
       :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
       :     +- Reused(reference_id=[1])
       +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])

@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -26,23 +27,24 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Assume, Rule, Test}
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, mode) {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   lazy val rowtimeTestData = new mutable.MutableList[(Int, Long, String)]
   rowtimeTestData.+=((1, 1L, "Hi"))
@@ -54,7 +56,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   rowtimeTestData.+=((3, 4L, "Comment#2"))
   rowtimeTestData.+=((4, 4L, "Comment#3"))
 
-  @Test
+  @TestTemplate
   def testFirstRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -82,10 +84,10 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "7,4,Comment#1",
       "11,5,Comment#5",
       "16,6,Comment#10")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testFirstRowOnBuiltinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
@@ -112,10 +114,10 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "7,4,Comment#1",
       "11,5,Comment#5",
       "16,6,Comment#10")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLastRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -143,10 +145,10 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "10,4,Comment#4",
       "15,5,Comment#9",
       "21,6,Comment#15")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLastRowOnBuiltinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
@@ -173,10 +175,10 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "10,4,Comment#4",
       "15,5,Comment#9",
       "21,6,Comment#15")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testFirstRowOnRowtime(): Unit = {
     val t = env
       .fromCollection(rowtimeTestData)
@@ -198,7 +200,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -208,12 +210,12 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+U(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
     )
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testFirstRowWithoutAllChangelogOnRowtime(): Unit = {
-    Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
+    assumeThat(miniBatch == MiniBatchOn).isTrue
     tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
       Boolean.box(true))
@@ -237,7 +239,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -245,10 +247,10 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
     )
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testFirstRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
     val t = env
       .fromCollection(rowtimeTestData)
@@ -279,12 +281,12 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getResultsAsStrings("rowtime_sink")
     val expected = List("6")
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLastRowOnRowtime(): Unit = {
     val t = env
       .fromCollection(rowtimeTestData)
@@ -306,7 +308,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -320,12 +322,12 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "-U(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "+U(4,4,Comment#3,1970-01-01T00:00:00.004)"
     )
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLastRowWithoutAllChangelogOnRowtime(): Unit = {
-    Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
+    assumeThat(miniBatch == MiniBatchOn).isTrue
     tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
       Boolean.box(true))
@@ -349,7 +351,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -359,10 +361,10 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
       "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
     )
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLastRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
     val t = env
       .fromCollection(rowtimeTestData)
@@ -393,9 +395,9 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getResultsAsStrings("rowtime_sink")
     val expected = List("6")
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
   def createSinkTable(tableName: String): Unit = {

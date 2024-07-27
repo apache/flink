@@ -75,7 +75,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -92,7 +92,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Random test for sort code generator. */
-public class SortCodeGeneratorTest {
+class SortCodeGeneratorTest {
 
     private static final int RECORD_NUM = 3000;
 
@@ -137,7 +137,7 @@ public class SortCodeGeneratorTest {
                             new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 
     @Test
-    public void testMultiKeys() throws Exception {
+    void testMultiKeys() throws Exception {
         for (int i = 0; i < 100; i++) {
             randomKeysAndOrders();
             testInner();
@@ -145,7 +145,7 @@ public class SortCodeGeneratorTest {
     }
 
     @Test
-    public void testOneKey() throws Exception {
+    void testOneKey() throws Exception {
         for (int time = 0; time < 100; time++) {
             Random rnd = new Random();
             LogicalType[] fields = new LogicalType[rnd.nextInt(9) + 1];

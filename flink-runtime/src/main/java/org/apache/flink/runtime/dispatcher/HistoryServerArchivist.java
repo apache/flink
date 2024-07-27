@@ -41,7 +41,7 @@ public interface HistoryServerArchivist {
 
     static HistoryServerArchivist createHistoryServerArchivist(
             Configuration configuration, JsonArchivist jsonArchivist, Executor ioExecutor) {
-        final String configuredArchivePath = configuration.getString(JobManagerOptions.ARCHIVE_DIR);
+        final String configuredArchivePath = configuration.get(JobManagerOptions.ARCHIVE_DIR);
 
         if (configuredArchivePath != null) {
             final Path archivePath = new Path(configuredArchivePath);

@@ -58,10 +58,10 @@ public class KubernetesTaskManagerFactory {
                                 new CmdTaskManagerDecorator(kubernetesTaskManagerParameters)));
 
         Configuration configuration = kubernetesTaskManagerParameters.getFlinkConfiguration();
-        if (configuration.getBoolean(KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED)) {
+        if (configuration.get(KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED)) {
             stepDecorators.add(new HadoopConfMountDecorator(kubernetesTaskManagerParameters));
         }
-        if (configuration.getBoolean(KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED)) {
+        if (configuration.get(KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED)) {
             stepDecorators.add(new KerberosMountDecorator(kubernetesTaskManagerParameters));
         }
 

@@ -24,17 +24,16 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /** Tests {@link CoProcessOperator}. */
-public class CoProcessOperatorTest extends TestLogger {
+class CoProcessOperatorTest {
 
     @Test
-    public void testTimestampAndWatermarkQuerying() throws Exception {
+    void testTimestampAndWatermarkQuerying() throws Exception {
 
         CoProcessOperator<Integer, String, String> operator =
                 new CoProcessOperator<>(new WatermarkQueryingProcessFunction());
@@ -67,7 +66,7 @@ public class CoProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
+    void testTimestampAndProcessingTimeQuerying() throws Exception {
 
         CoProcessOperator<Integer, String, String> operator =
                 new CoProcessOperator<>(new ProcessingTimeQueryingProcessFunction());

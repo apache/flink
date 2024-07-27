@@ -24,6 +24,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -34,7 +35,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResources;
@@ -184,9 +185,9 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     protected SnapshotDirectory prepareLocalSnapshotDirectory(long checkpointId)
             throws IOException {
 
-        if (localRecoveryConfig.isLocalRecoveryEnabled()) {
+        if (localRecoveryConfig.isLocalBackupEnabled()) {
             // create a "permanent" snapshot directory for local recovery.
-            LocalRecoveryDirectoryProvider directoryProvider =
+            LocalSnapshotDirectoryProvider directoryProvider =
                     localRecoveryConfig
                             .getLocalStateDirectoryProvider()
                             .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled());
@@ -260,7 +261,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
             throws Exception {
 
         CheckpointStreamWithResultProvider streamWithResultProvider =
-                localRecoveryConfig.isLocalRecoveryEnabled()
+                localRecoveryConfig.isLocalBackupEnabled()
                         ? CheckpointStreamWithResultProvider.createDuplicatingStream(
                                 checkpointId,
                                 CheckpointedStateScope.EXCLUSIVE,
@@ -303,7 +304,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     }
 
     @Override
-    public abstract void close();
+    public abstract void close() throws IOException;
 
     /** Common operation in native rocksdb snapshot result supplier. */
     protected abstract class RocksDBSnapshotOperation
@@ -418,7 +419,9 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
                 // (created from a previous checkpoint).
                 return Optional.of(
                         new PlaceholderStreamStateHandle(
-                                handle.getStreamStateHandleID(), handle.getStateSize()));
+                                handle.getStreamStateHandleID(),
+                                handle.getStateSize(),
+                                FileMergingSnapshotManager.isFileMergingHandle(handle)));
             } else {
                 // Don't use any uploaded but not confirmed handles because they might be deleted
                 // (by TM) if the previous checkpoint failed. See FLINK-25395

@@ -22,89 +22,107 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.{assertTrue, fail}
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
+import org.junit.jupiter.api.Test
 
 class AggregateValidationTest extends TableTestBase {
   private val util = scalaStreamTestUtil()
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    val ds = table
-      // must fail. '_foo is not a valid field
-      .groupBy('_foo)
-      .select('a.avg)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            // must fail. '_foo is not a valid field
+            .groupBy('foo)
+            .select('a.avg))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    table
-      .groupBy('a, 'b)
-      // must fail. 'c is not a grouping key or aggregation
-      .select('c)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            .groupBy('a, 'b)
+            // must fail. 'c is not a grouping key or aggregation
+            .select('c))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidAggregationInSelection(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    table
-      .groupBy('a)
-      .aggregate('b.sum.as('d))
-      // must fail. Cannot use AggregateFunction in select right after aggregate
-      .select('d.sum)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            .groupBy('a)
+            .aggregate('b.sum.as('d))
+            // must fail. Cannot use AggregateFunction in select right after aggregate
+            .select('d.sum))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWindowPropertiesInSelection(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    table
-      .groupBy('a)
-      .aggregate('b.sum.as('d))
-      // must fail. Cannot use window properties in select right after aggregate
-      .select('d.start)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            .groupBy('a)
+            .aggregate('b.sum.as('d))
+            // must fail. Cannot use window properties in select right after aggregate
+            .select('d.start))
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testTableFunctionInSelection(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    util.addFunction("func", new TableFunc0)
+    util.addTemporarySystemFunction("func", new TableFunc0)
     val resultTable = table
       .groupBy('a)
       .aggregate('b.sum.as('d))
-      // must fail. Cannot use TableFunction in select after aggregate
       .select(call("func", "abc"))
 
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidScalarFunctionInAggregate(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    table
-      .groupBy('a)
-      // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate('c.upperCase.as('d))
-      .select('a, 'd)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            .groupBy('a)
+            // must fail. Only AggregateFunction can be used in aggregate
+            .aggregate('c.upperCase.as('d))
+            .select('a, 'd))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidTableFunctionInAggregate(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    util.addFunction("func", new TableFunc0)
-    table
-      .groupBy('a)
-      // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate(call("func", $"c").as("d"))
-      .select('a, 'd)
+    util.addTemporarySystemFunction("func", new TableFunc0)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          table
+            .groupBy('a)
+            // must fail. Only AggregateFunction can be used in aggregate
+            .aggregate(call("func", $"c").as("d"))
+            .select('a, 'd))
   }
 
   @Test
@@ -135,17 +153,14 @@ class AggregateValidationTest extends TableTestBase {
       sql: String,
       keywords: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    try {
-      util.tableEnv.toAppendStream[Row](util.tableEnv.sqlQuery(sql))
-      fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e if e.getClass == clazz =>
-        if (keywords != null) {
-          assertTrue(
-            s"The exception message '${e.getMessage}' doesn't contain keyword '$keywords'",
-            e.getMessage.contains(keywords))
-        }
-      case e: Throwable => fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    val callable: ThrowingCallable = () => util.tableEnv.toDataStream(util.tableEnv.sqlQuery(sql))
+    if (keywords != null) {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
+        .withMessageContaining(keywords)
+    } else {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
     }
   }
 }

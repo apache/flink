@@ -37,6 +37,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nonnull;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,8 +47,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool.NUM_BYTES_PER_REQUEST;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DiskIOScheduler}. */
@@ -58,11 +65,13 @@ class DiskIOSchedulerTest {
     private static final TieredStorageSubpartitionId DEFAULT_SUBPARTITION_ID =
             new TieredStorageSubpartitionId(0);
 
-    private static final int BUFFER_POOL_SIZE = 1;
+    private static final int TOTAL_BYTES = 2 * NUM_BYTES_PER_REQUEST;
+
+    private static final int BUFFER_SIZE = NUM_BYTES_PER_REQUEST / 4;
+
+    private static final int MAX_REQUEST_BUFFER = Integer.MAX_VALUE;
 
     private static final Duration DEFAULT_BUFFER_REQUEST_TIMEOUT = Duration.ofMinutes(5);
-
-    private static final int DEFAULT_MAX_READ_AHEAD = 5;
 
     private BatchShuffleReadBufferPool bufferPool;
 
@@ -78,8 +87,8 @@ class DiskIOSchedulerTest {
 
     @BeforeEach
     void before() {
-        this.ioExecutor = new ManuallyTriggeredScheduledExecutorService();
-        this.bufferPool = new BatchShuffleReadBufferPool(BUFFER_POOL_SIZE, BUFFER_POOL_SIZE);
+        this.ioExecutor = new TestingScheduledExecutorService();
+        this.bufferPool = new BatchShuffleReadBufferPool(TOTAL_BYTES, BUFFER_SIZE);
         this.bufferPool.initialize();
         this.segmentIdFuture = new CompletableFuture<>();
         this.readerReleaseFuture = new CompletableFuture<>();
@@ -89,14 +98,17 @@ class DiskIOSchedulerTest {
                         DEFAULT_PARTITION_ID,
                         bufferPool,
                         ioExecutor,
-                        BUFFER_POOL_SIZE,
+                        MAX_REQUEST_BUFFER,
                         DEFAULT_BUFFER_REQUEST_TIMEOUT,
-                        DEFAULT_MAX_READ_AHEAD,
                         (subpartitionId, bufferIndex) ->
                                 firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex),
                         new TestingPartitionFileReader.Builder()
                                 .setReadBufferSupplier(
                                         (bufferIndex, segmentId) -> {
+                                            if (segmentIdFuture.isDone()) {
+                                                return new PartitionFileReader.ReadBufferResult(
+                                                        Collections.emptyList(), true, null);
+                                            }
                                             segmentIdFuture.complete(segmentId);
                                             return new PartitionFileReader.ReadBufferResult(
                                                     Collections.singletonList(
@@ -257,6 +269,25 @@ class DiskIOSchedulerTest {
         assertThat(waitFuture2).isDone();
     }
 
+    /**
+     * The executor service for batch shuffle read shouldn't throw {@link
+     * RejectedExecutionException} if the worker thread is attempting to add new jobs when the
+     * service is already shutdown. This behavior is important to ensure graceful handling of
+     * scenarios where worker threads couldn't be immediately aware of the TaskManager's shutdown
+     * status.
+     */
+    @Test
+    void testRejectedExecutionIsIgnoredOnShutdown() {
+        TestingNettyConnectionWriter nettyConnectionWriter =
+                new TestingNettyConnectionWriter.Builder().build();
+        diskIOScheduler.connectionEstablished(DEFAULT_SUBPARTITION_ID, nettyConnectionWriter);
+        assertThat(ioExecutor.numQueuedRunnables()).isEqualTo(1);
+        assertThatNoException().isThrownBy(() -> ioExecutor.trigger());
+        assertThat(ioExecutor.numQueuedRunnables()).isEqualTo(1);
+        ioExecutor.shutdown();
+        assertThatNoException().isThrownBy(() -> ioExecutor.trigger());
+    }
+
     private List<Map<Integer, Integer>> createFirstBufferIndexInSegment() {
         Map<Integer, Integer> firstBufferIndexInSegment0 = new HashMap<>();
         Map<Integer, Integer> firstBufferIndexInSegment1 = new HashMap<>();
@@ -266,5 +297,21 @@ class DiskIOSchedulerTest {
         list.add(firstBufferIndexInSegment0);
         list.add(firstBufferIndexInSegment1);
         return list;
+    }
+
+    /**
+     * This manually triggered executor service will throw {@link RejectedExecutionException} if the
+     * new job is added when the service shuts down.
+     */
+    private static class TestingScheduledExecutorService
+            extends ManuallyTriggeredScheduledExecutorService {
+        @Override
+        @Nonnull
+        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+            if (super.isTerminated()) {
+                throw new RejectedExecutionException();
+            }
+            return super.schedule(command, delay, unit);
+        }
     }
 }

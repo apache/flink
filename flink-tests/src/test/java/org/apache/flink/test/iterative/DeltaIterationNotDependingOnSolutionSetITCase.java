@@ -25,7 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import static org.junit.Assert.fail;
 
 /** Test delta iterations that do not join with the solution set. */
 @SuppressWarnings("serial")
-public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTestBase {
+public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTestBaseJUnit4 {
     private final List<Tuple2<Long, Long>> result = new ArrayList<>();
 
     @Override

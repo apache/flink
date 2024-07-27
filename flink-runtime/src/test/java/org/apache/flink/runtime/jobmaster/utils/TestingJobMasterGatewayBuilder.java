@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
@@ -45,7 +46,6 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -54,6 +54,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -65,9 +66,11 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -118,7 +121,7 @@ public class TestingJobMasterGatewayBuilder {
                     (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
     private Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction =
             ignored -> FutureUtils.completedVoidFuture();
-    private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
+    private Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -187,6 +190,13 @@ public class TestingJobMasterGatewayBuilder {
     private Supplier<CompletableFuture<JobResourceRequirements>>
             requestJobResourceRequirementsSupplier =
                     () -> CompletableFuture.completedFuture(JobResourceRequirements.empty());
+
+    private BiFunction<
+                    Duration,
+                    Set<ResultPartitionID>,
+                    CompletableFuture<Collection<PartitionWithMetrics>>>
+            getPartitionWithMetricsFunction =
+                    (timeout, set) -> CompletableFuture.completedFuture(Collections.emptyList());
 
     private Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
             updateJobResourceRequirementsFunction =
@@ -280,9 +290,9 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setRequestJobDetailsSupplier(
-            Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier) {
-        this.requestJobDetailsSupplier = requestJobDetailsSupplier;
+    public TestingJobMasterGatewayBuilder setRequestJobStatusSupplier(
+            Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier) {
+        this.requestJobStatusSupplier = requestJobStatusSupplier;
         return this;
     }
 
@@ -424,6 +434,16 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setGetPartitionWithMetricsFunction(
+            BiFunction<
+                            Duration,
+                            Set<ResultPartitionID>,
+                            CompletableFuture<Collection<PartitionWithMetrics>>>
+                    getPartitionWithMetricsFunction) {
+        this.getPartitionWithMetricsFunction = getPartitionWithMetricsFunction;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setUpdateJobResourceRequirementsFunction(
             Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
                     updateJobResourceRequirementsFunction) {
@@ -446,7 +466,7 @@ public class TestingJobMasterGatewayBuilder {
                 registerTaskManagerFunction,
                 taskManagerHeartbeatFunction,
                 resourceManagerHeartbeatFunction,
-                requestJobDetailsSupplier,
+                requestJobStatusSupplier,
                 requestJobSupplier,
                 checkpointStatsSnapshotSupplier,
                 triggerSavepointFunction,
@@ -464,6 +484,7 @@ public class TestingJobMasterGatewayBuilder {
                 notifyNotEnoughResourcesConsumer,
                 notifyNewBlockedNodesFunction,
                 requestJobResourceRequirementsSupplier,
-                updateJobResourceRequirementsFunction);
+                updateJobResourceRequirementsFunction,
+                getPartitionWithMetricsFunction);
     }
 }

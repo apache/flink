@@ -28,6 +28,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UidGeneration;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -82,6 +83,15 @@ public final class ExecNodeConfig implements ReadableConfig {
             return tableValue;
         }
         return tableConfig.getOptional(option);
+    }
+
+    @Override
+    @Internal
+    public Map<String, String> toMap() {
+        Map<String, String> nodeConfigMap = nodeConfig.toMap();
+        Map<String, String> tableConfigMap = tableConfig.toMap();
+        tableConfigMap.putAll(nodeConfigMap);
+        return tableConfigMap;
     }
 
     /** @return The duration until state which was not updated will be retained. */

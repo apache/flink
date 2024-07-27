@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.data;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
@@ -645,7 +645,7 @@ public class BinaryRowDataTest {
     public void testGenericObject() throws Exception {
 
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
         RawValueDataSerializer<MyObj> binarySerializer =
                 new RawValueDataSerializer<>(genericSerializer);
 
@@ -823,7 +823,7 @@ public class BinaryRowDataTest {
     public void testZeroOutPaddingGeneric() {
 
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
 
         Random random = new Random();
         byte[] bytes = new byte[1024];
@@ -929,7 +929,7 @@ public class BinaryRowDataTest {
     @Test
     public void testSerStringToKryo() throws IOException {
         KryoSerializer<BinaryStringData> serializer =
-                new KryoSerializer<>(BinaryStringData.class, new ExecutionConfig());
+                new KryoSerializer<>(BinaryStringData.class, new SerializerConfigImpl());
 
         BinaryStringData string = BinaryStringData.fromString("hahahahaha");
         RandomAccessOutputView out =

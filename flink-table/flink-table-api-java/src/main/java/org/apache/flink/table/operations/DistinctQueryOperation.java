@@ -46,6 +46,14 @@ public class DistinctQueryOperation implements QueryOperation {
     }
 
     @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT DISTINCT %s FROM (%s\n)",
+                OperationUtils.formatSelectColumns(getResolvedSchema()),
+                OperationUtils.indent(child.asSerializableString()));
+    }
+
+    @Override
     public List<QueryOperation> getChildren() {
         return Collections.singletonList(child);
     }

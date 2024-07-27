@@ -27,7 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -405,7 +405,7 @@ class ExecutionGraphRestartTest {
     private static void setupSlotPool(SlotPool slotPool) throws Exception {
         final String jobManagerAddress = "foobar";
         final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-        slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
+        slotPool.start(JobMasterId.generate(), jobManagerAddress);
         slotPool.connectToResourceManager(resourceManagerGateway);
     }
 

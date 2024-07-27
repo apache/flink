@@ -17,10 +17,10 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.util.{InstantiationUtil, TestLogger}
+import org.apache.flink.util.InstantiationUtil
 
-import org.hamcrest.Matchers
-import org.junit.{Assert, Test}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.io.ByteArrayOutputStream
 
@@ -28,7 +28,7 @@ import java.io.ByteArrayOutputStream
  * Serialization/Deserialization tests of Scala types using the
  * [[org.apache.flink.util.InstantiationUtil]].
  */
-class InstantiationUtilTest extends TestLogger {
+class InstantiationUtilTest {
 
   @Test
   def testNestedScalaTypeSerDe(): Unit = {
@@ -36,7 +36,7 @@ class InstantiationUtilTest extends TestLogger {
 
     val copy = serializeDeserializeInstance(instance)
 
-    Assert.assertThat(copy, Matchers.equalTo(instance))
+    assertThat(copy).isEqualTo(instance)
   }
 
   @Test
@@ -56,7 +56,7 @@ class InstantiationUtilTest extends TestLogger {
 
     val copy = serializeDeserializeInstance(instance)
 
-    Assert.assertThat(copy, Matchers.equalTo(instance))
+    assertThat(copy).isEqualTo(instance)
   }
 
   private def serializeDeserializeInstance[T](instance: T): T = {

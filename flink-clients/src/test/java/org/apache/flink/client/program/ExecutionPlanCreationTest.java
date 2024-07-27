@@ -57,8 +57,8 @@ class ExecutionPlanCreationTest {
 
             Configuration config = new Configuration();
 
-            config.setString(JobManagerOptions.ADDRESS, mockJmAddress.getHostName());
-            config.setInteger(JobManagerOptions.PORT, mockJmAddress.getPort());
+            config.set(JobManagerOptions.ADDRESS, mockJmAddress.getHostName());
+            config.set(JobManagerOptions.PORT, mockJmAddress.getPort());
 
             Optimizer optimizer =
                     new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);

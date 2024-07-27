@@ -24,29 +24,33 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class SetOperatorsTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTableSource[(Int, Long, String)]("T1", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("T2", 'd, 'e, 'f)
     util.addTableSource[(Int, Long, Int, String, Long)]("T3", 'a, 'b, 'd, 'c, 'e)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionDifferentColumnSize(): Unit = {
     // must fail. Union inputs have different column size.
-    util.verifyExecPlan("SELECT * FROM T1 UNION ALL SELECT * FROM T3")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT * FROM T1 UNION ALL SELECT * FROM T3"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionDifferentFieldTypes(): Unit = {
     // must fail. Union inputs have different field types.
-    util.verifyExecPlan("SELECT a, b, c FROM T1 UNION ALL SELECT d, c, e FROM T3")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => util.verifyExecPlan("SELECT a, b, c FROM T1 UNION ALL SELECT d, c, e FROM T3"))
   }
 
   @Test
@@ -54,10 +58,12 @@ class SetOperatorsTest extends TableTestBase {
     util.verifyExecPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersectDifferentFieldTypes(): Unit = {
     // must fail. Intersect inputs have different field types.
-    util.verifyExecPlan("SELECT a, b, c FROM T1 INTERSECT SELECT d, c, e FROM T3")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => util.verifyExecPlan("SELECT a, b, c FROM T1 INTERSECT SELECT d, c, e FROM T3"))
   }
 
   @Test
@@ -65,10 +71,11 @@ class SetOperatorsTest extends TableTestBase {
     util.verifyExecPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinusDifferentFieldTypes(): Unit = {
     // must fail. Minus inputs have different field types.
-    util.verifyExecPlan("SELECT a, b, c FROM T1 EXCEPT SELECT d, c, e FROM T3")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT a, b, c FROM T1 EXCEPT SELECT d, c, e FROM T3"))
   }
 
   @Test

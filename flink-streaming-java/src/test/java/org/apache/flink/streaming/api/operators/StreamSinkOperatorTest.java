@@ -23,30 +23,23 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamSink}. */
-public class StreamSinkOperatorTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class StreamSinkOperatorTest {
 
     /**
      * Verify that we can correctly query watermark, processing time and the timestamp from the
      * context.
      */
     @Test
-    public void testTimeQuerying() throws Exception {
+    void testTimeQuerying() throws Exception {
 
         BufferingQueryingSink<String> bufferingSink = new BufferingQueryingSink<>();
 
@@ -70,23 +63,21 @@ public class StreamSinkOperatorTest extends TestLogger {
         testHarness.setProcessingTime(15);
         testHarness.processElement(new StreamRecord<>("Ciao"));
 
-        assertThat(bufferingSink.data.size(), is(3));
+        assertThat(bufferingSink.data).hasSize(3);
 
-        assertThat(
-                bufferingSink.data,
-                contains(
+        assertThat(bufferingSink.data)
+                .contains(
                         new Tuple4<>(17L, 12L, 12L, "Hello"),
                         new Tuple4<>(42L, 15L, 13L, "Ciao"),
-                        new Tuple4<>(42L, 15L, null, "Ciao")));
+                        new Tuple4<>(42L, 15L, null, "Ciao"));
 
-        assertThat(bufferingSink.watermarks.size(), is(3));
+        assertThat(bufferingSink.watermarks).hasSize(3);
 
-        assertThat(
-                bufferingSink.watermarks,
-                contains(
+        assertThat(bufferingSink.watermarks)
+                .contains(
                         new org.apache.flink.api.common.eventtime.Watermark(17L),
                         new org.apache.flink.api.common.eventtime.Watermark(42L),
-                        new org.apache.flink.api.common.eventtime.Watermark(42L)));
+                        new org.apache.flink.api.common.eventtime.Watermark(42L));
 
         testHarness.close();
     }

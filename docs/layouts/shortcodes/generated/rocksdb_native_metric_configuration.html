@@ -51,6 +51,24 @@
             <td>Monitor the memory size for the entries residing in block cache.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.metrics.bloom-filter-full-positive</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total count of reads not avoided by bloom full filter.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.bloom-filter-full-true-positive</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total count of reads not avoided by bloom full filter and the data actually exists in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.bloom-filter-useful</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total count of reads avoided by bloom filter.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.metrics.bytes-read</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -169,6 +187,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Monitor the total number of entries in the unflushed immutable memtables.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-files-at-level</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of files at each level.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.metrics.num-immutable-mem-table</h5></td>

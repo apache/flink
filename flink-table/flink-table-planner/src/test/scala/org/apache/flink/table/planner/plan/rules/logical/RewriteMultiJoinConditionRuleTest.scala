@@ -26,13 +26,13 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[RewriteMultiJoinConditionRule]]. */
 class RewriteMultiJoinConditionRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val program = new FlinkChainedProgram[BatchOptimizeContext]()
     program.addLast(

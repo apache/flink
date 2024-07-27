@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_SEGMENT;
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getMemoryTierName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The memory tier implementation of {@link TierProducerAgent}. */
@@ -99,7 +100,8 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
     }
 
     @Override
-    public boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId) {
+    public boolean tryStartNewSegment(
+            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers) {
         boolean canStartNewSegment =
                 nettyConnectionEstablished[subpartitionId.getSubpartitionId()]
                         // Ensure that a subpartition's memory tier does not excessively use
@@ -107,9 +109,12 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
                         && subpartitionProducerAgents[subpartitionId.getSubpartitionId()]
                                         .numQueuedBuffers()
                                 < subpartitionMaxQueuedBuffers
-                        && (memoryManager.getMaxNonReclaimableBuffers(this)
-                                        - memoryManager.numOwnerRequestedBuffer(this))
-                                > numBuffersPerSegment;
+                        && (memoryManager.getMaxNonReclaimableBuffers(getMemoryTierName())
+                                        - memoryManager.numOwnerRequestedBuffer(
+                                                getMemoryTierName()))
+                                > Math.max(numBuffersPerSegment, minNumBuffers)
+                        && memoryManager.ensureCapacity(
+                                Math.max(numBuffersPerSegment, minNumBuffers));
         if (canStartNewSegment) {
             subpartitionProducerAgents[subpartitionId.getSubpartitionId()].updateSegmentId(
                     segmentId);
@@ -119,16 +124,22 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
 
     @Override
     public boolean tryWrite(
-            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner) {
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer finishedBuffer,
+            Object bufferOwner,
+            int numRemainingConsecutiveBuffers) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
         if (currentSubpartitionWriteBuffers[subpartitionIndex] != 0
-                && currentSubpartitionWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
+                && currentSubpartitionWriteBuffers[subpartitionIndex]
+                                + 1
+                                + numRemainingConsecutiveBuffers
+                        > numBuffersPerSegment) {
             appendEndOfSegmentEvent(subpartitionIndex);
             currentSubpartitionWriteBuffers[subpartitionIndex] = 0;
             return false;
         }
         if (finishedBuffer.isBuffer()) {
-            memoryManager.transferBufferOwnership(bufferOwner, this, finishedBuffer);
+            memoryManager.transferBufferOwnership(bufferOwner, getMemoryTierName(), finishedBuffer);
         }
         currentSubpartitionWriteBuffers[subpartitionIndex]++;
         addFinishedBuffer(finishedBuffer, subpartitionIndex);

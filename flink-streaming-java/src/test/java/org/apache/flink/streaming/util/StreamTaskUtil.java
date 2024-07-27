@@ -23,7 +23,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Utils for working with StreamTask. */
 public class StreamTaskUtil {

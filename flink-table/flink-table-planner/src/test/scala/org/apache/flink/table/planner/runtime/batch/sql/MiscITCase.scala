@@ -32,6 +32,8 @@ import org.apache.flink.types.Row
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.{BeforeEach, Test}
 
+import java.time.DayOfWeek
+
 /** Misc tests. */
 class MiscITCase extends BatchTestBase {
 
@@ -620,5 +622,95 @@ class MiscITCase extends BatchTestBase {
           Seq(row(null, "hij_k", 1), row("e fg", null, 2))
         )).isInstanceOf(classOf[ValidationException])
 
+  }
+
+  @Test
+  def testEqualAndNotEqual(): Unit = {
+    // character string
+    checkQuery(
+      Seq((null, 2), ("b", 1)),
+      "SELECT f1 FROM Table1 WHERE f0 <> 'a'",
+      Seq(Tuple1(1))
+    )
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT * FROM Table1 WHERE SUBSTR(f0, 2, 1) <> SUBSTR(f1, 2, 1)",
+      Seq(("aa", "bb"))
+    )
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT * FROM Table1 WHERE SUBSTR(f0, 2, 1) = SUBSTR(f1, 2, 1)",
+      Seq(("aa", "aa"))
+    )
+
+    // raw
+    checkQuery(
+      Seq(
+        (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
+        (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
+        (DayOfWeek.SUNDAY, null)),
+      "SELECT * FROM Table1 WHERE f0 = f1",
+      Seq((DayOfWeek.SUNDAY, DayOfWeek.SUNDAY))
+    )
+    checkQuery(
+      Seq(
+        (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
+        (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
+        (DayOfWeek.SUNDAY, null)),
+      "SELECT * FROM Table1 WHERE f0 <> f1",
+      Seq((DayOfWeek.SUNDAY, DayOfWeek.MONDAY))
+    )
+
+    // multiset
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = t2.ms FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t2 ON t1.f1 = t2.f1",
+      Seq(Tuple1("true"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = t2.ms FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM (SELECT * FROM Table1 LIMIT 2) GROUP BY f1) t2 " +
+        "ON t1.f1 = t2.f1",
+      Seq(Tuple1("false"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = NULL FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NULL = t1.ms FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = t2.ms) FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t2 ON t1.f1 = t2.f1",
+      Seq(Tuple1("false"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = t2.ms) FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM (SELECT * FROM Table1 LIMIT 2) GROUP BY f1) t2 " +
+        "ON t1.f1 = t2.f1",
+      Seq(Tuple1("true"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = NULL) FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(NULL = t1.ms) FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
   }
 }

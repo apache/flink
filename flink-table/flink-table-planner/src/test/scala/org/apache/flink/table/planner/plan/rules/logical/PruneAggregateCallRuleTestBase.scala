@@ -24,13 +24,13 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import com.google.common.collect.ImmutableSet
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Base test class for [[PruneAggregateCallRule]]. */
 abstract class PruneAggregateCallRuleTestBase extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource(
       "T1",

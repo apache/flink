@@ -53,7 +53,7 @@ public class OperatorIDGeneratorTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        env.fromElements(1, 2, 3)
+        env.fromData(1, 2, 3)
                 .uid(UID)
                 .name(OPERATOR_NAME)
                 .disableChaining()

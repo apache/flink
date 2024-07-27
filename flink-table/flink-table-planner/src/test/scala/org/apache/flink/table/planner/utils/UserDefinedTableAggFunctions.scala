@@ -145,7 +145,7 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
   @Override
   def createAccumulator(): Top3WithMapViewAccum = {
     val acc = new Top3WithMapViewAccum
-    acc.data = new MapView(Types.INT, Types.INT)
+    acc.data = new MapView()
     acc.size = 0
     acc.smallest = Integer.MAX_VALUE
     acc

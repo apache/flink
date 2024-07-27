@@ -492,9 +492,9 @@ class BlobClientTest {
     @Test
     void testSocketTimeout() throws IOException {
         Configuration clientConfig = getBlobClientConfig();
-        int oldSoTimeout = clientConfig.getInteger(BlobServerOptions.SO_TIMEOUT);
+        int oldSoTimeout = clientConfig.get(BlobServerOptions.SO_TIMEOUT);
 
-        clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, 50);
+        clientConfig.set(BlobServerOptions.SO_TIMEOUT, 50);
 
         try (final TestBlobServer testBlobServer =
                 new TestBlobServer(
@@ -515,7 +515,7 @@ class BlobClientTest {
                         .isPresent();
             }
         } finally {
-            clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, oldSoTimeout);
+            clientConfig.set(BlobServerOptions.SO_TIMEOUT, oldSoTimeout);
         }
     }
 

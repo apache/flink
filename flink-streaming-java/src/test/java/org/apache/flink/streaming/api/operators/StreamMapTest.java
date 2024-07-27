@@ -25,10 +25,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link StreamMap}. These test that:
@@ -39,7 +40,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class StreamMapTest {
+class StreamMapTest {
 
     private static class Map implements MapFunction<Integer, String> {
         private static final long serialVersionUID = 1L;
@@ -51,7 +52,7 @@ public class StreamMapTest {
     }
 
     @Test
-    public void testMap() throws Exception {
+    void testMap() throws Exception {
         StreamMap<Integer, String> operator = new StreamMap<Integer, String>(new Map());
 
         OneInputStreamOperatorTestHarness<Integer, String> testHarness =
@@ -77,7 +78,7 @@ public class StreamMapTest {
     }
 
     @Test
-    public void testOpenClose() throws Exception {
+    void testOpenClose() throws Exception {
         StreamMap<String, String> operator =
                 new StreamMap<String, String>(new TestOpenCloseMapFunction());
 
@@ -92,9 +93,10 @@ public class StreamMapTest {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        assertThat(TestOpenCloseMapFunction.closeCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
+        assertThat(testHarness.getOutput()).as("Output contains no elements.").isNotEmpty();
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -108,26 +110,20 @@ public class StreamMapTest {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+            assertThat(closeCalled).as("Close called before open.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public String map(String value) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             return value;
         }
     }

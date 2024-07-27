@@ -107,6 +107,29 @@ public class JoinQueryOperation implements QueryOperation {
     }
 
     @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT %s FROM (%s\n) %s JOIN %s ON %s",
+                OperationUtils.formatSelectColumns(resolvedSchema),
+                OperationUtils.indent(left.asSerializableString()),
+                joinType.toString().replaceAll("_", " "),
+                rightToSerializable(),
+                condition.asSerializableString());
+    }
+
+    private String rightToSerializable() {
+        final StringBuilder s = new StringBuilder();
+        if (!correlated) {
+            s.append("(");
+        }
+        s.append(OperationUtils.indent(right.asSerializableString()));
+        if (!correlated) {
+            s.append("\n)");
+        }
+        return s.toString();
+    }
+
+    @Override
     public List<QueryOperation> getChildren() {
         return Arrays.asList(left, right);
     }

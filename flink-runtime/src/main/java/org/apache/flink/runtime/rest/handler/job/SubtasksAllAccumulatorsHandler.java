@@ -78,7 +78,8 @@ public class SubtasksAllAccumulatorsHandler
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
             for (AccessExecution execution : vertex.getCurrentExecutions()) {
                 TaskManagerLocation location = execution.getAssignedResourceLocation();
-                String locationString = location == null ? "(unassigned)" : location.getHostname();
+                String host = location == null ? "(unassigned)" : location.getHostname();
+                String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
 
                 StringifiedAccumulatorResult[] accs = execution.getUserAccumulatorsStringified();
                 List<UserAccumulator> userAccumulators = new ArrayList<>(accs.length);
@@ -91,7 +92,8 @@ public class SubtasksAllAccumulatorsHandler
                         new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
                                 execution.getParallelSubtaskIndex(),
                                 execution.getAttemptNumber(),
-                                locationString,
+                                host,
+                                endpoint,
                                 userAccumulators));
             }
         }

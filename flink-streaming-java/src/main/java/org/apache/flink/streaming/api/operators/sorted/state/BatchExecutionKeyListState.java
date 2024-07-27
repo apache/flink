@@ -47,6 +47,7 @@ class BatchExecutionKeyListState<K, N, T>
         checkNotNull(values);
         clear();
         for (T value : values) {
+            checkNotNull(value);
             add(value);
         }
     }
@@ -57,6 +58,7 @@ class BatchExecutionKeyListState<K, N, T>
             return;
         }
         for (T value : values) {
+            checkNotNull(value);
             add(value);
         }
     }

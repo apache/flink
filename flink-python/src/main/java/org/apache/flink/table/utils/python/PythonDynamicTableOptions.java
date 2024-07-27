@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.utils.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 /** Options for PythonDynamicTableSource. */
+@Internal
 public class PythonDynamicTableOptions {
 
     public static final ConfigOption<String> INPUT_FILE_PATH =

@@ -18,10 +18,12 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.WritableConfig;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -34,9 +36,12 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
@@ -69,16 +74,12 @@ public class PythonDependencyUtils {
      * returns a new configuration which contains the metadata of the registered python
      * dependencies.
      *
-     * @param cachedFiles The list used to store registered cached files.
      * @param config The configuration which contains python dependency configuration.
      * @return A new configuration which contains the metadata of the registered python
      *     dependencies.
      */
-    public static Configuration configurePythonDependencies(
-            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
-            ReadableConfig config) {
-        final PythonDependencyManager pythonDependencyManager =
-                new PythonDependencyManager(cachedFiles, config);
+    public static Configuration configurePythonDependencies(ReadableConfig config) {
+        final PythonDependencyManager pythonDependencyManager = new PythonDependencyManager(config);
         final Configuration pythonDependencyConfig = new Configuration();
         pythonDependencyManager.applyToConfiguration(pythonDependencyConfig);
         return pythonDependencyConfig;
@@ -157,14 +158,10 @@ public class PythonDependencyUtils {
         private static final String PYTHON_REQUIREMENTS_FILE_PREFIX = "python_requirements_file";
         private static final String PYTHON_REQUIREMENTS_CACHE_PREFIX = "python_requirements_cache";
         private static final String PYTHON_ARCHIVE_PREFIX = "python_archive";
-
-        private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
         private final ReadableConfig config;
 
-        private PythonDependencyManager(
-                List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
-                ReadableConfig config) {
-            this.cachedFiles = cachedFiles;
+        private PythonDependencyManager(ReadableConfig config) {
+            Preconditions.checkArgument(config instanceof WritableConfig);
             this.config = config;
         }
 
@@ -178,7 +175,7 @@ public class PythonDependencyUtils {
         private void addPythonFile(Configuration pythonDependencyConfig, String filePath) {
             Preconditions.checkNotNull(filePath);
             String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
-            registerCachedFileIfNotExist(filePath, fileKey);
+            registerCachedFileIfNotExist(fileKey, filePath);
             if (!pythonDependencyConfig.contains(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)) {
                 pythonDependencyConfig.set(
                         PYTHON_FILES_DISTRIBUTED_CACHE_INFO, new LinkedHashMap<>());
@@ -224,7 +221,7 @@ public class PythonDependencyUtils {
 
             String fileKey =
                     generateUniqueFileKey(PYTHON_REQUIREMENTS_FILE_PREFIX, requirementsFilePath);
-            registerCachedFileIfNotExist(requirementsFilePath, fileKey);
+            registerCachedFileIfNotExist(fileKey, requirementsFilePath);
             pythonDependencyConfig
                     .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                     .put(FILE, fileKey);
@@ -233,7 +230,7 @@ public class PythonDependencyUtils {
                 String cacheDirKey =
                         generateUniqueFileKey(
                                 PYTHON_REQUIREMENTS_CACHE_PREFIX, requirementsCachedDir);
-                registerCachedFileIfNotExist(requirementsCachedDir, cacheDirKey);
+                registerCachedFileIfNotExist(cacheDirKey, requirementsCachedDir);
                 pythonDependencyConfig
                         .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                         .put(CACHE, cacheDirKey);
@@ -258,7 +255,7 @@ public class PythonDependencyUtils {
             String fileKey =
                     generateUniqueFileKey(
                             PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
-            registerCachedFileIfNotExist(archivePath, fileKey);
+            registerCachedFileIfNotExist(fileKey, archivePath);
             pythonDependencyConfig
                     .get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
                     .put(fileKey, targetDir);
@@ -336,20 +333,56 @@ public class PythonDependencyUtils {
                     "%s_%s", prefix, StringUtils.byteToHexString(messageDigest.digest()));
         }
 
-        private void registerCachedFileIfNotExist(String filePath, String fileKey) {
-            if (cachedFiles.stream().noneMatch(t -> t.f0.equals(fileKey))) {
-                cachedFiles.add(
-                        new Tuple2<>(
-                                fileKey,
-                                new DistributedCache.DistributedCacheEntry(filePath, false)));
+        private void registerCachedFileIfNotExist(String name, String path) {
+            final List<Tuple2<String, String>> cachedFilePairs =
+                    config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>())
+                            .stream()
+                            .map(
+                                    m ->
+                                            Tuple2.of(
+                                                    ConfigurationUtils.parseStringToMap(m)
+                                                            .get("name"),
+                                                    m))
+                            .collect(Collectors.toList());
+
+            final Set<String> cachedFileNames =
+                    cachedFilePairs.stream()
+                            .map(f -> (String) f.getField(0))
+                            .collect(Collectors.toSet());
+            if (cachedFileNames.contains(name)) {
+                return;
             }
+
+            final List<String> cachedFiles =
+                    cachedFilePairs.stream()
+                            .map(f -> (String) f.getField(1))
+                            .collect(Collectors.toList());
+            Map<String, String> map = new HashMap<>();
+            map.put("name", name);
+            map.put("path", path);
+            cachedFiles.add(ConfigurationUtils.convertValue(map, String.class));
+
+            ((WritableConfig) config).set(PipelineOptions.CACHED_FILES, cachedFiles);
         }
 
         private void removeCachedFilesByPrefix(String prefix) {
-            cachedFiles.removeAll(
-                    cachedFiles.stream()
-                            .filter(t -> t.f0.matches("^" + prefix + "_[a-z0-9]{64}$"))
-                            .collect(Collectors.toSet()));
+            final List<String> cachedFiles =
+                    config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>())
+                            .stream()
+                            .map(m -> Tuple2.of(ConfigurationUtils.parseStringToMap(m), m))
+                            .filter(
+                                    t ->
+                                            t.f0.get("name") != null
+                                                    && !(t.f0.get("name")
+                                                            .matches(
+                                                                    "^"
+                                                                            + prefix
+                                                                            + "_[a-z0-9]{64}$")))
+                            .map(t -> t.f1)
+                            .collect(Collectors.toList());
+
+            ((WritableConfig) config)
+                    .set(PipelineOptions.CACHED_FILES, new ArrayList<>(cachedFiles));
         }
     }
 }

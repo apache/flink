@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
 
 import org.junit.Assert._
@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit
  * These tests verify that the api calls on [[WindowedStream]] that use the "time" shortcut
  * instantiate the correct window operator.
  */
-class TimeWindowTranslationTest extends AbstractTestBase {
+class TimeWindowTranslationTest extends AbstractTestBaseJUnit4 {
 
   /**
    * Verifies that calls to timeWindow() instantiate a regular windowOperator instead of an aligned

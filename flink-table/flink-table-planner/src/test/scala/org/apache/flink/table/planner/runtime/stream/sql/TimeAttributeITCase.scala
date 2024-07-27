@@ -24,8 +24,8 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingA
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.types.Row
 
-import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
@@ -81,7 +81,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -89,7 +89,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.006,2,7.0",
       "1970-01-01T00:00:00.009,2,6.0",
       "1970-01-01T00:00:00.018,1,4.0")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -118,7 +118,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink(TimeZone.getTimeZone(zoneId))
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -126,7 +126,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       "1970-01-01T08:00:00.006,2,7.0",
       "1970-01-01T08:00:00.009,2,6.0",
       "1970-01-01T08:00:00.018,1,4.0")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -155,7 +155,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -163,9 +163,9 @@ class TimeAttributeITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.006,2,7.0",
       "1970-01-01T00:00:00.009,2,6.0",
       "1970-01-01T00:00:00.018,1,4.0")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertTrue(JavaFunc5.openCalled)
-    assertTrue(JavaFunc5.closeCalled)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(JavaFunc5.openCalled).isTrue
+    assertThat(JavaFunc5.closeCalled).isTrue
   }
 
   @Test
@@ -192,7 +192,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -200,7 +200,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.006,2,7.0",
       "1970-01-01T00:00:00.009,2,6.0",
       "1970-01-01T00:00:00.018,1,4.0")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   // ------------------------------------------------------------------------------------------

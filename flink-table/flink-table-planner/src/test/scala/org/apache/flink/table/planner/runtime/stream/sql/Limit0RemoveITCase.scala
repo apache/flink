@@ -23,8 +23,8 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendTableSink, TestingRetractTableSink, TestSinkUtil}
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 class Limit0RemoveITCase extends StreamingTestBase() {
 
@@ -41,7 +41,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
@@ -57,7 +57,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
@@ -73,7 +73,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
@@ -93,7 +93,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
@@ -114,7 +114,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     result.executeInsert("MySink").await()
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertEquals(expected, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected)
   }
 
   @Test
@@ -134,7 +134,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getRawResults.size)
+    assertThat(sink.getRawResults.size).isZero
   }
 
   @Test
@@ -155,7 +155,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     result.executeInsert("MySink").await()
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
   @Test
@@ -175,6 +175,6 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 }

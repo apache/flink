@@ -17,10 +17,12 @@
  */
 package org.apache.flink.table.planner.expressions
 
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 
 import java.time.{LocalDateTime => JLocalDateTime}
@@ -226,9 +228,11 @@ class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
   def testArrayIndexStaticCheckForTable(): Unit = {
-    testExpectedTableApiException(
-      'f2.at(0),
-      "Array element access needs an index starting at 1 but was 0.")
+    assertThatThrownBy(() => testTableApi('f2.at(0), "1"))
+      .satisfies(
+        anyCauseMatches(
+          classOf[ValidationException],
+          "The provided index must be a valid SQL index starting from 1"))
   }
 
   @Test

@@ -20,14 +20,15 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class ShuffledHashJoinTest extends JoinTestBase {
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig.getConfiguration
-      .setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 1L)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(1L))
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
       "SortMergeJoin, NestedLoopJoin, BroadcastHashJoin")
@@ -35,78 +36,78 @@ class ShuffledHashJoinTest extends JoinTestBase {
 
   @Test
   override def testInnerJoinWithoutJoinPred(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInnerJoinWithoutJoinPred()
+    assertThatThrownBy(() => super.testInnerJoinWithoutJoinPred())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testLeftOuterJoinNoEquiPred(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testLeftOuterJoinNoEquiPred()
+    assertThatThrownBy(() => super.testLeftOuterJoinNoEquiPred())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testLeftOuterJoinOnTrue(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testLeftOuterJoinOnTrue()
+    assertThatThrownBy(() => super.testLeftOuterJoinOnTrue())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testLeftOuterJoinOnFalse(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testLeftOuterJoinOnFalse()
+    assertThatThrownBy(() => super.testLeftOuterJoinOnFalse())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testRightOuterJoinOnTrue(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testRightOuterJoinOnTrue()
+    assertThatThrownBy(() => super.testRightOuterJoinOnTrue())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testRightOuterJoinOnFalse(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testRightOuterJoinOnFalse()
+    assertThatThrownBy(() => super.testRightOuterJoinOnFalse())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testRightOuterJoinWithNonEquiPred(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testRightOuterJoinWithNonEquiPred()
+    assertThatThrownBy(() => super.testRightOuterJoinWithNonEquiPred())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testFullOuterJoinWithNonEquiPred(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testFullOuterJoinWithNonEquiPred()
+    assertThatThrownBy(() => super.testFullOuterJoinWithNonEquiPred())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testFullOuterJoinOnFalse(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testFullOuterJoinOnFalse()
+    assertThatThrownBy(() => super.testFullOuterJoinOnFalse())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testFullOuterJoinOnTrue(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testFullOuterJoinOnTrue()
+    assertThatThrownBy(() => super.testFullOuterJoinOnTrue())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 
   @Test
   override def testCrossJoin(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testCrossJoin()
+    assertThatThrownBy(() => super.testCrossJoin())
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[TableException]
   }
 }

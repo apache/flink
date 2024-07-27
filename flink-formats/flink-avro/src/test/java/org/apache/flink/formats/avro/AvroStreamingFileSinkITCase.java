@@ -18,7 +18,9 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
@@ -26,8 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -57,7 +58,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Avro.
  */
-public class AvroStreamingFileSinkITCase extends AbstractTestBase {
+public class AvroStreamingFileSinkITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
@@ -77,7 +78,12 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
 
         AvroWriterFactory<Address> avroWriterFactory = AvroWriters.forSpecificRecord(Address.class);
         DataStream<Address> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(Address.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
         stream.addSink(
                 StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
@@ -100,7 +106,12 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
 
         AvroWriterFactory<GenericRecord> avroWriterFactory = AvroWriters.forGenericRecord(schema);
         DataStream<GenericRecord> stream =
-                env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                data, new GenericRecordAvroTypeInfo(schema)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
         stream.addSink(
                 StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))
@@ -121,8 +132,14 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
         env.enableCheckpointing(100);
 
         AvroWriterFactory<Datum> avroWriterFactory = AvroWriters.forReflectRecord(Datum.class);
+
         DataStream<Datum> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(Datum.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
         stream.addSink(
                 StreamingFileSink.forBulkFormat(Path.fromLocalFile(folder), avroWriterFactory)
                         .withBucketAssigner(new UniqueBucketAssigner<>("test"))

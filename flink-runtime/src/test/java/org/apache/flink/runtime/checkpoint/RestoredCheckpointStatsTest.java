@@ -44,11 +44,13 @@ class RestoredCheckpointStatsTest {
         String externalPath = "external-path";
 
         RestoredCheckpointStats restored =
-                new RestoredCheckpointStats(checkpointId, props, restoreTimestamp, externalPath);
+                new RestoredCheckpointStats(
+                        checkpointId, props, restoreTimestamp, externalPath, 42);
 
         assertThat(restored.getCheckpointId()).isEqualTo(checkpointId);
         assertThat(restored.getProperties()).isEqualTo(props);
         assertThat(restored.getRestoreTimestamp()).isEqualTo(restoreTimestamp);
         assertThat(restored.getExternalPath()).isEqualTo(externalPath);
+        assertThat(restored.getStateSize()).isEqualTo(42);
     }
 }

@@ -31,7 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.failover.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -216,17 +216,13 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
-    default void initializeJobVertex(
-            ExecutionJobVertex ejv,
-            long createTimestamp,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+    default void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp)
             throws JobException {
         initializeJobVertex(
                 ejv,
                 createTimestamp,
                 VertexInputInfoComputationUtils.computeVertexInputInfos(
-                        ejv, getAllIntermediateResults()::get),
-                jobManagerJobMetricGroup);
+                        ejv, getAllIntermediateResults()::get));
     }
 
     /**
@@ -241,8 +237,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
             throws JobException;
 
     /**

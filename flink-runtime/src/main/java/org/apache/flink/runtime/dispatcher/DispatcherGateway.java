@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -106,6 +107,20 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             @RpcTimeout final Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Triggers a checkpoint, returning a future that completes with the checkpoint id when it is
+     * complete.
+     *
+     * @param jobId the job id
+     * @param checkpointType checkpoint type of this checkpoint (configured / full / incremental)
+     * @param timeout Timeout for the asynchronous operation
+     * @return Future which is completed once the operation is triggered successfully
+     */
+    default CompletableFuture<Long> triggerCheckpointAndGetCheckpointID(
+            final JobID jobId, final CheckpointType checkpointType, final Time timeout) {
         throw new UnsupportedOperationException();
     }
 }

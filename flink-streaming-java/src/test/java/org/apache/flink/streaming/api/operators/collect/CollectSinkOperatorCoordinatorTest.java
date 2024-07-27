@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -52,7 +52,7 @@ class CollectSinkOperatorCoordinatorTest {
 
     private static final TypeSerializer<Row> serializer =
             new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
-                    .createSerializer(new ExecutionConfig());
+                    .createSerializer(new SerializerConfigImpl());
 
     @Test
     void testNoAddress() throws Exception {

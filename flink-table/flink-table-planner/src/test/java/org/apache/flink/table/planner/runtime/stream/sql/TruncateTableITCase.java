@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for Truncate table statement in streaming mode. */
-public class TruncateTableITCase extends StreamingTestBase {
+class TruncateTableITCase extends StreamingTestBase {
 
     @Test
     void testTruncateTable() {

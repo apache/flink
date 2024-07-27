@@ -32,6 +32,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -159,6 +160,7 @@ public class ArchivedExecutionGraphTest {
                         new JobID(),
                         "TestJob",
                         JobStatus.SUSPENDED,
+                        JobType.STREAMING,
                         new Exception("Test suspension exception"),
                         null,
                         System.currentTimeMillis());
@@ -177,6 +179,7 @@ public class ArchivedExecutionGraphTest {
                         new JobID(),
                         "TestJob",
                         JobStatus.INITIALIZING,
+                        JobType.STREAMING,
                         null,
                         new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null),
                         System.currentTimeMillis());
@@ -210,6 +213,7 @@ public class ArchivedExecutionGraphTest {
                         new JobID(),
                         "TestJob",
                         JobStatus.INITIALIZING,
+                        JobType.STREAMING,
                         null,
                         null,
                         System.currentTimeMillis(),

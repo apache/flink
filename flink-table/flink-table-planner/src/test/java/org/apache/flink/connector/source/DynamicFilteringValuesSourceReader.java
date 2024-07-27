@@ -64,6 +64,7 @@ public class DynamicFilteringValuesSourceReader
     private transient ValuesSourcePartitionSplit currentSplit;
     private transient Iterator<RowData> iterator;
     private transient boolean noMoreSplits;
+    private transient boolean reachedInfiniteEnd;
 
     public DynamicFilteringValuesSourceReader(
             Map<Map<String, String>, byte[]> serializedElements,
@@ -88,6 +89,10 @@ public class DynamicFilteringValuesSourceReader
 
     @Override
     public InputStatus pollNext(ReaderOutput<RowData> output) {
+        if (reachedInfiniteEnd) {
+            return InputStatus.NOTHING_AVAILABLE;
+        }
+
         if (iterator != null) {
             if (iterator.hasNext()) {
                 output.collect(iterator.next());
@@ -115,20 +120,29 @@ public class DynamicFilteringValuesSourceReader
     private InputStatus tryMoveToNextSplit() {
         currentSplit = remainingSplits.poll();
         if (currentSplit != null) {
-            Map<String, String> partition = currentSplit.getPartition();
-            List<RowData> list =
-                    deserialize(serializedElements.get(partition), counts.get(partition));
-            iterator = list.iterator();
-            return InputStatus.MORE_AVAILABLE;
+            if (currentSplit.isInfinite()) {
+                this.reachedInfiniteEnd = true;
+                resetAvailability();
+                return InputStatus.NOTHING_AVAILABLE;
+            } else {
+                Map<String, String> partition = currentSplit.getPartition();
+                List<RowData> list =
+                        deserialize(serializedElements.get(partition), counts.get(partition));
+                iterator = list.iterator();
+                return InputStatus.MORE_AVAILABLE;
+            }
         } else if (noMoreSplits) {
             return InputStatus.END_OF_INPUT;
         } else {
-            // ensure we are not called in a loop by resetting the availability future
-            if (availability.isDone()) {
-                availability = new CompletableFuture<>();
-            }
-
+            resetAvailability();
             return InputStatus.NOTHING_AVAILABLE;
+        }
+    }
+
+    private void resetAvailability() {
+        // ensure we are not called in a loop by resetting the availability future
+        if (availability.isDone()) {
+            availability = new CompletableFuture<>();
         }
     }
 

@@ -59,16 +59,18 @@ import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -78,31 +80,23 @@ import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTe
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.applyObjectReuse;
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.buildTestHarness;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link MultipleInputStreamTask} combined with {@link
  * org.apache.flink.streaming.api.operators.SourceOperator} chaining.
  */
-@RunWith(Parameterized.class)
-public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
     private static final int MAX_STEPS = 100;
 
     @Parameters(name = "objectReuse = {0}")
-    public static Boolean[] parameters() {
-        return new Boolean[] {true, false};
+    private static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
     }
 
-    @Parameter public boolean objectReuse;
+    @Parameter private boolean objectReuse;
 
     private final CheckpointMetaData metaData =
             new CheckpointMetaData(1L, System.currentTimeMillis());
@@ -111,8 +105,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      * In this scenario: 1. checkpoint is triggered via RPC and source is blocked 2. network inputs
      * are processed until CheckpointBarriers are processed 3. aligned checkpoint is performed
      */
-    @Test
-    public void testSourceCheckpointFirst() throws Exception {
+    @TestTemplate
+    void testSourceCheckpointFirst() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
@@ -132,10 +126,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
-            assertThat(
-                    actualOutput.subList(0, expectedOutput.size()),
-                    containsInAnyOrder(expectedOutput.toArray()));
-            assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+            assertThat(actualOutput.subList(0, expectedOutput.size()))
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
+            assertThat(actualOutput.get(expectedOutput.size())).isEqualTo(barrier);
         }
     }
 
@@ -143,8 +136,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      * In this scenario: 1. checkpoint is triggered via RPC and source is blocked 2. unaligned
      * checkpoint is performed 3. all data from network inputs are processed
      */
-    @Test
-    public void testSourceCheckpointFirstUnaligned() throws Exception {
+    @TestTemplate
+    void testSourceCheckpointFirstUnaligned() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 buildTestHarness(true, objectReuse)) {
             testHarness.setAutoProcess(false);
@@ -158,7 +151,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                             .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-            assertThat(testHarness.getOutput(), contains(barrier));
+            assertThat(testHarness.getOutput()).containsExactly(barrier);
 
             testHarness.processAll();
 
@@ -168,9 +161,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
-            assertThat(
-                    actualOutput.subList(1, expectedOutput.size() + 1),
-                    containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(actualOutput.subList(1, expectedOutput.size() + 1))
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 
@@ -179,8 +171,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      * source records are processed at the same time 2. checkpoint is triggered via RPC 3. aligned
      * checkpoint is performed
      */
-    @Test
-    public void testSourceCheckpointLast() throws Exception {
+    @TestTemplate
+    void testSourceCheckpointLast() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
@@ -205,10 +197,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
-            assertThat(
-                    actualOutput.subList(0, expectedOutput.size()),
-                    containsInAnyOrder(expectedOutput.toArray()));
-            assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+            assertThat(actualOutput.subList(0, expectedOutput.size()))
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
+            assertThat(actualOutput.get(expectedOutput.size())).isEqualTo(barrier);
         }
     }
 
@@ -218,8 +209,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      * CheckpointBarrier 4. unaligned checkpoint is performed at some point of time blocking the
      * source 5. more source records are added, that shouldn't be processed
      */
-    @Test
-    public void testSourceCheckpointLastUnaligned() throws Exception {
+    @TestTemplate
+    void testSourceCheckpointLastUnaligned() throws Exception {
         boolean unaligned = true;
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 buildTestHarness(unaligned, objectReuse)) {
@@ -240,7 +231,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
             expectedOutput.add(barrier);
 
-            assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(testHarness.getOutput()).containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 
@@ -255,8 +246,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      *   <li>Synchronous savepoint is triggered
      * </ul>
      */
-    @Test
-    public void testStopWithSavepointDrainWaitsForSourcesFinish() throws Exception {
+    @TestTemplate
+    void testStopWithSavepointDrainWaitsForSourcesFinish() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
@@ -308,17 +299,16 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             expectedOutput.add(new StreamRecord<>("2", TimestampAssigner.NO_TIMESTAMP));
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
-            assertThat(
-                    actualOutput.subList(0, expectedOutput.size()),
-                    containsInAnyOrder(expectedOutput.toArray()));
-            assertThat(
-                    actualOutput.subList(actualOutput.size() - 3, actualOutput.size()),
-                    contains(new StreamRecord<>("FINISH"), new EndOfData(StopMode.DRAIN), barrier));
+            assertThat(actualOutput.subList(0, expectedOutput.size()))
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
+            assertThat(actualOutput.subList(actualOutput.size() - 3, actualOutput.size()))
+                    .containsExactly(
+                            new StreamRecord<>("FINISH"), new EndOfData(StopMode.DRAIN), barrier);
         }
     }
 
-    @Test
-    public void testOnlyOneSource() throws Exception {
+    @TestTemplate
+    void testOnlyOneSource() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
@@ -347,15 +337,14 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
             ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
-            assertThat(
-                    actualOutput.subList(0, expectedOutput.size()),
-                    containsInAnyOrder(expectedOutput.toArray()));
-            assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+            assertThat(actualOutput.subList(0, expectedOutput.size()))
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
+            assertThat(actualOutput.get(expectedOutput.size())).isEqualTo(barrier);
         }
     }
 
-    @Test
-    public void testTriggerAlignedNoTimeoutCheckpointWithFinishedChannelsAndSourceChain()
+    @TestTemplate
+    void testTriggerAlignedNoTimeoutCheckpointWithFinishedChannelsAndSourceChain()
             throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
                 CheckpointOptions.alignedNoTimeout(
@@ -363,17 +352,16 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         CheckpointStorageLocationReference.getDefault()));
     }
 
-    @Test
-    public void testTriggerUnalignedCheckpointWithFinishedChannelsAndSourceChain()
-            throws Exception {
+    @TestTemplate
+    void testTriggerUnalignedCheckpointWithFinishedChannelsAndSourceChain() throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
                 CheckpointOptions.unaligned(
                         CheckpointType.CHECKPOINT,
                         CheckpointStorageLocationReference.getDefault()));
     }
 
-    @Test
-    public void testTriggerAlignedWithTimeoutCheckpointWithFinishedChannelsAndSourceChain()
+    @TestTemplate
+    void testTriggerAlignedWithTimeoutCheckpointWithFinishedChannelsAndSourceChain()
             throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
                 CheckpointOptions.alignedWithTimeout(
@@ -441,7 +429,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();
-                assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
+                assertThat(testHarness.getTaskStateManager().getReportedCheckpointId())
+                        .isEqualTo(2);
 
                 // Tests triggering checkpoint after all the inputs have received EndOfPartition.
                 checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
@@ -458,13 +447,14 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 // The checkpoint 4 would be triggered successfully.
                 testHarness.processAll();
                 testHarness.finishProcessing();
-                assertTrue(checkpointFuture.isDone());
+                assertThat(checkpointFuture).isDone();
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();
-                assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
+                assertThat(testHarness.getTaskStateManager().getReportedCheckpointId())
+                        .isEqualTo(4);
 
                 // Each result partition should have emitted 2 barriers and 1 EndOfUserRecordsEvent.
                 for (ResultPartition resultPartition : partitionWriters) {
-                    assertEquals(3, resultPartition.getNumberOfQueuedBuffers());
+                    assertThat(resultPartition.getNumberOfQueuedBuffers()).isEqualTo(3);
                 }
             }
         } finally {
@@ -476,8 +466,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         }
     }
 
-    @Test
-    public void testSkipExecutionsIfFinishedOnRestoreWithSourceChained() throws Exception {
+    @TestTemplate
+    void testSkipExecutionsIfFinishedOnRestoreWithSourceChained() throws Exception {
         OperatorID firstSourceOperatorId = new OperatorID();
         OperatorID secondSourceOperatorId = new OperatorID();
         OperatorID nonSourceOperatorId = new OperatorID();
@@ -521,9 +511,10 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         .build()) {
 
             testHarness.processElement(Watermark.MAX_WATERMARK);
-            assertThat(output, is(empty()));
+            assertThat(output).isEmpty();
             testHarness.waitForTaskCompletion();
-            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
+            assertThat(output)
+                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {
@@ -592,11 +583,11 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     private void processSingleStepUntil(
             StreamTaskMailboxTestHarness<String> testHarness, Supplier<Boolean> condition)
             throws Exception {
-        assertFalse(condition.get());
+        assertThat(condition.get()).isFalse();
         for (int i = 0; i < MAX_STEPS && !condition.get(); i++) {
             testHarness.processSingleStep();
         }
-        assertTrue(condition.get());
+        assertThat(condition.get()).isTrue();
     }
 
     static class LifeCycleMonitorMultipleInputOperator extends TestFinishedOnRestoreStreamOperator

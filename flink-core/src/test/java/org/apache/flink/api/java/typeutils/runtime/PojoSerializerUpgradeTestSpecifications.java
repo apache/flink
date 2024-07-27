@@ -19,20 +19,20 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.ClassRelocator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.Objects;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A collection of test specifications for the {@link PojoSerializerUpgradeTest}. */
 public class PojoSerializerUpgradeTestSpecifications {
@@ -209,8 +209,8 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -227,20 +227,24 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
-            return is(new StaticSchemaPojo("Gordon", 27, StaticSchemaPojo.Color.BLUE, false));
+        public Condition<StaticSchemaPojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new StaticSchemaPojo("Gordon", 27, StaticSchemaPojo.Color.BLUE, false)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -274,8 +278,8 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<PojoBeforeSchemaUpgrade> createPriorSerializer() {
             TypeSerializer<PojoBeforeSchemaUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoBeforeSchemaUpgrade.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -341,20 +345,22 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<PojoAfterSchemaUpgrade> createUpgradedSerializer() {
             TypeSerializer<PojoAfterSchemaUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoAfterSchemaUpgrade.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<PojoAfterSchemaUpgrade> testDataMatcher() {
-            return is(new PojoAfterSchemaUpgrade("Gordon", 27, null, false));
+        public Condition<PojoAfterSchemaUpgrade> testDataCondition() {
+            return new Condition<>(
+                    value -> new PojoAfterSchemaUpgrade("Gordon", 27, null, false).equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<PojoAfterSchemaUpgrade>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAfterMigration();
+        public Condition<TypeSerializerSchemaCompatibility<PojoAfterSchemaUpgrade>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAfterMigration();
         }
     }
 
@@ -383,8 +389,8 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<PojoWithIntField> createPriorSerializer() {
             TypeSerializer<PojoWithIntField> serializer =
                     TypeExtractor.createTypeInfo(PojoWithIntField.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -415,20 +421,20 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<PojoWithStringField> createUpgradedSerializer() {
             TypeSerializer<PojoWithStringField> serializer =
                     TypeExtractor.createTypeInfo(PojoWithStringField.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<PojoWithStringField> testDataMatcher() {
+        public Condition<PojoWithStringField> testDataCondition() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<PojoWithStringField>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isIncompatible();
+        public Condition<TypeSerializerSchemaCompatibility<PojoWithStringField>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isIncompatible();
         }
     }
 
@@ -473,12 +479,13 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<BasePojo> createPriorSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(SubclassPojoBeforeSchemaUpgrade.class);
+            SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+            serializerConfigImpl.registerPojoType(SubclassPojoBeforeSchemaUpgrade.class);
 
             TypeSerializer<BasePojo> serializer =
-                    TypeExtractor.createTypeInfo(BasePojo.class).createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                    TypeExtractor.createTypeInfo(BasePojo.class)
+                            .createSerializer(serializerConfigImpl);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -552,24 +559,29 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<BasePojo> createUpgradedSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(SubclassPojoAfterSchemaUpgrade.class);
+            SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+            serializerConfigImpl.registerPojoType(SubclassPojoAfterSchemaUpgrade.class);
 
             TypeSerializer<BasePojo> serializer =
-                    TypeExtractor.createTypeInfo(BasePojo.class).createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                    TypeExtractor.createTypeInfo(BasePojo.class)
+                            .createSerializer(serializerConfigImpl);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<BasePojo> testDataMatcher() {
-            return is(new SubclassPojoAfterSchemaUpgrade(911108, "Gordon", true, 0, 0.0));
+        public Condition<BasePojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new SubclassPojoAfterSchemaUpgrade(911108, "Gordon", true, 0, 0.0)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<BasePojo>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<BasePojo>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAfterMigration();
+            return TypeSerializerConditions.isCompatibleAfterMigration();
         }
     }
 
@@ -597,13 +609,13 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(SubclassPojoWithIntField.class);
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            serializerConfig.registerPojoType(SubclassPojoWithIntField.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -634,27 +646,30 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(SubclassPojoWithStringField.class);
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            serializerConfig.registerPojoType(SubclassPojoWithStringField.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
-            return is(
-                    new SubclassPojoWithStringField(
-                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, "911108"));
+        public Condition<StaticSchemaPojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new SubclassPojoWithStringField(
+                                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, "911108")
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isIncompatible();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isIncompatible();
         }
     }
 
@@ -669,8 +684,8 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -688,22 +703,25 @@ public class PojoSerializerUpgradeTestSpecifications {
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(new ExecutionConfig());
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(new SerializerConfigImpl());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
-            return is(
-                    new StaticSchemaPojoSubclassA(
-                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, 911108));
+        public Condition<StaticSchemaPojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new StaticSchemaPojoSubclassA(
+                                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, 911108)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleWithReconfiguredSerializer();
         }
     }
 
@@ -716,14 +734,14 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -738,30 +756,33 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
             // different registration order than setup
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
+        public Condition<StaticSchemaPojo> testDataCondition() {
 
-            return is(
-                    new StaticSchemaPojoSubclassB(
-                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, true));
+            return new Condition<>(
+                    value ->
+                            new StaticSchemaPojoSubclassB(
+                                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, true)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleWithReconfiguredSerializer();
         }
     }
 
@@ -774,14 +795,14 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -796,28 +817,31 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
             // missing registration for subclass A compared to setup
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
-            return is(
-                    new StaticSchemaPojoSubclassB(
-                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, true));
+        public Condition<StaticSchemaPojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new StaticSchemaPojoSubclassB(
+                                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, true)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleWithReconfiguredSerializer();
         }
     }
 
@@ -830,12 +854,12 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -851,28 +875,31 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
             // new registration for subclass A compared to setup
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
-            return is(
-                    new StaticSchemaPojoSubclassA(
-                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, 911108));
+        public Condition<StaticSchemaPojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new StaticSchemaPojoSubclassA(
+                                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, 911108)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleWithReconfiguredSerializer();
         }
     }
 
@@ -885,14 +912,14 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createPriorSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassA.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -907,28 +934,31 @@ public class PojoSerializerUpgradeTestSpecifications {
 
         @Override
         public TypeSerializer<StaticSchemaPojo> createUpgradedSerializer() {
-            ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
-            executionConfig.registerPojoType(StaticSchemaPojoSubclassC.class);
+            SerializerConfig serializerConfig = new SerializerConfigImpl();
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassB.class);
+            serializerConfig.registerPojoType(StaticSchemaPojoSubclassC.class);
 
             TypeSerializer<StaticSchemaPojo> serializer =
                     TypeExtractor.createTypeInfo(StaticSchemaPojo.class)
-                            .createSerializer(executionConfig);
-            assertSame(PojoSerializer.class, serializer.getClass());
+                            .createSerializer(serializerConfig);
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<StaticSchemaPojo> testDataMatcher() {
-            return is(
-                    new StaticSchemaPojoSubclassB(
-                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, true));
+        public Condition<StaticSchemaPojo> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            new StaticSchemaPojoSubclassB(
+                                            "gt", 7, StaticSchemaPojo.Color.BLUE, false, true)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
+        public Condition<TypeSerializerSchemaCompatibility<StaticSchemaPojo>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleWithReconfiguredSerializer();
         }
     }
 }

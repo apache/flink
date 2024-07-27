@@ -36,10 +36,10 @@ trigger:
 
 resources:
   containers:
-  # Container with Maven 3.8.6, SSL to have the same environment everywhere.
+  # Container with SSL to have the same environment everywhere.
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17_maven_386_v2
+    image: chesnay/flink-ci:java_8_11_17_21_maven_386
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -69,7 +69,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -113,7 +113,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -135,7 +135,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Djdk11 -Pjava11-target"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Pjava11-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 11
@@ -146,10 +146,21 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Djdk11 -Djdk17"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Djdk17 -Pjava17-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 17
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_jdk21
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Djdk17 -Djdk21 -Pjava21-target"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: 21
       - template: jobs-template.yml
         parameters:
           stage_name: cron_adaptive_scheduler
@@ -157,7 +168,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Penable-adaptive-scheduler"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Penable-adaptive-scheduler"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -172,5 +183,5 @@ stages:
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           container: flink-build-container

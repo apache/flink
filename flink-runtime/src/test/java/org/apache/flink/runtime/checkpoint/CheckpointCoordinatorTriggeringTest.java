@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
@@ -623,6 +623,41 @@ class CheckpointCoordinatorTriggeringTest {
                         false);
         manuallyTriggeredScheduledExecutor.triggerAll();
         assertThat(onCompletionPromise2).isNotCompletedExceptionally();
+    }
+
+    @Test
+    void testWithNoOpCheckpointStatsTracker() throws Exception {
+        final ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        // we need parallelism of 2 to have one task still being not finished
+                        // for the checkpoint handling to succeed
+                        .addJobVertex(new JobVertexID(), 2, 2)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        executionGraph
+                .getAllExecutionVertices()
+                .iterator()
+                .next()
+                .getCurrentExecutionAttempt()
+                // finish one task so that SubTask reporting is triggered on the
+                // PendingCheckpointStats internally
+                .markFinished();
+        final CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(NoOpCheckpointStatsTracker.INSTANCE)
+                        // checkpointing needs to be allowed after a task is already finished to
+                        // handle the PendingCheckpoint properly even with one Execution already
+                        // being finished before initializing the CheckpointCoordinator
+                        .setAllowCheckpointsAfterTasksFinished(true)
+                        .build(executionGraph);
+
+        triggerNonPeriodicCheckpoint(checkpointCoordinator);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints())
+                .as(
+                        "The PendingCheckpoint was added. The PendingCheckpointStats should have been initialized.")
+                .isEqualTo(1);
     }
 
     @Test

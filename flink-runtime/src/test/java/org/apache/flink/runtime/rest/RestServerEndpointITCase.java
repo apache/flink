@@ -153,18 +153,18 @@ public class RestServerEndpointITCase {
         final String keystorePath = getTestResource("local127.keystore").getAbsolutePath();
 
         final Configuration sslConfig = new Configuration(config);
-        sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
-        sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
-        sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
-        sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
-        sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_ENABLED, true);
+        sslConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
+        sslConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
+        sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
 
         final Configuration sslRestAuthConfig = new Configuration(sslConfig);
-        sslRestAuthConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+        sslRestAuthConfig.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
 
         final Configuration sslPinningRestAuthConfig = new Configuration(sslRestAuthConfig);
-        sslPinningRestAuthConfig.setString(
+        sslPinningRestAuthConfig.set(
                 SecurityOptions.SSL_REST_CERT_FINGERPRINT,
                 SSLUtilsTest.getRestCertificateFingerprint(sslPinningRestAuthConfig, "flink.test"));
 
@@ -178,17 +178,17 @@ public class RestServerEndpointITCase {
         final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
         final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-        config.setString(RestOptions.ADDRESS, loopbackAddress);
-        config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
-        config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.set(RestOptions.ADDRESS, loopbackAddress);
+        config.set(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
+        config.set(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
         return config;
     }
 
     @BeforeEach
     void setup() throws Exception {
-        config.setString(WebOptions.UPLOAD_DIR, tempFolder.toUri().getPath());
+        config.set(WebOptions.UPLOAD_DIR, tempFolder.toUri().getPath());
 
         defaultSSLContext = SSLContext.getDefault();
         defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
@@ -374,30 +374,43 @@ public class RestServerEndpointITCase {
     @TestTemplate
     void testFileUpload() throws Exception {
         final String boundary = generateMultiPartBoundary();
-        final String crlf = "\r\n";
         final String uploadedContent = "hello";
-        final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
+        final HttpURLConnection connection =
+                openHttpConnectionForUpload(
+                        boundary, TestUploadHeaders.INSTANCE.getTargetRestEndpointURL());
 
-        try (OutputStream output = connection.getOutputStream();
-                PrintWriter writer =
-                        new PrintWriter(
-                                new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
-
-            writer.append("--" + boundary).append(crlf);
-            writer.append("Content-Disposition: form-data; name=\"foo\"; filename=\"bar\"")
-                    .append(crlf);
-            writer.append("Content-Type: plain/text; charset=utf8").append(crlf);
-            writer.append(crlf).flush();
-            output.write(uploadedContent.getBytes(StandardCharsets.UTF_8));
-            output.flush();
-            writer.append(crlf).flush();
-            writer.append("--" + boundary + "--").append(crlf).flush();
-        }
+        uploadFile(connection, uploadedContent, boundary);
 
         assertThat(connection.getResponseCode()).isEqualTo(200);
         final byte[] lastUploadedFileContents = testUploadHandler.getLastUploadedFileContents();
         assertThat(uploadedContent)
                 .isEqualTo(new String(lastUploadedFileContents, StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Tests that when a handler is marked as not accepting file uploads we (1) return an error and
+     * (2) don't upload the file to the upload directory.
+     */
+    @TestTemplate
+    void testFileUploadLimitedToAllowedUris() throws Exception {
+        final String boundary = generateMultiPartBoundary();
+        final File uploadDir = new File(tempFolder.toString(), "flink-web-upload");
+        final File[] preUploadFiles = uploadDir.listFiles();
+
+        // We need a handler that does not accept file uploads for this test
+        assertThat(TestVersionHeaders.INSTANCE.acceptsFileUploads()).isFalse();
+        String uri = TestVersionHeaders.INSTANCE.getTargetRestEndpointURL();
+
+        final HttpURLConnection connection = openHttpConnectionForUpload(boundary, uri);
+
+        uploadFile(connection, "hello", boundary);
+
+        assertThat(connection.getResponseCode()).isEqualTo(400);
+
+        // This is the important check. We don't want additional files when the handler does
+        // not accept file uploads.
+        final File[] postUploadFiles = uploadDir.listFiles();
+        assertThat(postUploadFiles).isEqualTo(preUploadFiles);
     }
 
     /**
@@ -408,7 +421,9 @@ public class RestServerEndpointITCase {
     void testMultiPartFormDataWithoutFileUpload() throws Exception {
         final String boundary = generateMultiPartBoundary();
         final String crlf = "\r\n";
-        final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
+        final HttpURLConnection connection =
+                openHttpConnectionForUpload(
+                        boundary, TestUploadHeaders.INSTANCE.getTargetRestEndpointURL());
 
         try (OutputStream output = connection.getOutputStream();
                 PrintWriter writer =
@@ -514,7 +529,7 @@ public class RestServerEndpointITCase {
 
     @TestTemplate
     void testDefaultVersionRouting() throws Exception {
-        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED))
+        assumeThat(config.get(SecurityOptions.SSL_REST_ENABLED))
                 .as("Ignoring SSL-enabled test to keep OkHttp usage simple.")
                 .isFalse();
 
@@ -535,7 +550,7 @@ public class RestServerEndpointITCase {
 
     @TestTemplate
     void testNonSslRedirectForEnabledSsl() throws Exception {
-        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED)).isTrue();
+        assumeThat(config.get(SecurityOptions.SSL_REST_ENABLED)).isTrue();
 
         OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
         String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
@@ -631,8 +646,8 @@ public class RestServerEndpointITCase {
         final int portRangeStart = 52300;
         final int portRangeEnd = 52400;
         final Configuration config = new Configuration();
-        config.setString(RestOptions.ADDRESS, "localhost");
-        config.setString(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
+        config.set(RestOptions.ADDRESS, "localhost");
+        config.set(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
 
         try (RestServerEndpoint serverEndpoint1 = TestRestServerEndpoint.builder(config).build();
                 RestServerEndpoint serverEndpoint2 =
@@ -715,11 +730,11 @@ public class RestServerEndpointITCase {
         return new File(resource.getFile());
     }
 
-    private HttpURLConnection openHttpConnectionForUpload(final String boundary)
-            throws IOException {
+    private HttpURLConnection openHttpConnectionForUpload(
+            final String boundary, final String uploadUri) throws IOException {
         final HttpURLConnection connection =
                 (HttpURLConnection)
-                        new URL(serverEndpoint.getRestBaseUrl() + "/upload").openConnection();
+                        new URL(serverEndpoint.getRestBaseUrl() + uploadUri).openConnection();
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
         return connection;
@@ -735,6 +750,26 @@ public class RestServerEndpointITCase {
             sb.append('a');
         }
         return sb.toString();
+    }
+
+    private static void uploadFile(HttpURLConnection connection, String content, String boundary)
+            throws IOException {
+        final String crlf = "\r\n";
+        try (OutputStream output = connection.getOutputStream();
+                PrintWriter writer =
+                        new PrintWriter(
+                                new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
+
+            writer.append("--" + boundary).append(crlf);
+            writer.append("Content-Disposition: form-data; name=\"foo\"; filename=\"bar\"")
+                    .append(crlf);
+            writer.append("Content-Type: plain/text; charset=utf8").append(crlf);
+            writer.append(crlf).flush();
+            output.write(content.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+            writer.append(crlf).flush();
+            writer.append("--" + boundary + "--").append(crlf).flush();
+        }
     }
 
     private static class TestHandler

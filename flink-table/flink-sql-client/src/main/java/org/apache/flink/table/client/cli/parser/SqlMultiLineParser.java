@@ -110,6 +110,7 @@ public class SqlMultiLineParser extends DefaultParser {
                             executor.configureSession(line);
                             printer = Printer.createInitializationCommandPrinter();
                         } else {
+                            long queryBeginTime = System.currentTimeMillis();
                             StatementResult result = executor.executeStatement(line);
                             ReadableConfig sessionConfig = executor.getSessionConfig();
                             if (mode == CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION
@@ -125,7 +126,9 @@ public class SqlMultiLineParser extends DefaultParser {
                                                 EXECUTION_RESULT_MODE.key(),
                                                 TABLEAU));
                             }
-                            printer = Printer.createStatementCommandPrinter(result, sessionConfig);
+                            printer =
+                                    Printer.createStatementCommandPrinter(
+                                            result, sessionConfig, queryBeginTime);
                         }
                         break;
                     }

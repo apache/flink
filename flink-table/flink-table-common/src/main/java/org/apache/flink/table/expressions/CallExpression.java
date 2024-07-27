@@ -20,13 +20,16 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.SqlCallSyntax;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -214,6 +217,30 @@ public final class CallExpression implements ResolvedExpression {
                         .collect(Collectors.joining(", ", "(", ")"));
 
         return getFunctionName() + argList;
+    }
+
+    @Override
+    public String asSerializableString() {
+        if (functionDefinition instanceof BuiltInFunctionDefinition) {
+            final BuiltInFunctionDefinition definition =
+                    (BuiltInFunctionDefinition) functionDefinition;
+            return definition.getCallSyntax().unparse(definition.getSqlName(), args);
+        } else {
+            return SqlCallSyntax.FUNCTION.unparse(getSerializableFunctionName(), args);
+        }
+    }
+
+    private String getSerializableFunctionName() {
+        if (functionIdentifier == null) {
+            throw new TableException(
+                    "Only functions that have been registered before are serializable.");
+        }
+
+        return functionIdentifier
+                .getIdentifier()
+                .map(ObjectIdentifier::asSerializableString)
+                .orElseGet(
+                        () -> EncodingUtils.escapeIdentifier(functionIdentifier.getFunctionName()));
     }
 
     @Override

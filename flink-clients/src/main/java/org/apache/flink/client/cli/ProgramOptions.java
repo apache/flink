@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -138,6 +139,12 @@ public class ProgramOptions extends CommandLineOptions {
         if (getJarFilePath() == null) {
             throw new CliArgsException("Java program should be specified a JAR file.");
         }
+        if (savepointSettings.getRestoreMode().equals(RestoreMode.LEGACY)) {
+            System.out.printf(
+                    "Warning: The %s restore mode is deprecated, please use %s or"
+                            + " %s mode instead.%n",
+                    RestoreMode.LEGACY, RestoreMode.CLAIM, RestoreMode.NO_CLAIM);
+        }
     }
 
     public String getJarFilePath() {
@@ -174,12 +181,11 @@ public class ProgramOptions extends CommandLineOptions {
 
     public void applyToConfiguration(Configuration configuration) {
         if (hasParallelismOpt) {
-            configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
+            configuration.set(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
         }
 
-        configuration.setBoolean(DeploymentOptions.ATTACHED, !getDetachedMode());
-        configuration.setBoolean(
-                DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
+        configuration.set(DeploymentOptions.ATTACHED, !getDetachedMode());
+        configuration.set(DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
         ConfigUtils.encodeCollectionToConfig(
                 configuration, PipelineOptions.CLASSPATHS, getClasspaths(), URL::toString);
         SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(), configuration);

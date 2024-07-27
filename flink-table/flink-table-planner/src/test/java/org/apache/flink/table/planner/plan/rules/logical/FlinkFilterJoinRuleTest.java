@@ -31,16 +31,16 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link FlinkFilterJoinRule}. */
-public class FlinkFilterJoinRuleTest extends TableTestBase {
+class FlinkFilterJoinRuleTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = batchTestUtil(TableConfig.getDefault());
         util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
         CalciteConfig calciteConfig =
@@ -102,256 +102,256 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testFilterPushDownLeftSemi1() {
+    void testFilterPushDownLeftSemi1() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testFilterPushDownLeftSemi2() {
+    void testFilterPushDownLeftSemi2() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testFilterPushDownLeftSemi3() {
+    void testFilterPushDownLeftSemi3() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftSemi1() {
+    void testJoinConditionPushDownLeftSemi1() {
         util.verifyRelPlan("SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT WHERE b > 2)");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftSemi2() {
+    void testJoinConditionPushDownLeftSemi2() {
         util.verifyRelPlan("SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE b > 2)");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftSemi3() {
+    void testJoinConditionPushDownLeftSemi3() {
         util.verifyRelPlan(
                 "SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)");
     }
 
     @Test
-    public void testFilterPushDownLeftAnti1() {
+    void testFilterPushDownLeftAnti1() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE c < 3)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testFilterPushDownLeftAnti2() {
+    void testFilterPushDownLeftAnti2() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT where c > 10)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testFilterPushDownLeftAnti3() {
+    void testFilterPushDownLeftAnti3() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND c < 3)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testFilterPushDownLeftAnti4() {
+    void testFilterPushDownLeftAnti4() {
         util.verifyRelPlan(
                 "SELECT * FROM (SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c)) T WHERE T.b > 2");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftAnti1() {
+    void testJoinConditionPushDownLeftAnti1() {
         util.verifyRelPlan("SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b > 2)");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftAnti2() {
+    void testJoinConditionPushDownLeftAnti2() {
         util.verifyRelPlan(
                 "SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE b > 2)");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftAnti3() {
+    void testJoinConditionPushDownLeftAnti3() {
         util.verifyRelPlan(
                 "SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND b > 1)");
     }
 
     @Test
-    public void testJoinConditionPushDownLeftAnti4() {
+    void testJoinConditionPushDownLeftAnti4() {
         util.verifyRelPlan(
                 "SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)");
     }
 
     @Test
-    public void testInnerJoinWithAllFilterFromBothSide() {
+    void testInnerJoinWithAllFilterFromBothSide() {
         // can not be pushed down
         util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2 WHERE a1 = a2 + 2");
     }
 
     @Test
-    public void testInnerJoinWithAllFilterInONClause() {
+    void testInnerJoinWithAllFilterInONClause() {
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2 AND b1 = b2 AND a1 = 2 AND b2 > 10");
     }
 
     @Test
-    public void testInnerJoinWithSomeFiltersFromLeftSide() {
+    void testInnerJoinWithSomeFiltersFromLeftSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2 WHERE a1 = 2");
     }
 
     @Test
-    public void testInnerJoinWithSomeFiltersFromRightSide() {
+    void testInnerJoinWithSomeFiltersFromRightSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2 WHERE a2 = 2");
     }
 
     @Test
-    public void testInnerJoinWithSomeFiltersFromLeftRightSide() {
+    void testInnerJoinWithSomeFiltersFromLeftRightSide() {
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 JOIN MyTable2 ON a1 = a2 AND b1 = b2 AND c1 = c2 WHERE a2 = 2 AND b2 > 10 AND c1 IS NOT NULL");
     }
 
     @Test
-    public void testInnerJoinWithAllFiltersFromWhere() {
+    void testInnerJoinWithAllFiltersFromWhere() {
         util.verifyRelPlan(
                 "SELECT * FROM MyTable2, MyTable1 WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ");
     }
 
     @Test
-    public void testInnerJoinWithNullFilter() {
+    void testInnerJoinWithNullFilter() {
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL");
     }
 
     @Test
-    public void testInnerJoinWithNullFilter2() {
+    void testInnerJoinWithNullFilter2() {
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10");
     }
 
     @Test
-    public void testInnerJoinWithFilter1() {
+    void testInnerJoinWithFilter1() {
         util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 < 1");
     }
 
     @Test
-    public void testInnerJoinWithFilter2() {
+    void testInnerJoinWithFilter2() {
         util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 <> 1");
     }
 
     @Test
-    public void testInnerJoinWithFilter3() {
+    void testInnerJoinWithFilter3() {
         util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 > 1");
     }
 
     @Test
-    public void testInnerJoinWithFilter4() {
+    void testInnerJoinWithFilter4() {
         util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 >= 1");
     }
 
     @Test
-    public void testInnerJoinWithFilter5() {
+    void testInnerJoinWithFilter5() {
         util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
     }
 
     @Test
-    public void testInnerJoinWithFilter6() {
+    void testInnerJoinWithFilter6() {
         util.verifyRelPlan("SELECT * FROM MyTable1 INNER JOIN MyTable2 ON a1 = a2 WHERE a2 = null");
     }
 
     @Test
-    public void testLeftJoinWithSomeFiltersFromLeftSide() {
+    void testLeftJoinWithSomeFiltersFromLeftSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a1 = 2");
     }
 
     @Test
-    public void testLeftJoinWithAllFilterInONClause() {
+    void testLeftJoinWithAllFilterInONClause() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 AND a2 = 2");
     }
 
     @Test
-    public void testLeftJoinWithSomeFiltersFromLeftRightSide() {
+    void testLeftJoinWithSomeFiltersFromLeftRightSide() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 AND b1 = b2 AND c1 = c2 WHERE a2 = 2 AND b2 > 10 AND c1 IS NOT NULL");
     }
 
     @Test
-    public void testLeftJoinWithAllFiltersFromWhere() {
+    void testLeftJoinWithAllFiltersFromWhere() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON true WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ");
     }
 
     @Test
-    public void testLeftJoinWithNullFilterInRightSide() {
+    void testLeftJoinWithNullFilterInRightSide() {
         // Even if there is a filter 'a2 IS NULL', the 'a1 IS NULL' cannot be generated for left
         // join and this filter cannot be pushed down to both MyTable1 and MyTable2.
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL");
     }
 
     @Test
-    public void testLeftJoinWithNullFilterInRightSide2() {
+    void testLeftJoinWithNullFilterInRightSide2() {
         // 'a2 IS NULL' cannot infer that 'a1 IS NULL'.
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NULL AND a1 < 10");
     }
 
     @Test
-    public void testLeftJoinWithFilter1() {
+    void testLeftJoinWithFilter1() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 < 1");
     }
 
     @Test
-    public void testLeftJoinWithFilter2() {
+    void testLeftJoinWithFilter2() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <> 1");
     }
 
     @Test
-    public void testLeftJoinWithFilter3() {
+    void testLeftJoinWithFilter3() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 > 1");
     }
 
     @Test
-    public void testLeftJoinWithFilter4() {
+    void testLeftJoinWithFilter4() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 >= 1");
     }
 
     @Test
-    public void testLeftJoinWithFilter5() {
+    void testLeftJoinWithFilter5() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 <= 1");
     }
 
     @Test
-    public void testLeftJoinWithFilter6() {
+    void testLeftJoinWithFilter6() {
         util.verifyRelPlan("SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 = null");
     }
 
     @Test
-    public void testRightJoinWithAllFilterInONClause() {
+    void testRightJoinWithAllFilterInONClause() {
         util.verifyRelPlan("SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 AND a1 = 2");
     }
 
     @Test
-    public void testRightJoinWithSomeFiltersFromRightSide() {
+    void testRightJoinWithSomeFiltersFromRightSide() {
         util.verifyRelPlan("SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 WHERE a2 = 2");
     }
 
     @Test
-    public void testRightJoinWithSomeFiltersFromLeftRightSide() {
+    void testRightJoinWithSomeFiltersFromLeftRightSide() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON a1 = a2 AND b1 = b2 AND c1 = c2 WHERE a2 = 2 AND b2 > 10 AND c1 IS NOT NULL");
     }
 
     @Test
-    public void testRightJoinWithAllFiltersFromWhere() {
+    void testRightJoinWithAllFiltersFromWhere() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 RIGHT JOIN MyTable2 ON true WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ");
     }
 
     @Test
-    public void testRightJoinWithNullFilterInLeftSide() {
+    void testRightJoinWithNullFilterInLeftSide() {
         // Even if there is a filter 'a1 IS NULL', the 'a2 IS NULL' cannot be generated for right
         // join and this filter cannot be pushed down to both MyTable1 and MyTable2.
         util.verifyRelPlan(
@@ -359,7 +359,7 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testRightJoinWithNullFilterInRightSide2() {
+    void testRightJoinWithNullFilterInRightSide2() {
         // 'a1 IS NULL' cannot infer that 'a2 IS NULL'. However, 'a2 < 10' can infer that 'a1 < 10',
         // and both of them can be pushed down.
         util.verifyRelPlan(
@@ -367,47 +367,47 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testFullJoinWithAllFilterInONClause() {
+    void testFullJoinWithAllFilterInONClause() {
         util.verifyRelPlan("SELECT * FROM MyTable1 FULL JOIN MyTable2 ON a1 = a2 AND a1 = 2");
     }
 
     @Test
-    public void testFullJoinWithSomeFiltersFromLeftSide() {
+    void testFullJoinWithSomeFiltersFromLeftSide() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 FULL JOIN MyTable2 ON a1 = a2 AND b1 = b2 WHERE a1 = 2");
     }
 
     @Test
-    public void testFullJoinWithSomeFiltersFromRightSide() {
+    void testFullJoinWithSomeFiltersFromRightSide() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 FULL JOIN MyTable2 ON a1 = a2 AND b1 = b2 WHERE a2 = 2");
     }
 
     @Test
-    public void testFullJoinWithSomeFiltersFromLeftRightSide() {
+    void testFullJoinWithSomeFiltersFromLeftRightSide() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 FULL JOIN MyTable2 ON a1 = a2 AND b1 = b2 AND c1 = c2 WHERE a2 = 2 AND b2 > 10 AND c1 IS NOT NULL");
     }
 
     @Test
-    public void testFullJoinWithAllFiltersFromWhere() {
+    void testFullJoinWithAllFiltersFromWhere() {
         // will be converted to inner join
         util.verifyRelPlan(
                 "SELECT * FROM MyTable2, MyTable1 WHERE b1 = b2 AND c1 = c2 AND a2 = 2 AND b2 > 10 AND COALESCE(c1, c2) <> '' ");
     }
 
     @Test
-    public void testSemiJoin() {
+    void testSemiJoin() {
         // TODO can not be pushed down now, support it later
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 WHERE (a1, b1, c1) IN (SELECT a2, b2, c2 FROM MyTable2 WHERE a2 = 2 AND b2 > 10) AND c1 IS NOT NULL");
     }
 
     @Test
-    public void testAntiJoin() {
+    void testAntiJoin() {
         // can not be pushed down
         util.verifyRelPlan(
                 "SELECT * FROM MyTable1 WHERE (a1, b1, c1) NOT IN (select a2, b2, c2 FROM MyTable2 WHERE a2 = 2 AND b2 > 10) AND c1 IS NOT NULL");

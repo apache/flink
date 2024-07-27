@@ -190,6 +190,15 @@ public interface WatermarkStrategy<T>
     @PublicEvolving
     default WatermarkStrategy<T> withWatermarkAlignment(
             String watermarkGroup, Duration maxAllowedWatermarkDrift, Duration updateInterval) {
+        checkNotNull(watermarkGroup, "watermarkGroup cannot be null");
+        checkNotNull(maxAllowedWatermarkDrift, "maxAllowedWatermarkDrift cannot be null");
+        checkNotNull(updateInterval, "updateInterval cannot be null");
+        checkArgument(
+                !maxAllowedWatermarkDrift.isNegative(),
+                "maxAllowedWatermarkDrift must be greater than or equal to zero");
+        checkArgument(
+                !(updateInterval.isZero() || updateInterval.isNegative()),
+                "updateInterval must be positive");
         return new WatermarksWithWatermarkAlignment<T>(
                 this, watermarkGroup, maxAllowedWatermarkDrift, updateInterval);
     }

@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.io.InputFormat
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
@@ -202,7 +203,7 @@ class TestTableSourceWithTime[T](
   with DefinedFieldMapping {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
-    val dataStream = execEnv.fromCollection(values, returnType)
+    val dataStream = execEnv.fromData(values.asJava, returnType)
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream
   }
@@ -528,7 +529,7 @@ class TestLegacyFilterableTableSource(
     }
 
     execEnv
-      .fromCollection[Row](
+      .fromData[Row](
         applyPredicatesToRows(records).asJava,
         fromDataTypeToTypeInfo(getProducedDataType).asInstanceOf[RowTypeInfo])
       .setParallelism(1)
@@ -739,7 +740,9 @@ class TestInputFormatTableSource[T](tableSchema: TableSchema, values: Seq[T])
 
   override def getInputFormat: InputFormat[T, _ <: InputSplit] = {
     val returnType = tableSchema.toRowType.asInstanceOf[TypeInformation[T]]
-    new CollectionInputFormat[T](values.asJava, returnType.createSerializer(new ExecutionConfig))
+    new CollectionInputFormat[T](
+      values.asJava,
+      returnType.createSerializer(new SerializerConfigImpl))
   }
 
   override def getReturnType: TypeInformation[T] =
@@ -795,7 +798,7 @@ class TestDataTypeTableSource(tableSchema: TableSchema, values: Seq[Row])
     new CollectionInputFormat[Row](
       values.asJava,
       fromDataTypeToTypeInfo(getProducedDataType)
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .asInstanceOf[TypeSerializer[Row]])
   }
 
@@ -857,7 +860,7 @@ class TestDataTypeTableSourceWithTime(
     new CollectionInputFormat[Row](
       values.asJava,
       fromDataTypeToTypeInfo(getProducedDataType)
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .asInstanceOf[TypeSerializer[Row]])
   }
 
@@ -929,7 +932,7 @@ class TestStreamTableSource(tableSchema: TableSchema, values: Seq[Row])
   extends StreamTableSource[Row] {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromCollection(values, tableSchema.toRowType)
+    execEnv.fromData(values.asJava, tableSchema.toRowType)
   }
 
   override def getProducedDataType: DataType = tableSchema.toRowDataType
@@ -1087,7 +1090,7 @@ class TestPartitionableTableSource(
       data.values.flatten
     }
 
-    execEnv.fromCollection[Row](remainingData, getReturnType).setParallelism(1).setMaxParallelism(1)
+    execEnv.fromData[Row](remainingData, getReturnType).setParallelism(1).setMaxParallelism(1)
   }
 
   override def explainSource(): String = {
@@ -1218,7 +1221,7 @@ class WithoutTimeAttributesTableSource(bounded: Boolean) extends StreamTableSour
     )
     val dataStream =
       execEnv
-        .fromCollection(data)
+        .fromData(data.asJava)
         .returns(fromDataTypeToTypeInfo(getProducedDataType).asInstanceOf[RowTypeInfo])
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream

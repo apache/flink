@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
 import org.junit.jupiter.api.Test;
@@ -31,11 +33,13 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SubtaskCommittableManagerTest {
+    private static final SinkCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockCommitterMetricGroup();
 
     @Test
     void testDrainCommittables() {
         final SubtaskCommittableManager<Integer> subtaskCommittableManager =
-                new SubtaskCommittableManager<>(3, 1, 1L);
+                new SubtaskCommittableManager<>(3, 1, 1L, METRIC_GROUP);
         final CommittableWithLineage<Integer> first = new CommittableWithLineage<Integer>(1, 1L, 1);
         final CommittableWithLineage<Integer> second =
                 new CommittableWithLineage<Integer>(2, 1L, 1);
@@ -100,15 +104,24 @@ class SubtaskCommittableManagerTest {
     void testMerge() {
         final SubtaskCommittableManager<Integer> subtaskCommittableManager =
                 new SubtaskCommittableManager<>(
-                        Collections.singletonList(new CommitRequestImpl<>(1)), 5, 1, 2, 1, 2L);
+                        Collections.singletonList(new CommitRequestImpl<>(1, METRIC_GROUP)),
+                        5,
+                        1,
+                        2,
+                        1,
+                        2L,
+                        METRIC_GROUP);
         subtaskCommittableManager.merge(
                 new SubtaskCommittableManager<>(
-                        Arrays.asList(new CommitRequestImpl<>(2), new CommitRequestImpl<>(3)),
+                        Arrays.asList(
+                                new CommitRequestImpl<>(2, METRIC_GROUP),
+                                new CommitRequestImpl<>(3, METRIC_GROUP)),
                         10,
                         2,
                         3,
                         1,
-                        2L));
+                        2L,
+                        METRIC_GROUP));
         assertThat(subtaskCommittableManager.getNumCommittables()).isEqualTo(11);
         assertThat(subtaskCommittableManager.getNumDrained()).isEqualTo(3);
         assertThat(subtaskCommittableManager.isFinished()).isFalse();

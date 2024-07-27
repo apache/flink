@@ -88,6 +88,28 @@ GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, FIRST_VALUE_RET
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testListAggWithDistinctMultiArgs[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, LISTAGG(DISTINCT c, '#') FROM MyTable GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG(DISTINCT $1, $2)])
++- LogicalProject(a=[$0], c=[$2], $f2=[_UTF-16LE'#'])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[a], select=[a, LISTAGG(distinct$0 (accDelimiter$0, concatAcc$1)) AS EXPR$1])
++- Exchange(distribution=[hash[a]])
+   +- LocalGroupAggregate(groupBy=[a], select=[a, LISTAGG(distinct$0 c, $f2) AS (accDelimiter$0, concatAcc$1), DISTINCT(c, $f2) AS distinct$0])
+      +- Calc(select=[a, c, '#' AS $f2])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMinMaxWithRetraction[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
     <Resource name="sql">
       <![CDATA[

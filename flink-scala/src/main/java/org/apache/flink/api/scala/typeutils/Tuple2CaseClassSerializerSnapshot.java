@@ -46,9 +46,7 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
     private Class<Tuple2<T1, T2>> type;
 
     @SuppressWarnings("unused")
-    public Tuple2CaseClassSerializerSnapshot() {
-        super(correspondingSerializerClass());
-    }
+    public Tuple2CaseClassSerializerSnapshot() {}
 
     public Tuple2CaseClassSerializerSnapshot(
             ScalaCaseClassSerializer<Tuple2<T1, T2>> serializerInstance) {
@@ -91,14 +89,15 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
     @Override
     protected CompositeTypeSerializerSnapshot.OuterSchemaCompatibility
             resolveOuterSchemaCompatibility(
-                    ScalaCaseClassSerializer<Tuple2<T1, T2>> newSerializer) {
-        return (Objects.equals(type, newSerializer.getTupleClass()))
+                    TypeSerializerSnapshot<Tuple2<T1, T2>> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof Tuple2CaseClassSerializerSnapshot)) {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+
+        Tuple2CaseClassSerializerSnapshot<T1, T2> oldSnapshot =
+                (Tuple2CaseClassSerializerSnapshot<T1, T2>) oldSerializerSnapshot;
+        return (Objects.equals(type, oldSnapshot.type))
                 ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                 : OuterSchemaCompatibility.INCOMPATIBLE;
-    }
-
-    private static <T1, T2>
-            Class<ScalaCaseClassSerializer<scala.Tuple2<T1, T2>>> correspondingSerializerClass() {
-        return package$.MODULE$.tuple2ClassForJava();
     }
 }

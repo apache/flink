@@ -20,9 +20,9 @@ package org.apache.flink.api.scala.runtime
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBaseJUnit4, TestBaseUtils}
 
+import MultipleProgramsTestBaseJUnit4.TestExecutionMode
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -31,7 +31,8 @@ import org.junit.runners.Parameterized
 import scala.util.{Failure, Success}
 
 @RunWith(classOf[Parameterized])
-class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class ScalaSpecialTypesITCase(mode: TestExecutionMode)
+  extends MultipleProgramsTestBaseJUnit4(mode) {
 
   val _tempFolder = new TemporaryFolder()
 

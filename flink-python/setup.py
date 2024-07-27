@@ -324,8 +324,10 @@ try:
                         'numpy>=1.22.4',
                         'pandas>=1.3.0',
                         'pyarrow>=5.0.0',
-                        'pemja==0.3.0;platform_system != "Windows"',
-                        'httplib2>=0.19.0', apache_flink_libraries_dependency]
+                        'pemja==0.4.1;platform_system != "Windows"',
+                        'httplib2>=0.19.0',
+                        'ruamel.yaml>=0.18.4',
+                        apache_flink_libraries_dependency]
 
     setup(
         name='apache-flink',
@@ -351,7 +353,8 @@ try:
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: 3.9',
-            'Programming Language :: Python :: 3.10'],
+            'Programming Language :: Python :: 3.10',
+            'Programming Language :: Python :: 3.11'],
         ext_modules=extensions
     )
 finally:

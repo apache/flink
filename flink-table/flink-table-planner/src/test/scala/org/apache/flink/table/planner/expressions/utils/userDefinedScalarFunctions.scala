@@ -18,9 +18,10 @@
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction, TableFunction}
+import org.apache.flink.table.planner.JInt
 import org.apache.flink.table.planner.utils.CountAccumulator
 import org.apache.flink.types.Row
 
@@ -53,6 +54,15 @@ object Func1 extends ScalarFunction {
   def eval(s: Short): Short = (s + 1).toShort
 
   def eval(f: Float): Float = f + 1
+}
+
+@SerialVersionUID(1L)
+object FuncNotReducible extends ScalarFunction {
+  def eval(index: Integer): Integer = {
+    index + 1
+  }
+
+  override def supportsConstantFolding: Boolean = false
 }
 
 @SerialVersionUID(1L)
@@ -95,6 +105,9 @@ class RichFunc1 extends ScalarFunction {
     }
   }
 
+  @FunctionHint(
+    input = Array(new DataTypeHint("INT")),
+    output = new DataTypeHint(value = "INT", bridgedTo = classOf[JInt]))
   def eval(index: Int): Int = {
     index + added
   }

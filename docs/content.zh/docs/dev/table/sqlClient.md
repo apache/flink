@@ -82,7 +82,7 @@ Cache-Control: no-cache
 EOF)
 ```
 
-By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the `flink-conf.yaml` file on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
+By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
 
 
 <span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。
@@ -673,7 +673,7 @@ SET 'yarn.application.queue' = 'root';
 SET 'parallelism.default' = '100';
 
 -- restore from the specific savepoint path
-SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+SET 'execution.state-recovery.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 
 INSERT INTO pageviews_enriched
 SELECT *
@@ -727,7 +727,7 @@ Flink SQL> CREATE TABLE pageviews (
 >   'properties.bootstrap.servers' = '...',
 >   'format' = 'avro'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE pageview (
 >   page_id BIGINT,
@@ -737,7 +737,7 @@ Flink SQL> CREATE TABLE pageview (
 >   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
 >   'table-name' = 'pageview'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE uniqueview (
 >   page_id BIGINT,
@@ -747,7 +747,7 @@ Flink SQL> CREATE TABLE uniqueview (
 >   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
 >   'table-name' = 'uniqueview'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> EXECUTE STATEMENT SET
 > BEGIN
@@ -862,7 +862,7 @@ Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
 
 ```sql
-Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+Flink SQL> SET 'execution.state-recovery.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 [INFO] Session property has been set.
 
 -- all the following DML statements will be restroed from the specified savepoint path
@@ -874,7 +874,7 @@ When the path to savepoint is specified, Flink will try to restore the state fro
 Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
 
 ```sql
-Flink SQL> RESET execution.savepoint.path;
+Flink SQL> RESET execution.state-recovery.path;
 [INFO] Session property has been reset.
 ```
 
@@ -927,7 +927,7 @@ Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 +-----------------------------------------+
 ```
 
-The savepoint path could be specified with [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir)
+The savepoint path could be specified with [execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir)
 either in the cluster configuration or session configuration (the latter would take precedence).
 
 For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).

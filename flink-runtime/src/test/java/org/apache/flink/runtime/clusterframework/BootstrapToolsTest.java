@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -42,7 +40,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BootstrapTools}. */
@@ -131,455 +128,28 @@ class BootstrapToolsTest {
     }
 
     @Test
-    void testGetTaskManagerShellCommand() {
-        final Configuration cfg = new Configuration();
-        final TaskExecutorProcessSpec taskExecutorProcessSpec =
-                new TaskExecutorProcessSpec(
-                        new CPUResource(1.0),
-                        new MemorySize(0), // frameworkHeapSize
-                        new MemorySize(0), // frameworkOffHeapSize
-                        new MemorySize(111), // taskHeapSize
-                        new MemorySize(0), // taskOffHeapSize
-                        new MemorySize(222), // networkMemSize
-                        new MemorySize(0), // managedMemorySize
-                        new MemorySize(333), // jvmMetaspaceSize
-                        new MemorySize(0), // jvmOverheadSize
-                        Collections.emptyList());
-        final ContaineredTaskManagerParameters containeredParams =
-                new ContaineredTaskManagerParameters(taskExecutorProcessSpec, new HashMap<>());
-
-        // no logging, with/out krb5
-        final String java = "$JAVA_HOME/bin/java";
-        final String jvmmem =
-                "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
-        final String jvmOpts = "-Djvm"; // if set
-        final String tmJvmOpts = "-DtmJvm"; // if set
-        final String logfile = "-Dlog.file=./logs/taskmanager.log"; // if set
-        final String logback = "-Dlogback.configurationFile=file:./conf/logback.xml"; // if set
-        final String log4j =
-                "-Dlog4j.configuration=file:./conf/log4j.properties"
-                        + " -Dlog4j.configurationFile=file:./conf/log4j.properties"; // if set
-        final String mainClass = "org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
-        final String dynamicConfigs =
-                TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();
-        final String basicArgs = "--configDir ./conf";
-        final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
-        final String args = dynamicConfigs + " " + basicArgs + " " + mainArgs;
-        final String redirects = "1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                false,
-                                false,
-                                false,
-                                this.getClass(),
-                                ""))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                mainClass,
-                                dynamicConfigs,
-                                basicArgs,
-                                redirects));
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                false,
-                                false,
-                                false,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                mainClass,
-                                args,
-                                redirects));
-
-        final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                false,
-                                false,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                mainClass,
-                                args,
-                                redirects));
-
-        // logback only, with/out krb5
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                false,
-                                false,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                logfile,
-                                logback,
-                                mainClass,
-                                args,
-                                redirects));
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                false,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                logfile,
-                                logback,
-                                mainClass,
-                                args,
-                                redirects));
-
-        // log4j, with/out krb5
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                false,
-                                true,
-                                false,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                logfile,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                false,
-                                true,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                logfile,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        // logback + log4j, with/out krb5
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                false,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                logfile,
-                                logback,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                logfile,
-                                logback,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        // logback + log4j, with/out krb5, different JVM opts
-        cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                false,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                jvmOpts,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                logfile,
-                                logback,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                jvmOpts,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                logfile,
-                                logback,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        // logback + log4j, with/out krb5, different JVM opts
-        cfg.setString(CoreOptions.FLINK_TM_JVM_OPTIONS, tmJvmOpts);
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                false,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                jvmOpts,
-                                tmJvmOpts,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                logfile,
-                                logback,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                jvmmem,
-                                jvmOpts,
-                                tmJvmOpts,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                logfile,
-                                logback,
-                                log4j,
-                                mainClass,
-                                args,
-                                redirects));
-
-        // now try some configurations with different yarn.container-start-command-template
-
-        cfg.setString(
-                ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
-                "%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                "1",
-                                jvmmem,
-                                "2",
-                                jvmOpts,
-                                tmJvmOpts,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                "3",
-                                logfile,
-                                logback,
-                                log4j,
-                                "4",
-                                mainClass,
-                                "5",
-                                args,
-                                "6",
-                                redirects));
-
-        cfg.setString(
-                ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
-                "%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
-        assertThat(
-                        BootstrapTools.getTaskManagerShellCommand(
-                                cfg,
-                                containeredParams,
-                                "./conf",
-                                "./logs",
-                                true,
-                                true,
-                                true,
-                                this.getClass(),
-                                mainArgs))
-                .isEqualTo(
-                        String.join(
-                                " ",
-                                java,
-                                logfile,
-                                logback,
-                                log4j,
-                                jvmOpts,
-                                tmJvmOpts,
-                                BootstrapTools.IGNORE_UNRECOGNIZED_VM_OPTIONS,
-                                krb5,
-                                jvmmem,
-                                mainClass,
-                                args,
-                                redirects));
-    }
-
-    @Test
     void testUpdateTmpDirectoriesInConfiguration() {
         Configuration config = new Configuration();
 
         // test that default value is taken
         BootstrapTools.updateTmpDirectoriesInConfiguration(config, "default/directory/path");
-        assertThat(config.getString(CoreOptions.TMP_DIRS)).isEqualTo("default/directory/path");
+        assertThat(config.get(CoreOptions.TMP_DIRS)).isEqualTo("default/directory/path");
 
         // test that we ignore default value is value is set before
         BootstrapTools.updateTmpDirectoriesInConfiguration(config, "not/default/directory/path");
-        assertThat(config.getString(CoreOptions.TMP_DIRS)).isEqualTo("default/directory/path");
+        assertThat(config.get(CoreOptions.TMP_DIRS)).isEqualTo("default/directory/path");
 
         // test that empty value is not a magic string
-        config.setString(CoreOptions.TMP_DIRS, "");
+        config.set(CoreOptions.TMP_DIRS, "");
         BootstrapTools.updateTmpDirectoriesInConfiguration(config, "some/new/path");
-        assertThat(config.getString(CoreOptions.TMP_DIRS)).isEmpty();
+        assertThat(config.get(CoreOptions.TMP_DIRS)).isEmpty();
     }
 
     @Test
     void testShouldNotUpdateTmpDirectoriesInConfigurationIfNoValueConfigured() {
         Configuration config = new Configuration();
         BootstrapTools.updateTmpDirectoriesInConfiguration(config, null);
-        assertThat(CoreOptions.TMP_DIRS.defaultValue())
-                .isEqualTo(config.getString(CoreOptions.TMP_DIRS));
+        assertThat(CoreOptions.TMP_DIRS.defaultValue()).isEqualTo(config.get(CoreOptions.TMP_DIRS));
     }
 
     @Test
@@ -654,7 +224,17 @@ class BootstrapToolsTest {
     }
 
     @Test
-    void testWriteConfigurationAndReload() throws IOException {
+    void testWriteConfigurationAndReloadWithStandardYaml() throws Exception {
+        testWriteConfigurationAndReloadInternal(true);
+    }
+
+    @Test
+    void testWriteConfigurationAndReloadWithLegacyYaml() throws Exception {
+        testWriteConfigurationAndReloadInternal(false);
+    }
+
+    private void testWriteConfigurationAndReloadInternal(boolean standardYaml) throws IOException {
+        GlobalConfiguration.setStandardYaml(standardYaml);
         final File flinkConfDir = TempDirUtils.newFolder(temporaryFolder).getAbsoluteFile();
         final Configuration flinkConfig = new Configuration();
 
@@ -677,6 +257,15 @@ class BootstrapToolsTest {
         assertThat(flinkConfig.get(listDurationConfigOption))
                 .containsExactlyInAnyOrderElementsOf(durationList);
 
+        final ConfigOption<List<MemorySize>> listMemoryConfigOption =
+                ConfigOptions.key("test-list-memory-key").memoryType().asList().noDefaultValue();
+        final List<MemorySize> memorySizeList =
+                Arrays.asList(
+                        MemorySize.ofMebiBytes(10), MemorySize.ofMebiBytes(20), MemorySize.ZERO);
+        flinkConfig.set(listMemoryConfigOption, memorySizeList);
+        assertThat(flinkConfig.get(listMemoryConfigOption))
+                .containsExactlyInAnyOrderElementsOf(memorySizeList);
+
         final ConfigOption<Map<String, String>> mapConfigOption =
                 ConfigOptions.key("test-map-key").mapType().noDefaultValue();
         final Map<String, String> map = new HashMap<>();
@@ -688,13 +277,27 @@ class BootstrapToolsTest {
         flinkConfig.set(mapConfigOption, map);
         assertThat(flinkConfig.get(mapConfigOption)).containsAllEntriesOf(map);
 
+        final ConfigOption<List<Map<String, String>>> listMapConfigOption =
+                ConfigOptions.key("test-list-map-key").mapType().asList().noDefaultValue();
+        List<Map<String, String>> listMap = Collections.singletonList(map);
+        flinkConfig.set(listMapConfigOption, listMap);
+        assertThat(flinkConfig.get(listMapConfigOption))
+                .containsExactlyInAnyOrderElementsOf(listMap);
+
         final ConfigOption<Duration> durationConfigOption =
                 ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
         final Duration duration = Duration.ofMillis(3000);
         flinkConfig.set(durationConfigOption, duration);
         assertThat(flinkConfig.get(durationConfigOption)).isEqualTo(duration);
 
-        BootstrapTools.writeConfiguration(flinkConfig, new File(flinkConfDir, FLINK_CONF_FILENAME));
+        final ConfigOption<MemorySize> memoryConfigOption =
+                ConfigOptions.key("test-memory-key").memoryType().noDefaultValue();
+        MemorySize memorySize = MemorySize.ofMebiBytes(10);
+        flinkConfig.set(memoryConfigOption, memorySize);
+        assertThat(memorySize).isEqualTo(flinkConfig.get(memoryConfigOption));
+
+        BootstrapTools.writeConfiguration(
+                flinkConfig, new File(flinkConfDir, GlobalConfiguration.getFlinkConfFilename()));
         final Configuration loadedFlinkConfig =
                 GlobalConfiguration.loadConfiguration(flinkConfDir.getAbsolutePath());
         assertThat(loadedFlinkConfig.get(listStringConfigOption))
@@ -703,5 +306,8 @@ class BootstrapToolsTest {
                 .containsExactlyInAnyOrderElementsOf(durationList);
         assertThat(loadedFlinkConfig.get(mapConfigOption)).containsAllEntriesOf(map);
         assertThat(loadedFlinkConfig.get(durationConfigOption)).isEqualTo(duration);
+
+        // clean the standard yaml flag to avoid impact to other cases.
+        GlobalConfiguration.setStandardYaml(true);
     }
 }

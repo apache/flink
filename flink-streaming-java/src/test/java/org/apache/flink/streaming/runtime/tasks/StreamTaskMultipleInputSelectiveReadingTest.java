@@ -33,23 +33,20 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestAnyModeMultipleInputStreamOperator;
 import org.apache.flink.streaming.util.TestAnyModeMultipleInputStreamOperator.ToStringInput;
 import org.apache.flink.streaming.util.TestSequentialMultipleInputStreamOperator;
-import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test selective reading. */
-public class StreamTaskMultipleInputSelectiveReadingTest {
+class StreamTaskMultipleInputSelectiveReadingTest {
 
     private static final StreamRecord<String>[] INPUT1 =
             new StreamRecord[] {
@@ -67,7 +64,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
             };
 
     @Test
-    public void testAnyOrderedReading() throws Exception {
+    void testAnyOrderedReading() throws Exception {
         ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
         expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[2]: 1"));
@@ -82,7 +79,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
     }
 
     @Test
-    public void testAnyUnorderedReading() throws Exception {
+    void testAnyUnorderedReading() throws Exception {
         ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
         expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[2]: 1"));
@@ -97,7 +94,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
     }
 
     @Test
-    public void testSequentialReading() throws Exception {
+    void testSequentialReading() throws Exception {
         ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
         expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
@@ -115,7 +112,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
     }
 
     @Test
-    public void testSpecialRuleReading() throws Exception {
+    void testSpecialRuleReading() throws Exception {
         ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
         expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
         expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
@@ -130,21 +127,17 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
     }
 
     @Test
-    public void testReadFinishedInput() throws Exception {
-        try {
-            testInputSelection(
-                    new TestReadFinishedInputStreamOperatorFactory(),
-                    true,
-                    new ArrayDeque<>(),
-                    true);
-            fail("should throw an IOException");
-        } catch (Exception t) {
-            if (!ExceptionUtils.findThrowableWithMessage(
-                            t, "Can not make a progress: all selected inputs are already finished")
-                    .isPresent()) {
-                throw t;
-            }
-        }
+    void testReadFinishedInput() throws Exception {
+        assertThatThrownBy(
+                        () ->
+                                testInputSelection(
+                                        new TestReadFinishedInputStreamOperatorFactory(),
+                                        true,
+                                        new ArrayDeque<>(),
+                                        true))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining(
+                        "Can not make a progress: all selected inputs are already finished");
     }
 
     private void testInputSelection(
@@ -177,9 +170,10 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
             testHarness.waitForTaskCompletion();
 
             if (orderedCheck) {
-                assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+                assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
             } else {
-                assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+                assertThat(testHarness.getOutput())
+                        .containsExactlyInAnyOrderElementsOf(expectedOutput);
             }
         }
     }
@@ -189,7 +183,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
      * when one has some data all the time, but the other only rarely.
      */
     @Test
-    public void testInputStarvation() throws Exception {
+    void testInputStarvation() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
@@ -208,7 +202,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
             // StreamMultipleInputProcessor starts with all inputs available. Let it rotate and
             // refresh properly.
             testHarness.processSingleStep();
-            assertTrue(testHarness.getOutput().isEmpty());
+            assertThat(testHarness.getOutput()).isEmpty();
 
             testHarness.processElement(new StreamRecord<>("NOT_SELECTED"), 0);
 
@@ -221,7 +215,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
             expectedOutput.add(new StreamRecord<>("[2]: 1"));
             testHarness.processSingleStep();
             expectedOutput.add(new StreamRecord<>("[2]: 2"));
-            assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
 
             // InputGate 2 was not available in previous steps, so let's check if we are not
             // starving it
@@ -234,7 +228,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
             expectedOutput.add(new StreamRecord<>("[3]: 1"));
             expectedOutput.add(new StreamRecord<>("[2]: 3"));
 
-            assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(testHarness.getOutput()).containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 

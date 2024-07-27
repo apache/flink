@@ -116,11 +116,11 @@ class ZooKeeperDefaultDispatcherRunnerTest {
     void setup() throws IOException {
         fatalErrorHandler = new TestingFatalErrorHandler();
         configuration = new Configuration();
-        configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        configuration.setString(
+        configuration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
 

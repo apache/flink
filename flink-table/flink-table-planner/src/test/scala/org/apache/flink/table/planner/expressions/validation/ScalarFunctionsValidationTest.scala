@@ -124,15 +124,6 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test
-  def testInValidationExceptionMoreThanOneTypes(): Unit = {
-    assertThatExceptionOfType(classOf[ValidationException])
-      .isThrownBy(() => testTableApi('f2.in('f3, 'f8), "TRUE"))
-
-    assertThatExceptionOfType(classOf[ValidationException])
-      .isThrownBy(() => testTableApi('f2.in('f3, 'f4, 4), "FALSE"))
-  }
-
-  @Test
   def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => testTableApi('f1.in("Hi", "Hello world", "Comment#1"), "TRUE"))

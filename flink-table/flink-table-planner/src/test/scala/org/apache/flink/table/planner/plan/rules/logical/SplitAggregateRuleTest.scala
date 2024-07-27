@@ -23,7 +23,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** IncrementalAggregateTest Test for [[SplitAggregateRule]]. */
 class SplitAggregateRuleTest extends TableTestBase {

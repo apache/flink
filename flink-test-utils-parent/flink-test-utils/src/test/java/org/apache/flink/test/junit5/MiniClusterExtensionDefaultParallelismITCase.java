@@ -50,12 +50,14 @@ class MiniClusterExtensionDefaultParallelismITCase {
     void testDefaultParallelismSettingHonored() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final int actualParallelism =
-                env.fromElements(1)
+                env.fromData(1)
                         .map(
                                 new RichMapFunction<Integer, Integer>() {
                                     @Override
                                     public Integer map(Integer value) {
-                                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                                        return getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks();
                                     }
                                 })
                         .executeAndCollect(TARGET_PARALLELISM)

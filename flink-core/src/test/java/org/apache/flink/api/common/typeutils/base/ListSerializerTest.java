@@ -46,7 +46,7 @@ class ListSerializerTest extends SerializerTestBase<List<Long>> {
         return (Class<List<Long>>) (Class<?>) List.class;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     @Override
     protected List<Long>[] getTestData() {
         final Random rnd = new Random(123654789);

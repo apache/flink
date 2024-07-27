@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.PreferredAllocationRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
@@ -43,10 +43,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultSlotPoolServiceSchedulerFactory}. */
 @ExtendWith(TestLoggerExtension.class)
-public class DefaultSlotPoolServiceSchedulerFactoryTest {
+class DefaultSlotPoolServiceSchedulerFactoryTest {
 
     @Test
-    public void testFallsBackToDefaultSchedulerIfAdaptiveSchedulerInBatchJob() {
+    void testFallsBackToDefaultSchedulerIfAdaptiveSchedulerInBatchJob() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
 
@@ -61,7 +61,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     }
 
     @Test
-    public void testAdaptiveSchedulerForReactiveMode() {
+    void testAdaptiveSchedulerForReactiveMode() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
 
@@ -76,7 +76,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     }
 
     @Test
-    public void testFallBackSchedulerWithAdaptiveSchedulerTestProperty() {
+    void testFallBackSchedulerWithAdaptiveSchedulerTestProperty() {
         String propertyValue = saveAdaptiveSchedulerTestPropertyValue();
         System.setProperty("flink.tests.enable-adaptive-scheduler", "true");
 
@@ -102,7 +102,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     }
 
     @Test
-    public void testFallBackSchedulerWithoutAdaptiveSchedulerTestProperty() {
+    void testFallBackSchedulerWithoutAdaptiveSchedulerTestProperty() {
         String propertyValue = saveAdaptiveSchedulerTestPropertyValue();
         System.clearProperty("flink.tests.enable-adaptive-scheduler");
 
@@ -132,7 +132,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     public void testGetRequestSlotMatchingStrategy(
             boolean isLocalRecoveryEnabled, JobType jobType, RequestSlotMatchingStrategy expected) {
         final Configuration configuration = new Configuration();
-        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, isLocalRecoveryEnabled);
+        configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, isLocalRecoveryEnabled);
         assertThat(
                         DefaultSlotPoolServiceSchedulerFactory.getRequestSlotMatchingStrategy(
                                 configuration, jobType))

@@ -109,16 +109,16 @@ Following is an example of using hive dialect to run some queries.
 
 ```bash
 Flink SQL> create catalog myhive with ('type' = 'hive', 'hive-conf-dir' = '/opt/hive-conf');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> use catalog myhive;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> load module hive;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> use modules hive,core;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> set table.sql-dialect=hive;
 [INFO] Session property has been set.
@@ -136,7 +136,7 @@ Flink SQL> select explode(array(1,2,3)); -- call hive udtf
 Received a total of 3 rows
 
 Flink SQL> create table tbl (key int,value string);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> insert into table tbl values (5,'e'),(1,'a'),(1,'a'),(3,'c'),(2,'b'),(3,'c'),(3,'c'),(4,'d');
 [INFO] Submitting SQL update statement to the cluster...

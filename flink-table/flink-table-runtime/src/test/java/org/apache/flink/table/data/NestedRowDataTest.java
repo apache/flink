@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.data;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -46,7 +46,7 @@ public class NestedRowDataTest {
     public void testNestedRowDataWithOneSegment() {
         BinaryRowData row = getBinaryRowData();
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
 
         RowData nestedRow = row.getRow(0, 5);
         assertThat(1).isEqualTo(nestedRow.getInt(0));
@@ -61,7 +61,7 @@ public class NestedRowDataTest {
     public void testNestedRowDataWithMultipleSegments() {
         BinaryRowData row = getBinaryRowData();
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
 
         MemorySegment[] segments = splitBytes(row.getSegments()[0].getHeapMemory(), 3);
         row.pointTo(segments, 3, row.getSizeInBytes());
@@ -134,7 +134,7 @@ public class NestedRowDataTest {
         BinaryRowWriter writer = new BinaryRowWriter(row);
 
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
         GenericRowData gRow = new GenericRowData(5);
         gRow.setField(0, 1);
         gRow.setField(1, 5L);
@@ -151,7 +151,7 @@ public class NestedRowDataTest {
                             DataTypes.STRING().getLogicalType(),
                             DataTypes.RAW(
                                             info.getTypeClass(),
-                                            info.createSerializer(new ExecutionConfig()))
+                                            info.createSerializer(new SerializerConfigImpl()))
                                     .getLogicalType()
                         },
                         new TypeSerializer[] {

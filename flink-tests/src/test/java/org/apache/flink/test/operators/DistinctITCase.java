@@ -30,7 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,7 +44,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
 /** Integration tests for {@link DataSet#distinct}. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class DistinctITCase extends MultipleProgramsTestBase {
+public class DistinctITCase extends MultipleProgramsTestBaseJUnit4 {
 
     public DistinctITCase(TestExecutionMode mode) {
         super(mode);

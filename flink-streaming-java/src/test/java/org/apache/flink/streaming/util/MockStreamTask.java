@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -111,7 +112,8 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
     }
 
     @Override
-    public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+    public StreamTaskStateInitializer createStreamTaskStateInitializer(
+            SubTaskInitializationMetricsBuilder initializationMetrics) {
         return streamTaskStateInitializer;
     }
 

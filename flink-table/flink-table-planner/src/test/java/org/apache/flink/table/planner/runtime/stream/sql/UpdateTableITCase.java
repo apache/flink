@@ -21,15 +21,15 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for UPDATE statement in streaming mode. */
-public class UpdateTableITCase extends StreamingTestBase {
+class UpdateTableITCase extends StreamingTestBase {
 
     @Test
-    public void testUpdate() throws Exception {
+    void testUpdate() {
         tEnv().executeSql(
                         "CREATE TABLE t ("
                                 + " a int PRIMARY KEY NOT ENFORCED,"

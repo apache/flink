@@ -20,8 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.util.AbstractAutoCloseableRegistry;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -32,8 +31,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 /** Tests for the {@link CloseableRegistry}. */
-public class CloseableRegistryTest
+class CloseableRegistryTest
         extends AbstractAutoCloseableRegistryTest<Closeable, Closeable, Object> {
 
     @Override
@@ -65,7 +67,7 @@ public class CloseableRegistryTest
     }
 
     @Test
-    public void testUnregisterAndCloseAll() throws IOException {
+    void testUnregisterAndCloseAll() throws IOException {
         try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
 
             int exTestSize = 5;
@@ -96,13 +98,13 @@ public class CloseableRegistryTest
                             checksum += Integer.parseInt(throwable.getMessage());
                         }
                         // Checksum is sum from 1..6 = 15
-                        Assert.assertEquals(15, checksum);
+                        assertThat(checksum).isEqualTo(15);
                     });
 
             // Check that unregistered Closable isn't closed.
             TestClosable unregisteredClosable = new TestClosable();
             closeableRegistry.unregisterAndCloseAll(unregisteredClosable);
-            Assert.assertEquals(0, unregisteredClosable.getCallsToClose());
+            assertThat(unregisteredClosable.getCallsToClose()).isZero();
         }
     }
 
@@ -119,7 +121,7 @@ public class CloseableRegistryTest
             closeableRegistry.unregisterAndCloseAll(
                     registeredClosableList.toArray(new Closeable[0]));
             if (exceptionCheck != null) {
-                Assert.fail("Exception expected");
+                fail("Exception expected");
             }
         } catch (IOException expected) {
             if (exceptionCheck != null) {
@@ -128,7 +130,7 @@ public class CloseableRegistryTest
         }
 
         for (TestClosable testClosable : registeredClosableList) {
-            Assert.assertEquals(1, testClosable.getCallsToClose());
+            assertThat(testClosable.getCallsToClose()).isOne();
             testClosable.resetCallsToClose();
         }
     }

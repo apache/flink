@@ -55,7 +55,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                 new DefaultResourceAllocationStrategy(
                         DEFAULT_TOTAL_RESOURCE_PROFILE,
                         DEFAULT_NUM_SLOTS_PER_WORKER,
-                        slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                        slotManagerConfiguration.getTaskManagerLoadBalanceMode(),
                         slotManagerConfiguration.getTaskManagerTimeout(),
                         slotManagerConfiguration.getRedundantTaskManagerNum(),
                         slotManagerConfiguration.getMinTotalCpu(),
@@ -84,7 +84,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                                                                     new JobID(),
                                                                     1,
                                                                     OTHER_SLOT_RESOURCE_PROFILE)));
-                            assertThat(declareResourceCount.get()).isEqualTo(0);
+                            assertThat(declareResourceCount).hasValue(0);
                         });
             }
         };

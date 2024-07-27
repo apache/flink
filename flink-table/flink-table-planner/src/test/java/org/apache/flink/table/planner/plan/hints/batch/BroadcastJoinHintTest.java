@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.hints.batch;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 /** Test for Broadcast join hint. */
-public class BroadcastJoinHintTest extends JoinHintTestBase {
+class BroadcastJoinHintTest extends JoinHintTestBase {
 
     @Override
     protected String getTestSingleJoinHint() {

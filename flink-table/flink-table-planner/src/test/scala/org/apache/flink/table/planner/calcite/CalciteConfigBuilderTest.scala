@@ -24,8 +24,8 @@ import org.apache.calcite.config.Lex
 import org.apache.calcite.sql.fun.{OracleSqlOperatorTable, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql2rel.SqlToRelConverter
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 

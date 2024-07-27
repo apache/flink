@@ -41,6 +41,12 @@ public class CompressibleFSDataInputStream extends FSDataInputStream {
 
     @Override
     public void seek(long desired) throws IOException {
+        final int available = compressingDelegate.available();
+        if (available > 0) {
+            if (available != compressingDelegate.skip(available)) {
+                throw new IOException("Unable to skip buffered data.");
+            }
+        }
         delegate.seek(desired);
     }
 

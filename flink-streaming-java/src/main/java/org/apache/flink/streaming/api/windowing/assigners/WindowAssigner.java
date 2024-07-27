@@ -104,6 +104,7 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
      * org.apache.flink.streaming.runtime.operators.windowing.WindowOperator}, which, in turn, gets
      * it from the containing {@link org.apache.flink.streaming.runtime.tasks.StreamTask}.
      */
+    @PublicEvolving
     public abstract static class WindowAssignerContext {
 
         /** Returns the current processing time. */

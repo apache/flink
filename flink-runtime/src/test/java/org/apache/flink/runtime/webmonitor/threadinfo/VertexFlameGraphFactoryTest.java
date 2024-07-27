@@ -58,7 +58,9 @@ class VertexFlameGraphFactoryTest {
     private int verifyRecursively(VertexFlameGraph.Node node) {
         String location = node.getStackTraceLocation();
         int lambdas = 0;
-        if (location.contains("$Lambda$")) {
+        final String javaVersion = System.getProperty("java.version");
+        if (javaVersion.compareTo("21") < 0 && location.contains("$Lambda$")
+                || javaVersion.compareTo("21") >= 0 && location.contains("$$Lambda")) {
             lambdas++;
             //    com.example.ClassName.method:123
             // -> com.example.ClassName.method
@@ -72,10 +74,12 @@ class VertexFlameGraphFactoryTest {
                             new Condition<String>() {
                                 @Override
                                 public boolean matches(String value) {
-                                    String javaVersion = System.getProperty("java.version");
+
                                     return javaVersion.startsWith("1.8")
                                                     && value.endsWith("$Lambda$0/0")
-                                            || value.endsWith("$Lambda$0/0x0");
+                                            || javaVersion.compareTo("21") < 0
+                                                    && value.endsWith("$Lambda$0/0x0")
+                                            || value.endsWith("$$Lambda0/0x0");
                                 }
                             });
         }

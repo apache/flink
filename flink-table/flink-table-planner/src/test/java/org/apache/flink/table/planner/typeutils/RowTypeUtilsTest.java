@@ -25,18 +25,15 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RowTypeUtils}. */
-public class RowTypeUtilsTest {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class RowTypeUtilsTest {
 
     private final RowType srcType =
             RowType.of(
@@ -44,7 +41,7 @@ public class RowTypeUtilsTest {
                     new String[] {"f0", "f1", "f2"});
 
     @Test
-    public void testGetUniqueName() {
+    void testGetUniqueName() {
         assertThat(
                         RowTypeUtils.getUniqueName(
                                 Arrays.asList("Dave", "Evan"), Arrays.asList("Alice", "Bob")))
@@ -57,7 +54,7 @@ public class RowTypeUtilsTest {
     }
 
     @Test
-    public void testProjectRowType() {
+    void testProjectRowType() {
         assertThat(RowTypeUtils.projectRowType(srcType, new int[] {0}))
                 .isEqualTo(RowType.of(new LogicalType[] {new IntType()}, new String[] {"f0"}));
 
@@ -71,18 +68,18 @@ public class RowTypeUtilsTest {
     }
 
     @Test
-    public void testInvalidProjectRowType() {
+    void testInvalidProjectRowType() {
 
-        expectedException.expect(IllegalArgumentException.class);
-        expectedException.expectMessage("Invalid projection index: 3");
-        RowTypeUtils.projectRowType(srcType, new int[] {0, 1, 2, 3});
+        assertThatThrownBy(() -> RowTypeUtils.projectRowType(srcType, new int[] {0, 1, 2, 3}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid projection index: 3");
 
-        expectedException.expect(IllegalArgumentException.class);
-        expectedException.expectMessage("Invalid projection index: 3");
-        RowTypeUtils.projectRowType(srcType, new int[] {0, 1, 3});
+        assertThatThrownBy(() -> RowTypeUtils.projectRowType(srcType, new int[] {0, 1, 3}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid projection index: 3");
 
-        expectedException.expect(ValidationException.class);
-        expectedException.expectMessage("Field names must be unique. Found duplicates");
-        RowTypeUtils.projectRowType(srcType, new int[] {0, 0, 0, 0});
+        assertThatThrownBy(() -> RowTypeUtils.projectRowType(srcType, new int[] {0, 0, 0, 0}))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Field names must be unique. Found duplicates");
     }
 }

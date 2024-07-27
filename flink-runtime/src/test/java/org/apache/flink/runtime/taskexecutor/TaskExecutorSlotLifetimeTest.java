@@ -246,6 +246,7 @@ class TaskExecutorSlotLifetimeTest {
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
                 false,
+                false,
                 Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                 Executors.directExecutor());
     }

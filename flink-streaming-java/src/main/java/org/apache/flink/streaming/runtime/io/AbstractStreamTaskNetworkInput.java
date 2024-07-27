@@ -60,6 +60,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final StatusWatermarkValve statusWatermarkValve;
 
     protected final int inputIndex;
+    private final RecordAttributesCombiner recordAttributesCombiner;
     private InputChannelInfo lastChannel = null;
     private R currentRecordDeserializer = null;
 
@@ -87,6 +88,8 @@ public abstract class AbstractStreamTaskNetworkInput<
         this.inputIndex = inputIndex;
         this.recordDeserializers = checkNotNull(recordDeserializers);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
+        this.recordAttributesCombiner =
+                new RecordAttributesCombiner(checkpointedInputGate.getNumberOfInputChannels());
     }
 
     @Override
@@ -107,8 +110,9 @@ public abstract class AbstractStreamTaskNetworkInput<
                 }
 
                 if (result.isFullRecord()) {
-                    processElement(deserializationDelegate.getInstance(), output);
-                    if (canEmitBatchOfRecords.check()) {
+                    final boolean breakBatchEmitting =
+                            processElement(deserializationDelegate.getInstance(), output);
+                    if (canEmitBatchOfRecords.check() && !breakBatchEmitting) {
                         continue;
                     }
                     return DataInputStatus.MORE_AVAILABLE;
@@ -141,19 +145,36 @@ public abstract class AbstractStreamTaskNetworkInput<
         }
     }
 
-    private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
-        if (recordOrMark.isRecord()) {
-            output.emitRecord(recordOrMark.asRecord());
-        } else if (recordOrMark.isWatermark()) {
+    /**
+     * Process the given stream element and returns whether to stop processing and return from the
+     * emitNext method so that the emitNext is invoked again right after processing the element to
+     * allow behavior change in emitNext method. For example, the behavior of emitNext may need to
+     * change right after process a RecordAttributes.
+     */
+    private boolean processElement(StreamElement streamElement, DataOutput<T> output)
+            throws Exception {
+        if (streamElement.isRecord()) {
+            output.emitRecord(streamElement.asRecord());
+            return false;
+        } else if (streamElement.isWatermark()) {
             statusWatermarkValve.inputWatermark(
-                    recordOrMark.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
-        } else if (recordOrMark.isLatencyMarker()) {
-            output.emitLatencyMarker(recordOrMark.asLatencyMarker());
-        } else if (recordOrMark.isWatermarkStatus()) {
+                    streamElement.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
+            return false;
+        } else if (streamElement.isLatencyMarker()) {
+            output.emitLatencyMarker(streamElement.asLatencyMarker());
+            return false;
+        } else if (streamElement.isWatermarkStatus()) {
             statusWatermarkValve.inputWatermarkStatus(
-                    recordOrMark.asWatermarkStatus(),
+                    streamElement.asWatermarkStatus(),
                     flattenedChannelIndices.get(lastChannel),
                     output);
+            return false;
+        } else if (streamElement.isRecordAttributes()) {
+            recordAttributesCombiner.inputRecordAttributes(
+                    streamElement.asRecordAttributes(),
+                    flattenedChannelIndices.get(lastChannel),
+                    output);
+            return true;
         } else {
             throw new UnsupportedOperationException("Unknown type of StreamElement");
         }

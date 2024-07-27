@@ -20,12 +20,10 @@ package org.apache.flink.testutils;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-
 import java.util.Arrays;
+import java.util.function.Predicate;
 
-public class CustomEqualityMatcher extends BaseMatcher<Object> {
+public class CustomEqualityMatcher implements Predicate<Object> {
 
     private final Object wanted;
 
@@ -60,12 +58,7 @@ public class CustomEqualityMatcher extends BaseMatcher<Object> {
     }
 
     @Override
-    public boolean matches(Object item) {
+    public boolean test(Object item) {
         return checker.deepEquals(item, wanted);
-    }
-
-    @Override
-    public void describeTo(Description description) {
-        description.appendValue(wanted);
     }
 }

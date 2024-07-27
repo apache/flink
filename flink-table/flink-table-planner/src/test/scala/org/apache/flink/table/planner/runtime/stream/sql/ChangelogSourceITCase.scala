@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.JBigDecimal
@@ -27,32 +28,31 @@ import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.{Row, RowKind}
 
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert.{assertEquals, assertFalse}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
 import java.lang.{Long => JLong}
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 /** Integration tests for operations on changelog source, including upsert source. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class ChangelogSourceITCase(
     sourceMode: SourceMode,
     miniBatch: MiniBatchMode,
     state: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, state) {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val orderDataId = TestValuesTableFactory.registerData(TestData.ordersData)
@@ -74,7 +74,7 @@ class ChangelogSourceITCase(
     }
   }
 
-  @Test
+  @TestTemplate
   def testToRetractStream(): Unit = {
     val result = tEnv.sqlQuery(s"SELECT * FROM users").toRetractStream[Row]
     val sink = new TestingRetractSink()
@@ -85,10 +85,10 @@ class ChangelogSourceITCase(
       "user1,Tom,tom123@gmail.com,8.10,16.20",
       "user3,Bailey,bailey@qq.com,9.99,19.98",
       "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testToUpsertSink(): Unit = {
     val sinkDDL =
       s"""
@@ -115,22 +115,21 @@ class ChangelogSourceITCase(
       "user1,Tom,tom123@gmail.com,8.10,16.20",
       "user3,Bailey,bailey@qq.com,9.99,19.98",
       "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertThat(TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
+      .isEqualTo(expected.sorted)
 
     sourceMode match {
       // verify the update_before messages haven been filtered when scanning changelog source
       // the CHANGELOG_SOURCE has I,UA,UB,D but no primary key, so we can not omit UB
       case CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE =>
-        val rawResult = TestValuesTableFactory.getRawResults("user_sink")
+        val rawResult = TestValuesTableFactory.getRawResultsAsStrings("user_sink")
         val hasUB = rawResult.exists(r => r.startsWith("-U"))
-        assertFalse(
-          s"Sink result shouldn't contain UPDATE_BEFORE, but is:\n ${rawResult.mkString("\n")}",
-          hasUB)
+        assertThat(hasUB).isFalse
       case _ => // do nothing
     }
   }
 
-  @Test
+  @TestTemplate
   def testAggregate(): Unit = {
     val query =
       s"""
@@ -144,10 +143,10 @@ class ChangelogSourceITCase(
     env.execute()
 
     val expected = Seq("3,29.39,tom123@gmail.com")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggregateToUpsertSink(): Unit = {
     val sinkDDL =
       s"""
@@ -173,10 +172,11 @@ class ChangelogSourceITCase(
     tEnv.executeSql(dml).await()
 
     val expected = Seq("ALL,3,29.39,tom123@gmail.com")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertThat(TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
+      .isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testGroupByNonPrimaryKey(): Unit = {
     val sinkDDL =
       s"""
@@ -202,10 +202,11 @@ class ChangelogSourceITCase(
 
     val expected =
       Seq("16.20,1,tom123@gmail.com", "19.98,1,bailey@qq.com", "22.60,1,tina@gmail.com")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertThat(TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
+      .isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testFilter(): Unit = {
     val sinkDDL =
       s"""
@@ -233,10 +234,11 @@ class ChangelogSourceITCase(
 
     val expected =
       Seq("user3,Bailey,bailey@qq.com,9.99,19.98", "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertThat(TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
+      .isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRegularJoin(): Unit = {
     val sql =
       s"""
@@ -252,7 +254,7 @@ class ChangelogSourceITCase(
 
     val expected =
       Seq("Euro,2,119,238", "Euro,3,119,357", "US Dollar,1,102,102", "US Dollar,5,102,510")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   // ------------------------------------------------------------------------------------------
@@ -445,7 +447,7 @@ object ChangelogSourceITCase {
   val UPSERT_SOURCE: SourceMode = SourceMode("UPSERT")
   val NO_UPDATE_SOURCE: SourceMode = SourceMode("NO_UPDATE")
 
-  @Parameterized.Parameters(name = "Source={0}, MiniBatch={1}, StateBackend={2}")
+  @Parameters(name = "Source={0}, MiniBatch={1}, StateBackend={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(CHANGELOG_SOURCE, MiniBatchOff, HEAP_BACKEND),

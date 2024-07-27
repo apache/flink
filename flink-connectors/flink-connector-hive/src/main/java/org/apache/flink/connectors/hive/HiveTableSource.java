@@ -171,7 +171,8 @@ public class HiveTableSource
                             remainingPartitions);
 
             int parallelism =
-                    new HiveParallelismInference(tablePath, flinkConf)
+                    new HiveStaticParallelismInferenceFactory(tablePath, flinkConf)
+                            .create()
                             .infer(
                                     () ->
                                             HiveSourceFileEnumerator.getNumFiles(
@@ -429,7 +430,7 @@ public class HiveTableSource
                 case PARTITION_NAME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
-                                configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
+                                configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
                         consumeStartOffset = (T) consumeOffsetStr;
                     } else {
                         consumeStartOffset = (T) DEFAULT_MIN_NAME_OFFSET;
@@ -440,12 +441,12 @@ public class HiveTableSource
                 case CREATE_TIME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
-                                configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
+                                configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
 
                         LocalDateTime localDateTime =
                                 DefaultPartTimeExtractor.toLocalDateTime(
                                         consumeOffsetStr,
-                                        configuration.getString(
+                                        configuration.get(
                                                 PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER));
 
                         consumeStartOffset =

@@ -22,29 +22,33 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@code ExecutionGraphInfoTest} tests the proper initialization of {@link ExecutionGraphInfo}. */
-public class ExecutionGraphInfoTest {
+class ExecutionGraphInfoTest {
 
     @Test
-    public void testExecutionGraphHistoryBeingDerivedFromFailedExecutionGraph() {
+    void testExecutionGraphHistoryBeingDerivedFromFailedExecutionGraph() {
         final ArchivedExecutionGraph executionGraph =
                 ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         new JobID(),
                         "test job name",
                         JobStatus.FAILED,
+                        JobType.STREAMING,
                         new RuntimeException("Expected RuntimeException"),
                         null,
                         System.currentTimeMillis());
 
         final ExecutionGraphInfo executionGraphInfo = new ExecutionGraphInfo(executionGraph);
+        assertThat(executionGraphInfo.getArchivedExecutionGraph().getJobType())
+                .isEqualTo(JobType.STREAMING);
 
         final ErrorInfo failureInfo =
                 executionGraphInfo.getArchivedExecutionGraph().getFailureInfo();

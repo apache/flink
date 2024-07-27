@@ -77,7 +77,7 @@ object FunctionCodeGenerator {
       input2Term: Option[String] = Some(DEFAULT_INPUT2_TERM),
       collectorTerm: String = DEFAULT_COLLECTOR_TERM,
       contextTerm: String = DEFAULT_CONTEXT_TERM): GeneratedFunction[F] = {
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val inputTypeTerm = boxedTypeTermForType(input1Type)
 
     // Janino does not support generics, that's why we need
@@ -205,7 +205,7 @@ object FunctionCodeGenerator {
       bodyCode: String,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): (String, String) = {
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
 
     val methodHeader = {
       if (clazz == classOf[JoinCondition]) {

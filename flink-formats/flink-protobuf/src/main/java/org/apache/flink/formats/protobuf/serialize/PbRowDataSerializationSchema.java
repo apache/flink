@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
@@ -53,6 +54,11 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
     @Override
     public void open(InitializationContext context) throws Exception {
         rowToProtoConverter = new RowToProtoConverter(rowType, pbFormatConfig);
+    }
+
+    @VisibleForTesting
+    public boolean isCodeSplit() {
+        return rowToProtoConverter.isCodeSplit();
     }
 
     @Override

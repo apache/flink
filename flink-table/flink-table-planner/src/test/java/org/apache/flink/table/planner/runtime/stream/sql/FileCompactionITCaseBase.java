@@ -18,7 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 /** Streaming sink File Compaction ITCase base for File system connector. */
+@ExtendWith(NoOpTestExtension.class)
 public abstract class FileCompactionITCaseBase extends CompactionITCaseBase {
 
     protected abstract String format();

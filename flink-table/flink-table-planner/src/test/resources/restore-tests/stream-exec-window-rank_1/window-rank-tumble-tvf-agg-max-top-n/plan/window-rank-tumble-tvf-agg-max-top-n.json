@@ -1,0 +1,664 @@
+{
+  "flinkVersion" : "1.19",
+  "nodes" : [ {
+    "id" : 31,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`bid_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "ts",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "price",
+              "dataType" : "DECIMAL(10, 2)"
+            }, {
+              "name" : "item",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "supplier_id",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bid_time",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 0,
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(`ts`)"
+              }
+            }, {
+              "name" : "proc_time",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "bid_time",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 4,
+                    "type" : "TIMESTAMP(3)"
+                  }, {
+                    "kind" : "LITERAL",
+                    "value" : "1000",
+                    "type" : "INTERVAL SECOND(6) NOT NULL"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`bid_time` - INTERVAL '1' SECOND"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 3 ], [ 0 ] ],
+        "producedType" : "ROW<`price` DECIMAL(10, 2), `supplier_id` VARCHAR(2147483647), `ts` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`price` DECIMAL(10, 2), `supplier_id` VARCHAR(2147483647), `ts` VARCHAR(2147483647)> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`price` DECIMAL(10, 2), `supplier_id` VARCHAR(2147483647), `ts` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, bid_t, project=[price, supplier_id, ts], metadata=[]]], fields=[price, supplier_id, ts])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 32,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`price` DECIMAL(10, 2), `supplier_id` VARCHAR(2147483647), `bid_time` TIMESTAMP(3)>",
+    "description" : "Calc(select=[price, supplier_id, TO_TIMESTAMP(ts) AS bid_time])"
+  }, {
+    "id" : 33,
+    "type" : "stream-exec-watermark-assigner_1",
+    "watermarkExpr" : {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$-$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "TIMESTAMP(3)"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "1000",
+        "type" : "INTERVAL SECOND(6) NOT NULL"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    },
+    "rowtimeFieldIndex" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "price",
+        "fieldType" : "DECIMAL(10, 2)"
+      }, {
+        "name" : "supplier_id",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bid_time",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[bid_time], watermark=[(bid_time - 1000:INTERVAL SECOND)])"
+  }, {
+    "id" : 34,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "supplier_id",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "price",
+        "fieldType" : "DECIMAL(10, 2)"
+      }, {
+        "name" : "bid_time",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[supplier_id, price, bid_time])"
+  }, {
+    "id" : 35,
+    "type" : "stream-exec-local-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "price",
+      "internalName" : "$SUM$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "DECIMAL(38, 2)"
+    }, {
+      "name" : "cnt",
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "windowing" : {
+      "strategy" : "TimeAttribute",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT10S"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "timeAttributeIndex" : 2,
+      "isRowtime" : true
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`supplier_id` VARCHAR(2147483647), `sum$0` DECIMAL(38, 2), `count1$1` BIGINT, `$slice_end` BIGINT>",
+    "description" : "LocalWindowAggregate(groupBy=[supplier_id], window=[TUMBLE(time_col=[bid_time], size=[10 s])], select=[supplier_id, SUM(price) AS sum$0, COUNT(*) AS count1$1, slice_end('w$) AS $slice_end])"
+  }, {
+    "id" : 36,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`supplier_id` VARCHAR(2147483647), `sum$0` DECIMAL(38, 2), `count1$1` BIGINT, `$slice_end` BIGINT>",
+    "description" : "Exchange(distribution=[hash[supplier_id]])"
+  }, {
+    "id" : 37,
+    "type" : "stream-exec-global-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "price",
+      "internalName" : "$SUM$1",
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "DECIMAL(38, 2)"
+    }, {
+      "name" : "cnt",
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "windowing" : {
+      "strategy" : "SliceAttached",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT10S"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "sliceEnd" : 3,
+      "isRowtime" : true
+    },
+    "namedWindowProperties" : [ {
+      "name" : "window_start",
+      "property" : {
+        "kind" : "WindowStart",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "window_end",
+      "property" : {
+        "kind" : "WindowEnd",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "supplier_id",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "price",
+        "fieldType" : "DECIMAL(10, 2)"
+      }, {
+        "name" : "bid_time",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "outputType" : "ROW<`supplier_id` VARCHAR(2147483647), `price` DECIMAL(38, 2), `cnt` BIGINT NOT NULL, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL>",
+    "description" : "GlobalWindowAggregate(groupBy=[supplier_id], window=[TUMBLE(slice_end=[$slice_end], size=[10 s])], select=[supplier_id, SUM(sum$0) AS price, COUNT(count1$1) AS cnt, start('w$) AS window_start, end('w$) AS window_end])"
+  }, {
+    "id" : 38,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "TIMESTAMP(3) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "DECIMAL(38, 2)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `supplier_id` VARCHAR(2147483647), `price` DECIMAL(38, 2), `cnt` BIGINT NOT NULL>",
+    "description" : "Calc(select=[window_start, window_end, supplier_id, price, cnt])"
+  }, {
+    "id" : 39,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `supplier_id` VARCHAR(2147483647), `price` DECIMAL(38, 2), `cnt` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[single])"
+  }, {
+    "id" : 40,
+    "type" : "stream-exec-window-rank_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
+    "rankType" : "ROW_NUMBER",
+    "partitionSpec" : {
+      "fields" : [ ]
+    },
+    "sortSpec" : {
+      "fields" : [ {
+        "index" : 3,
+        "isAscending" : false,
+        "nullIsLast" : true
+      } ]
+    },
+    "rankRange" : {
+      "type" : "Constant",
+      "start" : 1,
+      "end" : 3
+    },
+    "outputRowNumber" : true,
+    "windowing" : {
+      "strategy" : "WindowAttached",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT10S"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "windowStart" : 0,
+      "windowEnd" : 1,
+      "isRowtime" : true
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `supplier_id` VARCHAR(2147483647), `price` DECIMAL(38, 2), `cnt` BIGINT NOT NULL, `w0$o0` BIGINT NOT NULL>",
+    "description" : "WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[10 s])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[], orderBy=[price DESC], select=[window_start, window_end, supplier_id, price, cnt, w0$o0])"
+  }, {
+    "id" : 41,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "TIMESTAMP(3) NOT NULL"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "TIMESTAMP(3) NOT NULL"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "DECIMAL(38, 2)"
+      } ],
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 5,
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`window_start` TIMESTAMP(3), `window_end` TIMESTAMP(3), `supplier_id` VARCHAR(2147483647), `total_price` DECIMAL(10, 2), `cnt` BIGINT, `row_num` BIGINT>",
+    "description" : "Calc(select=[CAST(window_start AS TIMESTAMP(3)) AS window_start, CAST(window_end AS TIMESTAMP(3)) AS window_end, supplier_id, CAST(price AS DECIMAL(10, 2)) AS total_price, CAST(cnt AS BIGINT) AS cnt, CAST(w0$o0 AS BIGINT) AS row_num])"
+  }, {
+    "id" : 42,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "window_start",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "window_end",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "supplier_id",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "total_price",
+              "dataType" : "DECIMAL(10, 2)"
+            }, {
+              "name" : "cnt",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "row_num",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKey" : [ 5 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`window_start` TIMESTAMP(3), `window_end` TIMESTAMP(3), `supplier_id` VARCHAR(2147483647), `total_price` DECIMAL(10, 2), `cnt` BIGINT, `row_num` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[window_start, window_end, supplier_id, total_price, cnt, row_num])"
+  } ],
+  "edges" : [ {
+    "source" : 31,
+    "target" : 32,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 32,
+    "target" : 33,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 33,
+    "target" : 34,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 34,
+    "target" : 35,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 35,
+    "target" : 36,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 36,
+    "target" : 37,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 37,
+    "target" : 38,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 38,
+    "target" : 39,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 39,
+    "target" : 40,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 40,
+    "target" : 41,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 41,
+    "target" : 42,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

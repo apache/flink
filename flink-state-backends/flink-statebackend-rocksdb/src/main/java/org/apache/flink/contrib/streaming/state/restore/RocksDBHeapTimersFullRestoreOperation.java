@@ -22,6 +22,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
@@ -53,6 +54,7 @@ import org.rocksdb.RocksDBException;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -61,6 +63,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+
+import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
 
 /** Encapsulates the process of restoring a RocksDB instance from a full snapshot. */
 public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreOperation {
@@ -77,6 +81,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
     private final RocksDBHandle rocksHandle;
     private final KeyGroupRange keyGroupRange;
     private final int keyGroupPrefixBytes;
+    private final ICloseableRegistry cancelStreamRegistryForRestore;
 
     public RocksDBHeapTimersFullRestoreOperation(
             KeyGroupRange keyGroupRange,
@@ -94,7 +99,8 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
         this.writeBatchSize = writeBatchSize;
         this.rocksHandle =
                 new RocksDBHandle(
@@ -119,6 +125,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
         this.keyGroupPrefixBytes =
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
                         numberOfKeyGroups);
+        this.cancelStreamRegistryForRestore = cancelStreamRegistryForRestore;
     }
 
     /** Restores all key-groups data that is referenced by the passed state handles. */
@@ -137,6 +144,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
                 this.rocksHandle.getDefaultColumnFamilyHandle(),
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,
+                null,
                 null,
                 null);
     }
@@ -162,7 +170,7 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             } else {
                 RocksDbKvStateInfo registeredStateCFHandle =
                         this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
-                                null, restoredMetaInfo);
+                                null, restoredMetaInfo, cancelStreamRegistryForRestore);
                 columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
             }
         }
@@ -183,7 +191,10 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+                        new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
+                Closeable ignored =
+                        cancelStreamRegistryForRestore.registerCloseableTemporarily(
+                                asCloseable(writeBatchWrapper))) {
             HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement> restoredPQ = null;
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {

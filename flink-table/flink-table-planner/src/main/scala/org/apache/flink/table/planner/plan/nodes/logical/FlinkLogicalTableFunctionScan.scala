@@ -106,12 +106,17 @@ class FlinkLogicalTableFunctionScanConverter(config: Config) extends ConverterRu
     val scan = rel.asInstanceOf[LogicalTableFunctionScan]
     val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
     val newInputs = scan.getInputs.map(input => RelOptRule.convert(input, FlinkConventions.LOGICAL))
+    val rexCall = scan.getCall.asInstanceOf[RexCall];
+    val builder = rel.getCluster.getRexBuilder
+    // When rexCall uses NamedArguments, RexCall is not inferred with the correct type.
+    // We just use the type of scan as the type of RexCall.
+    val newCall = rexCall.clone(rel.getRowType, rexCall.getOperands)
 
     new FlinkLogicalTableFunctionScan(
       scan.getCluster,
       traitSet,
       newInputs,
-      scan.getCall,
+      newCall,
       scan.getElementType,
       scan.getRowType,
       scan.getColumnMappings

@@ -116,15 +116,15 @@ public class HsSubpartitionConsumer
         }
         // notify outside of lock to avoid deadlock
         if (notifyDownStream) {
-            availabilityListener.notifyDataAvailable();
+            availabilityListener.notifyDataAvailable(this);
         }
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
         synchronized (lock) {
-            boolean availability = numCreditsAvailable > 0;
-            if (numCreditsAvailable <= 0
+            boolean availability = isCreditAvailable;
+            if (!isCreditAvailable
                     && cachedNextDataType != null
                     && cachedNextDataType == Buffer.DataType.EVENT_BUFFER) {
                 availability = true;
@@ -217,6 +217,11 @@ public class HsSubpartitionConsumer
     @Override
     public void notifyNewBufferSize(int newBufferSize) {
         throw new UnsupportedOperationException("Method should never be called.");
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
     }
 
     // -------------------------------

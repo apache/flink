@@ -30,10 +30,10 @@ under the License.
 
 Apache Flink 提供了如下 `窗口表值函数`（table-valued function, 缩写TVF）把表的数据划分到窗口中：
 
-- [滚动窗口](#tumble)
-- [滑动窗口](#hop)
-- [累积窗口](#cumulate)
-- 会话窗口 (即将支持)
+- [滚动窗口](#滚动窗口tumble)
+- [滑动窗口](#滑动窗口hop)
+- [累积窗口](#累积窗口cumulate)
+- [会话窗口](#会话窗口session) (目前仅支持流模式)
 
 注意：逻辑上，每个元素可以应用于一个或多个窗口，这取决于所使用的 `窗口表值函数`。例如：滑动窗口可以把单个元素分配给多个窗口。
 
@@ -49,7 +49,7 @@ Apache Flink 提供了如下 `窗口表值函数`（table-valued function, 缩�
 
 ## 窗口函数
 
-Apache Flink 提供3个内置的窗口表值函数：`TUMBLE`，`HOP` 和 `CUMULATE`。`窗口表值函数` 的返回值包括原生列和附加的三个指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。
+Apache Flink 提供 4 个内置的窗口表值函数：`TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION`。`窗口表值函数` 的返回值包括原生列和附加的三个指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。
 在流计算模式，`window_time` 是 `TIMESTAMP` 或者 `TIMESTAMP_LTZ` 类型（具体哪种类型取决于输入的时间字段类型）的字段。
 `window_time` 字段用于后续基于时间的操作，例如：其他的窗口表值函数，或者<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>，<a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>。
 它的值总是等于 `window_end - 1ms`。
@@ -122,16 +122,16 @@ Flink SQL> SELECT * FROM TABLE(
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the tumbling windowed table
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
 ```
 
 *注意：为了更好地理解窗口行为，这里把 timestamp 值得后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`*
@@ -193,18 +193,18 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the hopping windowed table
-> SELECT window_start, window_end, SUM(price)
+> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:05 | 2020-04-15 08:15 | 15.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-| 2020-04-15 08:15 | 2020-04-15 08:25 |  6.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:05 | 2020-04-15 08:15 |       15.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
+| 2020-04-15 08:15 | 2020-04-15 08:25 |        6.00 |
++------------------+------------------+-------------+
 ```
 
 ### 累积窗口（CUMULATE）
@@ -271,22 +271,148 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the cumulating windowed table
-> SELECT window_start, window_end, SUM(price)
+> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:06 |  4.00 |
-| 2020-04-15 08:00 | 2020-04-15 08:08 |  6.00 |
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:12 |  3.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:14 |  4.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:16 |  4.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:18 | 10.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:06 |        4.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:08 |        6.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:12 |        3.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:14 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:16 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
+```
+
+### 会话窗口（SESSION）
+
+{{< hint info >}}
+注意:
+1. 会话窗口函数目前不支持批模式。
+2. 会话窗口函数目前不支持 [性能调优]({{< ref "docs/dev/table/tuning" >}}) 中的任何优化。
+3. 会话窗口 Join 、会话窗口 Top-N 、会话窗口聚合功能目前理论可用，但仍处于实验阶段。遇到问题可以在 [JIRA](https://issues.apache.org/jira/browse/FLINK) 中报告。
+{{< /hint >}}
+
+会话窗口函数通过会话活动对元素进行分组。与滚动窗口和滑动窗口不同，会话窗口不重叠，也没有固定的开始和结束时间。
+一个会话窗口会在一定时间内没有收到元素时关闭，比如超过一定时间不处于活跃状态。
+会话窗口需要配置一个固定的会话间隙，以定义不活跃间隙的时长。
+当超出不活跃间隙的时候，当前的会话窗口将会关闭，随后的元素将被分配到一个新的会话窗口内。
+
+比如，定义一个不活跃间隙时长为 10 分钟的会话窗口。
+如果同一用户两个事件之间的时间间隔小于 10 分钟，这些事件将会被归入到同一个会话窗口中。
+如果在最新事件后的 10 分钟内没有数据，那么这个会话窗口将会关闭，并被发送到下游。
+随后的事件将会被分配到一个新的会话窗口里。
+
+{{< img src="/fig/session-windows.svg" alt="Session windows" width="70%">}}
+
+`SESSION`　函数通过时间属性字段为每一行数据分配了一个窗口。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+`SESSION` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
+
+`SESSION` 有三个必填参数和一个可选参数：
+
+```sql
+SESSION(TABLE data [PARTITION BY(keycols, ...)], DESCRIPTOR(timecol), gap)
+```
+
+- `data`：拥有时间属性列的表。
+- `keycols`：列描述符，决定会话窗口应该使用哪些列来分区数据。
+- `timecol`：列描述符，决定数据的哪个时间属性列应该映射到窗口。
+- `gap`：两个事件被认为属于同一个会话窗口的最大时间间隔。
+
+下面是 Bid 表的调用示例：
+
+```sql
+-- tables must have time attribute, e.g. `bidtime` in this table
+Flink SQL> desc Bid;
++-------------+------------------------+------+-----+--------+---------------------------------+
+|        name |                   type | null | key | extras |                       watermark |
++-------------+------------------------+------+-----+--------+---------------------------------+
+|     bidtime | TIMESTAMP(3) *ROWTIME* | true |     |        | `bidtime` - INTERVAL '1' SECOND |
+|       price |         DECIMAL(10, 2) | true |     |        |                                 |
+|        item |                 STRING | true |     |        |                                 |
++-------------+------------------------+------+-----+--------+---------------------------------+
+
+Flink SQL> SELECT * FROM Bid;
++------------------+-------+------+
+|          bidtime | price | item |
++------------------+-------+------+
+| 2020-04-15 08:07 |  4.00 | A    |
+| 2020-04-15 08:06 |  2.00 | A    |
+| 2020-04-15 08:09 |  5.00 | B    |
+| 2020-04-15 08:08 |  3.00 | A    |
+| 2020-04-15 08:17 |  1.00 | B    |
++------------------+-------+------+
+
+-- session window with partition keys
+> SELECT * FROM TABLE(
+    SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES));
+-- or with the named params
+-- note: the DATA param must be the first
+> SELECT * FROM TABLE(
+    SESSION(
+      DATA => TABLE Bid PARTITION BY item,
+      TIMECOL => DESCRIPTOR(bidtime),
+      GAP => INTERVAL '5' MINUTES);
++------------------+-------+------+------------------+------------------+-------------------------+
+|          bidtime | price | item |     window_start |       window_end |             window_time |
++------------------+-------+------+------------------+------------------+-------------------------+
+| 2020-04-15 08:07 |  4.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:13 | 2020-04-15 08:12:59.999 |
+| 2020-04-15 08:06 |  2.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:13 | 2020-04-15 08:12:59.999 |
+| 2020-04-15 08:08 |  3.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:13 | 2020-04-15 08:12:59.999 |
+| 2020-04-15 08:09 |  5.00 | B    | 2020-04-15 08:09 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:17 |  1.00 | B    | 2020-04-15 08:17 | 2020-04-15 08:22 | 2020-04-15 08:21:59.999 |
++------------------+-------+------+------------------+------------------+-------------------------+
+
+-- apply aggregation on the session windowed table with partition keys
+> SELECT window_start, window_end, item, SUM(price) AS total_price
+  FROM TABLE(
+      SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  GROUP BY item, window_start, window_end;
++------------------+------------------+------+-------------+
+|     window_start |       window_end | item | total_price |
++------------------+------------------+------+-------------+
+| 2020-04-15 08:06 | 2020-04-15 08:13 | A    |        9.00 |
+| 2020-04-15 08:09 | 2020-04-15 08:14 | B    |        5.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:22 | B    |        1.00 |
++------------------+------------------+------+-------------+
+
+-- session window without partition keys
+> SELECT * FROM TABLE(
+    SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES));
+-- or with the named params
+-- note: the DATA param must be the first
+> SELECT * FROM TABLE(
+    SESSION(
+      DATA => TABLE Bid,
+      TIMECOL => DESCRIPTOR(bidtime),
+      GAP => INTERVAL '5' MINUTES);
++------------------+-------+------+------------------+------------------+-------------------------+
+|          bidtime | price | item |     window_start |       window_end |             window_time |
++------------------+-------+------+------------------+------------------+-------------------------+
+| 2020-04-15 08:07 |  4.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:06 |  2.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:08 |  3.00 | A    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:09 |  5.00 | B    | 2020-04-15 08:06 | 2020-04-15 08:14 | 2020-04-15 08:13:59.999 |
+| 2020-04-15 08:17 |  1.00 | B    | 2020-04-15 08:17 | 2020-04-15 08:22 | 2020-04-15 08:21:59.999 |
++------------------+-------+------+------------------+------------------+-------------------------+
+
+-- apply aggregation on the session windowed table without partition keys
+> SELECT window_start, window_end, SUM(price) AS total_price
+  FROM TABLE(
+      SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:06 | 2020-04-15 08:14 |       14.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:22 |        1.00 |
++------------------+------------------+-------------+
 ```
 
 ## 窗口偏移
@@ -312,13 +438,13 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 Flink SQL> SELECT * FROM TABLE(
    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES));
 -- or with the named params
--- note: the DATA param must be the first
+-- note: the DATA param must be the first and `OFFSET` should be wrapped with double quotes
 Flink SQL> SELECT * FROM TABLE(
    TUMBLE(
      DATA => TABLE Bid,
      TIMECOL => DESCRIPTOR(bidtime),
      SIZE => INTERVAL '10' MINUTES,
-     OFFSET => INTERVAL '1' MINUTES));
+     `OFFSET` => INTERVAL '1' MINUTES));
 +------------------+-------+------+------------------+------------------+-------------------------+
 |          bidtime | price | item |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -331,16 +457,16 @@ Flink SQL> SELECT * FROM TABLE(
 +------------------+-------+------+------------------+------------------+-------------------------+
 
 -- apply aggregation on the tumbling windowed table
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:01 | 2020-04-15 08:11 | 11.00 |
-| 2020-04-15 08:11 | 2020-04-15 08:21 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:01 | 2020-04-15 08:11 |       11.00 |
+| 2020-04-15 08:11 | 2020-04-15 08:21 |       10.00 |
++------------------+------------------+-------------+
 ```
 
 *注意：为了更好地理解窗口行为，这里把 timestamp 值得后面的 0 去掉了。例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`*

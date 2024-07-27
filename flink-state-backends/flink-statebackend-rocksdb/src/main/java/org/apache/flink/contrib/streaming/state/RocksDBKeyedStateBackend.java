@@ -31,8 +31,10 @@ import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysAndNamesp
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBFullSnapshotResources;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
+import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompactionManager;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -42,6 +44,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
+import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -58,7 +61,6 @@ import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
-import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
@@ -80,6 +82,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -88,8 +91,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RunnableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -157,6 +162,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                     StateDescriptor.Type.REDUCING,
                                     (StateUpdateFactory) RocksDBReducingState::update))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+    private final RocksDBManualCompactionManager sstMergeManager;
 
     private interface StateCreateFactory {
         <K, N, SV, S extends State, IS extends S> IS createState(
@@ -259,6 +265,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     private final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 
+    @Nullable private final CompletableFuture<Void> asyncCompactAfterRestoreFuture;
+
     public RocksDBKeyedStateBackend(
             ClassLoader userCodeClassLoader,
             File instanceBasePath,
@@ -284,7 +292,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             PriorityQueueSetFactory priorityQueueFactory,
             RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             InternalKeyContext<K> keyContext,
-            @Nonnegative long writeBatchSize) {
+            @Nonnegative long writeBatchSize,
+            @Nullable CompletableFuture<Void> asyncCompactFuture,
+            RocksDBManualCompactionManager rocksDBManualCompactionManager) {
 
         super(
                 kvStateRegistry,
@@ -321,6 +331,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.sharedRocksKeyBuilder = sharedRocksKeyBuilder;
         this.priorityQueueFactory = priorityQueueFactory;
+        this.asyncCompactAfterRestoreFuture = asyncCompactFuture;
         if (priorityQueueFactory instanceof HeapPriorityQueueSetFactory) {
             this.heapPriorityQueuesManager =
                     new HeapPriorityQueuesManager(
@@ -331,6 +342,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         } else {
             this.heapPriorityQueuesManager = null;
         }
+        this.sstMergeManager = rocksDBManualCompactionManager;
+        for (RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
+            this.sstMergeManager.register(stateInfo);
+        }
+        this.sstMergeManager.start();
     }
 
     @SuppressWarnings("unchecked")
@@ -438,6 +454,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             return;
         }
         super.dispose();
+
+        IOUtils.closeQuietly(sstMergeManager);
 
         // This call will block until all clients that still acquire access to the RocksDB instance
         // have released it,
@@ -678,6 +696,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             newRocksStateInfo =
                     new RocksDbKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getName(), newRocksStateInfo);
+            sstMergeManager.register(newRocksStateInfo);
         } else {
             newMetaInfo =
                     new RegisteredKeyValueStateBackendMetaInfo<>(
@@ -698,12 +717,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             db,
                             columnFamilyOptionsFactory,
                             ttlCompactFiltersManager,
-                            optionsContainer.getWriteBufferManagerCapacity());
+                            optionsContainer.getWriteBufferManagerCapacity(),
+                            // Using ICloseableRegistry.NO_OP here because there is no restore in
+                            // progress; created column families will be closed in dispose()
+                            ICloseableRegistry.NO_OP);
             RocksDBOperationUtils.registerKvStateInformation(
                     this.kvStateInformation,
                     this.nativeMetricMonitor,
                     stateDesc.getName(),
                     newRocksStateInfo);
+            sstMergeManager.register(newRocksStateInfo);
         }
 
         StateSnapshotTransformFactory<SV> wrappedSnapshotTransformFactory =
@@ -856,7 +879,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 (TypeSerializer<UK>) newMapStateSerializer.getKeySerializer();
 
         TypeSerializerSchemaCompatibility<UK> keyCompatibility =
-                previousKeySerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
+                newUserKeySerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(previousKeySerializerSnapshot);
         return keyCompatibility.isCompatibleAsIs();
     }
 
@@ -991,5 +1016,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @Nonnegative
     long getWriteBatchSize() {
         return writeBatchSize;
+    }
+
+    public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
+        return Optional.ofNullable(asyncCompactAfterRestoreFuture);
     }
 }

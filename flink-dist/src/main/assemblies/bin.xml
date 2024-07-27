@@ -123,7 +123,7 @@ under the License.
 
 		<!-- copy the config file -->
 		<file>
-			<source>src/main/resources/flink-conf.yaml</source>
+			<source>src/main/resources/config.yaml</source>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>

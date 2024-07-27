@@ -126,6 +126,12 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
         return new ConnectedIterativeStreams<>(originalInput, feedbackType, maxWaitTime);
     }
 
+    @Override
+    public PartitionWindowedStream<T> fullWindowPartition() {
+        throw new UnsupportedOperationException(
+                "The fullWindowPartition is not supported because the IterativeStream has been deprecated since Flink 1.19.");
+    }
+
     /**
      * The {@link ConnectedIterativeStreams} represent a start of an iterative part of a streaming
      * program, where the original input of the iteration and the feedback of the iteration are

@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 
 import java.util.Optional;
@@ -51,7 +50,4 @@ public interface FunctionLookup {
                                                 "Required built-in function [%s] could not be found in any catalog.",
                                                 definition.getName())));
     }
-
-    /** Temporary utility until the new type inference is fully functional. */
-    PlannerTypeInferenceUtil getPlannerTypeInferenceUtil();
 }

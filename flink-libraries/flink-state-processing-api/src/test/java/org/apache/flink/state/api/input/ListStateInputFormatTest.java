@@ -65,10 +65,17 @@ public class ListStateInputFormatTest {
             OperatorStateInputSplit split =
                     new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
+            MockStreamingRuntimeContext runtimeContext =
+                    new MockStreamingRuntimeContext(false, 1, 0);
             ListStateInputFormat<Integer> format =
-                    new ListStateInputFormat<>(state, new Configuration(), null, descriptor);
+                    new ListStateInputFormat<>(
+                            state,
+                            new Configuration(),
+                            null,
+                            descriptor,
+                            runtimeContext.getExecutionConfig());
 
-            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+            format.setRuntimeContext(runtimeContext);
             format.open(split);
 
             List<Integer> results = new ArrayList<>();

@@ -22,6 +22,7 @@ import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedBulkWriter;
 import org.apache.flink.formats.hadoop.bulk.TestHadoopPathBasedBulkWriterFactory;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -96,6 +97,12 @@ public class HadoopPathBasedBulkFormatBuilderTest {
             } else {
                 return super.loadClassWithoutExceptionHandling(name, resolve);
             }
+        }
+
+        @Override
+        public MutableURLClassLoader copy() {
+            return new SpecifiedChildFirstUserClassLoader(
+                    specifiedClassName, getParent(), getURLs());
         }
     }
 }

@@ -30,8 +30,10 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -45,11 +47,9 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -110,8 +110,8 @@ public class RegionFailoverITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
-        configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+        configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+        configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
         cluster =
                 new MiniClusterWithClientResource(
@@ -174,8 +174,8 @@ public class RegionFailoverITCase extends TestLogger {
         env.setMaxParallelism(MAX_PARALLELISM);
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.disableOperatorChaining();
 
         // Use DataStreamUtils#reinterpretAsKeyed to avoid merge regions and this stream graph would
@@ -242,7 +242,7 @@ public class RegionFailoverITCase extends TestLogger {
                 index = 0;
             }
 
-            int subTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            int subTaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             while (isRunning && index < numElements) {
 
                 synchronized (ctx.getCheckpointLock()) {
@@ -284,7 +284,7 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+            int indexOfThisSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (indexOfThisSubtask != 0) {
                 listState.update(Collections.singletonList(index));
                 if (indexOfThisSubtask == NUM_OF_REGIONS - 1) {
@@ -297,7 +297,7 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+            int indexOfThisSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (context.isRestored()) {
                 restoredState = true;
 
@@ -306,7 +306,10 @@ public class RegionFailoverITCase extends TestLogger {
                 Set<Integer> actualIndices =
                         StreamSupport.stream(unionListState.get().spliterator(), false)
                                 .collect(Collectors.toSet());
-                if (getRuntimeContext().getTaskName().contains(SINGLE_REGION_SOURCE_NAME)) {
+                if (getRuntimeContext()
+                        .getTaskInfo()
+                        .getTaskName()
+                        .contains(SINGLE_REGION_SOURCE_NAME)) {
                     Assert.assertTrue(
                             CollectionUtils.isEqualCollection(
                                     EXPECTED_INDICES_SINGLE_REGION, actualIndices));
@@ -370,7 +373,7 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> input) throws Exception {
-            int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
+            int indexOfThisSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             if (input.f1 > FAIL_BASE * (jobFailedCnt.get() + 1)) {
 
@@ -415,7 +418,7 @@ public class RegionFailoverITCase extends TestLogger {
 
         @Override
         public void close() throws Exception {
-            maps[getRuntimeContext().getIndexOfThisSubtask()] = counts;
+            maps[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = counts;
         }
 
         @Override

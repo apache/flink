@@ -99,7 +99,9 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
         return completedFuture(
-                SnapshotResult.of(
+                SnapshotResult.withLocalState(
+                        new InMemoryChangelogStateHandle(
+                                collectChanges(from), from, sqn, keyGroupRange),
                         new InMemoryChangelogStateHandle(
                                 collectChanges(from), from, sqn, keyGroupRange)));
     }

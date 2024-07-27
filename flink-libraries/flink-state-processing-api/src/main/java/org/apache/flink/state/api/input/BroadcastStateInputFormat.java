@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +30,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 
@@ -57,8 +59,10 @@ public class BroadcastStateInputFormat<K, V> extends OperatorStateInputFormat<Tu
             OperatorState operatorState,
             Configuration configuration,
             @Nullable StateBackend backend,
-            MapStateDescriptor<K, V> descriptor) {
-        super(operatorState, configuration, backend, true);
+            MapStateDescriptor<K, V> descriptor,
+            ExecutionConfig executionConfig)
+            throws IOException {
+        super(operatorState, configuration, backend, true, executionConfig);
 
         this.descriptor =
                 Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Test implementation for {@link TieredStorageMemoryManager}. */
 public class TestingTieredStorageMemoryManager implements TieredStorageMemoryManager {
@@ -38,11 +39,15 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
 
     private final Consumer<TaskIOMetricGroup> setMetricGroupConsumer;
 
+    private final Supplier<BufferPool> bufferPoolSupplier;
+
     private final Consumer<Runnable> listenBufferReclaimRequestConsumer;
 
     private final Function<Object, BufferBuilder> requestBufferBlockingFunction;
 
     private final Function<Object, Integer> getMaxNonReclaimableBuffersFunction;
+
+    private final Function<Integer, Boolean> ensureCapacityFunction;
 
     private final Function<Object, Integer> numOwnerRequestedBufferFunction;
 
@@ -53,17 +58,21 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
     private TestingTieredStorageMemoryManager(
             BiConsumer<BufferPool, List<TieredStorageMemorySpec>> setupConsumer,
             Consumer<TaskIOMetricGroup> setMetricGroupConsumer,
+            Supplier<BufferPool> bufferPoolSupplier,
             Consumer<Runnable> listenBufferReclaimRequestConsumer,
             Function<Object, BufferBuilder> requestBufferBlockingFunction,
             Function<Object, Integer> getMaxNonReclaimableBuffersFunction,
+            Function<Integer, Boolean> ensureCapacityFunction,
             Function<Object, Integer> numOwnerRequestedBufferFunction,
             TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer,
             Runnable releaseRunnable) {
         this.setupConsumer = setupConsumer;
         this.setMetricGroupConsumer = setMetricGroupConsumer;
+        this.bufferPoolSupplier = bufferPoolSupplier;
         this.listenBufferReclaimRequestConsumer = listenBufferReclaimRequestConsumer;
         this.requestBufferBlockingFunction = requestBufferBlockingFunction;
         this.getMaxNonReclaimableBuffersFunction = getMaxNonReclaimableBuffersFunction;
+        this.ensureCapacityFunction = ensureCapacityFunction;
         this.numOwnerRequestedBufferFunction = numOwnerRequestedBufferFunction;
         this.transferBufferOwnershipConsumer = transferBufferOwnershipConsumer;
         this.releaseRunnable = releaseRunnable;
@@ -80,6 +89,11 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
     }
 
     @Override
+    public BufferPool getBufferPool() {
+        return bufferPoolSupplier.get();
+    }
+
+    @Override
     public void listenBufferReclaimRequest(Runnable onBufferReclaimRequest) {
         listenBufferReclaimRequestConsumer.accept(onBufferReclaimRequest);
     }
@@ -92,6 +106,11 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
     @Override
     public int getMaxNonReclaimableBuffers(Object owner) {
         return getMaxNonReclaimableBuffersFunction.apply(owner);
+    }
+
+    @Override
+    public boolean ensureCapacity(int numAdditionalBuffers) {
+        return ensureCapacityFunction.apply(numAdditionalBuffers);
     }
 
     @Override
@@ -117,11 +136,15 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
 
         private Consumer<TaskIOMetricGroup> setMetricGroupConsumer = (ignore) -> {};
 
+        private Supplier<BufferPool> bufferPoolSupplier = () -> null;
+
         private Consumer<Runnable> listenBufferReclaimRequestConsumer = runnable -> {};
 
         private Function<Object, BufferBuilder> requestBufferBlockingFunction = owner -> null;
 
         private Function<Object, Integer> getMaxNonReclaimableBuffersFunction = owner -> 0;
+
+        private Function<Integer, Boolean> ensureCapacityFunction = num -> true;
 
         private Function<Object, Integer> numOwnerRequestedBufferFunction = owner -> 0;
 
@@ -135,6 +158,12 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
         public TestingTieredStorageMemoryManager.Builder setSetupConsumer(
                 BiConsumer<BufferPool, List<TieredStorageMemorySpec>> setupConsumer) {
             this.setupConsumer = setupConsumer;
+            return this;
+        }
+
+        public TestingTieredStorageMemoryManager.Builder setBufferPoolSupplier(
+                Supplier<BufferPool> bufferPoolSupplier) {
+            this.bufferPoolSupplier = bufferPoolSupplier;
             return this;
         }
 
@@ -153,6 +182,12 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
         public TestingTieredStorageMemoryManager.Builder setGetMaxNonReclaimableBuffersFunction(
                 Function<Object, Integer> getMaxNonReclaimableBuffersFunction) {
             this.getMaxNonReclaimableBuffersFunction = getMaxNonReclaimableBuffersFunction;
+            return this;
+        }
+
+        public TestingTieredStorageMemoryManager.Builder setEnsureCapacityFunction(
+                Function<Integer, Boolean> ensureCapacityFunction) {
+            this.ensureCapacityFunction = ensureCapacityFunction;
             return this;
         }
 
@@ -178,9 +213,11 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             return new TestingTieredStorageMemoryManager(
                     setupConsumer,
                     setMetricGroupConsumer,
+                    bufferPoolSupplier,
                     listenBufferReclaimRequestConsumer,
                     requestBufferBlockingFunction,
                     getMaxNonReclaimableBuffersFunction,
+                    ensureCapacityFunction,
                     numOwnerRequestedBufferFunction,
                     transferBufferOwnershipConsumer,
                     releaseRunnable);

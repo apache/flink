@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
@@ -37,15 +38,20 @@ import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import javax.management.ObjectName;
+
+import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
@@ -73,8 +79,7 @@ class MetricUtilsTest {
     void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
         final Configuration configuration = new Configuration();
         final int expectedThreadPriority = 3;
-        configuration.setInteger(
-                MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
+        configuration.set(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
 
         final RpcService rpcService =
                 MetricUtils.startRemoteMetricsRpcService(
@@ -110,7 +115,6 @@ class MetricUtilsTest {
         assertThat(hasMetaspaceMemoryPool())
                 .withFailMessage("Requires JVM with Metaspace memory pool")
                 .isTrue();
-
         final InterceptingOperatorMetricGroup metaspaceMetrics =
                 new InterceptingOperatorMetricGroup() {
                     @Override
@@ -124,6 +128,42 @@ class MetricUtilsTest {
         assertThat(metaspaceMetrics.get(MetricNames.MEMORY_USED)).isNotNull();
         assertThat(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED)).isNotNull();
         assertThat(metaspaceMetrics.get(MetricNames.MEMORY_MAX)).isNotNull();
+    }
+
+    @Test
+    public void testGcMetricCompleteness() {
+        Map<String, InterceptingOperatorMetricGroup> addedGroups = new HashMap<>();
+        InterceptingOperatorMetricGroup gcGroup =
+                new InterceptingOperatorMetricGroup() {
+                    @Override
+                    public MetricGroup addGroup(String name) {
+                        return addedGroups.computeIfAbsent(
+                                name, k -> new InterceptingOperatorMetricGroup());
+                    }
+                };
+
+        List<GarbageCollectorMXBean> garbageCollectors = new ArrayList<>();
+        garbageCollectors.add(new TestGcBean("gc1", 100, 500));
+        garbageCollectors.add(new TestGcBean("gc2", 50, 250));
+
+        MetricUtils.instantiateGarbageCollectorMetrics(gcGroup, garbageCollectors);
+        assertThat(addedGroups).containsOnlyKeys("gc1", "gc2", "All");
+
+        // Make sure individual collector metrics are correct
+        validateCollectorMetric(addedGroups.get("gc1"), 100, 500L);
+        validateCollectorMetric(addedGroups.get("gc2"), 50L, 250L);
+
+        // Make sure all/total collector metrics are correct
+        validateCollectorMetric(addedGroups.get("All"), 150L, 750L);
+    }
+
+    private static void validateCollectorMetric(
+            InterceptingOperatorMetricGroup group, long count, long time) {
+        assertThat(((Gauge) group.get("Count")).getValue()).isEqualTo(count);
+        assertThat(((Gauge) group.get("Time")).getValue()).isEqualTo(time);
+        MeterView perSecond = ((MeterView) group.get("TimeMsPerSecond"));
+        perSecond.update();
+        assertThat(perSecond.getRate()).isGreaterThan(0.);
     }
 
     @Test
@@ -295,5 +335,48 @@ class MetricUtilsTest {
                 String.format(
                         "%s usage metric never changed its value after %d runs.", name, maxRuns);
         fail(msg);
+    }
+
+    static class TestGcBean implements GarbageCollectorMXBean {
+
+        final String name;
+        final long collectionCount;
+        final long collectionTime;
+
+        public TestGcBean(String name, long collectionCount, long collectionTime) {
+            this.name = name;
+            this.collectionCount = collectionCount;
+            this.collectionTime = collectionTime;
+        }
+
+        @Override
+        public long getCollectionCount() {
+            return collectionCount;
+        }
+
+        @Override
+        public long getCollectionTime() {
+            return collectionTime;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public boolean isValid() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String[] getMemoryPoolNames() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ObjectName getObjectName() {
+            throw new UnsupportedOperationException();
+        }
     }
 }

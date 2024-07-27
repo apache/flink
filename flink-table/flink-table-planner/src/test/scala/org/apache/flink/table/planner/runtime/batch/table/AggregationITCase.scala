@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.utils.{CountAggFunction, NonMergableCount}
-import org.apache.flink.table.utils.{LegacyRowExtension, LegacyRowResource}
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit.jupiter.api.Test

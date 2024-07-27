@@ -29,7 +29,7 @@ object StateTestPrograms {
 
     // test stateful map
     env
-      .generateSequence(0, 10)
+      .fromSequence(0, 10)
       .setParallelism(1)
       .map(v => (1, v))
       .setParallelism(1)
@@ -77,7 +77,7 @@ object StateTestPrograms {
 
     // test stateful filter
     env
-      .generateSequence(1, 10)
+      .fromSequence(1, 10)
       .keyBy(_ % 2)
       .filterWithState(
         (in, state: Option[Int]) =>

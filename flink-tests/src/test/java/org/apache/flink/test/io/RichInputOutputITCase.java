@@ -26,7 +26,7 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -37,7 +37,7 @@ import static org.junit.Assert.assertEquals;
  * Tests for rich DataSource and DataSink input output formats accessing RuntimeContext by checking
  * accumulator values.
  */
-public class RichInputOutputITCase extends JavaProgramTestBase {
+public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
 
     private String inputPath;
     private static ConcurrentLinkedQueue<Integer> readCalls;

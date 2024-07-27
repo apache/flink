@@ -81,7 +81,8 @@ public abstract class AbstractTwoInputTransformationTranslator<
                     keyTypeInfo != null,
                     "Keyed Transformation without provided key type information.");
 
-            final TypeSerializer<?> keySerializer = keyTypeInfo.createSerializer(executionConfig);
+            final TypeSerializer<?> keySerializer =
+                    keyTypeInfo.createSerializer(executionConfig.getSerializerConfig());
             streamGraph.setTwoInputStateKey(
                     transformationId, firstKeySelector, secondKeySelector, keySerializer);
         }

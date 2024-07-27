@@ -19,7 +19,7 @@ set -e -x
 dev/lint-python.sh -s py_env
 
 PY_ENV_DIR=`pwd`/dev/.conda/envs
-py_env=("3.8" "3.9" "3.10")
+py_env=("3.8" "3.9" "3.10" "3.11")
 ## 2. install dependency
 for ((i=0;i<${#py_env[@]};i++)) do
     echo "Installing dependencies for environment: ${py_env[i]}"

@@ -102,7 +102,7 @@ public class DynamicFilteringDependencyProcessor implements ExecNodeGraphProcess
                     new BatchExecExchange(
                             context.getPlanner().getTableConfig(),
                             InputProperty.builder()
-                                    .requiredDistribution(InputProperty.ANY_DISTRIBUTION)
+                                    .requiredDistribution(InputProperty.BROADCAST_DISTRIBUTION)
                                     .damBehavior(InputProperty.DamBehavior.BLOCKING)
                                     .build(),
                             (RowType) dynamicFilteringDataCollector.getOutputType(),

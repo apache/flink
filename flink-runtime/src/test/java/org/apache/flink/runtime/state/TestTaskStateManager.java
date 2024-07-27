@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
@@ -59,10 +60,10 @@ public class TestTaskStateManager implements TaskStateManager {
     private long reportedCheckpointId;
     private long notifiedCompletedCheckpointId;
     private long notifiedAbortedCheckpointId;
+    private Optional<SubTaskInitializationMetrics> reportedInitializationMetrics = Optional.empty();
 
     private final JobID jobId;
     private final ExecutionAttemptID executionAttemptID;
-
     private final Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId;
     private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
     private final CheckpointResponder checkpointResponder;
@@ -155,6 +156,12 @@ public class TestTaskStateManager implements TaskStateManager {
     }
 
     @Override
+    public void reportInitializationMetrics(
+            SubTaskInitializationMetrics subTaskInitializationMetrics) {
+        reportedInitializationMetrics = Optional.of(subTaskInitializationMetrics);
+    }
+
+    @Override
     public boolean isTaskDeployedAsFinished() {
         TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
         if (jmTaskStateSnapshot != null) {
@@ -211,6 +218,21 @@ public class TestTaskStateManager implements TaskStateManager {
         }
     }
 
+    @Override
+    public Optional<OperatorSubtaskState> getSubtaskJobManagerRestoredState(OperatorID operatorID) {
+        TaskStateSnapshot taskStateSnapshot =
+                jobManagerTaskStateSnapshotsByCheckpointId.get(reportedCheckpointId);
+        if (taskStateSnapshot == null) {
+            return Optional.empty();
+        }
+        OperatorSubtaskState subtaskState =
+                taskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+        if (subtaskState == null) {
+            return Optional.empty();
+        }
+        return Optional.of(subtaskState);
+    }
+
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {
@@ -263,6 +285,10 @@ public class TestTaskStateManager implements TaskStateManager {
 
     public JobID getJobId() {
         return jobId;
+    }
+
+    public Optional<SubTaskInitializationMetrics> getReportedInitializationMetrics() {
+        return reportedInitializationMetrics;
     }
 
     public ExecutionAttemptID getExecutionAttemptID() {

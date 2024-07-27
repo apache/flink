@@ -21,29 +21,18 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.streaming.api.datastream.DataStream;
 
 /**
  * Allows expert users to implement a custom topology after {@link Committer}.
  *
  * <p>It is recommended to use immutable committables because mutating committables can have
  * unexpected side-effects.
+ *
+ * @deprecated Please implement {@link org.apache.flink.api.connector.sink2.Sink}, {@link
+ *     org.apache.flink.api.connector.sink2.SupportsCommitter} and {@link
+ *     SupportsPostCommitTopology} instead.
  */
 @Experimental
+@Deprecated
 public interface WithPostCommitTopology<InputT, CommT>
-        extends TwoPhaseCommittingSink<InputT, CommT> {
-
-    /**
-     * Adds a custom post-commit topology where all committables can be processed.
-     *
-     * <p>It is strongly recommended to keep this pipeline stateless such that batch and streaming
-     * modes do not require special cases.
-     *
-     * <p>All operations need to be idempotent: on recovery, any number of committables may be
-     * replayed that have already been committed. It's mandatory that these committables have no
-     * effect on the external system.
-     *
-     * @param committables the stream of committables.
-     */
-    void addPostCommitTopology(DataStream<CommittableMessage<CommT>> committables);
-}
+        extends TwoPhaseCommittingSink<InputT, CommT>, SupportsPostCommitTopology<CommT> {}

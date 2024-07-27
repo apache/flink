@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -85,8 +85,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, "rocksdb");
-        config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+        config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+        config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
 
         cluster =
                 new MiniClusterWithClientResource(
@@ -240,8 +240,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         env.enableCheckpointing(checkpointingInterval);
         env.getCheckpointConfig().setCheckpointStorage(temporaryFolder.newFolder().toURI());
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.getConfig().setUseSnapshotCompression(true);
 
@@ -303,13 +303,16 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             while (running) {
                 if (counter < numberElements) {
                     synchronized (ctx.getCheckpointLock()) {
                         for (int value = subtaskIndex;
                                 value < numberKeys;
-                                value += getRuntimeContext().getNumberOfParallelSubtasks()) {
+                                value +=
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks()) {
                             ctx.collect(value);
                         }
                         counter++;
@@ -359,7 +362,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             sum.update(s);
 
             if (count == numberElements) {
-                out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
+                out.collect(
+                        Tuple2.of(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), s));
             }
         }
 

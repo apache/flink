@@ -206,7 +206,7 @@ Python API 中尚不支持该特性。
 
 ### 系统层次
 
-可以通过设置 `./conf/flink-conf.yaml` 文件中的 `parallelism.default` 参数，在系统层次来指定所有执行环境的默认并行度。你可以通过查阅[配置文档]({{< ref "docs/deployment/config" >}})获取更多细节。
+可以通过设置 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中的 `parallelism.default` 参数，在系统层次来指定所有执行环境的默认并行度。你可以通过查阅[配置文档]({{< ref "docs/deployment/config" >}})获取更多细节。
 
 
 ## 设置最大并行度

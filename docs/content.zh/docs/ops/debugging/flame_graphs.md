@@ -25,38 +25,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Flame Graphs
+# 火焰图
 
-[Flame Graphs](http://www.brendangregg.com/flamegraphs.html) are a visualization that effectively surfaces answers to questions like:
-- Which methods are currently consuming CPU resources?
-- How does consumption by one method compare to the others?
-- Which series of calls on the stack led to executing a particular method?
+[Flame Graphs](http://www.brendangregg.com/flamegraphs.html) 是一种有效的可视化工具，可以回答以下问题：
+
+- 目前哪些方法正在消耗 CPU 资源？
+- 一个方法的消耗与其他方法相比如何？
+- 哪一系列的堆栈调用导致了特定方法的执行?
 
 {{< img src="/fig/flame_graph_on_cpu.png" class="img-fluid" width="90%" >}}
 {{% center %}}
 Flame Graph
 {{% /center %}}
 
-Flame Graphs are constructed by sampling stack traces a number of times. Each method call is presented by a bar, where the length of the bar is proportional to the number of times it is present in the samples.
+火焰图是通过多次采样堆栈跟踪来构建的。每个方法调用都由一个条形图表示，其中条形图的长度与其在样本中出现的次数成比例。
 
-Starting with Flink 1.13, Flame Graphs are natively supported in Flink. In order to produce a Flame Graph, navigate to the job graph of a running job, select an operator of interest and in the menu to the right click on the Flame Graph tab:  
+从 Flink 1.13 版本开始支持火焰图。要生成一个火焰图，请导航到正在运行的作业图，选择感兴趣的算子，并在右侧菜单中点击 "Flame Graph" 选项卡： 
 
 {{< img src="/fig/flame_graph_operator.png" class="img-fluid" width="90%" >}}
 {{% center %}}
-Operator's On-CPU Flame Graph
+算子级别的 On-CPU 火焰图
 {{% /center %}}
 
 {{< hint warning >}}
 
-Any measurement process in and of itself inevitably affects the subject of measurement (see the [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation)). Sampling CPU stack traces is no exception. In order to prevent unintended impacts on production environments, Flame Graphs are currently available as an opt-in feature. To enable it, you'll need to set [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in `conf/flink-conf.yaml`. We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
+任何测量过程本身不可避免地会影响被测对象(参考 [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation))。对CPU堆栈跟踪进行采样也不例外。为了防止对生产环境产生意外影响，火焰图目前作为一项选择性功能可用。要启用它，你需要设置 [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}})。我们建议在开发和预生产环境中启用它，但在生产环境中请将其视为实验性功能。
 
 {{< /hint >}}
 
-Apart from the On-CPU Flame Graphs, [Off-CPU](http://www.brendangregg.com/FlameGraphs/offcpuflamegraphs.html) and Mixed visualizations are available and can be switched between by using the selector at the top of the pane:
+除了 On-CPU 火焰图之外， [Off-CPU](http://www.brendangregg.com/FlameGraphs/offcpuflamegraphs.html) 还有混合可视化模式可供选择，并可以通过面板顶部的选择器进行切换：
 
 {{< img src="/fig/flame_graph_selector.png" class="img-fluid" width="30%" >}}
 
-The Off-CPU Flame Graph visualizes blocking calls found in the samples. A distinction is made as follows:
+Off-CPU 火焰图可视化了在样本中找到的阻塞调用。按如下方式进行区分：
 - On-CPU: `Thread.State` in **[RUNNABLE, NEW]**
 - Off-CPU: `Thread.State` in **[TIMED_WAITING, WAITING, BLOCKED]**
 
@@ -65,26 +66,25 @@ The Off-CPU Flame Graph visualizes blocking calls found in the samples. A distin
 Off-CPU Flame Graph
 {{% /center %}}
 
-Mixed mode Flame Graphs are constructed from stack traces of threads in all possible states.
+混合模式的火焰图是由处于所有可能状态的线程的堆栈跟踪构建而成。
 
 {{< img src="/fig/flame_graph_mixed.png" class="img-fluid" width="90%" >}}
 {{% center %}}
-Flame Graph in Mixed Mode
+混合模式的火焰图
 {{% /center %}}
 
-##  Sampling process
+##  采样过程
 
-The collection of stack traces is done purely within the JVM, so only method calls within the Java runtime are visible (no system calls).
+堆栈跟踪的收集纯粹在 JVM 内部进行，因此只能看到 Java 运行时内的方法调用（看不到系统调用）。
 
-Flame Graph construction is performed at the level of an individual [operator]({{< ref "docs/concepts/glossary" >}}#operator) by default,
-i.e. all [task]({{< ref "docs/concepts/glossary" >}}#task) threads of that operator are sampled in parallel and their stack traces are combined.
-If a method call consumes 100% of the resources in one of the parallel tasks but none in the others,
-the bottleneck might be obscured by being averaged out.
+默认情况下，火焰图的构建是在单个[operator]({{< ref "docs/concepts/glossary" >}}#operator)级别上进行的，
+即该算子的所有[task]({{< ref "docs/concepts/glossary" >}}#task)线程并行采样，并将它们的堆栈跟踪合并起来。
+如果某个方法调用在其中一个并行任务中占用了100%的资源，但在其他任务中没有占用，则可能会被平均化而掩盖住瓶颈。
 
-Starting with Flink 1.17, Flame Graph provides "drill down" visualizations to the task level.
-Select a subtask of interest, and you can see the flame graph of the corresponding subtask.
+Flink 从 1.17 版本开始提供了单并发级别火焰图可视化的功能。
+选择一个感兴趣的子任务，您可以看到相应子任务的火焰图。
 
 {{< img src="/fig/flame_graph_subtask.png" class="img-fluid" width="90%" >}}
 {{% center %}}
-Flame Graph to the subtask level
+子任务级别的火焰图
 {{% /center %}}

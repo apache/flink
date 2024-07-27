@@ -40,10 +40,11 @@ public class SqlGatewayRestEndpointTestUtils {
                 new SqlGatewayEndpointFactoryUtils.DefaultEndpointFactoryContext(
                         null, flinkConf, getEndpointConfig(flinkConf, IDENTIFIER));
 
-        return rebuildRestEndpointOptions(context.getEndpointOptions());
+        return rebuildRestEndpointOptions(
+                context.getEndpointOptions(), context.getFlinkConfiguration().toMap());
     }
 
-    /** Create the configuration generated from flink-conf.yaml. */
+    /** Create the configuration generated from config.yaml. */
     public static Configuration getFlinkConfig(
             String address, String bindAddress, String portRange) {
         final Configuration config = new Configuration();

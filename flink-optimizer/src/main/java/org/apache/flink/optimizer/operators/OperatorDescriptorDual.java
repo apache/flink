@@ -24,6 +24,7 @@ import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TwoInputNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
+import org.apache.flink.optimizer.dataproperties.PartitioningProperty;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
@@ -88,6 +89,46 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 
     public abstract LocalProperties computeLocalProperties(
             LocalProperties in1, LocalProperties in2);
+
+    protected boolean checkCompatibilityBasedOnDiversePartitioningProperty(
+            GlobalProperties produced1, GlobalProperties produced2) {
+        if (produced1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED
+                && produced2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
+
+            // both are hash partitioned, check that partitioning fields are equivalently chosen
+            return checkEquivalentFieldPositionsInKeyFields(
+                    produced1.getPartitioningFields(), produced2.getPartitioningFields());
+
+        } else if (produced1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
+                && produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED
+                && produced1.getDataDistribution() != null
+                && produced2.getDataDistribution() != null) {
+
+            return produced1.getPartitioningFields().size()
+                            == produced2.getPartitioningFields().size()
+                    && checkSameOrdering(
+                            produced1, produced2, produced1.getPartitioningFields().size())
+                    && produced1.getDataDistribution().equals(produced2.getDataDistribution());
+
+        } else if (produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING
+                && produced2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING) {
+
+            // both use a custom partitioner. Check that both keys are exactly as specified and
+            // that both the same partitioner
+            return produced1.getPartitioningFields().isExactMatch(this.keys1)
+                    && produced2.getPartitioningFields().isExactMatch(this.keys2)
+                    && produced1.getCustomPartitioner() != null
+                    && produced2.getCustomPartitioner() != null
+                    && produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner());
+
+        } else {
+
+            // no other partitioning valid, incl. ANY_PARTITIONING.
+            //   For joins we must ensure that both sides are exactly identically partitioned,
+            // ANY is not good enough.
+            return false;
+        }
+    }
 
     protected boolean checkEquivalentFieldPositionsInKeyFields(
             FieldList fields1, FieldList fields2) {

@@ -83,7 +83,7 @@ class DiskCacheManagerTest {
             int bufferSizeBytes = random.nextInt(maxBufferSizeBytes) + 1;
             numExpectBytes += bufferSizeBytes;
             diskCacheManager.append(
-                    BufferBuilderTestUtils.buildSomeBuffer(bufferSizeBytes), subpartitionId);
+                    BufferBuilderTestUtils.buildSomeBuffer(bufferSizeBytes), subpartitionId, true);
         }
 
         assertThat(diskCacheManager.getBufferIndex(subpartitionId)).isEqualTo(numAddBuffers);
@@ -155,12 +155,12 @@ class DiskCacheManagerTest {
                         1024,
                         memoryManager,
                         partitionFileWriter);
-        diskCacheManager.append(BufferBuilderTestUtils.buildSomeBuffer(1024), 0);
+        diskCacheManager.append(BufferBuilderTestUtils.buildSomeBuffer(1024), 0, true);
         assertThat(numWriteTimes).hasValue(0);
-        diskCacheManager.append(BufferBuilderTestUtils.buildSomeBuffer(1), 0);
+        diskCacheManager.append(BufferBuilderTestUtils.buildSomeBuffer(1), 0, true);
         assertThat(numWriteTimes).hasValue(1);
 
-        diskCacheManager.append(BufferBuilderTestUtils.buildSomeBuffer(1024), 0);
+        diskCacheManager.append(BufferBuilderTestUtils.buildSomeBuffer(1024), 0, true);
         assertThat(numWriteTimes).hasValue(1);
         diskCacheManager.appendEndOfSegmentEvent(
                 EventSerializer.toSerializedEvent(EndOfSegmentEvent.INSTANCE), 0);

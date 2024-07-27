@@ -58,7 +58,7 @@ class YarnEntrypointUtilsTest {
         final Configuration configuration = loadConfiguration(initialConfiguration);
 
         // having not specified the ports should set the rest bind port to 0
-        assertThat(configuration.getString(RestOptions.BIND_PORT)).isEqualTo("0");
+        assertThat(configuration.get(RestOptions.BIND_PORT)).isEqualTo("0");
     }
 
     /** Tests that the binding REST port is set to the REST port if set. */
@@ -66,12 +66,12 @@ class YarnEntrypointUtilsTest {
     void testRestPortSpecified() throws IOException {
         final Configuration initialConfiguration = new Configuration();
         final int port = 1337;
-        initialConfiguration.setInteger(RestOptions.PORT, port);
+        initialConfiguration.set(RestOptions.PORT, port);
 
         final Configuration configuration = loadConfiguration(initialConfiguration);
 
         // if the bind port is not specified it should fall back to the rest port
-        assertThat(configuration.getString(RestOptions.BIND_PORT)).isEqualTo(String.valueOf(port));
+        assertThat(configuration.get(RestOptions.BIND_PORT)).isEqualTo(String.valueOf(port));
     }
 
     /** Tests that the binding REST port has precedence over the REST port if both are set. */
@@ -80,13 +80,13 @@ class YarnEntrypointUtilsTest {
         final Configuration initialConfiguration = new Configuration();
         final int port = 1337;
         final String bindingPortRange = "1337-7331";
-        initialConfiguration.setInteger(RestOptions.PORT, port);
-        initialConfiguration.setString(RestOptions.BIND_PORT, bindingPortRange);
+        initialConfiguration.set(RestOptions.PORT, port);
+        initialConfiguration.set(RestOptions.BIND_PORT, bindingPortRange);
 
         final Configuration configuration = loadConfiguration(initialConfiguration);
 
         // bind port should have precedence over the rest port
-        assertThat(configuration.getString(RestOptions.BIND_PORT)).isEqualTo(bindingPortRange);
+        assertThat(configuration.get(RestOptions.BIND_PORT)).isEqualTo(bindingPortRange);
     }
 
     @Test
@@ -163,7 +163,7 @@ class YarnEntrypointUtilsTest {
                 Files.createTempDirectory(tempBaseDir, UUID.randomUUID().toString()).toFile();
         env.put(ApplicationConstants.Environment.NM_HOST.key(), "foobar");
         BootstrapTools.writeConfiguration(
-                initialConfiguration, new File(workingDirectory, "flink-conf.yaml"));
+                initialConfiguration, new File(workingDirectory, "config.yaml"));
         return YarnEntrypointUtils.loadConfiguration(
                 workingDirectory.getAbsolutePath(), dynamicParameters, env);
     }

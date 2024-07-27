@@ -287,6 +287,17 @@ public final class DynamicSourceUtils {
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
     }
 
+    /** Returns true if the changelogNormalize should be enabled. */
+    public static boolean changelogNormalizeEnabled(
+            boolean eventTimeSnapshotRequired,
+            ResolvedSchema resolvedSchema,
+            DynamicTableSource tableSource,
+            TableConfig tableConfig) {
+        return !eventTimeSnapshotRequired
+                && (isUpsertSource(resolvedSchema, tableSource)
+                        || isSourceChangeEventsDuplicate(resolvedSchema, tableSource, tableConfig));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** Creates a specialized node for assigning watermarks. */
@@ -498,14 +509,12 @@ public final class DynamicSourceUtils {
             ScanTableSource scanSource,
             boolean isBatchMode,
             ReadableConfig config) {
-        final ScanRuntimeProvider provider =
-                scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         final ChangelogMode changelogMode = scanSource.getChangelogMode();
 
         validateWatermarks(tableDebugName, schema);
 
         if (isBatchMode) {
-            validateScanSourceForBatch(tableDebugName, changelogMode, provider);
+            validateScanSourceForBatch(tableDebugName, scanSource, changelogMode);
         } else {
             validateScanSourceForStreaming(
                     tableDebugName, schema, scanSource, changelogMode, config);
@@ -558,7 +567,9 @@ public final class DynamicSourceUtils {
     }
 
     private static void validateScanSourceForBatch(
-            String tableDebugName, ChangelogMode changelogMode, ScanRuntimeProvider provider) {
+            String tableDebugName, ScanTableSource scanSource, ChangelogMode changelogMode) {
+        final ScanRuntimeProvider provider =
+                scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         // batch only supports bounded source
         if (!provider.isBounded()) {
             throw new ValidationException(

@@ -71,9 +71,9 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             temporaryFolder = new TemporaryFolder();
             temporaryFolder.create();
             File confFolder = temporaryFolder.newFolder("conf");
-            File confYaml = new File(confFolder, "flink-conf.yaml");
+            File confYaml = new File(confFolder, "config.yaml");
             if (!confYaml.createNewFile()) {
-                throw new IOException("Can't create testing flink-conf.yaml file.");
+                throw new IOException("Can't create testing config.yaml file.");
             }
 
             FileUtils.write(
@@ -89,7 +89,7 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             sessionManager =
                     sessionManagerCreator.apply(
                             DefaultContext.load(
-                                    new Configuration(), Collections.emptyList(), true, false));
+                                    new Configuration(), Collections.emptyList(), true));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }

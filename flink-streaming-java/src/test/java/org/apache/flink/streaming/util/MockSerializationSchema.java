@@ -21,9 +21,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A mocked {@link SerializationSchema} that verifies that {@link
@@ -38,8 +36,8 @@ public class MockSerializationSchema<T> implements SerializationSchema<T> {
 
     @Override
     public void open(SerializationSchema.InitializationContext context) throws Exception {
-        assertThat("Open was called multiple times", openCalled, is(false));
-        assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+        assertThat(openCalled).as("Open was called multiple times").isFalse();
+        assertThat(context.getMetricGroup()).isNotNull();
         this.openCalled = true;
     }
 

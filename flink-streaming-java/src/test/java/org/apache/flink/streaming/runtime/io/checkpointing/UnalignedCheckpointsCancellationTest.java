@@ -31,27 +31,28 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unaligned checkpoints cancellation test. */
-@RunWith(Parameterized.class)
-public class UnalignedCheckpointsCancellationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class UnalignedCheckpointsCancellationTest {
     private final List<RuntimeEvent> events;
     private final boolean expectTriggerCheckpoint;
     private final boolean expectAbortCheckpoint;
     private final int numChannels;
     private final int channel;
 
-    public UnalignedCheckpointsCancellationTest(
+    UnalignedCheckpointsCancellationTest(
             boolean expectTriggerCheckpoint,
             boolean expectAbortCheckpoint,
             List<RuntimeEvent> events,
@@ -64,10 +65,10 @@ public class UnalignedCheckpointsCancellationTest {
         this.channel = channel;
     }
 
-    @Parameterized.Parameters(
+    @Parameters(
             name =
                     "expect trigger: {0}, expect abort {1}, numChannels: {3}, chan: {4}, events: {2}")
-    public static Object[][] parameters() {
+    private static Object[][] parameters() {
         return new Object[][] {
             new Object[] {false, true, Arrays.asList(cancel(10), cancel(20)), 1, 0},
             new Object[] {false, true, Arrays.asList(cancel(20), cancel(10)), 1, 0},
@@ -85,8 +86,8 @@ public class UnalignedCheckpointsCancellationTest {
         };
     }
 
-    @Test
-    public void test() throws Exception {
+    @TestTemplate
+    void test() throws Exception {
         TestInvokable invokable = new TestInvokable();
         final SingleInputGate inputGate =
                 new SingleInputGateBuilder()
@@ -114,9 +115,8 @@ public class UnalignedCheckpointsCancellationTest {
             }
         }
 
-        assertEquals("expectAbortCheckpoint", expectAbortCheckpoint, invokable.checkpointAborted);
-        assertEquals(
-                "expectTriggerCheckpoint", expectTriggerCheckpoint, invokable.checkpointTriggered);
+        assertThat(invokable.checkpointAborted).isEqualTo(expectAbortCheckpoint);
+        assertThat(invokable.checkpointTriggered).isEqualTo(expectTriggerCheckpoint);
     }
 
     private static CheckpointBarrier checkpoint(int checkpointId) {

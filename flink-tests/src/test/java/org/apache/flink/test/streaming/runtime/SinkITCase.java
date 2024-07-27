@@ -18,12 +18,14 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
-import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -46,7 +48,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
  */
-public class SinkITCase extends AbstractTestBase {
+public class SinkITCase extends AbstractTestBaseJUnit4 {
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,
@@ -116,18 +118,21 @@ public class SinkITCase extends AbstractTestBase {
     @Test
     public void writerAndCommitterAndGlobalCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
-        final FiniteTestSource<Integer> source =
-                new FiniteTestSource<>(BOTH_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
-        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
-                .sinkTo(
-                        TestSink.newBuilder()
-                                .setDefaultCommitter(
-                                        (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
-                                .setGlobalCommitter(
-                                        (Supplier<Queue<String>> & Serializable)
-                                                () -> GLOBAL_COMMIT_QUEUE)
-                                .build());
+        final DataStream<Integer> stream =
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                SOURCE_DATA, Types.INT, BOTH_QUEUE_RECEIVE_ALL_DATA),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
+        stream.sinkTo(
+                TestSink.newBuilder()
+                        .setDefaultCommitter(
+                                (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+                        .setGlobalCommitter(
+                                (Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
+                        .build());
 
         env.execute();
 
@@ -151,7 +156,7 @@ public class SinkITCase extends AbstractTestBase {
     public void writerAndCommitterAndGlobalCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
                                 .setDefaultCommitter(
@@ -174,15 +179,19 @@ public class SinkITCase extends AbstractTestBase {
     @Test
     public void writerAndCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
-        final FiniteTestSource<Integer> source =
-                new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
-        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
-                .sinkTo(
-                        TestSink.newBuilder()
-                                .setDefaultCommitter(
-                                        (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
-                                .build());
+        final DataStream<Integer> stream =
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                SOURCE_DATA, Types.INT, COMMIT_QUEUE_RECEIVE_ALL_DATA),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
+        stream.sinkTo(
+                TestSink.newBuilder()
+                        .setDefaultCommitter(
+                                (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+                        .build());
         env.execute();
         assertThat(
                 COMMIT_QUEUE,
@@ -193,7 +202,7 @@ public class SinkITCase extends AbstractTestBase {
     public void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
                                 .setDefaultCommitter(
@@ -207,18 +216,20 @@ public class SinkITCase extends AbstractTestBase {
     @Test
     public void writerAndGlobalCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
-        final FiniteTestSource<Integer> source =
-                new FiniteTestSource<>(GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
-        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
-                .sinkTo(
-                        TestSink.newBuilder()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .setGlobalCommitter(
-                                        (Supplier<Queue<String>> & Serializable)
-                                                () -> GLOBAL_COMMIT_QUEUE)
-                                .build());
+        final DataStream<Integer> stream =
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                SOURCE_DATA, Types.INT, GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
+        stream.sinkTo(
+                TestSink.newBuilder()
+                        .setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+                        .setGlobalCommitter(
+                                (Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
+                        .build());
 
         env.execute();
 
@@ -238,7 +249,7 @@ public class SinkITCase extends AbstractTestBase {
     public void writerAndGlobalCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
                                 .setCommittableSerializer(

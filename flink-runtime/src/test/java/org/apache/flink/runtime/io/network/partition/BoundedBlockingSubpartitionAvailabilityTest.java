@@ -21,32 +21,31 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createView;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the availability handling of the BoundedBlockingSubpartitions with not constant
  * availability.
  */
-public class BoundedBlockingSubpartitionAvailabilityTest {
+class BoundedBlockingSubpartitionAvailabilityTest {
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @TempDir private static Path tmpFolder;
 
     private static final int BUFFER_SIZE = 32 * 1024;
 
     @Test
-    public void testInitiallyNotAvailable() throws Exception {
+    void testInitiallyNotAvailable() throws Exception {
         final ResultSubpartition subpartition = createPartitionWithData(10);
         final CountingAvailabilityListener listener = new CountingAvailabilityListener();
 
@@ -54,7 +53,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
 
         // assert
-        assertEquals(0, listener.numNotifications);
+        assertThat(listener.numNotifications).isZero();
 
         // cleanup
         subpartitionView.releaseAllResources();
@@ -62,7 +61,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
     }
 
     @Test
-    public void testUnavailableWhenBuffersExhausted() throws Exception {
+    void testUnavailableWhenBuffersExhausted() throws Exception {
         // setup
         final ResultSubpartition subpartition = createPartitionWithData(100_000);
         final CountingAvailabilityListener listener = new CountingAvailabilityListener();
@@ -72,8 +71,8 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         final List<BufferAndBacklog> data = drainAvailableData(reader);
 
         // assert
-        assertFalse(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
-        assertFalse(data.get(data.size() - 1).isDataAvailable());
+        assertThat(reader.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
+        assertThat(data.get(data.size() - 1).isDataAvailable()).isFalse();
 
         // cleanup
         reader.releaseAllResources();
@@ -81,7 +80,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
     }
 
     @Test
-    public void testAvailabilityNotificationWhenBuffersReturn() throws Exception {
+    void testAvailabilityNotificationWhenBuffersReturn() throws Exception {
         // setup
         final ResultSubpartition subpartition = createPartitionWithData(100_000);
         final CountingAvailabilityListener listener = new CountingAvailabilityListener();
@@ -93,8 +92,8 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         data.get(1).buffer().recycleBuffer();
 
         // assert
-        assertTrue(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
-        assertEquals(1, listener.numNotifications);
+        assertThat(reader.getAvailabilityAndBacklog(true).isAvailable()).isTrue();
+        assertThat(listener.numNotifications).isOne();
 
         // cleanup
         reader.releaseAllResources();
@@ -102,7 +101,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
     }
 
     @Test
-    public void testNotAvailableWhenEmpty() throws Exception {
+    void testNotAvailableWhenEmpty() throws Exception {
         // setup
         final ResultSubpartition subpartition = createPartitionWithData(100_000);
         final ResultSubpartitionView reader =
@@ -112,7 +111,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
         drainAllData(reader);
 
         // assert
-        assertFalse(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
+        assertThat(reader.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
 
         // cleanup
         reader.releaseAllResources();
@@ -132,7 +131,10 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
                                 .setSSLEnabled(true)
                                 .setFileChannelManager(
                                         new FileChannelManagerImpl(
-                                                new String[] {TMP_FOLDER.newFolder().toString()},
+                                                new String[] {
+                                                    TempDirUtils.newFolder(tmpFolder)
+                                                            .getAbsolutePath()
+                                                },
                                                 "data"))
                                 .setNetworkBufferSize(BUFFER_SIZE)
                                 .build();

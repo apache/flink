@@ -22,6 +22,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.state.api.utils.CustomStateBackendFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -40,7 +41,15 @@ class SavepointWriterTest {
                 StateBackendOptions.STATE_BACKEND,
                 CustomStateBackendFactory.class.getCanonicalName());
         configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-        assertThatThrownBy(() -> env.configure(configuration))
+
+        assertThatThrownBy(
+                        () ->
+                                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                                        null,
+                                        new Configuration(),
+                                        configuration,
+                                        ClassLoader.getSystemClassLoader(),
+                                        null))
                 .isInstanceOf(CustomStateBackendFactory.ExpectedException.class);
     }
 

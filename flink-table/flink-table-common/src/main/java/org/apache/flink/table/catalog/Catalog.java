@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
@@ -65,6 +67,13 @@ public interface Catalog {
      * <p>This method enables bypassing the discovery process. Implementers can directly pass
      * internal catalog-specific objects to their own factory. For example, a custom {@link
      * CatalogTable} can be processed by a custom {@link DynamicTableFactory}.
+     *
+     * <p>If this catalog support to create materialized table, you should also override this method
+     * to provide {@link DynamicTableFactory} which help planner to find {@link DynamicTableSource}
+     * and {@link DynamicTableSink} correctly during compile optimization phase. If you don't
+     * override this method, you must specify the physical connector identifier that this catalog
+     * represents storage when create materialized table. Otherwise, the planner can't find the
+     * {@link DynamicTableFactory}.
      *
      * <p>Because all factories are interfaces, the returned {@link Factory} instance can implement
      * multiple supported extension points. An {@code instanceof} check is performed by the caller

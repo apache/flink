@@ -21,11 +21,13 @@ package org.apache.flink.state.api.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.StateChangelogOptionsInternal;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -43,6 +45,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -65,6 +68,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.util.Collections;
 import java.util.Map;
@@ -83,11 +87,15 @@ public class SavepointEnvironment implements Environment {
 
     private final JobID jobID;
 
+    private final JobType jobType;
+
     private final JobVertexID vertexID;
 
     private final ExecutionAttemptID attemptID;
 
     private final RuntimeContext ctx;
+
+    private final ExecutionConfig executionConfig;
 
     private final Configuration configuration;
 
@@ -113,16 +121,19 @@ public class SavepointEnvironment implements Environment {
 
     private SavepointEnvironment(
             RuntimeContext ctx,
+            ExecutionConfig executionConfig,
             Configuration configuration,
             int maxParallelism,
             int indexOfSubtask,
             PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
         this.jobID = new JobID();
         this.vertexID = new JobVertexID();
+        this.jobType = JobType.STREAMING;
         this.attemptID =
                 new ExecutionAttemptID(
                         new ExecutionGraphID(), new ExecutionVertexID(vertexID, indexOfSubtask), 0);
         this.ctx = Preconditions.checkNotNull(ctx);
+        this.executionConfig = Preconditions.checkNotNull(executionConfig);
         this.configuration = Preconditions.checkNotNull(configuration);
 
         Preconditions.checkArgument(maxParallelism > 0 && indexOfSubtask < maxParallelism);
@@ -131,7 +142,10 @@ public class SavepointEnvironment implements Environment {
 
         this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
         this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
-        this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
+        this.ioManager =
+                new IOManagerAsync(
+                        ConfigurationUtils.parseTempDirectories(configuration),
+                        Executors.newDirectExecutorService());
         this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
         this.sharedResources = new SharedResources();
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
@@ -142,12 +156,17 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public ExecutionConfig getExecutionConfig() {
-        return ctx.getExecutionConfig();
+        return executionConfig;
     }
 
     @Override
     public JobID getJobID() {
         return jobID;
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override
@@ -177,21 +196,25 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public Configuration getJobConfiguration() {
-        Configuration jobConfiguration = new Configuration();
+        Configuration jobConfiguration = new Configuration(configuration);
         // This means leaving this stateBackend unwrapped.
-        jobConfiguration.setBoolean(
-                StateChangelogOptionsInternal.ENABLE_CHANGE_LOG_FOR_APPLICATION, false);
+        jobConfiguration.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
         return jobConfiguration;
     }
 
     @Override
+    public JobInfo getJobInfo() {
+        return ctx.getJobInfo();
+    }
+
+    @Override
     public TaskInfo getTaskInfo() {
-        return new TaskInfo(
-                ctx.getTaskName(),
+        return new TaskInfoImpl(
+                ctx.getTaskInfo().getTaskName(),
                 maxParallelism,
                 indexOfSubtask,
-                ctx.getNumberOfParallelSubtasks(),
-                ctx.getAttemptNumber());
+                ctx.getTaskInfo().getNumberOfParallelSubtasks(),
+                ctx.getTaskInfo().getAttemptNumber());
     }
 
     @Override
@@ -325,6 +348,8 @@ public class SavepointEnvironment implements Environment {
     public static class Builder {
         private RuntimeContext ctx;
 
+        private final ExecutionConfig executionConfig;
+
         private Configuration configuration;
 
         private int maxParallelism;
@@ -333,8 +358,10 @@ public class SavepointEnvironment implements Environment {
 
         private PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
 
-        public Builder(RuntimeContext ctx, int maxParallelism) {
+        public Builder(RuntimeContext ctx, ExecutionConfig executionConfig, int maxParallelism) {
             this.ctx = Preconditions.checkNotNull(ctx);
+
+            this.executionConfig = Preconditions.checkNotNull(executionConfig);
 
             Preconditions.checkArgument(maxParallelism > 0);
             this.maxParallelism = maxParallelism;
@@ -342,7 +369,7 @@ public class SavepointEnvironment implements Environment {
             this.prioritizedOperatorSubtaskState =
                     PrioritizedOperatorSubtaskState.emptyNotRestored();
             this.configuration = new Configuration();
-            this.indexOfSubtask = ctx.getIndexOfThisSubtask();
+            this.indexOfSubtask = ctx.getTaskInfo().getIndexOfThisSubtask();
         }
 
         public Builder setSubtaskIndex(int indexOfSubtask) {
@@ -364,6 +391,7 @@ public class SavepointEnvironment implements Environment {
         public SavepointEnvironment build() {
             return new SavepointEnvironment(
                     ctx,
+                    executionConfig,
                     configuration,
                     maxParallelism,
                     indexOfSubtask,

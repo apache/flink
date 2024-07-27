@@ -23,7 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
 
@@ -34,7 +34,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultCollections;
 
 /** Integration tests for {@link MapPartitionFunction}. */
 @SuppressWarnings("serial")
-public class MapPartitionITCase extends JavaProgramTestBase {
+public class MapPartitionITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final String IN =
             "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n"

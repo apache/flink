@@ -26,27 +26,31 @@ import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class LegacyTableSinkValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAppendSinkOnUpdatingTable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
 
-    t.groupBy('text)
-      .select('text, 'id.count, 'num.sum)
-      .toAppendStream[Row]
-      .addSink(new TestingAppendSink)
-
     // must fail because table is not append-only
-    env.execute()
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => {
+          t.groupBy('text)
+            .select('text, 'id.count, 'num.sum)
+            .toDataStream
+            .addSink(new TestingAppendSink)
+          env.execute()
+        })
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -64,12 +68,17 @@ class LegacyTableSinkValidationTest extends TableTestBase {
       .select('len, 'id.count, 'num.sum)
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
+
     // must fail because table is updating table without full key
-    result.executeInsert("testSink")
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () => {
+          tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
+          result.executeInsert("testSink")
+        })
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAppendSinkOnLeftJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -77,26 +86,21 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val ds1 = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    ds1
-      .leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
-      .select('c, 'g)
-      .toAppendStream[Row]
-      .addSink(new TestingAppendSink)
-
     // must fail because table is not append-only
-    env.execute()
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () => {
+          ds1
+            .leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
+            .select('c, 'g)
+            .toDataStream
+            .addSink(new TestingAppendSink)
+          env.execute()
+        })
   }
 
   @Test
   def testValidateSink(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Column types of query result and sink for " +
-        "'default_catalog.default_database.testSink' do not match.\n" +
-        "Cause: Incompatible types for sink column 'd' at position 3.\n\n" +
-        "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
-        "Sink schema:  [a: INT, b: BIGINT, c: STRING, d: INT]")
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -114,7 +118,14 @@ class LegacyTableSinkValidationTest extends TableTestBase {
 
     MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(tEnv, sinkSchema, "testSink")
     // must fail because query result table schema is different with sink table schema
-    resultTable.executeInsert("testSink").await()
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => resultTable.executeInsert("testSink").await())
+      .withMessageContaining(
+        "Column types of query result and sink for " +
+          "'default_catalog.default_database.testSink' do not match.\n" +
+          "Cause: Incompatible types for sink column 'd' at position 3.\n\n" +
+          "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +
+          "Sink schema:  [a: INT, b: BIGINT, c: STRING, d: INT]")
   }
 
 }

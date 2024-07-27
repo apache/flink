@@ -136,7 +136,7 @@ public class HeavyDeploymentStressTestProgram {
         public void run(SourceContext<String> ctx) throws Exception {
             while (isRunning) {
 
-                if (readyToFail && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                if (readyToFail && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                     throw new Exception("Artificial failure.");
                 }
 

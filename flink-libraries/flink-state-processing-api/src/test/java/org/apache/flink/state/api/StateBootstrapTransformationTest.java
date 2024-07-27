@@ -32,20 +32,20 @@ import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for bootstrap transformations. */
-public class StateBootstrapTransformationTest extends AbstractTestBase {
+public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testBroadcastStateTransformationParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -70,7 +70,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -95,7 +95,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -120,7 +120,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -144,7 +144,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
     @Test
     public void testStreamConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<String> input = env.fromElements("");
+        DataStream<String> input = env.fromData("");
 
         StateBootstrapTransformation<String> transformation =
                 OperatorTransformation.bootstrapWith(input)

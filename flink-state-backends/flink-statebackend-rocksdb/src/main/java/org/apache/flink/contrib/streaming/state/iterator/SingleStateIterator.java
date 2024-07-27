@@ -18,9 +18,12 @@
 
 package org.apache.flink.contrib.streaming.state.iterator;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Closeable;
 
 /** An interface for iterating over a single state in a RocksDB state backend. */
+@Internal
 public interface SingleStateIterator extends Closeable {
     void next();
 

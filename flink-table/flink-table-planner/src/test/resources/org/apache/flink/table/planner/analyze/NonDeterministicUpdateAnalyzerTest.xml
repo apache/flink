@@ -186,4 +186,19 @@ Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], cha
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCdcSourceWithoutPkSinkWithoutPk">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- Calc(select=[metadata_1, b, metadata_2])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc_without_pk, project=[b], metadata=[metadata_1, metadata_2]]], fields=[b, metadata_1, metadata_2])
+
+advice[1]: [WARNING] The metadata column(s): 'metadata_1, metadata_2' in cdc source may cause wrong result or error on downstream operators, please consider removing these columns or use a non-cdc source that only has insert messages.
+source node:
+TableSourceScan(table=[[default_catalog, default_database, cdc_without_pk, project=[b], metadata=[metadata_1, metadata_2]]], fields=[b, metadata_1, metadata_2], changelogMode=[I,UB,UA,D])
+
+
+]]>
+    </Resource>
+  </TestCase>
 </Root>

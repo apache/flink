@@ -20,7 +20,10 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -39,6 +42,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordCollectingResultPart
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -78,7 +82,11 @@ import static org.assertj.core.api.Assertions.fail;
 /** IMPORTANT! Remember to close environment after usage! */
 public class MockEnvironment implements Environment, AutoCloseable {
 
+    private final JobInfo jobInfo;
+
     private final TaskInfo taskInfo;
+
+    private final JobType jobType;
 
     private final ExecutionConfig executionConfig;
 
@@ -101,8 +109,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private final List<IndexedInputGate> inputs;
 
     private final List<ResultPartitionWriter> outputs;
-
-    private final JobID jobID;
 
     private final JobVertexID jobVertexID;
 
@@ -146,7 +152,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     protected MockEnvironment(
             JobID jobID,
+            String jobName,
             JobVertexID jobVertexID,
+            JobType jobType,
             String taskName,
             MockInputSplitProvider inputSplitProvider,
             int bufferSize,
@@ -165,10 +173,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
             ExternalResourceInfoProvider externalResourceInfoProvider,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
 
-        this.jobID = jobID;
+        this.jobInfo = new JobInfoImpl(jobID, jobName);
         this.jobVertexID = jobVertexID;
-
-        this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
+        this.jobType = jobType;
+        this.taskInfo = new TaskInfoImpl(taskName, maxParallelism, subtaskIndex, parallelism, 0);
         this.jobConfiguration = new Configuration();
         this.taskConfiguration = taskConfiguration;
         this.inputs = new LinkedList<>();
@@ -263,7 +271,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     @Override
     public JobID getJobID() {
-        return this.jobID;
+        return this.jobInfo.getJobId();
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override
@@ -456,6 +469,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

@@ -19,29 +19,25 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BroadcastPartitioner}. */
-public class BroadcastPartitionerTest extends StreamPartitionerTest {
+class BroadcastPartitionerTest extends StreamPartitionerTest {
 
     @Override
-    public StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new BroadcastPartitioner<>();
-        assertTrue(partitioner.isBroadcast());
+        assertThat(partitioner.isBroadcast()).isTrue();
         return partitioner;
     }
 
     @Test
-    public void testSelectChannels() {
-        try {
-            streamPartitioner.selectChannel(serializationDelegate);
-        } catch (UnsupportedOperationException ex) {
-            return;
-        }
-
-        fail("Broadcast selector does not support select channels.");
+    void testSelectChannels() {
+        assertThatThrownBy(() -> streamPartitioner.selectChannel(serializationDelegate))
+                .as("Broadcast selector does not support select channels.")
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

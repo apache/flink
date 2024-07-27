@@ -65,11 +65,10 @@ public class DefaultCLI extends AbstractCustomCommandLine {
             setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
 
             URL url = NetUtils.getCorrectHostnamePort(addressWithPort);
-            resultingConfiguration.setString(RestOptions.PATH, url.getPath());
-            resultingConfiguration.setBoolean(
-                    SecurityOptions.SSL_REST_ENABLED, isHttpsProtocol(url));
+            resultingConfiguration.set(RestOptions.PATH, url.getPath());
+            resultingConfiguration.set(SecurityOptions.SSL_REST_ENABLED, isHttpsProtocol(url));
         }
-        resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+        resultingConfiguration.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultingConfiguration);
 

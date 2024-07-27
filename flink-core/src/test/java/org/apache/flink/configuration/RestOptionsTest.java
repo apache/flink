@@ -18,36 +18,32 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RestOptions}. */
-public class RestOptionsTest extends TestLogger {
+class RestOptionsTest {
 
     @Test
-    public void testBindAddressFirstDeprecatedKey() {
+    void testBindAddressFirstDeprecatedKey() {
         final Configuration configuration = new Configuration();
         final String expectedAddress = "foobar";
         configuration.setString("web.address", expectedAddress);
 
-        final String actualAddress = configuration.getString(RestOptions.BIND_ADDRESS);
+        final String actualAddress = configuration.get(RestOptions.BIND_ADDRESS);
 
-        assertThat(actualAddress, is(equalTo(expectedAddress)));
+        assertThat(actualAddress).isEqualTo(expectedAddress);
     }
 
     @Test
-    public void testBindAddressSecondDeprecatedKey() {
+    void testBindAddressSecondDeprecatedKey() {
         final Configuration configuration = new Configuration();
         final String expectedAddress = "foobar";
         configuration.setString("jobmanager.web.address", expectedAddress);
 
-        final String actualAddress = configuration.getString(RestOptions.BIND_ADDRESS);
+        final String actualAddress = configuration.get(RestOptions.BIND_ADDRESS);
 
-        assertThat(actualAddress, is(equalTo(expectedAddress)));
+        assertThat(actualAddress).isEqualTo(expectedAddress);
     }
 }

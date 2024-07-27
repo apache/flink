@@ -72,7 +72,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<Integer> src = env.fromElements(1, 3, 5);
+        DataStream<Integer> src = env.fromData(1, 3, 5);
 
         src.map(
                         new MapFunction<Integer, String>() {

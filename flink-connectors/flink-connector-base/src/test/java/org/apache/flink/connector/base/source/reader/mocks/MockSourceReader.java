@@ -22,11 +22,9 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEvaluator;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -37,25 +35,17 @@ public class MockSourceReader
                 int[], Integer, MockSourceSplit, MockSplitState> {
 
     public MockSourceReader(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
             Supplier<SplitReader<int[], MockSourceSplit>> splitFetcherSupplier,
             Configuration config,
             SourceReaderContext context) {
-        super(
-                elementsQueue,
-                splitFetcherSupplier,
-                new MockRecordEmitter(context.metricGroup()),
-                config,
-                context);
+        super(splitFetcherSupplier, new MockRecordEmitter(context.metricGroup()), config, context);
     }
 
     public MockSourceReader(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
             SingleThreadFetcherManager<int[], MockSourceSplit> splitSplitFetcherManager,
             Configuration config,
             SourceReaderContext context) {
         super(
-                elementsQueue,
                 splitSplitFetcherManager,
                 new MockRecordEmitter(context.metricGroup()),
                 config,
@@ -63,13 +53,11 @@ public class MockSourceReader
     }
 
     public MockSourceReader(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
             SingleThreadFetcherManager<int[], MockSourceSplit> splitSplitFetcherManager,
             Configuration config,
             SourceReaderContext context,
             RecordEvaluator<Integer> recordEvaluator) {
         super(
-                elementsQueue,
                 splitSplitFetcherManager,
                 new MockRecordEmitter(context.metricGroup()),
                 recordEvaluator,

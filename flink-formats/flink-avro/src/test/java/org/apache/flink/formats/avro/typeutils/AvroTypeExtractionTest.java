@@ -111,8 +111,8 @@ class AvroTypeExtractionTest {
                         + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
-                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
+                        + "\"type_decimal_bytes\": \"\\u0007Ð\", \"type_decimal_fixed\": [7, -48]}\n"
                         + "{\"name\": \"Charlie\", \"favorite_number\": null, "
                         + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
                         + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
@@ -123,7 +123,8 @@ class AvroTypeExtractionTest {
                         + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
-                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
+                        + "\"type_decimal_bytes\": \"\\u0007Ð\", "
                         + "\"type_decimal_fixed\": [7, -48]}\n";
     }
 
@@ -132,7 +133,7 @@ class AvroTypeExtractionTest {
     void testSerializeWithAvro(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
-        env.getConfig().enableForceAvro();
+        env.getConfig().getSerializerConfig().setForceAvro(true);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
@@ -162,8 +163,8 @@ class AvroTypeExtractionTest {
                         + " \"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
-                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
+                        + "\"type_decimal_bytes\": \"\\u0007Ð\", \"type_decimal_fixed\": [7, -48]}\n"
                         + "{\"name\": \"Charlie\", \"favorite_number\": null, "
                         + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
                         + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
@@ -174,8 +175,8 @@ class AvroTypeExtractionTest {
                         + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
-                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", \"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n";
+                        + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
+                        + "\"type_decimal_bytes\": \"\\u0007Ð\", \"type_decimal_fixed\": [7, -48]}\n";
     }
 
     @ParameterizedTest
@@ -211,7 +212,7 @@ class AvroTypeExtractionTest {
     void testWithAvroGenericSer(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
-        env.getConfig().enableForceAvro();
+        env.getConfig().getSerializerConfig().setForceAvro(true);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
@@ -242,7 +243,7 @@ class AvroTypeExtractionTest {
     void testWithKryoGenericSer(boolean useMiniCluster, @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final ExecutionEnvironment env = getExecutionEnvironment(useMiniCluster, miniCluster);
-        env.getConfig().enableForceKryo();
+        env.getConfig().getSerializerConfig().setForceKryo(true);
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);

@@ -24,15 +24,15 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test RankType json ser/de. */
-public class RankTypeSerdeTest {
+class RankTypeSerdeTest {
 
     @Test
-    public void testRankType() throws JsonProcessingException {
+    void testRankType() throws JsonProcessingException {
         ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
         for (RankType type : RankType.values()) {
             RankType result = mapper.readValue(mapper.writeValueAsString(type), RankType.class);

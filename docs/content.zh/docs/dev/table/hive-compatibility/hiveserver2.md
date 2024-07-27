@@ -38,7 +38,7 @@ The HiveServer2 Endpoint is not the default endpoint for the SQL Gateway. You ca
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.type=hiveserver2 -Dsql-gateway.endpoint.hiveserver2.catalog.hive-conf-dir=<path to hive conf>
 ```
 
-or add the following configuration into `conf/flink-conf.yaml` (please replace the `<path to hive conf>` with your hive conf path).
+or add the following configuration into [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) (please replace the `<path to hive conf>` with your hive conf path).
 
 ```yaml
 sql-gateway.endpoint.type: hiveserver2

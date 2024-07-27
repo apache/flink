@@ -57,6 +57,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_OUTPUT_CODEC;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_TIMESTAMP_LEGACY_MAPPING;
 
 /** Avro format factory for file system. */
 @Internal
@@ -85,7 +86,8 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 return new RowDataAvroWriterFactory(
                         (RowType) consumedDataType.getLogicalType(),
-                        formatOptions.get(AVRO_OUTPUT_CODEC));
+                        formatOptions.get(AVRO_OUTPUT_CODEC),
+                        formatOptions.get(AVRO_TIMESTAMP_LEGACY_MAPPING));
             }
         };
     }
@@ -104,6 +106,7 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(AVRO_OUTPUT_CODEC);
+        options.add(AVRO_TIMESTAMP_LEGACY_MAPPING);
         return options;
     }
 
@@ -182,7 +185,8 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
         private final AvroWriterFactory<GenericRecord> factory;
         private final RowType rowType;
 
-        private RowDataAvroWriterFactory(RowType rowType, String codec) {
+        private RowDataAvroWriterFactory(
+                RowType rowType, String codec, boolean legacyTimestampMapping) {
             this.rowType = rowType;
             this.factory =
                     new AvroWriterFactory<>(
@@ -190,7 +194,9 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
                                 @Override
                                 public DataFileWriter<GenericRecord> createWriter(OutputStream out)
                                         throws IOException {
-                                    Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+                                    Schema schema =
+                                            AvroSchemaConverter.convertToSchema(
+                                                    rowType, legacyTimestampMapping);
                                     DatumWriter<GenericRecord> datumWriter =
                                             new GenericDatumWriter<>(schema);
                                     DataFileWriter<GenericRecord> dataFileWriter =

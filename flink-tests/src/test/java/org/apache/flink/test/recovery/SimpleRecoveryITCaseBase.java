@@ -156,7 +156,8 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
         @Override
         public T map(T value) throws Exception {
-            if (failuresBeforeSuccess > 0 && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+            if (failuresBeforeSuccess > 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 failuresBeforeSuccess--;
                 throw new Exception("Test Failure");
             }
@@ -171,7 +172,8 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
         @Override
         public T map(T value) throws Exception {
-            if (failuresBeforeSuccess > 0 && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+            if (failuresBeforeSuccess > 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 failuresBeforeSuccess--;
                 throw new Exception("Test Failure");
             }
@@ -186,7 +188,8 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
         @Override
         public T map(T value) throws Exception {
-            if (failuresBeforeSuccess > 0 && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+            if (failuresBeforeSuccess > 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 failuresBeforeSuccess--;
                 throw new Exception("Test Failure");
             }

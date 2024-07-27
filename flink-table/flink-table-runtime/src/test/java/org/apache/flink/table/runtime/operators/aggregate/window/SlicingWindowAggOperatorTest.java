@@ -18,113 +18,51 @@
 
 package org.apache.flink.table.runtime.operators.aggregate.window;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.utils.JoinedRowData;
-import org.apache.flink.table.runtime.dataview.StateDataViewStore;
-import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
-import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
-/** Tests for window aggregate operators created by {@link SlicingWindowAggOperatorBuilder}. */
+/** Tests for slicing window aggregate operators created by {@link WindowAggOperatorBuilder}. */
 @RunWith(Parameterized.class)
-public class SlicingWindowAggOperatorTest {
-
-    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
-    private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
-    private final ZoneId shiftTimeZone;
+public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
     public SlicingWindowAggOperatorTest(ZoneId shiftTimeZone) {
-        this.shiftTimeZone = shiftTimeZone;
+        super(shiftTimeZone);
     }
-
-    private static final RowType INPUT_ROW_TYPE =
-            new RowType(
-                    Arrays.asList(
-                            new RowType.RowField("f0", new VarCharType(Integer.MAX_VALUE)),
-                            new RowType.RowField("f1", new IntType()),
-                            new RowType.RowField("f2", new TimestampType())));
-
-    private static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
-
-    private static final RowDataSerializer ACC_SER =
-            new RowDataSerializer(new BigIntType(), new BigIntType());
-
-    private static final LogicalType[] OUTPUT_TYPES =
-            new LogicalType[] {
-                new VarCharType(Integer.MAX_VALUE),
-                new BigIntType(),
-                new BigIntType(),
-                new BigIntType(),
-                new BigIntType()
-            };
-
-    private static final RowDataKeySelector KEY_SELECTOR =
-            HandwrittenSelectorUtil.getRowDataSelector(
-                    new int[] {0}, INPUT_ROW_TYPE.getChildren().toArray(new LogicalType[0]));
-
-    private static final PagedTypeSerializer<RowData> KEY_SER =
-            (PagedTypeSerializer<RowData>) KEY_SELECTOR.getProducedType().toSerializer();
-
-    private static final TypeSerializer<RowData> OUT_SERIALIZER =
-            new RowDataSerializer(OUTPUT_TYPES);
-
-    private static final RowDataHarnessAssertor ASSERTER =
-            new RowDataHarnessAssertor(
-                    OUTPUT_TYPES, new GenericRowRecordSortComparator(0, VarCharType.STRING_TYPE));
 
     @Test
     public void testEventTimeHoppingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
-        SlicingWindowOperator<RowData, ?> operator =
-                SlicingWindowAggOperatorBuilder.builder()
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                         .countStarIndex(1)
                         .build();
 
@@ -224,14 +162,15 @@ public class SlicingWindowAggOperatorTest {
     public void testProcessingTimeHoppingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(-1, shiftTimeZone, Duration.ofHours(3), Duration.ofHours(1));
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
-        SlicingWindowOperator<RowData, ?> operator =
-                SlicingWindowAggOperatorBuilder.builder()
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                         .countStarIndex(1)
                         .build();
 
@@ -346,14 +285,15 @@ public class SlicingWindowAggOperatorTest {
         final SliceAssigner assigner =
                 SliceAssigners.cumulative(
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
-        SlicingWindowOperator<RowData, ?> operator =
-                SlicingWindowAggOperatorBuilder.builder()
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -462,14 +402,15 @@ public class SlicingWindowAggOperatorTest {
         final SliceAssigner assigner =
                 SliceAssigners.cumulative(
                         -1, shiftTimeZone, Duration.ofDays(1), Duration.ofHours(8));
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
-        SlicingWindowOperator<RowData, ?> operator =
-                SlicingWindowAggOperatorBuilder.builder()
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -596,14 +537,15 @@ public class SlicingWindowAggOperatorTest {
     public void testEventTimeTumblingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.tumbling(2, shiftTimeZone, Duration.ofSeconds(3));
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
-        SlicingWindowOperator<RowData, ?> operator =
-                SlicingWindowAggOperatorBuilder.builder()
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -703,14 +645,15 @@ public class SlicingWindowAggOperatorTest {
         // [1970-01-01 00:00, 1970-01-01 05:00] <=> [1969-12-31 16:00, 1969-12-31 21:00]
         // [1970-01-01 05:00, 1970-01-01 10:00] <=> [1969-12-31 21:00, 1970-01-01 02:00]
 
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
-        SlicingWindowOperator<RowData, ?> operator =
-                SlicingWindowAggOperatorBuilder.builder()
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        WindowAggOperator<RowData, ?> operator =
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .assigner(assigner)
-                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -777,186 +720,42 @@ public class SlicingWindowAggOperatorTest {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
-        final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
 
         // hopping window without specifying count star index
         assertThatThrownBy(
                         () ->
-                                SlicingWindowAggOperatorBuilder.builder()
+                                WindowAggOperatorBuilder.builder()
                                         .inputSerializer(INPUT_ROW_SER)
                                         .shiftTimeZone(shiftTimeZone)
                                         .keySerializer(KEY_SER)
                                         .assigner(assigner)
-                                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                                        .aggregate(createGeneratedAggsHandle(aggsFunction), ACC_SER)
                                         .build())
                 .hasMessageContaining(
                         "Hopping window requires a COUNT(*) in the aggregate functions.");
     }
 
-    /** Get the timestamp in mills by given epoch mills and timezone. */
-    private long localMills(long epochMills) {
-        return toUtcTimestampMills(epochMills, shiftTimeZone);
-    }
-
-    private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            SlicingWindowOperator<RowData, ?> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
-    }
-
-    private static GeneratedNamespaceAggsHandleFunction<Long> wrapGenerated(
-            NamespaceAggsHandleFunction<Long> aggsFunction) {
-        return new GeneratedNamespaceAggsHandleFunction<Long>("N/A", "", new Object[0]) {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public NamespaceAggsHandleFunction<Long> newInstance(ClassLoader classLoader) {
-                return aggsFunction;
-            }
-        };
-    }
-
-    /**
-     * This performs a {@code SUM(f1), COUNT(f1)}, where f1 is BIGINT type. The return value
-     * contains {@code sum, count, window_start, window_end}.
-     */
-    private static class SumAndCountAggsFunction implements NamespaceAggsHandleFunction<Long> {
-
-        private static final long serialVersionUID = 1L;
+    /** A test agg function for {@link SlicingWindowAggOperatorTest}. */
+    protected static class SlicingSumAndCountAggsFunction
+            extends SumAndCountAggsFunctionBase<Long> {
 
         private final SliceAssigner assigner;
 
-        boolean openCalled;
-        final AtomicInteger closeCalled = new AtomicInteger(0);
-
-        long sum;
-        boolean sumIsNull;
-        long count;
-        boolean countIsNull;
-
-        protected transient JoinedRowData result;
-
-        private SumAndCountAggsFunction(SliceAssigner assigner) {
+        public SlicingSumAndCountAggsFunction(SliceAssigner assigner) {
             this.assigner = assigner;
         }
 
-        public void open(StateDataViewStore store) throws Exception {
-            openCalled = true;
-            result = new JoinedRowData();
-        }
-
-        public void setAccumulators(Long window, RowData acc) throws Exception {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            sumIsNull = acc.isNullAt(0);
-            if (!sumIsNull) {
-                sum = acc.getLong(0);
-            } else {
-                sum = 0L;
-            }
-
-            countIsNull = acc.isNullAt(1);
-            if (!countIsNull) {
-                count = acc.getLong(1);
-            } else {
-                count = 0L;
-            }
-        }
-
-        public void accumulate(RowData inputRow) throws Exception {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            boolean inputIsNull = inputRow.isNullAt(1);
-            if (!inputIsNull) {
-                sum += inputRow.getInt(1);
-                count += 1;
-                sumIsNull = false;
-                countIsNull = false;
-            }
-        }
-
-        public void retract(RowData inputRow) throws Exception {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            boolean inputIsNull = inputRow.isNullAt(1);
-            if (!inputIsNull) {
-                sum -= inputRow.getInt(1);
-                count -= 1;
-            }
-        }
-
-        public void merge(Long window, RowData otherAcc) throws Exception {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            boolean sumIsNull2 = otherAcc.isNullAt(0);
-            if (!sumIsNull2) {
-                sum += otherAcc.getLong(0);
-                sumIsNull = false;
-            }
-            boolean countIsNull2 = otherAcc.isNullAt(1);
-            if (!countIsNull2) {
-                count += otherAcc.getLong(1);
-                countIsNull = false;
-            }
-        }
-
-        public RowData createAccumulators() {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            GenericRowData rowData = new GenericRowData(2);
-            rowData.setField(1, 0L); // count has default 0 value
-            return rowData;
-        }
-
-        public RowData getAccumulators() throws Exception {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            GenericRowData row = new GenericRowData(2);
-            if (!sumIsNull) {
-                row.setField(0, sum);
-            }
-            if (!countIsNull) {
-                row.setField(1, count);
-            }
-            return row;
-        }
-
-        public void cleanup(Long window) {}
-
-        public void close() {
-            closeCalled.incrementAndGet();
+        @Override
+        protected long getWindowStart(Long window) {
+            return assigner.getWindowStart(window);
         }
 
         @Override
-        public RowData getValue(Long window) throws Exception {
-            if (!openCalled) {
-                fail("Open was not called");
-            }
-            GenericRowData row = new GenericRowData(4);
-            if (!sumIsNull) {
-                row.setField(0, sum);
-            }
-            if (!countIsNull) {
-                row.setField(1, count);
-            }
-            row.setField(1, count);
-            row.setField(2, assigner.getWindowStart(window));
-            row.setField(3, window);
-            return row;
+        protected long getWindowEnd(Long window) {
+            return window;
         }
-    }
-
-    /** Get epoch mills from a timestamp string and the time zone the timestamp belongs. */
-    private static long epochMills(ZoneId shiftTimeZone, String timestampStr) {
-        LocalDateTime localDateTime = LocalDateTime.parse(timestampStr);
-        ZoneOffset zoneOffset = shiftTimeZone.getRules().getOffset(localDateTime);
-        return localDateTime.toInstant(zoneOffset).toEpochMilli();
     }
 
     @Parameterized.Parameters(name = "TimeZone = {0}")

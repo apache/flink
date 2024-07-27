@@ -237,6 +237,10 @@ public class ExceptionHistoryEntry extends ErrorInfo {
             return fqdnHostname;
         }
 
+        public String getEndpoint() {
+            return String.format("%s:%d", fqdnHostname, port);
+        }
+
         @Override
         public String toString() {
             return new StringJoiner(

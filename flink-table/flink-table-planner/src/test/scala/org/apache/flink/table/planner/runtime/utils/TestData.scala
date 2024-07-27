@@ -30,7 +30,7 @@ import org.apache.flink.types.Row
 
 import java.lang.{Boolean => JBool, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time._
 
 import scala.collection.{mutable, Seq}
 
@@ -280,6 +280,14 @@ object TestData {
     data.+=((21, 6L, "Comment#15"))
     data
   }
+
+  lazy val tupleData4: Seq[Row] = Seq(
+    row(1, "Latte", 6),
+    row(2, "Milk", 3),
+    row(3, "Breve", 5),
+    row(4, "Mocha", 8),
+    row(5, "Tea", 4)
+  )
 
   lazy val data3: Seq[Row] = tupleData3.map(d => row(d.productIterator.toList: _*))
 
@@ -756,6 +764,166 @@ object TestData {
     row("2020-10-10 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b")
   )
 
+  // +----+---------------------+---+-----+-----+-------+------------+---+
+  // | Op |      Timestamp      | 1 |  2  |  3  |   4   |     5      | 6 |
+  // +----+---------------------+---+-----+-----+-------+------------+---+
+  // | +I | 2020-10-10 00:00:01 | 1 | 1.0 | 1.0 |  1.11 |     Hi     | a |
+  // | +I | 2020-10-10 00:00:02 | 2 | 2.0 | 2.0 |  2.22 | Comment#1  | a |
+  // | -D | 2020-10-10 00:00:03 | 1 | 1.0 | 1.0 |  1.11 |     Hi     | a |
+  // | +I | 2020-10-10 00:00:03 | 2 | 2.0 | 2.0 |  2.22 | Comment#1  | a |
+  // | +I | 2020-10-10 00:00:04 | 5 | 5.0 | 5.0 |  5.55 |    null    | a |
+  // | -U | 2020-10-10 00:00:04 | 2 | 2.0 | 2.0 |  2.22 | Comment#1  | a |
+  // | +U | 2020-10-10 00:00:04 | 22|22.0 |22.2 | 22.22 | Comment#22 | a |
+  // | +I | 2020-10-10 00:00:07 | 3 | 3.0 | 3.0 |  null |   Hello    | b |
+  // | +I | 2020-10-10 00:00:06 | 6 | 6.0 | 6.0 |  6.66 |     Hi     | b |
+  // | +I | 2020-10-10 00:00:08 | 3 |null | 3.0 |  3.33 | Comment#2  | a |
+  // | +I | 2020-10-10 00:00:04 | 5 | 5.0 |null |  5.55 |     Hi     | a |
+  // | +I | 2020-10-10 00:00:16 | 4 | 4.0 | 4.0 |  4.44 |     Hi     | b |
+  // | -D | 2020-10-10 00:00:04 | 5 | 5.0 | 5.0 |  5.55 |    null    | a |
+  // | +I | 2020-10-10 00:00:38 | 8 | 8.0 | 8.0 |  8.88 | Comment#4  | b |
+  // | -D | 2020-10-10 00:00:39 | 8 | 8.0 | 8.0 |  8.88 | Comment#4  | b |
+  // +----+---------------------+---+-----+-----+-------+------------+---+
+  val windowChangelogDataWithTimestamp: Seq[Row] = List(
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:01",
+      Int.box(1),
+      Double.box(1d),
+      Float.box(1f),
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:02",
+      Int.box(2),
+      Double.box(2d),
+      Float.box(2f),
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    changelogRow(
+      "-D",
+      "2020-10-10 00:00:03",
+      Int.box(1),
+      Double.box(1d),
+      Float.box(1f),
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:03",
+      Int.box(2),
+      Double.box(2d),
+      Float.box(2f),
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:04",
+      Int.box(5),
+      Double.box(5d),
+      Float.box(5f),
+      new JBigDecimal("5.55"),
+      null,
+      "a"),
+    changelogRow(
+      "-U",
+      "2020-10-10 00:00:04",
+      Int.box(2),
+      Double.box(2d),
+      Float.box(2f),
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    changelogRow(
+      "+U",
+      "2020-10-10 00:00:04",
+      Int.box(22),
+      Double.box(22d),
+      Float.box(22.2f),
+      new JBigDecimal("22.22"),
+      "Comment#22",
+      "a"),
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:07",
+      Int.box(3),
+      Double.box(3d),
+      Float.box(3f),
+      null,
+      "Hello",
+      "b"),
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:06",
+      Int.box(6),
+      Double.box(6d),
+      Float.box(6f),
+      new JBigDecimal("6.66"),
+      "Hi",
+      "b"
+    ), // out of order
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:08",
+      Int.box(3),
+      null,
+      Float.box(3f),
+      new JBigDecimal("3.33"),
+      "Comment#2",
+      "a"),
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:04",
+      Int.box(5),
+      Double.box(5d),
+      null,
+      new JBigDecimal("5.55"),
+      "Hi",
+      "a"
+    ), // late insert event
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:16",
+      Int.box(4),
+      Double.box(4d),
+      Float.box(4f),
+      new JBigDecimal("4.44"),
+      "Hi",
+      "b"),
+    changelogRow(
+      "-D",
+      "2020-10-10 00:00:04",
+      Int.box(5),
+      Double.box(5d),
+      Float.box(5f),
+      new JBigDecimal("5.55"),
+      null,
+      "a"
+    ), // late delete event
+    changelogRow(
+      "+I",
+      "2020-10-10 00:00:38",
+      Int.box(8),
+      Double.box(8d),
+      Float.box(8f),
+      new JBigDecimal("8.88"),
+      "Comment#4",
+      "b"),
+    changelogRow(
+      "-D",
+      "2020-10-10 00:00:39",
+      Int.box(8),
+      Double.box(8d),
+      Float.box(8f),
+      new JBigDecimal("8.88"),
+      "Comment#4",
+      "b")
+  )
+
   val shanghaiZone = ZoneId.of("Asia/Shanghai")
 
   val windowDataWithLtzInShanghai: Seq[Row] = List(
@@ -927,6 +1095,166 @@ object TestData {
       3f,
       new JBigDecimal("3.33"),
       "Comment#3",
+      "b")
+  )
+
+  // +----+---------------------+---+-----+-----+-------+------------+---+
+  // | Op |      Timestamp      | 1 |  2  |  3  |   4   |     5      | 6 |
+  // +----+---------------------+---+-----+-----+-------+------------+---+
+  // | +I | 2020-10-10 00:00:01 | 1 | 1.0 | 1.0 |  1.11 |     Hi     | a |
+  // | +I | 2020-10-10 00:00:02 | 2 | 2.0 | 2.0 |  2.22 | Comment#1  | a |
+  // | -D | 2020-10-10 00:00:03 | 1 | 1.0 | 1.0 |  1.11 |     Hi     | a |
+  // | +I | 2020-10-10 00:00:03 | 2 | 2.0 | 2.0 |  2.22 | Comment#1  | a |
+  // | +I | 2020-10-10 00:00:04 | 5 | 5.0 | 5.0 |  5.55 |    null    | a |
+  // | -U | 2020-10-10 00:00:04 | 2 | 2.0 | 2.0 |  2.22 | Comment#1  | a |
+  // | +U | 2020-10-10 00:00:04 | 22|22.0 |22.2 | 22.22 | Comment#22 | a |
+  // | +I | 2020-10-10 00:00:07 | 3 | 3.0 | 3.0 |  null |   Hello    | b |
+  // | +I | 2020-10-10 00:00:06 | 6 | 6.0 | 6.0 |  6.66 |     Hi     | b |
+  // | +I | 2020-10-10 00:00:08 | 3 |null | 3.0 |  3.33 | Comment#2  | a |
+  // | +I | 2020-10-10 00:00:04 | 5 | 5.0 |null |  5.55 |     Hi     | a |
+  // | +I | 2020-10-10 00:00:16 | 4 | 4.0 | 4.0 |  4.44 |     Hi     | b |
+  // | -D | 2020-10-10 00:00:04 | 5 | 5.0 | 5.0 |  5.55 |    null    | a |
+  // | +I | 2020-10-10 00:00:38 | 8 | 8.0 | 8.0 |  8.88 | Comment#4  | b |
+  // | -D | 2020-10-10 00:00:39 | 8 | 8.0 | 8.0 |  8.88 | Comment#4  | b |
+  // +----+---------------------+---+-----+-----+-------+------------+---+
+  val windowChangelogDataWithLtzInShanghai: Seq[Row] = List(
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:01", shanghaiZone)),
+      Int.box(1),
+      Double.box(1d),
+      Float.box(1f),
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:02", shanghaiZone)),
+      Int.box(2),
+      Double.box(2d),
+      Float.box(2f),
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    changelogRow(
+      "-D",
+      Long.box(toEpochMills("2020-10-10T00:00:03", shanghaiZone)),
+      Int.box(1),
+      Double.box(1d),
+      Float.box(1f),
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:03", shanghaiZone)),
+      Int.box(2),
+      Double.box(2d),
+      Float.box(2f),
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:04", shanghaiZone)),
+      Int.box(5),
+      Double.box(5d),
+      Float.box(5f),
+      new JBigDecimal("5.55"),
+      null,
+      "a"),
+    changelogRow(
+      "-U",
+      Long.box(toEpochMills("2020-10-10T00:00:04", shanghaiZone)),
+      Int.box(2),
+      Double.box(2d),
+      Float.box(2f),
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    changelogRow(
+      "+U",
+      Long.box(toEpochMills("2020-10-10T00:00:04", shanghaiZone)),
+      Int.box(22),
+      Double.box(22d),
+      Float.box(22.2f),
+      new JBigDecimal("22.22"),
+      "Comment#22",
+      "a"),
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:07", shanghaiZone)),
+      Int.box(3),
+      Double.box(3d),
+      Float.box(3f),
+      null,
+      "Hello",
+      "b"),
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:06", shanghaiZone)),
+      Int.box(6),
+      Double.box(6d),
+      Float.box(6f),
+      new JBigDecimal("6.66"),
+      "Hi",
+      "b"
+    ), // out of order
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:08", shanghaiZone)),
+      Int.box(3),
+      null,
+      Float.box(3f),
+      new JBigDecimal("3.33"),
+      "Comment#2",
+      "a"),
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:04", shanghaiZone)),
+      Int.box(5),
+      Double.box(5d),
+      null,
+      new JBigDecimal("5.55"),
+      "Hi",
+      "a"
+    ), // late insert event
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:16", shanghaiZone)),
+      Int.box(4),
+      Double.box(4d),
+      Float.box(4f),
+      new JBigDecimal("4.44"),
+      "Hi",
+      "b"),
+    changelogRow(
+      "-D",
+      Long.box(toEpochMills("2020-10-10T00:00:04", shanghaiZone)),
+      Int.box(5),
+      Double.box(5d),
+      Float.box(5f),
+      new JBigDecimal("5.55"),
+      null,
+      "a"
+    ), // late delete event
+    changelogRow(
+      "+I",
+      Long.box(toEpochMills("2020-10-10T00:00:38", shanghaiZone)),
+      Int.box(8),
+      Double.box(8d),
+      Float.box(8f),
+      new JBigDecimal("8.88"),
+      "Comment#4",
+      "b"),
+    changelogRow(
+      "-D",
+      Long.box(toEpochMills("2020-10-10T00:00:39", shanghaiZone)),
+      Int.box(8),
+      Double.box(8d),
+      Float.box(8f),
+      new JBigDecimal("8.88"),
+      "Comment#4",
       "b")
   )
 

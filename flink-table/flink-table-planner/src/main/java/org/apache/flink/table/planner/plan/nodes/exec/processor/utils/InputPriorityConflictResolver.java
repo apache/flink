@@ -199,7 +199,11 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
     }
 
     private InputProperty.DamBehavior getDamBehavior() {
-        if (getBatchStreamExchangeMode(tableConfig, exchangeMode) == StreamExchangeMode.BATCH) {
+        StreamExchangeMode streamExchangeMode =
+                getBatchStreamExchangeMode(tableConfig, exchangeMode);
+        if (streamExchangeMode == StreamExchangeMode.BATCH
+                || streamExchangeMode == StreamExchangeMode.HYBRID_FULL
+                || streamExchangeMode == StreamExchangeMode.HYBRID_SELECTIVE) {
             return InputProperty.DamBehavior.BLOCKING;
         } else {
             return InputProperty.DamBehavior.PIPELINED;

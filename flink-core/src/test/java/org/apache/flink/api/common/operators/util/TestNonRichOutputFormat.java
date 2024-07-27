@@ -26,7 +26,7 @@ import java.util.List;
 
 /** Non rich test output format which stores everything in a list. */
 public class TestNonRichOutputFormat implements OutputFormat<String> {
-    public List<String> output = new LinkedList<String>();
+    public final List<String> output = new LinkedList<>();
 
     @Override
     public void configure(Configuration parameters) {}

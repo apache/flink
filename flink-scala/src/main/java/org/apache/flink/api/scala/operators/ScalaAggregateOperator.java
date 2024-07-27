@@ -285,8 +285,7 @@ public class ScalaAggregateOperator<IN>
                 aggFunction.initializeAggregate();
             }
             this.serializer =
-                    (TupleSerializerBase<T>)
-                            typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+                    (TupleSerializerBase<T>) getRuntimeContext().createSerializer(typeInfo);
         }
 
         @Override

@@ -82,9 +82,9 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 
         super(taskFactory, outputType);
 
-        inputSerializer1 = inputType1.createSerializer(executionConfig);
+        inputSerializer1 = inputType1.createSerializer(executionConfig.getSerializerConfig());
 
-        inputSerializer2 = inputType2.createSerializer(executionConfig);
+        inputSerializer2 = inputType2.createSerializer(executionConfig.getSerializerConfig());
 
         this.numInputGates = numInputGates;
         this.numInputChannelsPerGate = numInputChannelsPerGate;

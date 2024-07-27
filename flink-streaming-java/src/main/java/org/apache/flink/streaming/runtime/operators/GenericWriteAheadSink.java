@@ -106,7 +106,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
                                 new ListStateDescriptor<>(
                                         "pending-checkpoints", new JavaSerializer<>()));
 
-        int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         if (context.isRestored()) {
             LOG.info("Restoring state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
 
@@ -152,7 +152,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
         // only add handle if a new OperatorState was created since the last snapshot
         if (out != null) {
-            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             StreamStateHandle handle = out.closeAndGetHandle();
 
             PendingCheckpoint pendingCheckpoint =
@@ -194,7 +194,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
                     e);
         }
 
-        int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         if (LOG.isDebugEnabled()) {
             LOG.debug(
                     "{} (taskIdx= {}) checkpointed {}.",

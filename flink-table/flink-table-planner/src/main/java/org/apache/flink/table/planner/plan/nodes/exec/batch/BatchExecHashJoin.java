@@ -322,11 +322,11 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
 
     @Override
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
         OpFusionCodegenSpecGenerator leftInput =
-                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);
         OpFusionCodegenSpecGenerator rightInput =
-                getInputEdges().get(1).translateToFusionCodegenSpec(planner);
+                getInputEdges().get(1).translateToFusionCodegenSpec(planner, parentCtx);
         boolean compressionEnabled =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
         int compressionBlockSize =
@@ -342,7 +342,9 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                         (RowType) getOutputType(),
                         new HashJoinFusionCodegenSpec(
                                 new CodeGeneratorContext(
-                                        config, planner.getFlinkContext().getClassLoader()),
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        parentCtx),
                                 isBroadcast,
                                 leftIsBuild,
                                 joinSpec,

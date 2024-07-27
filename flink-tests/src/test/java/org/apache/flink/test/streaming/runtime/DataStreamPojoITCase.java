@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -34,7 +34,7 @@ import java.util.List;
  *
  * <p>See FLINK-3697
  */
-public class DataStreamPojoITCase extends AbstractTestBase {
+public class DataStreamPojoITCase extends AbstractTestBaseJUnit4 {
     static List<Data> elements = new ArrayList<>();
 
     static {
@@ -53,7 +53,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.getConfig().disableObjectReuse();
         see.setParallelism(3);
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
 
         DataStream<Data> summedStream =
                 dataStream
@@ -105,7 +105,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
 
         DataStream<Data> summedStream =
                 dataStream
@@ -160,7 +160,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
 
         DataStream<Data> summedStream =
                 dataStream
@@ -198,7 +198,7 @@ public class DataStreamPojoITCase extends AbstractTestBase {
     public void testFailOnNestedPojoFieldAccessor() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Data> dataStream = see.fromCollection(elements);
+        DataStream<Data> dataStream = see.fromData(elements);
         dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
     }
 

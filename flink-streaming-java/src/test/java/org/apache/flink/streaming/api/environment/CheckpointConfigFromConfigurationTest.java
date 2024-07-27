@@ -20,10 +20,11 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,11 +44,37 @@ public class CheckpointConfigFromConfigurationTest {
 
     private static Stream<TestSpec<?>> specs() {
         return Stream.of(
-                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                TestSpec.testValue(org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
                         .viaSetter(CheckpointConfig::setCheckpointingMode)
                         .getterVia(CheckpointConfig::getCheckpointingMode)
+                        .nonDefaultValue(
+                                org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(CheckpointConfig::setCheckpointingConsistencyMode)
+                        .getterVia(CheckpointConfig::getCheckpointingConsistencyMode)
                         .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setCheckpointingMode(
+                                            org.apache.flink.streaming.api.CheckpointingMode
+                                                    .valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getCheckpointingConsistencyMode)
+                        .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setCheckpointingConsistencyMode(
+                                            CheckpointingMode.valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getCheckpointingMode)
+                        .nonDefaultValue(
+                                org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE),
                 TestSpec.testValue(10000L)
                         .whenSetFromFile("execution.checkpointing.interval", "10 s")
                         .viaSetter(CheckpointConfig::setCheckpointInterval)
@@ -79,6 +106,40 @@ public class CheckpointConfigFromConfigurationTest {
                         .nonDefaultValue(
                                 CheckpointConfig.ExternalizedCheckpointCleanup
                                         .DELETE_ON_CANCELLATION),
+                TestSpec.testValue(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
+                        .whenSetFromFile(
+                                "execution.checkpointing.externalized-checkpoint-retention",
+                                "RETAIN_ON_CANCELLATION")
+                        .viaSetter(CheckpointConfig::setExternalizedCheckpointRetention)
+                        .getterVia(CheckpointConfig::getExternalizedCheckpointRetention)
+                        .nonDefaultValue(ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION),
+                TestSpec.testValue(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
+                        .whenSetFromFile(
+                                "execution.checkpointing.externalized-checkpoint-retention",
+                                "RETAIN_ON_CANCELLATION")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setExternalizedCheckpointCleanup(
+                                            CheckpointConfig.ExternalizedCheckpointCleanup.valueOf(
+                                                    v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getExternalizedCheckpointRetention)
+                        .nonDefaultValue(ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION),
+                TestSpec.testValue(
+                                CheckpointConfig.ExternalizedCheckpointCleanup
+                                        .RETAIN_ON_CANCELLATION)
+                        .whenSetFromFile(
+                                "execution.checkpointing.externalized-checkpoint-retention",
+                                "RETAIN_ON_CANCELLATION")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setExternalizedCheckpointRetention(
+                                            ExternalizedCheckpointRetention.valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getExternalizedCheckpointCleanup)
+                        .nonDefaultValue(
+                                CheckpointConfig.ExternalizedCheckpointCleanup
+                                        .DELETE_ON_CANCELLATION),
                 TestSpec.testValue(12)
                         .whenSetFromFile(
                                 "execution.checkpointing.tolerable-failed-checkpoints", "12")
@@ -89,6 +150,14 @@ public class CheckpointConfigFromConfigurationTest {
                         .whenSetFromFile("execution.checkpointing.unaligned.enabled", "true")
                         .viaSetter(CheckpointConfig::enableUnalignedCheckpoints)
                         .getterVia(CheckpointConfig::isUnalignedCheckpointsEnabled)
+                        .nonDefaultValue(true),
+                TestSpec.testValue(true)
+                        .whenSetFromFile(
+                                "execution.checkpointing.unaligned.interruptible-timers.enabled",
+                                "true")
+                        .viaSetter(CheckpointConfig::enableUnalignedCheckpointsInterruptibleTimers)
+                        .getterVia(
+                                CheckpointConfig::isUnalignedCheckpointsInterruptibleTimersEnabled)
                         .nonDefaultValue(true),
                 TestSpec.testValue(
                                 (CheckpointStorage)

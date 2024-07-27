@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -87,4 +88,15 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
 
     /** Returns the runtime class of the stream operator. */
     Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader);
+
+    /**
+     * Is called to get the OperatorAttributes of the operator. OperatorAttributes can inform the
+     * frame to optimize the job performance.
+     *
+     * @return OperatorAttributes of the operator.
+     */
+    @Experimental
+    default OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder().build();
+    }
 }

@@ -17,11 +17,12 @@
  */
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.types.inference.{InputTypeStrategies, TypeInference, TypeStrategies}
 
 import java.lang.{Iterable => JIterable, Long => JLong}
 
@@ -33,17 +34,15 @@ class CountAccumulator extends JTuple1[JLong] {
 /** built-in count aggregate function */
 class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
-  def accumulate(acc: CountAccumulator, value: Any): Unit = {
-    if (value != null) {
-      acc.f0 += 1L
-    }
+  def accumulate(acc: CountAccumulator, @DataTypeHint("INT") value: Any): Unit = {
+    if (value != null) acc.f0 += 1L
   }
 
   def accumulate(acc: CountAccumulator): Unit = {
     acc.f0 += 1L
   }
 
-  def retract(acc: CountAccumulator, value: Any): Unit = {
+  def retract(acc: CountAccumulator, @DataTypeHint("INT") value: Any): Unit = {
     if (value != null) {
       acc.f0 -= 1L
     }
@@ -68,9 +67,17 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
     new CountAccumulator
   }
 
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo(classOf[CountAccumulator], BasicTypeInfo.LONG_TYPE_INFO)
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .inputTypeStrategy(InputTypeStrategies.sequence(InputTypeStrategies.or(
+        InputTypeStrategies.explicit(DataTypes.INT),
+        InputTypeStrategies.explicit(DataTypes.BIGINT()),
+        InputTypeStrategies.explicit(DataTypes.STRING()),
+        InputTypeStrategies.explicit(DataTypes.TIMESTAMP(3))
+      )))
+      .accumulatorTypeStrategy(TypeStrategies.explicit(
+        DataTypes.STRUCTURED(classOf[CountAccumulator], DataTypes.FIELD("f0", DataTypes.BIGINT()))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+      .build
   }
-
-  override def getResultType: TypeInformation[java.lang.Long] = Types.LONG
 }

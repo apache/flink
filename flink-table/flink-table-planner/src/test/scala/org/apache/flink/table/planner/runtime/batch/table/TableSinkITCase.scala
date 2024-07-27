@@ -58,7 +58,7 @@ class TableSinkITCase extends BatchTestBase {
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
     table.executeInsert("sink").await()
 
-    val result = TestValuesTableFactory.getResults("sink")
+    val result = TestValuesTableFactory.getResultsAsStrings("sink")
     val expected = Seq("12345,55,12345")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
@@ -84,7 +84,7 @@ class TableSinkITCase extends BatchTestBase {
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
     table.executeInsert("sink").await()
 
-    val result = TestValuesTableFactory.getResults("sink")
+    val result = TestValuesTableFactory.getResultsAsStrings("sink")
     val expected = Seq("12345,55,12345")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
@@ -110,7 +110,7 @@ class TableSinkITCase extends BatchTestBase {
       .select('a, 'b.sum())
     table.executeInsert("testSink").await()
 
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     val expected = List("1,0.1", "2,0.4", "3,1.0", "4,2.2", "5,3.9")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
@@ -135,7 +135,7 @@ class TableSinkITCase extends BatchTestBase {
       .select('a, 'b.sum())
     table.executeInsert("testSink").await()
 
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     val expected = List("1,0.1", "2,0.4", "3,1.0", "4,2.2", "5,3.9")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
@@ -167,7 +167,7 @@ class TableSinkITCase extends BatchTestBase {
       .await()
     val expected =
       List("1,2021,1,0.1", "2,2021,1,0.4", "3,2021,1,1.0", "4,2021,1,2.2", "5,2021,1,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -193,7 +193,7 @@ class TableSinkITCase extends BatchTestBase {
                      |""".stripMargin)
       .await()
     val expected = List("null,0.1", "null,0.4", "null,1.0", "null,2.2", "null,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -228,7 +228,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,1.0",
       "null,2021,1,2.2",
       "null,2021,1,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -259,7 +259,7 @@ class TableSinkITCase extends BatchTestBase {
       .await()
     val expected =
       List("1,2021,1,0.1", "2,2021,1,0.4", "3,2021,1,1.0", "4,2021,1,2.2", "5,2021,1,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -294,7 +294,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,null,null,1.0",
       "null,null,null,2.2",
       "null,null,null,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -329,7 +329,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,1.0",
       "null,2021,1,2.2",
       "null,2021,1,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -364,7 +364,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,1.0",
       "null,2021,1,2.2",
       "null,2021,1,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -399,7 +399,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,1,1.0",
       "null,2021,1,2.2",
       "null,2021,1,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
@@ -434,7 +434,7 @@ class TableSinkITCase extends BatchTestBase {
       "null,2021,null,1.0",
       "null,2021,null,2.2",
       "null,2021,null,3.9")
-    val result = TestValuesTableFactory.getResults("testSink")
+    val result = TestValuesTableFactory.getResultsAsStrings("testSink")
     assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 

@@ -23,14 +23,14 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** ITCase for the [[org.apache.flink.api.common.state.BroadcastState]]. */
-class BroadcastStateITCase extends AbstractTestBase {
+class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
 
   @Test
   @throws[Exception]
@@ -54,7 +54,7 @@ class BroadcastStateITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val srcOne = env
-      .generateSequence(0L, 5L)
+      .fromSequence(0L, 5L)
       .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[Long]() {
 
         override def extractTimestamp(element: Long, previousElementTimestamp: Long): Long =

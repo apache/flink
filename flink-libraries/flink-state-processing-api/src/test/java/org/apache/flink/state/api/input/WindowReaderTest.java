@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.input;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.dag.Transformation;
@@ -97,7 +98,8 @@ public class WindowReaderTest {
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT));
+                                Types.INT),
+                        new ExecutionConfig());
 
         List<Integer> list = readState(format);
         Assert.assertEquals(Arrays.asList(1, 1), list);
@@ -123,7 +125,8 @@ public class WindowReaderTest {
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT));
+                                Types.INT),
+                        new ExecutionConfig());
 
         List<Integer> list = readState(format);
         Assert.assertEquals(Collections.singletonList(2), list);
@@ -149,7 +152,8 @@ public class WindowReaderTest {
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT));
+                                Types.INT),
+                        new ExecutionConfig());
 
         List<Integer> list = readState(format);
         Assert.assertEquals(Arrays.asList(1, 1), list);
@@ -174,7 +178,8 @@ public class WindowReaderTest {
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT));
+                                Types.INT),
+                        new ExecutionConfig());
 
         List<Integer> list = readState(format);
         Assert.assertEquals(Arrays.asList(1, 1), list);
@@ -200,7 +205,8 @@ public class WindowReaderTest {
                                 new MultiFireReaderFunction(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT));
+                                Types.INT),
+                        new ExecutionConfig());
 
         List<Tuple2<Integer, Integer>> list = readState(format);
         Assert.assertEquals(Arrays.asList(Tuple2.of(2, 1), Tuple2.of(2, 1)), list);

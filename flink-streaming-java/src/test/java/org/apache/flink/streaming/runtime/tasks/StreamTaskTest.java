@@ -42,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -75,6 +76,7 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DoneFuture;
@@ -141,7 +143,6 @@ import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler;
@@ -150,7 +151,6 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
@@ -215,7 +215,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamTask}. */
-@ExtendWith(TestLoggerExtension.class)
 public class StreamTaskTest {
 
     @RegisterExtension
@@ -513,7 +512,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendLoadingAndClosing() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -554,7 +553,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendClosingOnFailure() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -698,8 +697,7 @@ public class StreamTaskTest {
                     .hasMessage(
                             "Configured state backend (OnlyIncrementalStateBackend) does not"
                                     + " support enforcing a full snapshot. If you are restoring in"
-                                    + " NO_CLAIM mode, please consider choosing either CLAIM or"
-                                    + " LEGACY restore mode.");
+                                    + " NO_CLAIM mode, please consider choosing CLAIM mode.");
         }
     }
 
@@ -1302,7 +1300,7 @@ public class StreamTaskTest {
             } catch (InterruptedException e) {
                 asyncException = e;
             }
-            executor.submit(
+            executor.execute(
                     () -> {
                         if (asyncException != null) {
                             throw asyncException;
@@ -1347,7 +1345,7 @@ public class StreamTaskTest {
                             sleepTimeOutsideMail,
                             ioMetricGroup.getSoftBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
-            executor.submit(
+            executor.execute(
                     waitingThread::start,
                     "This task will submit another task to execute after processing input once.");
 
@@ -1400,7 +1398,7 @@ public class StreamTaskTest {
                             sleepTimeOutsideMail,
                             ioMetricGroup.getIdleTimeMsPerSecond());
             // Make sure WaitingThread is started after Task starts processing.
-            executor.submit(
+            executor.execute(
                     waitingThread::start,
                     "Start WaitingThread after Task starts processing input.");
 
@@ -1502,7 +1500,7 @@ public class StreamTaskTest {
                     // 'afterInvoke' won't finish until this execution won't finish so it is
                     // impossible to wait on latch or something else.
                     Thread.sleep(5);
-                    mainMailboxExecutor.submit(() -> {}, "test");
+                    mainMailboxExecutor.execute(() -> {}, "test");
                 });
 
         // when: Calling the quiesce for mailbox and finishing the timer service.
@@ -1526,7 +1524,7 @@ public class StreamTaskTest {
     void testTaskAvoidHangingAfterSnapshotStateThrownException() throws Exception {
         // given: Configured SourceStreamTask with source which fails on checkpoint.
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1777,6 +1775,23 @@ public class StreamTaskTest {
             assertThat(mailboxLatencyMetric.getCount()).isGreaterThanOrEqualTo(minMeasurements);
             assertThat(maxMailboxSize).hasValueGreaterThan(0);
             assertThat(mailboxSizeMetric.getValue()).isZero();
+        }
+    }
+
+    @Test
+    void testSubTaskInitializationMetrics() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.buildUnrestored()) {
+            harness.streamTask.restore();
+
+            assertThat(harness.getTaskStateManager().getReportedInitializationMetrics())
+                    .isPresent();
         }
     }
 
@@ -2293,9 +2308,10 @@ public class StreamTaskTest {
         protected void cleanUpInternal() throws Exception {}
 
         @Override
-        public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+        public StreamTaskStateInitializer createStreamTaskStateInitializer(
+                SubTaskInitializationMetricsBuilder initializationMetrics) {
             final StreamTaskStateInitializer streamTaskStateManager =
-                    super.createStreamTaskStateInitializer();
+                    super.createStreamTaskStateInitializer(initializationMetrics);
             return (operatorID,
                     operatorClassName,
                     processingTimeService,
@@ -2336,6 +2352,11 @@ public class StreamTaskTest {
                     @Override
                     public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
                         return controller.keyedStateBackend();
+                    }
+
+                    @Override
+                    public AsyncKeyedStateBackend asyncKeyedStateBackend() {
+                        return controller.asyncKeyedStateBackend();
                     }
 
                     @Override

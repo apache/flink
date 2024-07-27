@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.factories;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.DefaultJobMasterServiceProcess;
 import org.apache.flink.runtime.jobmaster.JobMasterServiceProcess;
@@ -33,6 +34,7 @@ public class DefaultJobMasterServiceProcessFactory implements JobMasterServicePr
 
     private final JobID jobId;
     private final String jobName;
+    private final JobType jobType;
     @Nullable private final JobCheckpointingSettings checkpointingSettings;
     private final long initializationTimestamp;
 
@@ -41,11 +43,13 @@ public class DefaultJobMasterServiceProcessFactory implements JobMasterServicePr
     public DefaultJobMasterServiceProcessFactory(
             JobID jobId,
             String jobName,
+            JobType jobType,
             @Nullable JobCheckpointingSettings checkpointingSettings,
             long initializationTimestamp,
             JobMasterServiceFactory jobMasterServiceFactory) {
         this.jobId = jobId;
         this.jobName = jobName;
+        this.jobType = jobType;
         this.checkpointingSettings = checkpointingSettings;
         this.initializationTimestamp = initializationTimestamp;
         this.jobMasterServiceFactory = jobMasterServiceFactory;
@@ -69,6 +73,12 @@ public class DefaultJobMasterServiceProcessFactory implements JobMasterServicePr
     public ArchivedExecutionGraph createArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
         return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                jobId, jobName, jobStatus, cause, checkpointingSettings, initializationTimestamp);
+                jobId,
+                jobName,
+                jobStatus,
+                jobType,
+                cause,
+                checkpointingSettings,
+                initializationTimestamp);
     }
 }

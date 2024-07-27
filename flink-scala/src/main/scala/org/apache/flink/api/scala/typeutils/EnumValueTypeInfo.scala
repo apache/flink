@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 
@@ -58,8 +59,13 @@ class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value]
   override def getGenericParameters = Map.empty[String, TypeInformation[_]].asJava
 
   @PublicEvolving
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+  override def createSerializer(serializerConfig: SerializerConfig): TypeSerializer[T] = {
     new EnumValueSerializer[E](enum)
+  }
+
+  @PublicEvolving
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+    createSerializer(executionConfig.getSerializerConfig)
   }
 
   @PublicEvolving

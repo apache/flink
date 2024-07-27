@@ -52,7 +52,8 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
     { path: 'logs', title: 'Logs' },
     { path: 'stdout', title: 'Stdout' },
     { path: 'log-list', title: 'Log List' },
-    { path: 'thread-dump', title: 'Thread Dump' }
+    { path: 'thread-dump', title: 'Thread Dump' },
+    { path: 'profiler', title: 'Profiler' }
   ];
   public taskManagerDetail?: TaskManagerDetail;
   public loading = true;

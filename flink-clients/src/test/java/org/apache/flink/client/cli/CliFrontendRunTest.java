@@ -19,21 +19,28 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.client.cli.util.DummyClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.stream.Stream;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -147,17 +154,17 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     void testClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "claim", RestoreMode.CLAIM);
+        testRestoreMode("--claimMode", "claim", RestoreMode.CLAIM);
     }
 
     @Test
     void testLegacyRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "legacy", RestoreMode.LEGACY);
+        testRestoreMode("--claimMode", "legacy", RestoreMode.LEGACY);
     }
 
     @Test
     void testNoClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "no_claim", RestoreMode.NO_CLAIM);
+        testRestoreMode("--claimMode", "no_claim", RestoreMode.NO_CLAIM);
     }
 
     private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)
@@ -255,6 +262,77 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                 configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
     }
 
+    private static Stream<Arguments> notApplicationTypeParams() {
+        return Stream.of(
+                Arguments.of("-e", "local"),
+                Arguments.of("-e", "remote"),
+                Arguments.of("-e", "yarn-per-job"),
+                Arguments.of("-e", "yarn-session"),
+                Arguments.of("-e", "kubernetes-session"),
+                Arguments.of("-t", "local"),
+                Arguments.of("-t", "remote"),
+                Arguments.of("-t", "yarn-per-job"),
+                Arguments.of("-t", "yarn-session"),
+                Arguments.of("-t", "kubernetes-session"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("notApplicationTypeParams")
+    void testRunWithNotApplicationTypeDeployment(String option, String value) throws Exception {
+        final Configuration configuration = new Configuration();
+        final RunApplicationTestingCliFrontend testFrontend =
+                new RunApplicationTestingCliFrontend(
+                        configuration,
+                        new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
+
+        testFrontend.run(new String[] {option, value, getTestJarPath()});
+        assertThat(testFrontend.runApplicationCalled).isFalse();
+        assertThat(testFrontend.runCalled).isTrue();
+        assertThat(testFrontend.application).isFalse();
+        assertThat(testFrontend.executeProgramCalled).isTrue();
+    }
+
+    private static Stream<Arguments> applicationTypeParams() {
+        return Stream.of(
+                Arguments.of("-e", "yarn-application"),
+                Arguments.of("-e", "kubernetes-application"),
+                Arguments.of("-t", "yarn-application"),
+                Arguments.of("-t", "kubernetes-application"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("applicationTypeParams")
+    void testRunWithApplicationTypeDeployment(String option, String value) throws Exception {
+        final Configuration configuration = new Configuration();
+        final RunApplicationTestingCliFrontend testFrontend =
+                new RunApplicationTestingCliFrontend(
+                        configuration,
+                        new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
+
+        testFrontend.run(new String[] {option, value, getTestJarPath()});
+        assertThat(testFrontend.runApplicationCalled).isFalse();
+        assertThat(testFrontend.runCalled).isTrue();
+        assertThat(testFrontend.application).isTrue();
+        assertThat(testFrontend.executeProgramCalled).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("applicationTypeParams")
+    void testRunApplicationWithApplicationTypeDeployment(String option, String value)
+            throws Exception {
+        final Configuration configuration = new Configuration();
+        final RunApplicationTestingCliFrontend testFrontend =
+                new RunApplicationTestingCliFrontend(
+                        configuration,
+                        new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
+
+        testFrontend.runApplication(new String[] {option, value, getTestJarPath()});
+        assertThat(testFrontend.runApplicationCalled).isTrue();
+        assertThat(testFrontend.runCalled).isTrue();
+        assertThat(testFrontend.application).isTrue();
+        assertThat(testFrontend.executeProgramCalled).isFalse();
+    }
+
     // --------------------------------------------------------------------------------------------
 
     public static void verifyCliFrontend(
@@ -265,45 +343,24 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
             boolean isDetached)
             throws Exception {
         RunTestingCliFrontend testFrontend =
-                new RunTestingCliFrontend(
-                        configuration,
-                        new DefaultClusterClientServiceLoader(),
-                        cli,
-                        expectedParallelism,
-                        isDetached);
-        testFrontend.run(parameters); // verifies the expected values (see below)
-    }
-
-    public static void verifyCliFrontend(
-            Configuration configuration,
-            ClusterClientServiceLoader clusterClientServiceLoader,
-            AbstractCustomCommandLine cli,
-            String[] parameters,
-            int expectedParallelism,
-            boolean isDetached)
-            throws Exception {
-        RunTestingCliFrontend testFrontend =
-                new RunTestingCliFrontend(
-                        configuration,
-                        clusterClientServiceLoader,
-                        cli,
-                        expectedParallelism,
-                        isDetached);
+                new RunTestingCliFrontend(configuration, cli, expectedParallelism, isDetached);
         testFrontend.run(parameters); // verifies the expected values (see below)
     }
 
     private static final class RunTestingCliFrontend extends CliFrontend {
+
+        private static final ClusterClientServiceLoader CLUSTER_CLIENT_SERVICE_LOADER =
+                new DefaultClusterClientServiceLoader();
 
         private final int expectedParallelism;
         private final boolean isDetached;
 
         private RunTestingCliFrontend(
                 Configuration configuration,
-                ClusterClientServiceLoader clusterClientServiceLoader,
                 AbstractCustomCommandLine cli,
                 int expectedParallelism,
                 boolean isDetached) {
-            super(configuration, clusterClientServiceLoader, Collections.singletonList(cli));
+            super(configuration, CLUSTER_CLIENT_SERVICE_LOADER, Collections.singletonList(cli));
             this.expectedParallelism = expectedParallelism;
             this.isDetached = isDetached;
         }
@@ -314,6 +371,47 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                     ExecutionConfigAccessor.fromConfiguration(configuration);
             assertThat(executionConfigAccessor.getDetachedMode()).isEqualTo(isDetached);
             assertThat(executionConfigAccessor.getParallelism()).isEqualTo(expectedParallelism);
+        }
+    }
+
+    private static final class RunApplicationTestingCliFrontend extends CliFrontend {
+
+        private boolean runCalled;
+        private boolean runApplicationCalled;
+        private boolean application;
+        private boolean executeProgramCalled;
+
+        private RunApplicationTestingCliFrontend(
+                Configuration configuration, CustomCommandLine cli) {
+            super(
+                    configuration,
+                    new DummyClusterClientServiceLoader<>(new TestingClusterClient<>()),
+                    Collections.singletonList(cli));
+        }
+
+        @Override
+        protected void run(String[] args) throws Exception {
+            super.run(args);
+            runCalled = true;
+        }
+
+        @Override
+        protected void runApplication(String[] args) throws Exception {
+            super.runApplication(args);
+            runApplicationCalled = true;
+        }
+
+        @Override
+        protected boolean isDeploymentTargetApplication(
+                CustomCommandLine activeCustomCommandLine, CommandLine commandLine)
+                throws FlinkException {
+            application = super.isDeploymentTargetApplication(activeCustomCommandLine, commandLine);
+            return application;
+        }
+
+        @Override
+        protected void executeProgram(Configuration configuration, PackagedProgram program) {
+            executeProgramCalled = true;
         }
     }
 }

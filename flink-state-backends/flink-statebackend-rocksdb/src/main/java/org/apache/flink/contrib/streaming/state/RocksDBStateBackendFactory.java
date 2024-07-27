@@ -29,6 +29,7 @@ import java.io.IOException;
  * A factory that creates an {@link org.apache.flink.contrib.streaming.state.RocksDBStateBackend}
  * from a configuration.
  */
+@Deprecated
 public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBStateBackend> {
 
     @Override

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.OptionalFailure;
@@ -66,6 +67,14 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return job status for this execution graph
      */
     JobStatus getState();
+
+    /**
+     * Returns the {@link JobType} for this execution graph.
+     *
+     * @return job type for this execution graph. It may be null when an exception occurs.
+     */
+    @Nullable
+    JobType getJobType();
 
     /**
      * Returns the exception that caused the job to fail. This is the first root exception that was

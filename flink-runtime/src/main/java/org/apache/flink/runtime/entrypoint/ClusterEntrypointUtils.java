@@ -113,7 +113,7 @@ public final class ClusterEntrypointUtils {
      */
     public static int getPoolSize(Configuration config) {
         final int poolSize =
-                config.getInteger(
+                config.get(
                         ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE,
                         4 * Hardware.getNumberCPUCores());
         Preconditions.checkArgument(

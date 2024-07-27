@@ -152,7 +152,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
                                 LOG.debug(
                                         "The slot {} has been removed before. Ignore the future.",
                                         allocationId);
-                                requestFuture.complete(null);
+                                returnedFuture.complete(null);
                                 return null;
                             }
                             if (acknowledge != null) {

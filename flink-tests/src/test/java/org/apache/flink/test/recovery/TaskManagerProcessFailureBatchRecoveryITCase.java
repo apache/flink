@@ -91,7 +91,9 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                     public Long map(Long value) throws Exception {
                                         if (!markerCreated) {
                                             int taskIndex =
-                                                    getRuntimeContext().getIndexOfThisSubtask();
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask();
                                             touchFile(
                                                     new File(
                                                             coordinateDir,

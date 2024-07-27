@@ -30,6 +30,7 @@ Job 语句用于管理作业的生命周期。
 
 目前 Flink SQL 支持以下 JOB 语句：
 - SHOW JOBS
+- DESCRIBE JOB
 - STOP JOB
 
 ## 执行 JOB 语句
@@ -52,8 +53,15 @@ Flink SQL> SHOW JOBS;
 | 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
 +----------------------------------+----------+---------+-------------------------+
 
-Flink SQL> SET 'state.savepoints.dir'='file:/tmp/';
-[INFO] Execute statement succeed.
+Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
++----------------------------------+----------+---------+-------------------------+
+|                           job id | job name |  status |              start time |
++----------------------------------+----------+---------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+----------+---------+-------------------------+
+
+Flink SQL> SET 'execution.checkpointing.savepoint-dir'='file:/tmp/';
+[INFO] Execute statement succeeded.
 
 Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 +-----------------------------------------+
@@ -75,6 +83,16 @@ SHOW JOBS
 
 <span class="label label-danger">Attention</span> SHOW JOBS 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
+## DESCRIBE JOB
+
+```sql
+{ DESCRIBE | DESC } JOB '<job_id>'
+```
+
+展示 Flink 集群上的指定作业。
+
+<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
 ## STOP JOB
 
 ```sql
@@ -85,7 +103,7 @@ STOP JOB '<job_id>' [WITH SAVEPOINT] [WITH DRAIN]
 
 **WITH SAVEPOINT**
 在作业停止之前执行 Savepoin。 Savepoint 的路径可以通过集群配置的
-[state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 指定，
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 指定，
 或者通过 `SET` 语句指定（后者有更高优先级）。
 
 **WITH DRAIN**

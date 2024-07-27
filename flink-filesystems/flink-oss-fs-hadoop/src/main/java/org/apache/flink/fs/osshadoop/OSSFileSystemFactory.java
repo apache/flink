@@ -106,8 +106,8 @@ public class OSSFileSystemFactory implements FileSystemFactory {
         final String localTmpDirectory = localTmpDirectories[0];
         return new FlinkOSSFileSystem(
                 fs,
-                flinkConfig.getLong(PART_UPLOAD_MIN_SIZE),
-                flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS),
+                flinkConfig.get(PART_UPLOAD_MIN_SIZE),
+                flinkConfig.get(MAX_CONCURRENT_UPLOADS),
                 localTmpDirectory,
                 new OSSAccessor(fs));
     }

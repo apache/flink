@@ -89,8 +89,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
     }
 
     protected static void loadConfigParameters(Configuration parameters) {
-        int maxSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-        int minSamples = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+        int maxSamples = parameters.get(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+        int minSamples = parameters.get(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 
         if (maxSamples < 0) {
             LOG.error(
@@ -124,7 +124,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
             DEFAULT_MIN_NUM_SAMPLES = minSamples;
         }
 
-        int maxLen = parameters.getInteger(OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+        int maxLen = parameters.get(OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN);
         if (maxLen <= 0) {
             maxLen = OptimizerOptions.DELIMITED_FORMAT_MAX_SAMPLE_LEN.defaultValue();
             LOG.error(

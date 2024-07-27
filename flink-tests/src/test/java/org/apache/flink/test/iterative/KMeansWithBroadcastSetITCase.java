@@ -26,13 +26,13 @@ import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.clustering.KMeans.Centroid;
 import org.apache.flink.examples.java.clustering.KMeans.Point;
 import org.apache.flink.test.testdata.KMeansData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.util.List;
 import java.util.Locale;
 
 /** Test KMeans clustering with a broadcast set. */
-public class KMeansWithBroadcastSetITCase extends JavaProgramTestBase {
+public class KMeansWithBroadcastSetITCase extends JavaProgramTestBaseJUnit4 {
 
     @SuppressWarnings("serial")
     @Override

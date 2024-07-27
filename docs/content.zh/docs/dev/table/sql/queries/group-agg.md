@@ -134,7 +134,7 @@ FROM (VALUES
     ('supplier2', 'product3', 3),
     ('supplier2', 'product4', 4))
 AS Products(supplier_id, product_id, rating)
-GROUP BY GROUPING SET (
+GROUP BY GROUPING SETS (
     ( supplier_id, product_id, rating ),
     ( supplier_id, product_id         ),
     ( supplier_id,             rating ),

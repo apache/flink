@@ -18,12 +18,15 @@
 
 package org.apache.flink.formats.json.debezium;
 
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -40,6 +43,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test Filesystem connector with DebeziumJson. */
 class DebeziumJsonFileSystemITCase extends StreamingTestBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
     private static final List<String> EXPECTED =
             Arrays.asList(

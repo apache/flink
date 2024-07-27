@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -28,8 +28,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
@@ -37,7 +36,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 
-public class KryoClearedBufferTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class KryoClearedBufferTest {
 
     /**
      * Tests that the kryo output buffer is cleared in case of an exception. Flink uses the
@@ -46,14 +48,14 @@ public class KryoClearedBufferTest {
      * cleared.
      */
     @Test
-    public void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.registerTypeWithKryoSerializer(
+    void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.registerTypeWithKryoSerializer(
                 TestRecord.class, new TestRecordSerializer());
-        executionConfig.registerKryoType(TestRecord.class);
+        serializerConfigImpl.registerKryoType(TestRecord.class);
 
         KryoSerializer<TestRecord> kryoSerializer =
-                new KryoSerializer<TestRecord>(TestRecord.class, executionConfig);
+                new KryoSerializer<TestRecord>(TestRecord.class, serializerConfigImpl);
 
         int size = 94;
         int bufferSize = 150;
@@ -64,20 +66,15 @@ public class KryoClearedBufferTest {
 
         kryoSerializer.serialize(testRecord, target);
 
-        try {
-            kryoSerializer.serialize(testRecord, target);
-            Assert.fail("Expected an EOFException.");
-        } catch (EOFException eofException) {
-            // expected exception
-            // now the Kryo Output should have been cleared
-        }
+        assertThatThrownBy(() -> kryoSerializer.serialize(testRecord, target))
+                .isInstanceOf(EOFException.class);
 
         TestRecord actualRecord =
                 kryoSerializer.deserialize(
                         new DataInputViewStreamWrapper(
                                 new ByteArrayInputStream(target.getBuffer())));
 
-        Assert.assertEquals(testRecord, actualRecord);
+        assertThat(actualRecord).isEqualTo(testRecord);
 
         target.clear();
 
@@ -95,11 +92,11 @@ public class KryoClearedBufferTest {
             }
         }
 
-        Assert.assertEquals(size, counter);
+        assertThat(counter).isEqualTo(size);
     }
 
     public static class TestRecord {
-        private byte[] buffer;
+        private final byte[] buffer;
 
         public TestRecord(int size) {
             buffer = new byte[size];
@@ -145,7 +142,7 @@ public class KryoClearedBufferTest {
 
     public static class TestDataOutputView implements DataOutputView {
 
-        private byte[] buffer;
+        private final byte[] buffer;
         private int position;
 
         public TestDataOutputView(int size) {

@@ -41,20 +41,16 @@ public final class OneInputTransformationTranslator<IN, OUT>
     @Override
     public Collection<Integer> translateForBatchInternal(
             final OneInputTransformation<IN, OUT> transformation, final Context context) {
-        KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
         Collection<Integer> ids =
                 translateInternal(
                         transformation,
                         transformation.getOperatorFactory(),
                         transformation.getInputType(),
-                        keySelector,
+                        transformation.getStateKeySelector(),
                         transformation.getStateKeyType(),
                         context);
-        boolean isKeyed = keySelector != null;
-        if (isKeyed) {
-            BatchExecutionUtils.applyBatchExecutionSettings(
-                    transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
-        }
+
+        maybeApplyBatchExecutionSettings(transformation, context);
 
         return ids;
     }
@@ -62,12 +58,28 @@ public final class OneInputTransformationTranslator<IN, OUT>
     @Override
     public Collection<Integer> translateForStreamingInternal(
             final OneInputTransformation<IN, OUT> transformation, final Context context) {
-        return translateInternal(
-                transformation,
-                transformation.getOperatorFactory(),
-                transformation.getInputType(),
-                transformation.getStateKeySelector(),
-                transformation.getStateKeyType(),
-                context);
+        Collection<Integer> ids =
+                translateInternal(
+                        transformation,
+                        transformation.getOperatorFactory(),
+                        transformation.getInputType(),
+                        transformation.getStateKeySelector(),
+                        transformation.getStateKeyType(),
+                        context);
+
+        if (transformation.isOutputOnlyAfterEndOfStream()) {
+            maybeApplyBatchExecutionSettings(transformation, context);
+        }
+
+        return ids;
+    }
+
+    private void maybeApplyBatchExecutionSettings(
+            final OneInputTransformation<IN, OUT> transformation, final Context context) {
+        KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
+        if (keySelector != null && !transformation.isInternalSorterSupported()) {
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, StreamConfig.InputRequirement.SORTED);
+        }
     }
 }

@@ -82,10 +82,9 @@ class TaskMetricGroupTest {
     @Test
     void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_TM, "abc");
-        cfg.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "def");
-        cfg.setString(
-                MetricOptions.SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
+        cfg.set(MetricOptions.SCOPE_NAMING_TM, "abc");
+        cfg.set(MetricOptions.SCOPE_NAMING_TM_JOB, "def");
+        cfg.set(MetricOptions.SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
@@ -112,7 +111,7 @@ class TaskMetricGroupTest {
     @Test
     void testGenerateScopeWilcard() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
+        cfg.set(MetricOptions.SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
@@ -186,7 +185,7 @@ class TaskMetricGroupTest {
     @Test
     void testOperatorNameTruncation() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, ScopeFormat.SCOPE_OPERATOR_NAME);
+        cfg.set(MetricOptions.SCOPE_NAMING_OPERATOR, ScopeFormat.SCOPE_OPERATOR_NAME);
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
         TaskManagerMetricGroup tm =

@@ -20,28 +20,28 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
 
 class TwoStageAggregateTest extends TableTestBase {
 
   private var util: StreamTableTestUtil = _
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util = streamTestUtil()
     util.tableEnv.getConfig
-      .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+      .setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(3))
       .set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.TWO_PHASE.toString)
+        AggregatePhaseStrategy.TWO_PHASE)
   }
 
   @Test

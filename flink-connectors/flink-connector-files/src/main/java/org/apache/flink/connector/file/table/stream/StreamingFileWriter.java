@@ -149,8 +149,8 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
                 new StreamRecord<>(
                         new PartitionCommitInfo(
                                 checkpointId,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks(),
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                                 partitions.toArray(new String[0]))));
     }
 }

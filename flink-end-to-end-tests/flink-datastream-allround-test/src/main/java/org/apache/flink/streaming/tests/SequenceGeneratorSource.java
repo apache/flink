@@ -199,9 +199,9 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event>
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
         final RuntimeContext runtimeContext = getRuntimeContext();
-        final int subtaskIdx = runtimeContext.getIndexOfThisSubtask();
-        final int parallelism = runtimeContext.getNumberOfParallelSubtasks();
-        final int maxParallelism = runtimeContext.getMaxNumberOfParallelSubtasks();
+        final int subtaskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+        final int parallelism = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
+        final int maxParallelism = runtimeContext.getTaskInfo().getMaxNumberOfParallelSubtasks();
 
         ListStateDescriptor<Long> unionWatermarksStateDescriptor =
                 new ListStateDescriptor<>("watermarks", Long.class);

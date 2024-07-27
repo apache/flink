@@ -32,11 +32,14 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -239,6 +242,139 @@ public final class LogicalTypeChecks {
                 return true;
             default:
                 return false;
+        }
+    }
+
+    public static boolean areComparable(
+            LogicalType firstType,
+            LogicalType secondType,
+            StructuredComparison requiredComparison) {
+        return areComparableWithNormalizedNullability(
+                firstType.copy(true), secondType.copy(true), requiredComparison);
+    }
+
+    private static boolean areComparableWithNormalizedNullability(
+            LogicalType firstType,
+            LogicalType secondType,
+            StructuredComparison requiredComparison) {
+        // A hack to support legacy types. To be removed when we drop the legacy types.
+        if (firstType instanceof LegacyTypeInformationType
+                || secondType instanceof LegacyTypeInformationType) {
+            return true;
+        }
+
+        // everything is comparable with null, it should return null in that case
+        if (firstType.is(LogicalTypeRoot.NULL) || secondType.is(LogicalTypeRoot.NULL)) {
+            return true;
+        }
+
+        if (firstType.getTypeRoot() == secondType.getTypeRoot()) {
+            return areTypesOfSameRootComparable(firstType, secondType, requiredComparison);
+        }
+
+        if (firstType.is(LogicalTypeFamily.NUMERIC) && secondType.is(LogicalTypeFamily.NUMERIC)) {
+            return true;
+        }
+
+        // DATE + ALL TIMESTAMPS
+        if (firstType.is(LogicalTypeFamily.DATETIME) && secondType.is(LogicalTypeFamily.DATETIME)) {
+            return true;
+        }
+
+        // VARCHAR + CHAR (we do not compare collations here)
+        if (firstType.is(LogicalTypeFamily.CHARACTER_STRING)
+                && secondType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            return true;
+        }
+
+        // VARBINARY + BINARY
+        if (firstType.is(LogicalTypeFamily.BINARY_STRING)
+                && secondType.is(LogicalTypeFamily.BINARY_STRING)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean areTypesOfSameRootComparable(
+            LogicalType firstType,
+            LogicalType secondType,
+            StructuredComparison requiredComparison) {
+        switch (firstType.getTypeRoot()) {
+            case ARRAY:
+            case MULTISET:
+            case MAP:
+            case ROW:
+                return areConstructedTypesComparable(firstType, secondType, requiredComparison);
+            case DISTINCT_TYPE:
+                return areDistinctTypesComparable(firstType, secondType, requiredComparison);
+            case STRUCTURED_TYPE:
+                return areStructuredTypesComparable(firstType, secondType, requiredComparison);
+            case RAW:
+                return areRawTypesComparable(firstType, secondType);
+            default:
+                return true;
+        }
+    }
+
+    private static boolean areRawTypesComparable(LogicalType firstType, LogicalType secondType) {
+        return firstType.equals(secondType)
+                && Comparable.class.isAssignableFrom(
+                        ((RawType<?>) firstType).getOriginatingClass());
+    }
+
+    private static boolean areDistinctTypesComparable(
+            LogicalType firstType,
+            LogicalType secondType,
+            StructuredComparison requiredComparison) {
+        DistinctType firstDistinctType = (DistinctType) firstType;
+        DistinctType secondDistinctType = (DistinctType) secondType;
+        return firstType.equals(secondType)
+                && areComparable(
+                        firstDistinctType.getSourceType(),
+                        secondDistinctType.getSourceType(),
+                        requiredComparison);
+    }
+
+    private static boolean areStructuredTypesComparable(
+            LogicalType firstType,
+            LogicalType secondType,
+            StructuredComparison requiredComparison) {
+        return firstType.equals(secondType)
+                && hasRequiredComparison((StructuredType) firstType, requiredComparison);
+    }
+
+    private static boolean areConstructedTypesComparable(
+            LogicalType firstType,
+            LogicalType secondType,
+            StructuredComparison requiredComparison) {
+        List<LogicalType> firstChildren = firstType.getChildren();
+        List<LogicalType> secondChildren = secondType.getChildren();
+
+        if (firstChildren.size() != secondChildren.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < firstChildren.size(); i++) {
+            if (!areComparable(firstChildren.get(i), secondChildren.get(i), requiredComparison)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Boolean hasRequiredComparison(
+            StructuredType structuredType, StructuredComparison requiredComparison) {
+        switch (requiredComparison) {
+            case EQUALS:
+                return structuredType.getComparison().isEquality();
+            case FULL:
+                return structuredType.getComparison().isComparison();
+            case NONE:
+            default:
+                // this is not important, required comparison will never be NONE
+                return true;
         }
     }
 

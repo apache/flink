@@ -22,14 +22,14 @@ package org.apache.flink.test.example.java;
 import org.apache.flink.examples.java.graph.TransitiveClosureNaive;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.testdata.TransitiveClosureData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import java.io.BufferedReader;
 
 import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
 
 /** Test for {@link TransitiveClosureNaive}. */
-public class TransitiveClosureITCase extends JavaProgramTestBase {
+public class TransitiveClosureITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final long SEED = 0xBADC0FFEEBEEFL;
 

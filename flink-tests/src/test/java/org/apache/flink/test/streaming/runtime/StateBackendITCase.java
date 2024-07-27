@@ -23,40 +23,28 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
-import java.util.Collection;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Integration tests for {@link OperatorStateBackend}. */
-public class StateBackendITCase extends AbstractTestBase {
+public class StateBackendITCase extends AbstractTestBaseJUnit4 {
 
     /** Verify that the user-specified state backend is used even if checkpointing is disabled. */
     @Test
@@ -68,7 +56,7 @@ public class StateBackendITCase extends AbstractTestBase {
         see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
         see.setStateBackend(new FailingStateBackend());
 
-        see.fromElements(new Tuple2<>("Hello", 1))
+        see.fromData(new Tuple2<>("Hello", 1))
                 .keyBy(0)
                 .map(
                         new RichMapFunction<Tuple2<String, Integer>, String>() {
@@ -108,34 +96,18 @@ public class StateBackendITCase extends AbstractTestBase {
 
         @Override
         public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 1_000_000);
+            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, true, 1_000_000);
         }
 
         @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-                Environment env,
-                JobID jobID,
-                String operatorIdentifier,
-                TypeSerializer<K> keySerializer,
-                int numberOfKeyGroups,
-                KeyGroupRange keyGroupRange,
-                TaskKvStateRegistry kvStateRegistry,
-                TtlTimeProvider ttlTimeProvider,
-                MetricGroup metricGroup,
-                @Nonnull Collection<KeyedStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws IOException {
+                KeyedStateBackendParameters<K> parameters) throws IOException {
             throw new SuccessException();
         }
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
-
+                OperatorStateBackendParameters parameters) throws Exception {
             throw new SuccessException();
         }
     }

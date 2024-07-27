@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.storage;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableCheckpointStorage;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
+import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
 
@@ -94,6 +96,12 @@ public class JobManagerCheckpointStorage
 
     /** The optional locations where snapshots will be externalized. */
     private final ExternalizedSnapshotLocation location;
+
+    /**
+     * Switch to create checkpoint sub-directory with name of jobId. A value of 'undefined' means
+     * not yet configured, in which case the default will be used.
+     */
+    private TernaryBoolean createCheckpointSubDirs = TernaryBoolean.UNDEFINED;
 
     // ------------------------------------------------------------------------
 
@@ -176,6 +184,9 @@ public class JobManagerCheckpointStorage
                         .withSavepointPath(original.location.getBaseSavepointPath())
                         .withConfiguration(config)
                         .build();
+        this.createCheckpointSubDirs =
+                original.createCheckpointSubDirs.resolveUndefined(
+                        config.get(CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR));
     }
 
     // ------------------------------------------------------------------------
@@ -254,6 +265,8 @@ public class JobManagerCheckpointStorage
                 jobId,
                 location.getBaseCheckpointPath(),
                 location.getBaseSavepointPath(),
+                createCheckpointSubDirs.getOrDefault(
+                        CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR.defaultValue()),
                 maxStateSize);
     }
 

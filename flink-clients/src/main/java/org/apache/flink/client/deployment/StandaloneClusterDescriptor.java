@@ -38,8 +38,8 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     @Override
     public String getClusterDescription() {
-        String host = config.getString(JobManagerOptions.ADDRESS, "");
-        int port = config.getInteger(JobManagerOptions.PORT, -1);
+        String host = config.get(JobManagerOptions.ADDRESS, "");
+        int port = config.get(JobManagerOptions.PORT, -1);
         return "Standalone cluster at " + host + ":" + port;
     }
 

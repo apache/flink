@@ -48,7 +48,7 @@ class TtlValueState<K, N, T>
     @Override
     public void update(T value) throws IOException {
         accessCallback.run();
-        original.update(wrapWithTs(value));
+        original.update(value == null ? null : wrapWithTs(value));
     }
 
     @Nullable

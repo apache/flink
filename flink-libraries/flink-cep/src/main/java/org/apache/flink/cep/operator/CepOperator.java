@@ -161,6 +161,11 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
+    @Override
     public void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
@@ -326,6 +331,11 @@ public class CepOperator<IN, KEY, OUT>
 
         // STEP 4
         updateNFA(nfaState);
+
+        // In order to remove dangling partial matches.
+        if (nfaState.getPartialMatches().size() == 1 && nfaState.getCompletedMatches().isEmpty()) {
+            computationStates.clear();
+        }
     }
 
     @Override

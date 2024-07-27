@@ -73,7 +73,8 @@ class StreamPhysicalGroupAggregateRule(config: Config) extends ConverterRule(con
       rel.getRowType,
       agg.getGroupSet.toArray,
       agg.getAggCallList,
-      agg.partialFinalType)
+      agg.partialFinalType,
+      agg.getHints)
   }
 }
 

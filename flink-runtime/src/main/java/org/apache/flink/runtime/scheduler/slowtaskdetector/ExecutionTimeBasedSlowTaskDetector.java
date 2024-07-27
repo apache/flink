@@ -86,7 +86,7 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
                 this.baselineLowerBoundMillis);
 
         this.baselineRatio =
-                configuration.getDouble(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO);
+                configuration.get(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_RATIO);
         checkArgument(
                 baselineRatio >= 0 && this.baselineRatio < 1,
                 "The configuration {} should be in [0, 1), but is {}.",
@@ -94,7 +94,7 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
                 this.baselineRatio);
 
         this.baselineMultiplier =
-                configuration.getDouble(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER);
+                configuration.get(SlowTaskDetectorOptions.EXECUTION_TIME_BASELINE_MULTIPLIER);
         checkArgument(
                 baselineMultiplier > 0,
                 "The configuration {} should be positive, but is {}.",

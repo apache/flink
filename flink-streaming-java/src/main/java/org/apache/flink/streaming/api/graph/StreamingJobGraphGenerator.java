@@ -27,9 +27,13 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -62,10 +66,8 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
@@ -85,6 +87,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -184,6 +187,9 @@ public class StreamingJobGraphGenerator {
 
     private final Map<Integer, InputOutputFormatContainer> chainedInputOutputFormats;
 
+    // the ids of nodes whose output result partition type should be set to BLOCKING
+    private final Set<Integer> outputBlockingNodesID;
+
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
@@ -224,6 +230,7 @@ public class StreamingJobGraphGenerator {
         this.chainedMinResources = new HashMap<>();
         this.chainedPreferredResources = new HashMap<>();
         this.chainedInputOutputFormats = new HashMap<>();
+        this.outputBlockingNodesID = new HashSet<>();
         this.physicalEdgesInOrder = new ArrayList<>();
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
         this.chainInfos = new HashMap<>();
@@ -303,8 +310,7 @@ public class StreamingJobGraphGenerator {
                     "Could not serialize the ExecutionConfig."
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
-
-        jobGraph.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
+        jobGraph.setJobConfiguration(streamGraph.getJobConfiguration());
 
         addVertexIndexPrefixInVertexName();
 
@@ -578,13 +584,15 @@ public class StreamingJobGraphGenerator {
         for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
             final StreamNode sourceNode = streamGraph.getStreamNode(sourceNodeId);
 
-            if (sourceNode.getOperatorFactory() instanceof SourceOperatorFactory
+            if (sourceNode.getOperatorFactory() != null
+                    && sourceNode.getOperatorFactory() instanceof SourceOperatorFactory
                     && sourceNode.getOutEdges().size() == 1) {
                 // as long as only NAry ops support this chaining, we need to skip the other parts
                 final StreamEdge sourceOutEdge = sourceNode.getOutEdges().get(0);
                 final StreamNode target = streamGraph.getStreamNode(sourceOutEdge.getTargetId());
                 final ChainingStrategy targetChainingStrategy =
-                        target.getOperatorFactory().getChainingStrategy();
+                        Preconditions.checkNotNull(target.getOperatorFactory())
+                                .getChainingStrategy();
 
                 if (targetChainingStrategy == ChainingStrategy.HEAD_WITH_SOURCES
                         && isChainableInput(sourceOutEdge, streamGraph)) {
@@ -675,6 +683,11 @@ public class StreamingJobGraphGenerator {
 
             StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
 
+            boolean isOutputOnlyAfterEndOfStream = currentNode.isOutputOnlyAfterEndOfStream();
+            if (isOutputOnlyAfterEndOfStream) {
+                outputBlockingNodesID.add(currentNode.getId());
+            }
+
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
                 if (isChainable(outEdge, streamGraph)) {
                     chainableOutputs.add(outEdge);
@@ -684,12 +697,20 @@ public class StreamingJobGraphGenerator {
             }
 
             for (StreamEdge chainable : chainableOutputs) {
+                // Mark downstream nodes in the same chain as outputBlocking
+                if (isOutputOnlyAfterEndOfStream) {
+                    outputBlockingNodesID.add(chainable.getTargetId());
+                }
                 transitiveOutEdges.addAll(
                         createChain(
                                 chainable.getTargetId(),
                                 chainIndex + 1,
                                 chainInfo,
                                 chainEntryPoints));
+                // Mark upstream nodes in the same chain as outputBlocking
+                if (outputBlockingNodesID.contains(chainable.getTargetId())) {
+                    outputBlockingNodesID.add(currentNodeId);
+                }
             }
 
             for (StreamEdge nonChainable : nonChainableOutputs) {
@@ -1112,16 +1133,17 @@ public class StreamingJobGraphGenerator {
 
         config.setStateBackend(streamGraph.getStateBackend());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
-        config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
         config.getConfiguration()
                 .set(
-                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                        CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                         streamGraph.isEnableCheckpointsAfterTasksFinish());
         config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
         config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
+        config.setUnalignedCheckpointsSplittableTimersEnabled(
+                checkpointCfg.isUnalignedCheckpointsInterruptibleTimersEnabled());
         config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
         config.setMaxSubtasksPerChannelStateFile(checkpointCfg.getMaxSubtasksPerChannelStateFile());
         config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
@@ -1151,7 +1173,8 @@ public class StreamingJobGraphGenerator {
                         edge.getOutputTag(),
                         edge.getOutputTag()
                                 .getTypeInfo()
-                                .createSerializer(streamGraph.getExecutionConfig()));
+                                .createSerializer(
+                                        streamGraph.getExecutionConfig().getSerializerConfig()));
             }
         }
         config.setChainedOutputs(chainableOutputs);
@@ -1169,7 +1192,8 @@ public class StreamingJobGraphGenerator {
                         edge.getOutputTag(),
                         edge.getOutputTag()
                                 .getTypeInfo()
-                                .createSerializer(streamGraph.getExecutionConfig()));
+                                .createSerializer(
+                                        streamGraph.getExecutionConfig().getSerializerConfig()));
             }
         }
 
@@ -1373,7 +1397,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private CheckpointingMode getCheckpointingMode(CheckpointConfig checkpointConfig) {
-        CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingMode();
+        CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingConsistencyMode();
 
         checkArgument(
                 checkpointingMode == CheckpointingMode.EXACTLY_ONCE
@@ -1472,15 +1496,20 @@ public class StreamingJobGraphGenerator {
             case HYBRID_SELECTIVE:
                 return ResultPartitionType.HYBRID_SELECTIVE;
             case UNDEFINED:
-                return determineUndefinedResultPartitionType(edge.getPartitioner());
+                return determineUndefinedResultPartitionType(edge);
             default:
                 throw new UnsupportedOperationException(
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
     }
 
-    private ResultPartitionType determineUndefinedResultPartitionType(
-            StreamPartitioner<?> partitioner) {
+    private ResultPartitionType determineUndefinedResultPartitionType(StreamEdge edge) {
+        if (outputBlockingNodesID.contains(edge.getSourceId())) {
+            edge.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
+            return ResultPartitionType.BLOCKING;
+        }
+
+        StreamPartitioner<?> partitioner = edge.getPartitioner();
         switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;
@@ -1628,7 +1657,7 @@ public class StreamingJobGraphGenerator {
             return getHeadOperator(
                     streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
         }
-        return upStreamVertex.getOperatorFactory();
+        return Preconditions.checkNotNull(upStreamVertex.getOperatorFactory());
     }
 
     private void markSupportingConcurrentExecutionAttempts() {
@@ -1930,8 +1959,7 @@ public class StreamingJobGraphGenerator {
 
         CheckpointRetentionPolicy retentionAfterTermination;
         if (cfg.isExternalizedCheckpointsEnabled()) {
-            CheckpointConfig.ExternalizedCheckpointCleanup cleanup =
-                    cfg.getExternalizedCheckpointCleanup();
+            ExternalizedCheckpointRetention cleanup = cfg.getExternalizedCheckpointRetention();
             // Sanity check
             if (cleanup == null) {
                 throw new IllegalStateException(
@@ -1950,7 +1978,8 @@ public class StreamingJobGraphGenerator {
         final ArrayList<MasterTriggerRestoreHook.Factory> hooks = new ArrayList<>();
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
-            if (node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
+            if (node.getOperatorFactory() != null
+                    && node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
                 Function f =
                         ((UdfStreamOperatorFactory) node.getOperatorFactory()).getUserFunction();
 
@@ -2030,7 +2059,11 @@ public class StreamingJobGraphGenerator {
                                         streamGraph.isEnableCheckpointsAfterTasksFinish())
                                 .build(),
                         serializedStateBackend,
-                        streamGraph.isChangelogStateBackendEnabled(),
+                        streamGraph
+                                .getJobConfiguration()
+                                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                                .map(TernaryBoolean::fromBoolean)
+                                .orElse(TernaryBoolean.UNDEFINED),
                         serializedCheckpointStorage,
                         serializedHooks);
 

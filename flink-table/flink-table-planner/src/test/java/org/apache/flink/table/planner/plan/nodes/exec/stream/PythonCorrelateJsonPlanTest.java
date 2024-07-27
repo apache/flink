@@ -25,16 +25,16 @@ import org.apache.flink.table.planner.utils.MockPythonTableFunction;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for correlate. */
-public class PythonCorrelateJsonPlanTest extends TableTestBase {
+class PythonCorrelateJsonPlanTest extends TableTestBase {
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         TableConfig tableConfig = TableConfig.getDefault();
         util = streamTestUtil(tableConfig);
         tEnv = util.getTableEnv();
@@ -54,7 +54,7 @@ public class PythonCorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testPythonTableFunction() {
+    void testPythonTableFunction() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int,\n"
@@ -71,7 +71,7 @@ public class PythonCorrelateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinWithFilter() {
+    void testJoinWithFilter() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int,\n"

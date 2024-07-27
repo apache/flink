@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTabl
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
 
@@ -41,13 +41,13 @@ class TableScanITCase extends StreamingTestBase {
     val tableName = "MyTable"
     WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
     val sqlQuery = s"SELECT * from $tableName"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Seq("Mary,1,1", "Bob,2,3")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -63,13 +63,13 @@ class TableScanITCase extends StreamingTestBase {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Seq("Mary", "Peter", "Bob", "Liz")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -106,13 +106,13 @@ class TableScanITCase extends StreamingTestBase {
          |FROM $tableName
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND)
        """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Seq("1970-01-01 00:00:00.010,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -144,7 +144,7 @@ class TableScanITCase extends StreamingTestBase {
 
     tEnv
       .sqlQuery(sqlQuery)
-      .toAppendStream[Row]
+      .toDataStream
       // append current watermark to each row to verify that original watermarks were preserved
       .process(new ProcessFunction[Row, Row] {
 
@@ -163,7 +163,7 @@ class TableScanITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,A,1", "2,B,1", "6,C,10", "6,D,20")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
 }

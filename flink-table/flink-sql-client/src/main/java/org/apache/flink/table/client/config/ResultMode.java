@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.InlineElement;
 
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The mode when display the result of the query in the sql client. */
+@PublicEvolving
 public enum ResultMode implements DescribedEnum {
     TABLE(
             text(

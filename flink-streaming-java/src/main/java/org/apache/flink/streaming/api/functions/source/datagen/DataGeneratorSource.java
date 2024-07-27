@@ -85,8 +85,8 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
         super.open(openContext);
 
         if (numberOfRows != null) {
-            final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
-            final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            final int stepSize = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            final int taskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             final int baseSize = (int) (numberOfRows / stepSize);
             toOutput = (numberOfRows % stepSize > taskIdx) ? baseSize + 1 : baseSize;
@@ -107,7 +107,8 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
     @Override
     public void run(SourceContext<T> ctx) throws Exception {
         double taskRowsPerSecond =
-                (double) rowsPerSecond / getRuntimeContext().getNumberOfParallelSubtasks();
+                (double) rowsPerSecond
+                        / getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
         long nextReadTime = System.currentTimeMillis();
 
         while (isRunning) {

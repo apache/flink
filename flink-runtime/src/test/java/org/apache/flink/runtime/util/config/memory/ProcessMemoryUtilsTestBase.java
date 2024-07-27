@@ -220,7 +220,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
         Configuration conf = new Configuration();
         conf.set(options.getJvmOptions().getJvmOverheadMax(), maxSize);
         conf.set(options.getJvmOptions().getJvmOverheadMin(), minSize);
-        conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), fraction);
+        conf.set(options.getJvmOptions().getJvmOverheadFraction(), fraction);
 
         validateInAllConfigurations(
                 conf,
@@ -236,14 +236,14 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
     void testConfigJvmOverheadFractionFailureNegative() {
         Configuration conf = new Configuration();
         //noinspection MagicNumber
-        conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), -0.1f);
+        conf.set(options.getJvmOptions().getJvmOverheadFraction(), -0.1f);
         validateFailInAllConfigurations(conf);
     }
 
     @Test
     void testConfigJvmOverheadFractionFailureNoLessThanOne() {
         Configuration conf = new Configuration();
-        conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), 1.0f);
+        conf.set(options.getJvmOptions().getJvmOverheadFraction(), 1.0f);
         validateFailInAllConfigurations(conf);
     }
 

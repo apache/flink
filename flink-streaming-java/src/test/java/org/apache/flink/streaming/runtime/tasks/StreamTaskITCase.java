@@ -39,42 +39,38 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.ScheduledExecutorService;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.runtime.io.network.api.writer.RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTask}. */
-public class StreamTaskITCase extends TestLogger {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+public class StreamTaskITCase {
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testRecordWriterClosedOnTransitDeployingStateError() throws Exception {
+    void testRecordWriterClosedOnTransitDeployingStateError() throws Exception {
         testRecordWriterClosedOnTransitStateError(ExecutionState.DEPLOYING);
     }
 
     @Test
-    public void testRecordWriterClosedOnTransitInitializingStateError() throws Exception {
+    void testRecordWriterClosedOnTransitInitializingStateError() throws Exception {
         testRecordWriterClosedOnTransitStateError(ExecutionState.INITIALIZING);
     }
 
     @Test
-    public void testRecordWriterClosedOnTransitRunningStateError() throws Exception {
+    void testRecordWriterClosedOnTransitRunningStateError() throws Exception {
         testRecordWriterClosedOnTransitStateError(ExecutionState.RUNNING);
     }
 
@@ -99,7 +95,7 @@ public class StreamTaskITCase extends TestLogger {
     }
 
     @Test
-    public void testFailInEndOfConstructor() throws Exception {
+    void testFailInEndOfConstructor() throws Exception {
         Configuration conf = new Configuration();
         // Set the wrong setting type for forcing the fail during read.
         conf.setString(BUFFER_DEBLOAT_PERIOD.key(), "a");
@@ -120,11 +116,9 @@ public class StreamTaskITCase extends TestLogger {
             task.startTaskThread();
             task.getExecutingThread().join();
 
-            assertEquals(ExecutionState.FAILED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
             for (Thread thread : Thread.getAllStackTraces().keySet()) {
-                assertThat(
-                        thread.getName(),
-                        CoreMatchers.is(not(containsString(DEFAULT_OUTPUT_FLUSH_THREAD_NAME))));
+                assertThat(thread.getName()).doesNotContain(DEFAULT_OUTPUT_FLUSH_THREAD_NAME);
             }
         }
     }

@@ -135,6 +135,14 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      */
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 
+    /**
+     * Execute the given {@link CachedPlan} and return the execution result.
+     *
+     * @param cachedPlan The CachedPlan to be executed.
+     * @return the content of the execution result.
+     */
+    TableResultInternal executeCachedPlanInternal(CachedPlan cachedPlan);
+
     @Experimental
     CompiledPlan compilePlan(List<ModifyOperation> operations);
 

@@ -168,9 +168,9 @@ public class LeaderElectionTest {
 
             final Configuration configuration = new Configuration();
 
-            configuration.setString(
+            configuration.set(
                     HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
-            configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+            configuration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
             curatorFrameworkWrapper =
                     ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);

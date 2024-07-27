@@ -23,21 +23,21 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import com.google.common.collect.ImmutableSet
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 /** Tests for operator fusion codegen. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class OperatorFusionCodegenTest(fusionCodegenEnabled: Boolean) extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource(
       "T1",
@@ -75,21 +75,21 @@ class OperatorFusionCodegenTest(fusionCodegenEnabled: Boolean) extends TableTest
         Boolean.box(fusionCodegenEnabled))
   }
 
-  @Test
+  @TestTemplate
   def testHashAggAsMutltipleInputRoot(): Unit = {
     util.verifyExecPlan(
       "SELECT a1, b1, a2, b2, COUNT(c1) FROM " +
         "(SELECT * FROM T1, T2 WHERE a1 = b2) t GROUP BY a1, b1, a2, b2")
   }
 
-  @Test
+  @TestTemplate
   def testLocalHashAggAsMutltipleInputRoot(): Unit = {
     util.verifyExecPlan(
       "SELECT a2, b2, a3, b3, COUNT(c2), AVG(d3) FROM " +
         "(SELECT * FROM T2, T3 WHERE b2 = a3) t GROUP BY a2, b2, a3, b3")
   }
 
-  @Test
+  @TestTemplate
   def testCalcAsMutltipleInputRoot(): Unit = {
     util.verifyExecPlan(
       "SELECT a1, b1, a2, b2, a3, b3, COUNT(c1) FROM " +
@@ -98,7 +98,7 @@ class OperatorFusionCodegenTest(fusionCodegenEnabled: Boolean) extends TableTest
 }
 
 object OperatorFusionCodegenTest {
-  @Parameterized.Parameters(name = "fusionCodegenEnabled={0}")
+  @Parameters(name = "fusionCodegenEnabled={0}")
   def parameters(): util.Collection[Boolean] = {
     util.Arrays.asList(true, false)
   }

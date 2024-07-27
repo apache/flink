@@ -839,7 +839,7 @@ TableEnvironment env = TableEnvironment.create(
 env.executeSql("CREATE TABLE ...").wait();
 ```
 
-For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
+For sql-gateway, you can add the option `table.catalog-modification.listeners` in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) and start
 the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
 
 ## Catalog Store
@@ -879,7 +879,7 @@ final EnvironmentSettings settings =
 final TableEnvironment tableEnv = TableEnvironment.create(settings);
 ```
 
-在 SQL Gateway 中，推荐在 `flink-conf.yaml` 文件中进行配置，所有的 session 可以自动使用已经创建好的 Catalog 。
+在 SQL Gateway 中，推荐在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中进行配置，所有的 session 可以自动使用已经创建好的 Catalog 。
 配置的格式如下，一般情况下需要配置 Catalog Store 的 kind ，以及 Catalog Store 需要的其他参数配置。
 ```yaml
 table.catalog-store.kind: file

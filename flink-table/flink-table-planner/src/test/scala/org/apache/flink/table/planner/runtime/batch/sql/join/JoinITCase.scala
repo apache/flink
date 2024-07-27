@@ -18,11 +18,11 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -1232,7 +1232,7 @@ class JoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinWithUDFFilter(): Unit = {
-    registerFunction("funcWithOpen", new FuncWithOpen)
+    tEnv.createTemporarySystemFunction("funcWithOpen", new FuncWithOpen)
     checkResult(
       "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
       Seq(row("Hi", "Hallo"), row("Hello", "Hallo Welt"), row("Hello world", "Hallo Welt"))

@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +47,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.utils.EncodingUtils.decodeBase64ToBytes;
+import static org.apache.flink.table.utils.EncodingUtils.encodeBytesToBase64;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utilities for de/serializing {@link Catalog} objects into a map of string properties. */
@@ -117,6 +120,59 @@ public final class CatalogPropertiesUtil {
         }
     }
 
+    /**
+     * Serializes the given {@link ResolvedCatalogMaterializedTable} into a map of string
+     * properties.
+     */
+    public static Map<String, String> serializeCatalogMaterializedTable(
+            ResolvedCatalogMaterializedTable resolvedMaterializedTable) {
+        try {
+            final Map<String, String> properties = new HashMap<>();
+
+            serializeResolvedSchema(properties, resolvedMaterializedTable.getResolvedSchema());
+
+            final String comment = resolvedMaterializedTable.getComment();
+            if (comment != null && comment.length() > 0) {
+                properties.put(COMMENT, comment);
+            }
+
+            final Optional<Long> snapshot = resolvedMaterializedTable.getSnapshot();
+            snapshot.ifPresent(snapshotId -> properties.put(SNAPSHOT, Long.toString(snapshotId)));
+
+            serializePartitionKeys(properties, resolvedMaterializedTable.getPartitionKeys());
+
+            properties.putAll(resolvedMaterializedTable.getOptions());
+
+            properties.put(DEFINITION_QUERY, resolvedMaterializedTable.getDefinitionQuery());
+
+            IntervalFreshness intervalFreshness =
+                    resolvedMaterializedTable.getDefinitionFreshness();
+            properties.put(FRESHNESS_INTERVAL, intervalFreshness.getInterval());
+            properties.put(FRESHNESS_UNIT, intervalFreshness.getTimeUnit().name());
+
+            properties.put(
+                    LOGICAL_REFRESH_MODE, resolvedMaterializedTable.getLogicalRefreshMode().name());
+            properties.put(REFRESH_MODE, resolvedMaterializedTable.getRefreshMode().name());
+            properties.put(REFRESH_STATUS, resolvedMaterializedTable.getRefreshStatus().name());
+
+            resolvedMaterializedTable
+                    .getRefreshHandlerDescription()
+                    .ifPresent(
+                            refreshHandlerDesc ->
+                                    properties.put(REFRESH_HANDLER_DESC, refreshHandlerDesc));
+            if (resolvedMaterializedTable.getSerializedRefreshHandler() != null) {
+                properties.put(
+                        REFRESH_HANDLER_BYTES,
+                        encodeBytesToBase64(
+                                resolvedMaterializedTable.getSerializedRefreshHandler()));
+            }
+
+            return properties;
+        } catch (Exception e) {
+            throw new CatalogException("Error in serializing catalog materialized table.", e);
+        }
+    }
+
     /** Deserializes the given map of string properties into an unresolved {@link CatalogTable}. */
     public static CatalogTable deserializeCatalogTable(Map<String, String> properties) {
         return deserializeCatalogTable(properties, null);
@@ -128,7 +184,7 @@ public final class CatalogPropertiesUtil {
      * @param properties The properties to deserialize from
      * @param fallbackKey The fallback key to get the schema properties. This is meant to support
      *     the old table (1.10) deserialization
-     * @return
+     * @return a catalog table instance.
      */
     public static CatalogTable deserializeCatalogTable(
             Map<String, String> properties, @Nullable String fallbackKey) {
@@ -155,6 +211,68 @@ public final class CatalogPropertiesUtil {
             return CatalogTable.of(schema, comment, partitionKeys, options, snapshot);
         } catch (Exception e) {
             throw new CatalogException("Error in deserializing catalog table.", e);
+        }
+    }
+
+    /**
+     * Deserializes the given map of string properties into an unresolved {@link
+     * CatalogMaterializedTable}.
+     */
+    public static CatalogMaterializedTable deserializeCatalogMaterializedTable(
+            Map<String, String> properties) {
+        try {
+            final Schema schema = deserializeSchema(properties, SCHEMA);
+
+            final @Nullable String comment = properties.get(COMMENT);
+
+            final @Nullable Long snapshot =
+                    properties.containsKey(SNAPSHOT)
+                            ? getValue(properties, SNAPSHOT, Long::parseLong)
+                            : null;
+
+            final List<String> partitionKeys = deserializePartitionKeys(properties);
+
+            final Map<String, String> options = deserializeOptions(properties, SCHEMA);
+
+            final String definitionQuery = properties.get(DEFINITION_QUERY);
+
+            final String freshnessInterval = properties.get(FRESHNESS_INTERVAL);
+            final IntervalFreshness.TimeUnit timeUnit =
+                    IntervalFreshness.TimeUnit.valueOf(properties.get(FRESHNESS_UNIT));
+            final IntervalFreshness freshness = IntervalFreshness.of(freshnessInterval, timeUnit);
+
+            final CatalogMaterializedTable.LogicalRefreshMode logicalRefreshMode =
+                    CatalogMaterializedTable.LogicalRefreshMode.valueOf(
+                            properties.get(LOGICAL_REFRESH_MODE));
+            final CatalogMaterializedTable.RefreshMode refreshMode =
+                    CatalogMaterializedTable.RefreshMode.valueOf(properties.get(REFRESH_MODE));
+            final CatalogMaterializedTable.RefreshStatus refreshStatus =
+                    CatalogMaterializedTable.RefreshStatus.valueOf(properties.get(REFRESH_STATUS));
+
+            final @Nullable String refreshHandlerDesc = properties.get(REFRESH_HANDLER_DESC);
+            final @Nullable String refreshHandlerStringBytes =
+                    properties.get(REFRESH_HANDLER_BYTES);
+            final @Nullable byte[] refreshHandlerBytes =
+                    StringUtils.isNullOrWhitespaceOnly(refreshHandlerStringBytes)
+                            ? null
+                            : decodeBase64ToBytes(refreshHandlerStringBytes);
+
+            CatalogMaterializedTable.Builder builder = CatalogMaterializedTable.newBuilder();
+            builder.schema(schema)
+                    .comment(comment)
+                    .partitionKeys(partitionKeys)
+                    .options(options)
+                    .snapshot(snapshot)
+                    .definitionQuery(definitionQuery)
+                    .freshness(freshness)
+                    .logicalRefreshMode(logicalRefreshMode)
+                    .refreshMode(refreshMode)
+                    .refreshStatus(refreshStatus)
+                    .refreshHandlerDescription(refreshHandlerDesc)
+                    .serializedRefreshHandler(refreshHandlerBytes);
+            return builder.build();
+        } catch (Exception e) {
+            throw new CatalogException("Error in deserializing catalog materialized table.", e);
         }
     }
 
@@ -205,6 +323,22 @@ public final class CatalogPropertiesUtil {
 
     private static final String SNAPSHOT = "snapshot";
 
+    private static final String DEFINITION_QUERY = "definition-query";
+
+    private static final String FRESHNESS_INTERVAL = "freshness-interval";
+
+    private static final String FRESHNESS_UNIT = "freshness-unit";
+
+    private static final String LOGICAL_REFRESH_MODE = "logical-refresh-mode";
+
+    private static final String REFRESH_MODE = "refresh-mode";
+
+    private static final String REFRESH_STATUS = "refresh-status";
+
+    private static final String REFRESH_HANDLER_DESC = "refresh-handler-desc";
+
+    private static final String REFRESH_HANDLER_BYTES = "refresh-handler-bytes";
+
     private static Map<String, String> deserializeOptions(
             Map<String, String> map, String schemaKey) {
         return map.entrySet().stream()
@@ -214,9 +348,21 @@ public final class CatalogPropertiesUtil {
                             return !key.startsWith(schemaKey + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
                                     && !key.equals(COMMENT)
-                                    && !key.equals(SNAPSHOT);
+                                    && !key.equals(SNAPSHOT)
+                                    && !isMaterializedTableAttribute(key);
                         })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private static boolean isMaterializedTableAttribute(String key) {
+        return key.equals(DEFINITION_QUERY)
+                || key.equals(FRESHNESS_INTERVAL)
+                || key.equals(FRESHNESS_UNIT)
+                || key.equals(LOGICAL_REFRESH_MODE)
+                || key.equals(REFRESH_MODE)
+                || key.equals(REFRESH_STATUS)
+                || key.equals(REFRESH_HANDLER_DESC)
+                || key.equals(REFRESH_HANDLER_BYTES);
     }
 
     private static List<String> deserializePartitionKeys(Map<String, String> map) {

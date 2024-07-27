@@ -25,17 +25,17 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for calc. */
-public class PythonCalcJsonPlanTest extends TableTestBase {
+class PythonCalcJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -52,7 +52,7 @@ public class PythonCalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testPythonCalc() {
+    void testPythonCalc() {
         tEnv.createTemporaryFunction("pyFunc", new PythonScalarFunction("pyFunc"));
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
@@ -66,7 +66,7 @@ public class PythonCalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testPythonFunctionInWhereClause() {
+    void testPythonFunctionInWhereClause() {
         tEnv.createTemporaryFunction("pyFunc", new BooleanPythonScalarFunction("pyFunc"));
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"

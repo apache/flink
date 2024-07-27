@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -50,34 +49,26 @@ abstract class AbstractRocksDBAppendingState<K, N, IN, SV, OUT>
     }
 
     @Override
-    public SV getInternal() {
+    public SV getInternal() throws IOException, RocksDBException {
         return getInternal(getKeyBytes());
     }
 
-    SV getInternal(byte[] key) {
-        try {
-            byte[] valueBytes = backend.db.get(columnFamily, key);
-            if (valueBytes == null) {
-                return null;
-            }
-            dataInputView.setBuffer(valueBytes);
-            return valueSerializer.deserialize(dataInputView);
-        } catch (IOException | RocksDBException e) {
-            throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
+    SV getInternal(byte[] key) throws IOException, RocksDBException {
+        byte[] valueBytes = backend.db.get(columnFamily, key);
+        if (valueBytes == null) {
+            return null;
         }
+        dataInputView.setBuffer(valueBytes);
+        return valueSerializer.deserialize(dataInputView);
     }
 
     @Override
-    public void updateInternal(SV valueToStore) {
+    public void updateInternal(SV valueToStore) throws RocksDBException {
         updateInternal(getKeyBytes(), valueToStore);
     }
 
-    void updateInternal(byte[] key, SV valueToStore) {
-        try {
-            // write the new value to RocksDB
-            backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
-        } catch (RocksDBException e) {
-            throw new FlinkRuntimeException("Error while adding value to RocksDB", e);
-        }
+    void updateInternal(byte[] key, SV valueToStore) throws RocksDBException {
+        // write the new value to RocksDB
+        backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
     }
 }

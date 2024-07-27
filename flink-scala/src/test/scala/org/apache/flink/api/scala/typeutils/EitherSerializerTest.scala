@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -68,12 +69,12 @@ class EitherSerializerTest extends SerializerTestBase[Either[String, Integer]] {
     val serializerSO: EitherSerializer[String, Object] =
       new EitherSerializer[String, Object](
         StringSerializer.INSTANCE,
-        new KryoSerializer[Object](classOf[Object], new ExecutionConfig())
+        new KryoSerializer[Object](classOf[Object], new SerializerConfigImpl())
       )
 
     val serializerOS: EitherSerializer[Object, String] =
       new EitherSerializer[Object, String](
-        new KryoSerializer[Object](classOf[Object], new ExecutionConfig()),
+        new KryoSerializer[Object](classOf[Object], new SerializerConfigImpl()),
         StringSerializer.INSTANCE
       )
 

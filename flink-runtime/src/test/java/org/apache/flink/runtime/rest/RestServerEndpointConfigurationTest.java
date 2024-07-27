@@ -41,11 +41,11 @@ class RestServerEndpointConfigurationTest {
     @Test
     void testBasicMapping(@TempDir File file) throws ConfigurationException {
         Configuration originalConfig = new Configuration();
-        originalConfig.setString(RestOptions.ADDRESS, ADDRESS);
-        originalConfig.setString(RestOptions.BIND_ADDRESS, BIND_ADDRESS);
-        originalConfig.setString(RestOptions.BIND_PORT, BIND_PORT);
-        originalConfig.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, CONTENT_LENGTH);
-        originalConfig.setString(WebOptions.TMP_DIR, file.getAbsolutePath());
+        originalConfig.set(RestOptions.ADDRESS, ADDRESS);
+        originalConfig.set(RestOptions.BIND_ADDRESS, BIND_ADDRESS);
+        originalConfig.set(RestOptions.BIND_PORT, BIND_PORT);
+        originalConfig.set(RestOptions.SERVER_MAX_CONTENT_LENGTH, CONTENT_LENGTH);
+        originalConfig.set(WebOptions.TMP_DIR, file.getAbsolutePath());
 
         final RestServerEndpointConfiguration result =
                 RestServerEndpointConfiguration.fromConfiguration(originalConfig);

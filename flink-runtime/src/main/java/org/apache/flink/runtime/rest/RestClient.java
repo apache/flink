@@ -121,6 +121,8 @@ public class RestClient implements AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(RestClient.class);
 
     private static final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+    private static final ObjectMapper flexibleObjectMapper =
+            RestMapperUtils.getFlexibleObjectMapper();
 
     // used to open connections to a rest server endpoint
     private final Executor executor;
@@ -152,7 +154,7 @@ public class RestClient implements AutoCloseableAsync {
         Preconditions.checkNotNull(rootUrl);
         if ("https".equals(rootUrl.getProtocol())) {
             configuration = configuration.clone();
-            configuration.setBoolean(SSL_REST_ENABLED, true);
+            configuration.set(SSL_REST_ENABLED, true);
         }
         return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort());
     }
@@ -632,35 +634,34 @@ public class RestClient implements AutoCloseableAsync {
         CompletableFuture<P> responseFuture = new CompletableFuture<>();
         final JsonParser jsonParser = objectMapper.treeAsTokens(rawResponse.json);
         try {
-            P response = objectMapper.readValue(jsonParser, responseType);
-            responseFuture.complete(response);
-        } catch (IOException originalException) {
-            // the received response did not matched the expected response type
-
-            // lets see if it is an ErrorResponse instead
-            try {
+            // We make sure it fits to ErrorResponseBody, this condition is enforced by test in
+            // RestClientTest
+            if (rawResponse.json.size() == 1 && rawResponse.json.has("errors")) {
                 ErrorResponseBody error =
                         objectMapper.treeToValue(rawResponse.getJson(), ErrorResponseBody.class);
                 responseFuture.completeExceptionally(
                         new RestClientException(
                                 error.errors.toString(), rawResponse.getHttpResponseStatus()));
-            } catch (JsonProcessingException jpe2) {
-                // if this fails it is either the expected type or response type was wrong, most
-                // likely caused
-                // by a client/search MessageHeaders mismatch
-                LOG.error(
-                        "Received response was neither of the expected type ({}) nor an error. Response={}",
-                        responseType,
-                        rawResponse,
-                        jpe2);
-                responseFuture.completeExceptionally(
-                        new RestClientException(
-                                "Response was neither of the expected type("
-                                        + responseType
-                                        + ") nor an error.",
-                                originalException,
-                                rawResponse.getHttpResponseStatus()));
+            } else {
+                P response = flexibleObjectMapper.readValue(jsonParser, responseType);
+                responseFuture.complete(response);
             }
+        } catch (IOException ex) {
+            // if this fails it is either the expected type or response type was wrong, most
+            // likely caused
+            // by a client/search MessageHeaders mismatch
+            LOG.error(
+                    "Received response was neither of the expected type ({}) nor an error. Response={}",
+                    responseType,
+                    rawResponse,
+                    ex);
+            responseFuture.completeExceptionally(
+                    new RestClientException(
+                            "Response was neither of the expected type("
+                                    + responseType
+                                    + ") nor an error.",
+                            ex,
+                            rawResponse.getHttpResponseStatus()));
         }
         return responseFuture;
     }

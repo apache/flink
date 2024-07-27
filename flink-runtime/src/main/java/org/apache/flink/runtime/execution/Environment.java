@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -75,6 +77,8 @@ public interface Environment {
      * @return the ID of the job from the original job graph
      */
     JobID getJobID();
+
+    JobType getJobType();
 
     /**
      * Gets the ID of the JobVertex for which this task executes a parallel subtask.
@@ -119,7 +123,14 @@ public interface Environment {
     Configuration getJobConfiguration();
 
     /**
-     * Returns the {@link TaskInfo} object associated with this subtask
+     * Returns the {@link JobInfo} object associated with current job.
+     *
+     * @return JobInfo for current job
+     */
+    JobInfo getJobInfo();
+
+    /**
+     * Returns the {@link TaskInfo} object associated with this subtask.
      *
      * @return TaskInfo for this subtask
      */
@@ -153,7 +164,7 @@ public interface Environment {
     /** @return the resources shared among all tasks of this task manager. */
     SharedResources getSharedResources();
 
-    /** Returns the user code class loader */
+    /** Returns the user code class loader. */
     UserCodeClassLoader getUserCodeClassLoader();
 
     Map<String, Future<Path>> getDistributedCacheEntries();

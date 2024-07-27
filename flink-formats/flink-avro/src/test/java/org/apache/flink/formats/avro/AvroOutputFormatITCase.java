@@ -26,7 +26,7 @@ import org.apache.flink.formats.avro.AvroOutputFormat.Codec;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for the {@link AvroOutputFormat}. */
 @SuppressWarnings("serial")
-public class AvroOutputFormatITCase extends JavaProgramTestBase {
+public class AvroOutputFormatITCase extends JavaProgramTestBaseJUnit4 {
 
     public static String outputPath1;
 

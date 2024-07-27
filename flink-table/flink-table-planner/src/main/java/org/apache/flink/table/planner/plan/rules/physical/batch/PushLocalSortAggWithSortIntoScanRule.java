@@ -75,13 +75,13 @@ public class PushLocalSortAggWithSortIntoScanRule extends PushLocalAggIntoScanRu
     public boolean matches(RelOptRuleCall call) {
         BatchPhysicalGroupAggregateBase localAggregate = call.rel(1);
         BatchPhysicalTableSourceScan tableSourceScan = call.rel(3);
-        return canPushDown(call, localAggregate, tableSourceScan);
+        return canPushDown(call, localAggregate, tableSourceScan, null);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
         BatchPhysicalGroupAggregateBase localSortAgg = call.rel(1);
         BatchPhysicalTableSourceScan oldScan = call.rel(3);
-        pushLocalAggregateIntoScan(call, localSortAgg, oldScan);
+        pushLocalAggregateIntoScan(call, localSortAgg, oldScan, null);
     }
 }

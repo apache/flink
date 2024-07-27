@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph.topology;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.LogicalPipelinedRegionComputeUtil;
+import org.apache.flink.runtime.executiongraph.failover.LogicalPipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;

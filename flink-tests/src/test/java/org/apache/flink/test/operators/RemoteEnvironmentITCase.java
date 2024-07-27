@@ -22,8 +22,8 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -47,7 +48,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
     private static final int USER_DOP = 2;
 
-    private static final String VALID_STARTUP_TIMEOUT = "100 s";
+    private static final Duration VALID_STARTUP_TIMEOUT = Duration.ofSeconds(100);
 
     @ClassRule
     public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
@@ -60,7 +61,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
     @Test
     public void testUserSpecificParallelism() throws Exception {
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
+        config.set(RpcOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
         final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddress();
         final String hostname = restAddress.getHost();
@@ -79,7 +80,10 @@ public class RemoteEnvironmentITCase extends TestLogger {
                                     public void mapPartition(
                                             Iterable<Integer> values, Collector<Integer> out)
                                             throws Exception {
-                                        out.collect(getRuntimeContext().getIndexOfThisSubtask());
+                                        out.collect(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask());
                                     }
                                 });
         List<Integer> resultCollection = result.collect();

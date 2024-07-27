@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
@@ -25,6 +27,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /** Wrapper of hadoop Configuration to make it serializable. */
+@Internal
 public class SerializableConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;

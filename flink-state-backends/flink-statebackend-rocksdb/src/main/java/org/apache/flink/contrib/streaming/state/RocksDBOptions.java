@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -26,6 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import static org.apache.flink.configuration.ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE;
 import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
@@ -33,6 +35,7 @@ import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNIN
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
 
 /** Configuration options for the RocksDB backend. */
+@PublicEvolving
 public class RocksDBOptions {
 
     /** The local directory (on the TaskManager) where RocksDB puts its files. */
@@ -84,7 +87,10 @@ public class RocksDBOptions {
                     .intType()
                     .defaultValue(4)
                     .withDescription(
-                            "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
+                            "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend."
+                                    + "If negative, the common (TM) IO thread pool is used (see "
+                                    + CLUSTER_IO_EXECUTOR_POOL_SIZE.key()
+                                    + ")");
 
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
@@ -145,7 +151,7 @@ public class RocksDBOptions {
                                             + "This option only takes effect if neither '%s' nor '%s' are not configured. If none is configured "
                                             + "then each RocksDB column family state has its own memory caches (as controlled by the column "
                                             + "family options). "
-                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml)."
+                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (config.yaml)."
                                             + "Note, that this feature breaks resource isolation between the slots",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 

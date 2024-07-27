@@ -115,7 +115,7 @@ public class WordCount {
 
             text = env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "file-input");
         } else {
-            text = env.fromElements(WordCountData.WORDS).name("in-memory-input");
+            text = env.fromData(WordCountData.WORDS).name("in-memory-input");
         }
 
         DataStream<Tuple2<String, Integer>> counts =

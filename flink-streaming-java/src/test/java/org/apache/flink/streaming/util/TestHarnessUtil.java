@@ -22,10 +22,6 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
-
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -35,7 +31,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utils for working with the various test harnesses. */
 public class TestHarnessUtil {
@@ -56,7 +52,7 @@ public class TestHarnessUtil {
      * Compare the two queues containing operator/task output by converting them to an array first.
      */
     public static <T> void assertOutputEquals(String message, Queue<T> expected, Queue<T> actual) {
-        Assert.assertArrayEquals(message, expected.toArray(), actual.toArray());
+        assertThat(actual.toArray()).as(message).isEqualTo(expected.toArray());
     }
 
     /**
@@ -67,7 +63,7 @@ public class TestHarnessUtil {
             Iterable<Object> expected,
             Iterable<Object> actual,
             Comparator<Object> comparator) {
-        assertEquals(Iterables.size(expected), Iterables.size(actual));
+        assertThat(actual).hasSameSizeAs(expected);
 
         // first, compare only watermarks, their position should be deterministic
         Iterator<Object> exIt = expected.iterator();
@@ -76,7 +72,7 @@ public class TestHarnessUtil {
             Object nextEx = exIt.next();
             Object nextAct = actIt.next();
             if (nextEx instanceof Watermark) {
-                assertEquals(nextEx, nextAct);
+                assertThat(nextAct).isEqualTo(nextEx);
             }
         }
 
@@ -101,7 +97,7 @@ public class TestHarnessUtil {
         Arrays.sort(sortedExpected, comparator);
         Arrays.sort(sortedActual, comparator);
 
-        Assert.assertArrayEquals(message, sortedExpected, sortedActual);
+        assertThat(sortedActual).as(message).isEqualTo(sortedExpected);
     }
 
     /**
@@ -119,7 +115,7 @@ public class TestHarnessUtil {
                 highestWatermark = ((Watermark) elem).asWatermark().getTimestamp();
             } else if (elem instanceof StreamRecord) {
                 boolean dataIsOnTime = highestWatermark < ((StreamRecord) elem).getTimestamp();
-                Assert.assertTrue("Late data was emitted after join", dataIsOnTime);
+                assertThat(dataIsOnTime).as("Late data was emitted after join").isTrue();
             }
         }
     }

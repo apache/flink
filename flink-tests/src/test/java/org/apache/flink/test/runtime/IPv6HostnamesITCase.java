@@ -73,8 +73,8 @@ public class IPv6HostnamesITCase extends TestLogger {
         log.info("Test will use IPv6 address " + addressString + " for connection tests");
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, addressString);
-        config.setString(TaskManagerOptions.HOST, addressString);
+        config.set(JobManagerOptions.ADDRESS, addressString);
+        config.set(TaskManagerOptions.HOST, addressString);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
         return config;
     }

@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.KeyContextHandler;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -54,6 +55,9 @@ public class RecordProcessorUtils {
 
         if (canOmitSetKeyContext) {
             return input::processElement;
+        } else if (input instanceof AsyncStateProcessing
+                && ((AsyncStateProcessing) input).isAsyncStateProcessingEnabled()) {
+            return ((AsyncStateProcessing) input).getRecordProcessor(1);
         } else {
             return record -> {
                 input.setKeyContextElement(record);
@@ -82,6 +86,9 @@ public class RecordProcessorUtils {
 
         if (canOmitSetKeyContext) {
             return operator::processElement1;
+        } else if (operator instanceof AsyncStateProcessing
+                && ((AsyncStateProcessing) operator).isAsyncStateProcessingEnabled()) {
+            return ((AsyncStateProcessing) operator).getRecordProcessor(1);
         } else {
             return record -> {
                 operator.setKeyContextElement1(record);
@@ -110,6 +117,9 @@ public class RecordProcessorUtils {
 
         if (canOmitSetKeyContext) {
             return operator::processElement2;
+        } else if (operator instanceof AsyncStateProcessing
+                && ((AsyncStateProcessing) operator).isAsyncStateProcessingEnabled()) {
+            return ((AsyncStateProcessing) operator).getRecordProcessor(2);
         } else {
             return record -> {
                 operator.setKeyContextElement2(record);

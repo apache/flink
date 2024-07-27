@@ -23,7 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Assert;
 
@@ -32,7 +32,7 @@ import java.util.List;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Tests for the DataSource. */
-public class DataSourceITCase extends JavaProgramTestBase {
+public class DataSourceITCase extends JavaProgramTestBaseJUnit4 {
 
     private String inputPath;
 

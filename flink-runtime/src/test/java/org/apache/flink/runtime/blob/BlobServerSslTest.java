@@ -35,18 +35,18 @@ class BlobServerSslTest {
     void testFailedToInitWithTwoProtocolsSet() {
         final Configuration config = new Configuration();
 
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        config.setString(
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(
                 SecurityOptions.SSL_KEYSTORE,
                 getClass().getResource("/local127.keystore").getPath());
-        config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-        config.setString(
+        config.set(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+        config.set(SecurityOptions.SSL_KEY_PASSWORD, "password");
+        config.set(
                 SecurityOptions.SSL_TRUSTSTORE,
                 getClass().getResource("/local127.truststore").getPath());
 
-        config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-        config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
+        config.set(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
+        config.set(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
 
         assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
                 .isInstanceOf(IOException.class)
@@ -57,12 +57,12 @@ class BlobServerSslTest {
     void testFailedToInitWithInvalidSslKeystoreConfigured() {
         final Configuration config = new Configuration();
 
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-        config.setString(SecurityOptions.SSL_KEYSTORE, "invalid.keystore");
-        config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-        config.setString(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
-        config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(SecurityOptions.SSL_KEYSTORE, "invalid.keystore");
+        config.set(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+        config.set(SecurityOptions.SSL_KEY_PASSWORD, "password");
+        config.set(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
+        config.set(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
         assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
                 .isInstanceOf(IOException.class)
@@ -73,7 +73,7 @@ class BlobServerSslTest {
     void testFailedToInitWithMissingMandatorySslConfiguration() {
         final Configuration config = new Configuration();
 
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
         assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
                 .isInstanceOf(IOException.class)

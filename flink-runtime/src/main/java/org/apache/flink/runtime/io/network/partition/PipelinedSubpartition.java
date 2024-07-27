@@ -30,7 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecordLength;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -589,10 +589,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     }
 
     public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog(
-            int numCreditsAvailable) {
+            boolean isCreditAvailable) {
         synchronized (buffers) {
             boolean isAvailable;
-            if (numCreditsAvailable > 0) {
+            if (isCreditAvailable) {
                 isAvailable = isDataAvailableUnsafe();
             } else {
                 isAvailable = getNextBufferTypeUnsafe().isEvent();

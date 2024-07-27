@@ -339,7 +339,7 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
             implements TypeSerializerSnapshot<BinaryRowData> {
         private static final int CURRENT_VERSION = 3;
 
-        private int previousNumFields;
+        private int numFields;
 
         @SuppressWarnings("unused")
         public BinaryRowDataSerializerSnapshot() {
@@ -347,7 +347,7 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
         }
 
         BinaryRowDataSerializerSnapshot(int numFields) {
-            this.previousNumFields = numFields;
+            this.numFields = numFields;
         }
 
         @Override
@@ -357,30 +357,30 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
 
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
-            out.writeInt(previousNumFields);
+            out.writeInt(numFields);
         }
 
         @Override
         public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
                 throws IOException {
-            this.previousNumFields = in.readInt();
+            this.numFields = in.readInt();
         }
 
         @Override
         public TypeSerializer<BinaryRowData> restoreSerializer() {
-            return new BinaryRowDataSerializer(previousNumFields);
+            return new BinaryRowDataSerializer(numFields);
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<BinaryRowData> resolveSchemaCompatibility(
-                TypeSerializer<BinaryRowData> newSerializer) {
-            if (!(newSerializer instanceof BinaryRowDataSerializer)) {
+                TypeSerializerSnapshot<BinaryRowData> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof BinaryRowDataSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            BinaryRowDataSerializer newBinaryRowSerializer =
-                    (BinaryRowDataSerializer) newSerializer;
-            if (previousNumFields != newBinaryRowSerializer.numFields) {
+            BinaryRowDataSerializerSnapshot oldBinaryRowSerializerSnapshot =
+                    (BinaryRowDataSerializerSnapshot) oldSerializerSnapshot;
+            if (numFields != oldBinaryRowSerializerSnapshot.numFields) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             } else {
                 return TypeSerializerSchemaCompatibility.compatibleAsIs();

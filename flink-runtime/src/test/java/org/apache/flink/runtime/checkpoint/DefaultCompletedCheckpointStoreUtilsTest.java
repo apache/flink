@@ -145,7 +145,7 @@ class DefaultCompletedCheckpointStoreUtilsTest {
     @CsvSource({"10,10", "0,1", "-1,1"})
     void testGetMaximumNumberOfRetainedCheckpoints(int actualValue, int expectedValue) {
         final Configuration jobManagerConfig = new Configuration();
-        jobManagerConfig.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, actualValue);
+        jobManagerConfig.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, actualValue);
 
         assertThat(
                         DefaultCompletedCheckpointStoreUtils.getMaximumNumberOfRetainedCheckpoints(

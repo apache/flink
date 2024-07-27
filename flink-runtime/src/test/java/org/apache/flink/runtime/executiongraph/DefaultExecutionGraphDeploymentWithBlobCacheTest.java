@@ -43,7 +43,7 @@ class DefaultExecutionGraphDeploymentWithBlobCacheTest
     public void setupBlobServer() throws IOException {
         Configuration config = new Configuration();
         // always offload the serialized job and task information
-        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
                 new BlobServer(
                         config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());

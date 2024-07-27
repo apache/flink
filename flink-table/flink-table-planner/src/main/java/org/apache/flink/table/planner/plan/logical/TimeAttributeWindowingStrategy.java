@@ -47,7 +47,7 @@ public class TimeAttributeWindowingStrategy extends WindowingStrategy {
     public String toSummaryString(String[] inputFieldNames) {
         checkArgument(timeAttributeIndex >= 0 && timeAttributeIndex < inputFieldNames.length);
         String windowing = String.format("time_col=[%s]", inputFieldNames[timeAttributeIndex]);
-        return window.toSummaryString(windowing);
+        return window.toSummaryString(windowing, inputFieldNames);
     }
 
     public int getTimeAttributeIndex() {

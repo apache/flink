@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.data.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -348,7 +348,7 @@ public class DataFormatConverters {
                 if (clazz == RawValueData.class) {
                     return RawValueDataConverter.INSTANCE;
                 }
-                return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+                return new GenericConverter(typeInfo.createSerializer(new SerializerConfigImpl()));
             default:
                 throw new RuntimeException("Not support dataType: " + dataType);
         }
@@ -1522,7 +1522,7 @@ public class DataFormatConverters {
         public CaseClassConverter(TupleTypeInfoBase t, DataType[] fieldTypes) {
             super(fieldTypes);
             this.t = t;
-            this.serializer = (TupleSerializerBase) t.createSerializer(new ExecutionConfig());
+            this.serializer = (TupleSerializerBase) t.createSerializer(new SerializerConfigImpl());
         }
 
         @Override

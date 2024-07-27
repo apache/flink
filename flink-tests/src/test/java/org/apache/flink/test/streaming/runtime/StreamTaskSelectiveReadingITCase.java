@@ -124,7 +124,9 @@ public class StreamTaskSelectiveReadingITCase {
                 if (elementIndex < elements.length) {
                     synchronized (ctx.getCheckpointLock()) {
                         ctx.collect(
-                                outValue(elements[elementIndex], context.getIndexOfThisSubtask()));
+                                outValue(
+                                        elements[elementIndex],
+                                        context.getTaskInfo().getIndexOfThisSubtask()));
                         elementIndex++;
                     }
                 } else {

@@ -19,6 +19,8 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -39,6 +41,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,18 +84,24 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 
     private transient Iterator<OT> elements;
 
+    private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
+
     OperatorStateInputFormat(
             OperatorState operatorState,
             Configuration configuration,
             @Nullable StateBackend backend,
-            boolean isUnionType) {
+            boolean isUnionType,
+            ExecutionConfig executionConfig)
+            throws IOException {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
         Preconditions.checkNotNull(configuration, "Configuration cannot be null");
+        Preconditions.checkNotNull(executionConfig, "ExecutionConfig cannot be null");
 
         this.operatorState = operatorState;
         this.configuration = configuration;
         this.backend = backend;
         this.isUnionType = isUnionType;
+        this.serializedExecutionConfig = new SerializedValue<>(executionConfig);
     }
 
     protected abstract Iterable<OT> getElements(OperatorStateBackend restoredBackend)
@@ -162,14 +171,24 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
     public void open(OperatorStateInputSplit split) throws IOException {
         registry = new CloseableRegistry();
 
+        RuntimeContext runtimeContext = getRuntimeContext();
+        ExecutionConfig executionConfig;
+        try {
+            executionConfig =
+                    serializedExecutionConfig.deserializeValue(
+                            runtimeContext.getUserCodeClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Could not deserialize ExecutionConfig.", e);
+        }
         final StreamOperatorStateContext context =
                 new StreamOperatorContextBuilder(
-                                getRuntimeContext(),
+                                runtimeContext,
                                 configuration,
                                 operatorState,
                                 split,
                                 registry,
-                                backend)
+                                backend,
+                                executionConfig)
                         .build(LOG);
 
         restoredBackend = context.operatorStateBackend();

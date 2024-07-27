@@ -24,7 +24,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -74,21 +75,23 @@ class AggregateTest extends TableTestBase {
       "decimal105")
   )
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
-    util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a"))
   }
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("We now only support the count of one field")
-    util.verifyExecPlan("SELECT b, COUNT(a, c) FROM MyTable GROUP BY b")
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT COUNT(a, c) FROM MyTable GROUP BY b"))
+      .hasMessageContaining("We now only support the count of one field")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -97,7 +100,32 @@ class AggregateTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    util.verifyExecPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(5000L))
+    util.verifyExplain("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b")
+  }
+
+  @Test
+  def testMiniBatchAggWithNegativeMiniBatchSize(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+
+    val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b";
+    // without setting mini-batch size
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
+
+    // set negative mini-batch size
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(-500L))
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
   }
 
   @Test
@@ -391,9 +419,10 @@ class AggregateTest extends TableTestBase {
       ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testApproximateCountDistinct(): Unit = {
-    util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable")
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable"))
   }
 
   @Test

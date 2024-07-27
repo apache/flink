@@ -26,8 +26,6 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-import scala.collection.Seq
-
 class GroupingSetsITCase extends BatchTestBase {
 
   private val TABLE_NAME = "MyTable"

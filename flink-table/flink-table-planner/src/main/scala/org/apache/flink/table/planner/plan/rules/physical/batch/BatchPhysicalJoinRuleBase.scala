@@ -23,7 +23,7 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.hint.{FlinkHints, JoinStrategy}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, OperatorType}
@@ -183,7 +183,7 @@ trait BatchPhysicalJoinRuleBase {
       // BROADCAST use first arg as the broadcast side
       val isLeftToBroadcastInHint =
         getFirstArgInJoinHint(join, JoinStrategy.BROADCAST.getJoinHintName)
-          .equals(JoinStrategy.LEFT_INPUT)
+          .equals(FlinkHints.LEFT_INPUT)
 
       join.getJoinType match {
         // if left join, must broadcast right side
@@ -240,7 +240,7 @@ trait BatchPhysicalJoinRuleBase {
 
     if (withShuffleHashHint) {
       val isLeftToBuild = getFirstArgInJoinHint(join, JoinStrategy.SHUFFLE_HASH.getJoinHintName)
-        .equals(JoinStrategy.LEFT_INPUT)
+        .equals(FlinkHints.LEFT_INPUT)
       (true, isLeftToBuild)
     } else {
       val leftSize = JoinUtil.binaryRowRelNodeSize(join.getLeft)
@@ -248,7 +248,7 @@ trait BatchPhysicalJoinRuleBase {
       val leftIsBuild = if (leftSize == null || rightSize == null || leftSize == rightSize) {
         // use left to build hash table if leftSize or rightSize is unknown or equal size.
         // choose right to build if join is SEMI/ANTI.
-        !join.getJoinType.projectsRight
+        join.getJoinType.projectsRight
       } else {
         leftSize < rightSize
       }
@@ -277,7 +277,7 @@ trait BatchPhysicalJoinRuleBase {
 
     val isLeftToBuild = if (withNestLoopHint) {
       getFirstArgInJoinHint(join, JoinStrategy.NEST_LOOP.getJoinHintName)
-        .equals(JoinStrategy.LEFT_INPUT)
+        .equals(FlinkHints.LEFT_INPUT)
     } else {
       join.getJoinType match {
         case JoinRelType.LEFT => false
@@ -322,7 +322,8 @@ trait BatchPhysicalJoinRuleBase {
 }
 object BatchPhysicalJoinRuleBase {
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
     key("table.optimizer.semi-anti-join.build-distinct.ndv-ratio")
@@ -335,7 +336,8 @@ object BatchPhysicalJoinRuleBase {
           " We add this configuration to help the optimizer to decide whether to" +
           " add the distinct.")
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.shuffle-by-partial-key-enabled")

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
@@ -48,7 +48,7 @@ import static org.junit.Assert.fail;
 
 /** IT case that tests the different stream partitioning schemes. */
 @SuppressWarnings("serial")
-public class PartitionerITCase extends AbstractTestBase {
+public class PartitionerITCase extends AbstractTestBaseJUnit4 {
 
     private static final int PARALLELISM = 3;
 
@@ -58,7 +58,7 @@ public class PartitionerITCase extends AbstractTestBase {
     public void testForwardFailsLowToHighParallelism() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> src = env.fromElements(1, 2, 3);
+        DataStream<Integer> src = env.fromData(1, 2, 3);
 
         // this doesn't work because it goes from 1 to 3
         src.forward().map(new NoOpIntMap());
@@ -71,7 +71,7 @@ public class PartitionerITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // this does a rebalance that works
-        DataStream<Integer> src = env.fromElements(1, 2, 3).map(new NoOpIntMap());
+        DataStream<Integer> src = env.fromData(1, 2, 3).map(new NoOpIntMap());
 
         // this doesn't work because it goes from 3 to 1
         src.forward().map(new NoOpIntMap()).setParallelism(1);
@@ -99,7 +99,7 @@ public class PartitionerITCase extends AbstractTestBase {
         env.setParallelism(PARALLELISM);
 
         DataStream<Tuple1<String>> src =
-                env.fromCollection(INPUT.stream().map(Tuple1::of).collect(Collectors.toList()));
+                env.fromData(INPUT.stream().map(Tuple1::of).collect(Collectors.toList()));
 
         // partition by hash
         src.keyBy(0).map(new SubtaskIndexAssigner()).addSink(hashPartitionResultSink);
@@ -241,7 +241,7 @@ public class PartitionerITCase extends AbstractTestBase {
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
             RuntimeContext runtimeContext = getRuntimeContext();
-            indexOfSubtask = runtimeContext.getIndexOfThisSubtask();
+            indexOfSubtask = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
         }
 
         @Override

@@ -34,7 +34,7 @@ public class TestJob {
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        final DataStreamSource<Integer> source = env.fromElements(1, 2, 3, 4);
+        final DataStreamSource<Integer> source = env.fromData(1, 2, 3, 4);
         final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
         mapper.sinkTo(new DiscardingSink<>());
 

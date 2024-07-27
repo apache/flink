@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AlgorithmOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -214,7 +215,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
         this.compressionCodecFactory =
                 this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
-                                BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
+                                CompressionCodec.LZ4)
                         : null;
         this.compressionBlockSize = compressionBlockSize;
         this.asyncMergeEnabled = asyncMergeEnabled;

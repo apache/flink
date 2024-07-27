@@ -1,0 +1,556 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+	<TestCase name="testSingleCall">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(a) FROM MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(a) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testLiteralPlusTableSelect">
+		<Resource name="sql">
+			<![CDATA[SELECT 'foo', func1(a) FROM MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[_UTF-16LE'foo'], EXPR$1=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=['foo' AS EXPR$0, f0 AS EXPR$1])
++- AsyncCalc(select=[func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testFieldPlusTableSelect">
+		<Resource name="sql">
+			<![CDATA[SELECT a, func1(a) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], EXPR$1=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[a, func1(a) AS EXPR$1])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testTwoCalls">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(a), func1(a) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1($0)], EXPR$1=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[f0 AS EXPR$0, func1(a) AS EXPR$1])
++- AsyncCalc(select=[a, func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testFourCalls">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(a), func2(a), func1(a), func2(a) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1($0)], EXPR$1=[func2($0)], EXPR$2=[func1($0)], EXPR$3=[func2($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[f0 AS EXPR$0, f00 AS EXPR$1, f01 AS EXPR$2, func2(a) AS EXPR$3])
++- AsyncCalc(select=[f0, f00, a, func1(a) AS f01])
+   +- AsyncCalc(select=[f0, a, func2(a) AS f00])
+      +- AsyncCalc(select=[a, func1(a) AS f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testNestedCalls">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(func1(func1(a))) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1(func1(func1($0)))])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(f0) AS EXPR$0])
++- AsyncCalc(select=[func1(f0) AS f0])
+   +- AsyncCalc(select=[func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeNestedCalls">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(func1(a)), func1(func1(func1(a))), func1(a) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1(func1($0))], EXPR$1=[func1(func1(func1($0)))], EXPR$2=[func1($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[f0 AS EXPR$0, func1(f1) AS EXPR$1, f2 AS EXPR$2])
++- AsyncCalc(select=[f2, f0, func1(f1) AS f1])
+   +- AsyncCalc(select=[f2, f1, func1(f0) AS f0])
+      +- AsyncCalc(select=[f0, f00 AS f1, func1(a) AS f2])
+         +- AsyncCalc(select=[f0, a, func1(a) AS f00])
+            +- AsyncCalc(select=[a, func1(a) AS f0])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testPassedToOtherUDF">
+		<Resource name="sql">
+			<![CDATA[SELECT Concat(func2(a), 'foo') from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[CONCAT(func2($0), _UTF-16LE'foo')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[CONCAT(f0, 'foo') AS EXPR$0])
++- AsyncCalc(select=[func2(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJustCall">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(1)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1(1)])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(1) AS EXPR$0])
++- Values(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testWhereCondition">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable where REGEXP(func2(a), 'string (2|3)')]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'string (2|3)')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[REGEXP(f0, 'string (2|3)')])
++- AsyncCalc(select=[a, func2(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testWhereConditionAndProjection">
+		<Resource name="sql">
+			<![CDATA[SELECT func2(a) from MyTable where REGEXP(func2(a), 'val (2|3)')]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func2($0)])
++- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'val (2|3)')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func2(a) AS EXPR$0])
++- Calc(select=[a], where=[REGEXP(f0, 'val (2|3)')])
+   +- AsyncCalc(select=[a, func2(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testWhereConditionWithInts">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable where func1(a) >= 12]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[>=(func1($0), 12)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[>=(f0, 12)])
++- AsyncCalc(select=[a, func1(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testAggregate">
+		<Resource name="sql">
+			<![CDATA[SELECT a, func3(count(*)) from MyTable group by a]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], EXPR$1=[func3($1)])
++- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[a, func3($f1) AS EXPR$1])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS $f1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testSelectCallWithIntArray">
+		<Resource name="sql">
+			<![CDATA[SELECT func4(d) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func4($3)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func4(d) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testFieldAccessAfter">
+		<Resource name="sql">
+			<![CDATA[SELECT func5(a).f0 from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func5($0).f0])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[f0.f0 AS EXPR$0])
++- AsyncCalc(select=[func5(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testFieldOperand">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(func5(a).f0) from MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1(func5($0).f0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(f0) AS EXPR$0])
++- Calc(select=[f0.f0 AS f0])
+   +- AsyncCalc(select=[func5(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testInnerJoinWithFuncInOn">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable INNER JOIN MyTable2 ON func2(a) = func2(a2) AND REGEXP(func2(a), 'string (2|4)')]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a2=[$5], b2=[$6], c2=[$7], d2=[$8])
+   +- LogicalJoin(condition=[AND(=($4, $9), REGEXP(func2($0), _UTF-16LE'string (2|4)'))], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], $f4=[func2($0)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3], $f4=[func2($0)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a])
++- Join(joinType=[InnerJoin], where=[=($f4, $f40)], select=[a, $f4, $f40], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f4]])
+   :  +- AsyncCalc(select=[a, func2(a) AS $f4])
+   :     +- Calc(select=[a], where=[REGEXP(f0, 'string (2|4)')])
+   :        +- AsyncCalc(select=[a, func2(a) AS f0])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[$f4]])
+      +- AsyncCalc(select=[func2(a2) AS $f4])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testInnerJoinWithFuncProjection">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(a) from MyTable INNER JOIN MyTable2 ON a = a2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1($0)])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(a) AS EXPR$0])
++- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[a2]])
+      +- Calc(select=[a2])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testInnerJoinWithFuncInWhere">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 WHERE REGEXP(func2(a), 'val (2|3)')]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'val (2|3)')])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a])
++- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a], where=[REGEXP(f0, 'val (2|3)')])
+   :     +- AsyncCalc(select=[a, func2(a) AS f0])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[a2]])
+      +- Calc(select=[a2], where=[REGEXP(f0, 'val (2|3)')])
+         +- AsyncCalc(select=[a2, func2(a2) AS f0])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testLeftJoinWithFuncInOn">
+		<Resource name="sql">
+			<![CDATA[SELECT a, a2 from MyTable LEFT JOIN MyTable2 ON func1(a) = func1(a2)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], a2=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a2=[$5], b2=[$6], c2=[$7], d2=[$8])
+   +- LogicalJoin(condition=[=($4, $9)], joinType=[left])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], $f4=[func1($0)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3], $f4=[func1($0)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a, a2])
++- Join(joinType=[LeftOuterJoin], where=[=($f4, $f40)], select=[a, $f4, a2, $f40], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f4]])
+   :  +- AsyncCalc(select=[a, func1(a) AS $f4])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[$f4]])
+      +- AsyncCalc(select=[a2, func1(a2) AS $f4])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testLeftJoinWithFuncInWhere">
+		<Resource name="sql">
+			<![CDATA[SELECT a, a2 from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE REGEXP(func2(a), 'string (2|3)')]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], a2=[$4])
++- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'string (2|3)')])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Join(joinType=[LeftOuterJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a], where=[REGEXP(f0, 'string (2|3)')])
+:     +- AsyncCalc(select=[a, func2(a) AS f0])
+:        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[a2]])
+   +- Calc(select=[a2])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRightJoinWithFuncInOn">
+		<Resource name="sql">
+			<![CDATA[SELECT a, a2 from MyTable RIGHT JOIN MyTable2 ON func1(a) = func1(a2)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], a2=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a2=[$5], b2=[$6], c2=[$7], d2=[$8])
+   +- LogicalJoin(condition=[=($4, $9)], joinType=[right])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], $f4=[func1($0)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3], $f4=[func1($0)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a, a2])
++- Join(joinType=[RightOuterJoin], where=[=($f4, $f40)], select=[a, $f4, a2, $f40], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f4]])
+   :  +- AsyncCalc(select=[a, func1(a) AS $f4])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   +- Exchange(distribution=[hash[$f4]])
+      +- AsyncCalc(select=[a2, func1(a2) AS $f4])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testProjectCallInSubquery">
+		<Resource name="sql">
+			<![CDATA[SELECT blah FROM (SELECT func2(a) as blah from MyTable) WHERE REGEXP(blah, 'string (2|3)')]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(blah=[$0])
++- LogicalFilter(condition=[REGEXP($0, _UTF-16LE'string (2|3)')])
+   +- LogicalProject(blah=[func2($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func2(a) AS blah])
++- Calc(select=[a], where=[REGEXP(f0, 'string (2|3)')])
+   +- AsyncCalc(select=[a, func2(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testWhereConditionCallInSubquery">
+		<Resource name="sql">
+			<![CDATA[SELECT blah FROM (select a as blah from MyTable WHERE REGEXP(func2(a), 'string (2|3)'))]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(blah=[$0])
++- LogicalProject(blah=[$0])
+   +- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'string (2|3)')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[REGEXP(f0, 'string (2|3)')])
++- AsyncCalc(select=[a, func2(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testWhereNotInSubquery">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(a) FROM MyTable where a not in (select a2 from MyTable2)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1($0)])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(a2=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+}))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(a) AS EXPR$0])
++- Join(joinType=[LeftAntiJoin], where=[OR(IS NULL(a), IS NULL(a2), =(a, a2))], select=[a], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Calc(select=[a])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a2])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+</Root>

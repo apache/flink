@@ -21,13 +21,18 @@ import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.types.Row
+
+import java.time.{DayOfWeek, Duration}
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(23)
+    val testData = new Row(35)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -51,6 +56,22 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(20, "who".getBytes())
     testData.setField(21, localTime("12:34:56"))
     testData.setField(22, localDateTime("1996-11-10 12:34:56"))
+    testData.setField(
+      23,
+      localDateTime("1996-11-10 12:34:56")
+        .atZone(TableConfigUtils.getLocalTimeZone(tableConfig))
+        .toInstant)
+    testData.setField(24, Array("hello", "world"))
+    testData.setField(25, Map("a" -> 1, "b" -> 2).asJava)
+    testData.setField(26, Map("a" -> 1, "b" -> 2).asJava)
+    testData.setField(27, DayOfWeek.SUNDAY)
+    testData.setField(28, DayOfWeek.MONDAY)
+    testData.setField(29, DayOfWeek.SUNDAY)
+    testData.setField(30, Row.of("abc", "def"))
+    testData.setField(31, Duration.ofDays(2))
+    testData.setField(32, Duration.ofDays(3))
+    testData.setField(33, Duration.ofDays(2))
+    testData.setField(34, null)
     testData
   }
 
@@ -82,7 +103,23 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       DataTypes.FIELD("f19", DataTypes.VARBINARY(200).notNull()),
       DataTypes.FIELD("f20", DataTypes.VARBINARY(200)),
       DataTypes.FIELD("f21", DataTypes.TIME()),
-      DataTypes.FIELD("f22", DataTypes.TIMESTAMP())
+      DataTypes.FIELD("f22", DataTypes.TIMESTAMP()),
+      DataTypes.FIELD("f23", DataTypes.TIMESTAMP_LTZ()),
+      DataTypes.FIELD("f24", DataTypes.ARRAY(DataTypes.STRING())),
+      DataTypes.FIELD("f25", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT())),
+      DataTypes.FIELD("f26", DataTypes.MULTISET(DataTypes.STRING())),
+      DataTypes.FIELD("f27", DataTypes.RAW(classOf[DayOfWeek])),
+      DataTypes.FIELD("f28", DataTypes.RAW(classOf[DayOfWeek])),
+      DataTypes.FIELD("f29", DataTypes.RAW(classOf[DayOfWeek])),
+      DataTypes.FIELD(
+        "f30",
+        DataTypes.ROW(
+          DataTypes.FIELD("f0", DataTypes.STRING()),
+          DataTypes.FIELD("f1", DataTypes.STRING()))),
+      DataTypes.FIELD("f31", DataTypes.INTERVAL(DataTypes.DAY)),
+      DataTypes.FIELD("f32", DataTypes.INTERVAL(DataTypes.DAY)),
+      DataTypes.FIELD("f33", DataTypes.INTERVAL(DataTypes.DAY)),
+      DataTypes.FIELD("f34", DataTypes.INTERVAL(DataTypes.DAY))
     )
   }
 

@@ -146,8 +146,7 @@ public enum ProtoUtils {
         builder.setMetricEnabled(isMetricEnabled);
         builder.setProfileEnabled(isProfileEnabled);
         builder.addAllJobParameters(
-                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
-                        .stream()
+                runtimeContext.getGlobalJobParameters().entrySet().stream()
                         .map(
                                 entry ->
                                         FlinkFnApi.JobParameter.newBuilder()
@@ -258,16 +257,17 @@ public enum ProtoUtils {
                         dataStreamPythonFunctionInfo.getFunctionType()));
         builder.setRuntimeContext(
                 FlinkFnApi.UserDefinedDataStreamFunction.RuntimeContext.newBuilder()
-                        .setTaskName(runtimeContext.getTaskName())
-                        .setTaskNameWithSubtasks(runtimeContext.getTaskNameWithSubtasks())
-                        .setNumberOfParallelSubtasks(runtimeContext.getNumberOfParallelSubtasks())
+                        .setTaskName(runtimeContext.getTaskInfo().getTaskName())
+                        .setTaskNameWithSubtasks(
+                                runtimeContext.getTaskInfo().getTaskNameWithSubtasks())
+                        .setNumberOfParallelSubtasks(
+                                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks())
                         .setMaxNumberOfParallelSubtasks(
-                                runtimeContext.getMaxNumberOfParallelSubtasks())
-                        .setIndexOfThisSubtask(runtimeContext.getIndexOfThisSubtask())
-                        .setAttemptNumber(runtimeContext.getAttemptNumber())
+                                runtimeContext.getTaskInfo().getMaxNumberOfParallelSubtasks())
+                        .setIndexOfThisSubtask(runtimeContext.getTaskInfo().getIndexOfThisSubtask())
+                        .setAttemptNumber(runtimeContext.getTaskInfo().getAttemptNumber())
                         .addAllJobParameters(
-                                runtimeContext.getExecutionConfig().getGlobalJobParameters().toMap()
-                                        .entrySet().stream()
+                                runtimeContext.getGlobalJobParameters().entrySet().stream()
                                         .map(
                                                 entry ->
                                                         FlinkFnApi.JobParameter.newBuilder()

@@ -31,7 +31,9 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
+import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -44,6 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class GenericCLI implements CustomCommandLine {
 
     private static final String ID = "Generic CLI";
+    private static final String DELIMITER = ", ";
 
     private final Option executorOption =
             new Option(
@@ -56,7 +59,7 @@ public class GenericCLI implements CustomCommandLine {
                             + DeploymentOptions.TARGET.key()
                             + "\" config option. The "
                             + "currently available executors are: "
-                            + getExecutorFactoryNames()
+                            + getTargetNames()
                             + ".");
 
     private final Option targetOption =
@@ -69,10 +72,10 @@ public class GenericCLI implements CustomCommandLine {
                             + DeploymentOptions.TARGET.key()
                             + "\" config option. For the \"run\" action the "
                             + "currently available targets are: "
-                            + getExecutorFactoryNames()
-                            + ". For the \"run-application\" action"
+                            + getTargetNames()
+                            + ". For the \"run-application\" (deprecated) action"
                             + " the currently available targets are: "
-                            + getApplicationModeTargetNames()
+                            + String.join(DELIMITER, getApplicationModeTargetNames())
                             + ".");
 
     private final Configuration configuration;
@@ -114,12 +117,12 @@ public class GenericCLI implements CustomCommandLine {
 
         final String executorName = commandLine.getOptionValue(executorOption.getOpt());
         if (executorName != null) {
-            resultConfiguration.setString(DeploymentOptions.TARGET, executorName);
+            resultConfiguration.set(DeploymentOptions.TARGET, executorName);
         }
 
         final String targetName = commandLine.getOptionValue(targetOption.getOpt());
         if (targetName != null) {
-            resultConfiguration.setString(DeploymentOptions.TARGET, targetName);
+            resultConfiguration.set(DeploymentOptions.TARGET, targetName);
         }
 
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultConfiguration);
@@ -128,12 +131,15 @@ public class GenericCLI implements CustomCommandLine {
         return resultConfiguration;
     }
 
-    private static String getExecutorFactoryNames() {
-        return new DefaultExecutorServiceLoader()
-                .getExecutorNames()
-                .map(name -> String.format("\"%s\"", name))
-                .map(name -> addDeprecationNoticeToYarnPerJobMode(name))
-                .collect(Collectors.joining(", "));
+    private static String getTargetNames() {
+        final Stream<String> executorNames =
+                new DefaultExecutorServiceLoader()
+                        .getExecutorNames()
+                        .map(name -> String.format("\"%s\"", name))
+                        .map(GenericCLI::addDeprecationNoticeToYarnPerJobMode);
+
+        return Stream.concat(executorNames, getApplicationModeTargetNames().stream())
+                .collect(Collectors.joining(DELIMITER));
     }
 
     private static String addDeprecationNoticeToYarnPerJobMode(String name) {
@@ -143,10 +149,10 @@ public class GenericCLI implements CustomCommandLine {
         return name;
     }
 
-    private static String getApplicationModeTargetNames() {
+    private static List<String> getApplicationModeTargetNames() {
         return new DefaultClusterClientServiceLoader()
                 .getApplicationModeTargetNames()
                 .map(name -> String.format("\"%s\"", name))
-                .collect(Collectors.joining(", "));
+                .collect(Collectors.toList());
     }
 }

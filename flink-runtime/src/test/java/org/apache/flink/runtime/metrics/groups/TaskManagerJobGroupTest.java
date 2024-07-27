@@ -70,8 +70,8 @@ class TaskManagerJobGroupTest {
     @Test
     void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_TM, "abc");
-        cfg.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "some-constant.<job_name>");
+        cfg.set(MetricOptions.SCOPE_NAMING_TM, "abc");
+        cfg.set(MetricOptions.SCOPE_NAMING_TM_JOB, "some-constant.<job_name>");
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
@@ -91,8 +91,8 @@ class TaskManagerJobGroupTest {
     @Test
     void testGenerateScopeCustomWildcard() throws Exception {
         Configuration cfg = new Configuration();
-        cfg.setString(MetricOptions.SCOPE_NAMING_TM, "peter.<tm_id>");
-        cfg.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "*.some-constant.<job_id>");
+        cfg.set(MetricOptions.SCOPE_NAMING_TM, "peter.<tm_id>");
+        cfg.set(MetricOptions.SCOPE_NAMING_TM_JOB, "*.some-constant.<job_id>");
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 

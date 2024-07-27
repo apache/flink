@@ -21,14 +21,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for RemoveSingleAggregateRule. */
 class RemoveSingleAggregateRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Int, Int)]("foo", 'x, 'y)
     util.addTableSource[(Int, String)]("bar", 'i, 's)

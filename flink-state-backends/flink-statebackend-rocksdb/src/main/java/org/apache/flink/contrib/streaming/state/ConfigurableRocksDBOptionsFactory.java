@@ -18,9 +18,11 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
 
 /** An interface for options factory that pick up additional parameters from a configuration. */
+@PublicEvolving
 public interface ConfigurableRocksDBOptionsFactory extends RocksDBOptionsFactory {
 
     /**

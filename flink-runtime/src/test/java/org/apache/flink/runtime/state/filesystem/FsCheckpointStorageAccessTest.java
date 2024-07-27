@@ -61,16 +61,28 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
     // ------------------------------------------------------------------------
 
     @Override
-    protected CheckpointStorageAccess createCheckpointStorage(Path checkpointDir) throws Exception {
+    protected CheckpointStorageAccess createCheckpointStorage(
+            Path checkpointDir, boolean createCheckpointSubDir) throws Exception {
         return new FsCheckpointStorageAccess(
-                checkpointDir, null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
+                checkpointDir,
+                null,
+                createCheckpointSubDir,
+                new JobID(),
+                FILE_SIZE_THRESHOLD,
+                WRITE_BUFFER_SIZE);
     }
 
     @Override
     protected CheckpointStorageAccess createCheckpointStorageWithSavepointDir(
-            Path checkpointDir, Path savepointDir) throws Exception {
+            Path checkpointDir, Path savepointDir, boolean createCheckpointSubDir)
+            throws Exception {
         return new FsCheckpointStorageAccess(
-                checkpointDir, savepointDir, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
+                checkpointDir,
+                savepointDir,
+                createCheckpointSubDir,
+                new JobID(),
+                FILE_SIZE_THRESHOLD,
+                WRITE_BUFFER_SIZE);
     }
 
     // ------------------------------------------------------------------------
@@ -85,6 +97,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         defaultSavepointDir,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -109,6 +122,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -135,6 +149,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         null,
+                        true,
                         new JobID(),
                         10,
                         WRITE_BUFFER_SIZE);
@@ -224,6 +239,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         randomTempPath(),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -240,6 +256,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         randomTempPath(),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -261,6 +278,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         new TestingPath("hdfs:///checkpoint/", checkpointFileSystem),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -284,7 +302,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
 
     @Test
     void testNotDuplicationCheckpointStateToolset() throws Exception {
-        CheckpointStorageAccess checkpointStorage = createCheckpointStorage(randomTempPath());
+        CheckpointStorageAccess checkpointStorage = createCheckpointStorage(randomTempPath(), true);
         assertThat(checkpointStorage.createTaskOwnedCheckpointStateToolset())
                 .isInstanceOf(NotDuplicatingCheckpointStateToolset.class);
     }
@@ -296,6 +314,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                         new TestDuplicatingFileSystem(),
                         randomTempPath(),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);

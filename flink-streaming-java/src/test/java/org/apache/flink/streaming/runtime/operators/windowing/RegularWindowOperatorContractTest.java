@@ -39,14 +39,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
@@ -63,10 +63,10 @@ import static org.mockito.Mockito.when;
  *
  * <p>These tests document the implicit contract that exists between the windowing components.
  */
-public class RegularWindowOperatorContractTest extends WindowOperatorContractTest {
+class RegularWindowOperatorContractTest extends WindowOperatorContractTest {
 
     @Test
-    public void testReducingWindow() throws Exception {
+    void testReducingWindow() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -98,8 +98,8 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         // insert two elements without firing
         testHarness.processElement(new StreamRecord<>(1, 0L));
@@ -153,8 +153,9 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // FIRE should not purge contents
-        assertEquals(4, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(4, testHarness.numEventTimeTimers()); // window timers/gc timers
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window contents plus trigger state
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(4); // window timers/gc timers
     }
 
     /**

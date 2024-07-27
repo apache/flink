@@ -22,6 +22,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -32,9 +33,10 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,13 +44,13 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MultipleInputNodeCreationProcessor}. */
-public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
+class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
     private final BatchTableTestUtil batchUtil = batchTestUtil(TableConfig.getDefault());
     private final StreamTableTestUtil streamUtil = streamTestUtil(TableConfig.getDefault());
 
     @Test
-    public void testIsChainableDataStreamSource() {
+    void testIsChainableDataStreamSource() {
         createChainableStream(batchUtil);
         assertChainableSource("chainableStream", batchUtil, true);
         createChainableStream(streamUtil);
@@ -56,7 +58,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
     }
 
     @Test
-    public void testNonChainableDataStreamSource() {
+    void testNonChainableDataStreamSource() {
         createNonChainableStream(batchUtil);
         assertChainableSource("nonChainableStream", batchUtil, false);
         createNonChainableStream(streamUtil);
@@ -64,7 +66,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
     }
 
     @Test
-    public void testIsChainableTableSource() throws IOException {
+    void testIsChainableTableSource() throws IOException {
         createTestFileSource(batchUtil.tableEnv(), "fileSource1", "Source");
         assertChainableSource("fileSource1", batchUtil, true);
         createTestFileSource(streamUtil.tableEnv(), "fileSource1", "Source");
@@ -77,7 +79,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
     }
 
     @Test
-    public void testNonChainableTableSource() throws IOException {
+    void testNonChainableTableSource() throws IOException {
         createTestValueSource(batchUtil.tableEnv(), "valueSource1", "DataStream");
         assertChainableSource("valueSource1", batchUtil, false);
         createTestValueSource(streamUtil.tableEnv(), "valueSource1", "DataStream");
@@ -123,7 +125,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
     }
 
     private void createNonChainableStream(TableTestUtil util) {
-        DataStreamSource<Integer> dataStream = util.getStreamEnv().fromElements(1, 2, 3);
+        DataStreamSource<Integer> dataStream = util.getStreamEnv().addSource(new LegacySource());
         TableTestUtil.createTemporaryView(
                 util.tableEnv(),
                 "nonChainableStream",
@@ -135,7 +137,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
     private void createTestFileSource(TableEnvironment tEnv, String name, String runtimeSource)
             throws IOException {
-        File file = tempFolder().newFile();
+        File file = TempDirUtils.newFile(tempFolder());
         file.delete();
         file.createNewFile();
         FileUtils.writeFileUtf8(file, "1\n2\n3\n");
@@ -168,5 +170,14 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
                         + runtimeSource
                         + "'\n"
                         + ")");
+    }
+
+    private static class LegacySource implements SourceFunction<Integer> {
+        public void run(SourceContext<Integer> sourceContext) {
+            sourceContext.collect(1);
+        }
+
+        @Override
+        public void cancel() {}
     }
 }

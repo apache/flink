@@ -27,16 +27,45 @@ if [ -z "$HERE" ] ; then
   exit 1
 fi
 
+if [ -n "${TF_BUILD+x}" ]; then
+  echo "[INFO] Azure Pipelines environment detected: $0 will rely on Azure-specific environment variables."
+  job_name="$AGENT_JOBNAME"
+  temporary_folder="$AGENT_TEMPDIRECTORY"
+  job_timeout="$SYSTEM_JOBTIMEOUT"
+  pipeline_start_time="${SYSTEM_PIPELINESTARTTIME}"
+elif [ -n "${GITHUB_ACTIONS+x}" ]; then
+  echo "[INFO] GitHub Actions environment detected: $0 will rely on GHA-specific environment variables."
+  job_name="${GITHUB_JOB}"
+  temporary_folder="${RUNNER_TEMP}"
+
+  if [ -n "${GHA_JOB_TIMEOUT+x}" ]; then
+    job_timeout="${GHA_JOB_TIMEOUT}"
+  else
+    echo "[ERROR] GHA_JOB_TIMEOUT is not set: GHA_JOB_TIMEOUT needs to be set by the workflow because there is no pre-defined environment variable available for this parameter for now."
+    exit 1
+  fi
+
+  if [ -n "${GHA_PIPELINE_START_TIME+x}" ]; then
+    pipeline_start_time="${GHA_PIPELINE_START_TIME}"
+  else
+    echo "[ERROR] GHA_PIPELINE_START_TIME is not set: GHA_PIPELINE_START_TIME needs to be set by the workflow because there is no pre-defined environment variable available for this parameter for now."
+    exit 1
+  fi
+else
+  echo "[ERROR] No CI environment detected that could be used for injecting the parameters which are needed by $0."
+  exit 1
+fi
+
 source "${HERE}/../ci/controller_utils.sh"
 
 source ./tools/azure-pipelines/debug_files_utils.sh
-prepare_debug_files "$AGENT_JOBNAME"
+prepare_debug_files "${temporary_folder}" "${job_name}"
 export FLINK_LOG_DIR="$DEBUG_FILES_OUTPUT_DIR/flink-logs"
 mkdir $FLINK_LOG_DIR || { echo "FAILURE: cannot create log directory '${FLINK_LOG_DIR}'." ; exit 1; }
 sudo apt-get install -y moreutils
 
 REAL_START_SECONDS=$(date +"%s")
-REAL_END_SECONDS=$(date -d "$SYSTEM_PIPELINESTARTTIME + $SYSTEM_JOBTIMEOUT minutes" +"%s")
+REAL_END_SECONDS=$(date -d "${pipeline_start_time} + ${job_timeout} minutes" +"%s")
 REAL_TIMEOUT_SECONDS=$(($REAL_END_SECONDS - $REAL_START_SECONDS))
 KILL_SECONDS_BEFORE_TIMEOUT=$((2 * 60))
 
@@ -76,11 +105,13 @@ WATCHDOG_PID=$!
 ( $COMMAND & PID=$! ; echo $PID >$MAIN_PID_FILE ; wait $PID ) | ts | tee $DEBUG_FILES_OUTPUT_DIR/watchdog
 TEST_EXIT_CODE=${PIPESTATUS[0]}
 
-# successful execution, cleanup watchdog related things
 if [[ "$TEST_EXIT_CODE" == 0 ]]; then
+  echo "[INFO] Test execution finished with exit code 0. Artifacts related to the watchdog process will be cleaned up."
   kill $WATCHDOG_PID
   rm $DEBUG_FILES_OUTPUT_DIR/watchdog
   rm -f $DEBUG_FILES_OUTPUT_DIR/jps-traces.*
+
+  unset_debug_artifacts_if_empty
 fi
 
 # properly forward exit code

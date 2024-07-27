@@ -52,6 +52,12 @@ public final class BufferReaderWriterUtil {
 
     private static final short HEADER_VALUE_IS_SEGMENT_EVENT = 2;
 
+    private static final short HEADER_VALUE_IS_END_OF_DATA = 3;
+
+    private static final short HEADER_VALUE_IS_END_OF_PARTITION = 4;
+
+    private static final short HEADER_VALUE_IS_BUFFER_WITH_CLEAR_END = 5;
+
     private static final short BUFFER_IS_COMPRESSED = 1;
 
     private static final short BUFFER_IS_NOT_COMPRESSED = 0;
@@ -148,6 +154,12 @@ public final class BufferReaderWriterUtil {
             return HEADER_VALUE_IS_SEGMENT_EVENT;
         } else if (dataType == Buffer.DataType.EVENT_BUFFER) {
             return HEADER_VALUE_IS_EVENT;
+        } else if (dataType == Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END) {
+            return HEADER_VALUE_IS_BUFFER_WITH_CLEAR_END;
+        } else if (dataType == Buffer.DataType.END_OF_DATA) {
+            return HEADER_VALUE_IS_END_OF_DATA;
+        } else if (dataType == Buffer.DataType.END_OF_PARTITION) {
+            return HEADER_VALUE_IS_END_OF_PARTITION;
         } else {
             throw new RuntimeException("Generating DataType failed, DataType is: " + dataType);
         }
@@ -310,6 +322,12 @@ public final class BufferReaderWriterUtil {
             return Buffer.DataType.END_OF_SEGMENT;
         } else if (dataTypeIndex == HEADER_VALUE_IS_EVENT) {
             return Buffer.DataType.EVENT_BUFFER;
+        } else if (dataTypeIndex == HEADER_VALUE_IS_BUFFER_WITH_CLEAR_END) {
+            return Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END;
+        } else if (dataTypeIndex == HEADER_VALUE_IS_END_OF_DATA) {
+            return Buffer.DataType.END_OF_DATA;
+        } else if (dataTypeIndex == HEADER_VALUE_IS_END_OF_PARTITION) {
+            return Buffer.DataType.END_OF_PARTITION;
         } else {
             throw new RuntimeException("Parsing DataType failed, dataTypeIndex: " + dataTypeIndex);
         }

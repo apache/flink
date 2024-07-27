@@ -24,15 +24,15 @@ import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
 import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -58,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
- * org.apache.flink.streaming.api.transformations.SinkTransformation}.
+ * SinkTransformation}.
  */
 @Internal
 public class SinkTransformationTranslator<Input, Output>
@@ -135,16 +136,27 @@ public class SinkTransformationTranslator<Input, Output>
 
             DataStream<T> prewritten = inputStream;
 
-            if (sink instanceof WithPreWriteTopology) {
+            if (sink instanceof SupportsPreWriteTopology) {
                 prewritten =
                         adjustTransformations(
                                 prewritten,
-                                ((WithPreWriteTopology<T>) sink)::addPreWriteTopology,
+                                ((SupportsPreWriteTopology<T>) sink)::addPreWriteTopology,
                                 true,
                                 sink instanceof SupportsConcurrentExecutionAttempts);
             }
 
-            if (sink instanceof TwoPhaseCommittingSink) {
+            if (sink instanceof SupportsPreCommitTopology) {
+                Preconditions.checkArgument(
+                        sink instanceof SupportsCommitter,
+                        "Sink with SupportsPreCommitTopology should implement SupportsCommitter");
+            }
+            if (sink instanceof SupportsPostCommitTopology) {
+                Preconditions.checkArgument(
+                        sink instanceof SupportsCommitter,
+                        "Sink with SupportsPostCommitTopology should implement SupportsCommitter");
+            }
+
+            if (sink instanceof SupportsCommitter) {
                 addCommittingTopology(sink, prewritten);
             } else {
                 adjustTransformations(
@@ -173,13 +185,61 @@ public class SinkTransformationTranslator<Input, Output>
             }
         }
 
-        private <CommT> void addCommittingTopology(Sink<T> sink, DataStream<T> inputStream) {
-            TwoPhaseCommittingSink<T, CommT> committingSink =
-                    (TwoPhaseCommittingSink<T, CommT>) sink;
-            TypeInformation<CommittableMessage<CommT>> typeInformation =
+        private <CommT, WriteResultT> void addCommittingTopology(
+                Sink<T> sink, DataStream<T> inputStream) {
+            SupportsCommitter<CommT> committingSink = (SupportsCommitter<CommT>) sink;
+            TypeInformation<CommittableMessage<CommT>> committableTypeInformation =
                     CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
 
-            DataStream<CommittableMessage<CommT>> written =
+            DataStream<CommittableMessage<CommT>> precommitted;
+            if (sink instanceof SupportsPreCommitTopology) {
+                SupportsPreCommitTopology<WriteResultT, CommT> preCommittingSink =
+                        (SupportsPreCommitTopology<WriteResultT, CommT>) sink;
+                TypeInformation<CommittableMessage<WriteResultT>> writeResultTypeInformation =
+                        CommittableMessageTypeInfo.of(preCommittingSink::getWriteResultSerializer);
+
+                DataStream<CommittableMessage<WriteResultT>> writerResult =
+                        addWriter(sink, inputStream, writeResultTypeInformation);
+
+                precommitted =
+                        adjustTransformations(
+                                writerResult, preCommittingSink::addPreCommitTopology, true, false);
+            } else {
+                precommitted = addWriter(sink, inputStream, committableTypeInformation);
+            }
+
+            DataStream<CommittableMessage<CommT>> committed =
+                    adjustTransformations(
+                            precommitted,
+                            pc ->
+                                    pc.transform(
+                                            COMMITTER_NAME,
+                                            committableTypeInformation,
+                                            new CommitterOperatorFactory<>(
+                                                    committingSink,
+                                                    isBatchMode,
+                                                    isCheckpointingEnabled)),
+                            false,
+                            false);
+
+            if (sink instanceof SupportsPostCommitTopology) {
+                DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
+                adjustTransformations(
+                        postcommitted,
+                        pc -> {
+                            ((SupportsPostCommitTopology<CommT>) sink).addPostCommitTopology(pc);
+                            return null;
+                        },
+                        true,
+                        false);
+            }
+        }
+
+        private <WriteResultT> DataStream<CommittableMessage<WriteResultT>> addWriter(
+                Sink<T> sink,
+                DataStream<T> inputStream,
+                TypeInformation<CommittableMessage<WriteResultT>> typeInformation) {
+            DataStream<CommittableMessage<WriteResultT>> written =
                     adjustTransformations(
                             inputStream,
                             input ->
@@ -190,42 +250,7 @@ public class SinkTransformationTranslator<Input, Output>
                             false,
                             sink instanceof SupportsConcurrentExecutionAttempts);
 
-            DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
-
-            if (sink instanceof WithPreCommitTopology) {
-                precommitted =
-                        adjustTransformations(
-                                precommitted,
-                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology,
-                                true,
-                                false);
-            }
-
-            DataStream<CommittableMessage<CommT>> committed =
-                    adjustTransformations(
-                            precommitted,
-                            pc ->
-                                    pc.transform(
-                                            COMMITTER_NAME,
-                                            typeInformation,
-                                            new CommitterOperatorFactory<>(
-                                                    committingSink,
-                                                    isBatchMode,
-                                                    isCheckpointingEnabled)),
-                            false,
-                            false);
-
-            if (sink instanceof WithPostCommitTopology) {
-                DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
-                adjustTransformations(
-                        postcommitted,
-                        pc -> {
-                            ((WithPostCommitTopology<T, CommT>) sink).addPostCommitTopology(pc);
-                            return null;
-                        },
-                        true,
-                        false);
-            }
+            return addFailOverRegion(written);
         }
 
         /**
@@ -297,11 +322,7 @@ public class SinkTransformationTranslator<Input, Output>
                         StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME,
                         operatorsUidHashes.getGlobalCommitterUidHash());
 
-                concatUid(
-                        subTransformation,
-                        Transformation::getUid,
-                        Transformation::setUid,
-                        subTransformation.getName());
+                concatUid(subTransformation, subTransformation.getName());
 
                 concatProperty(
                         subTransformation,
@@ -336,7 +357,9 @@ public class SinkTransformationTranslator<Input, Output>
                     // In this case, the subTransformation does not contain any customized
                     // parallelism value and will therefore inherit the parallelism value
                     // from the sinkTransformation.
-                    subTransformation.setParallelism(transformation.getParallelism());
+                    subTransformation.setParallelism(
+                            transformation.getParallelism(),
+                            transformation.isParallelismConfigured());
                 }
 
                 if (subTransformation.getMaxParallelism() < 0
@@ -381,23 +404,19 @@ public class SinkTransformationTranslator<Input, Output>
         }
 
         private void concatUid(
-                Transformation<?> subTransformation,
-                Function<Transformation<?>, String> getter,
-                BiConsumer<Transformation<?>, String> setter,
-                @Nullable String transformationName) {
-            if (transformationName != null && getter.apply(transformation) != null) {
+                Transformation<?> subTransformation, @Nullable String transformationName) {
+            if (transformationName != null && transformation.getUid() != null) {
                 // Use the same uid pattern than for Sink V1. We deliberately decided to use the uid
                 // pattern of Flink 1.13 because 1.14 did not have a dedicated committer operator.
                 if (transformationName.equals(COMMITTER_NAME)) {
                     final String committerFormat = "Sink Committer: %s";
-                    setter.accept(
-                            subTransformation,
-                            String.format(committerFormat, getter.apply(transformation)));
+                    subTransformation.setUid(
+                            String.format(committerFormat, transformation.getUid()));
                     return;
                 }
                 // Set the writer operator uid to the sinks uid to support state migrations
                 if (transformationName.equals(WRITER_NAME)) {
-                    setter.accept(subTransformation, getter.apply(transformation));
+                    subTransformation.setUid(transformation.getUid());
                     return;
                 }
 
@@ -405,13 +424,12 @@ public class SinkTransformationTranslator<Input, Output>
                 if (transformationName.equals(
                         StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
                     final String committerFormat = "Sink %s Global Committer";
-                    setter.accept(
-                            subTransformation,
-                            String.format(committerFormat, getter.apply(transformation)));
+                    subTransformation.setUid(
+                            String.format(committerFormat, transformation.getUid()));
                     return;
                 }
             }
-            concatProperty(subTransformation, getter, setter);
+            concatProperty(subTransformation, Transformation::getUid, Transformation::setUid);
         }
 
         private void concatProperty(

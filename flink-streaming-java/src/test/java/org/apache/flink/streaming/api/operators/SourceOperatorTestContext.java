@@ -33,11 +33,13 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -45,7 +47,9 @@ import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -71,8 +75,22 @@ public class SourceOperatorTestContext implements AutoCloseable {
 
     public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
             throws Exception {
+        this(idle, false, watermarkStrategy, new MockOutput<>(new ArrayList<>()));
+    }
 
-        mockSourceReader = new MockSourceReader(idle, idle);
+    public SourceOperatorTestContext(
+            boolean idle,
+            boolean usePerSplitOutputs,
+            WatermarkStrategy<Integer> watermarkStrategy,
+            Output<StreamRecord<Integer>> output)
+            throws Exception {
+        mockSourceReader =
+                new MockSourceReader(
+                        idle
+                                ? MockSourceReader.WaitingForSplits.WAIT_UNTIL_ALL_SPLITS_ASSIGNED
+                                : MockSourceReader.WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS,
+                        idle,
+                        usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
         operator =
@@ -88,7 +106,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
         operator.setup(
                 new SourceOperatorStreamTask<Integer>(env),
                 new MockStreamConfig(new Configuration(), 1),
-                new MockOutput<>(new ArrayList<>()));
+                output);
         operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
     }
 
@@ -115,10 +133,18 @@ public class SourceOperatorTestContext implements AutoCloseable {
     }
 
     public StateInitializationContext createStateContext() throws Exception {
-        // Create a mock split.
-        byte[] serializedSplitWithVersion =
-                SimpleVersionedSerialization.writeVersionAndSerialize(
-                        new MockSourceSplitSerializer(), MOCK_SPLIT);
+        return createStateContext(Collections.singletonList(MOCK_SPLIT));
+    }
+
+    public StateInitializationContext createStateContext(Collection<MockSourceSplit> initialSplits)
+            throws Exception {
+
+        List<byte[]> serializedSplits = new ArrayList<>();
+        for (MockSourceSplit initialSplit : initialSplits) {
+            serializedSplits.add(
+                    SimpleVersionedSerialization.writeVersionAndSerialize(
+                            new MockSourceSplitSerializer(), initialSplit));
+        }
 
         // Crate the state context.
         OperatorStateStore operatorStateStore = createOperatorStateStore();
@@ -129,7 +155,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
         stateContext
                 .getOperatorStateStore()
                 .getListState(SourceOperator.SPLITS_STATE_DESC)
-                .update(Collections.singletonList(serializedSplitWithVersion));
+                .update(serializedSplits);
 
         return stateContext;
     }
@@ -139,7 +165,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         return abstractStateBackend.createOperatorStateBackend(
-                env, "test-operator", Collections.emptyList(), cancelStreamRegistry);
+                new OperatorStateBackendParametersImpl(
+                        env, "test-operator", Collections.emptyList(), cancelStreamRegistry));
     }
 
     private Environment getTestingEnvironment() {

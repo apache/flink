@@ -97,13 +97,13 @@ public final class ScopeFormats {
      * @return The ScopeFormats parsed from the configuration
      */
     public static ScopeFormats fromConfig(Configuration config) {
-        String jmFormat = config.getString(MetricOptions.SCOPE_NAMING_JM);
-        String jmJobFormat = config.getString(MetricOptions.SCOPE_NAMING_JM_JOB);
-        String tmFormat = config.getString(MetricOptions.SCOPE_NAMING_TM);
-        String tmJobFormat = config.getString(MetricOptions.SCOPE_NAMING_TM_JOB);
-        String taskFormat = config.getString(MetricOptions.SCOPE_NAMING_TASK);
-        String operatorFormat = config.getString(MetricOptions.SCOPE_NAMING_OPERATOR);
-        String jmOperatorFormat = config.getString(MetricOptions.SCOPE_NAMING_JM_OPERATOR);
+        String jmFormat = config.get(MetricOptions.SCOPE_NAMING_JM);
+        String jmJobFormat = config.get(MetricOptions.SCOPE_NAMING_JM_JOB);
+        String tmFormat = config.get(MetricOptions.SCOPE_NAMING_TM);
+        String tmJobFormat = config.get(MetricOptions.SCOPE_NAMING_TM_JOB);
+        String taskFormat = config.get(MetricOptions.SCOPE_NAMING_TASK);
+        String operatorFormat = config.get(MetricOptions.SCOPE_NAMING_OPERATOR);
+        String jmOperatorFormat = config.get(MetricOptions.SCOPE_NAMING_JM_OPERATOR);
 
         return new ScopeFormats(
                 jmFormat,

@@ -106,9 +106,9 @@ class WebFrontendITCase {
             Files.createFile(logFile);
             Files.createFile(outFile);
 
-            config.setString(WebOptions.LOG_PATH, logFile.toAbsolutePath().toString());
-            config.setString(
-                    ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toAbsolutePath().toString());
+            config.set(WebOptions.LOG_PATH, logFile.toAbsolutePath().toString());
+            config.set(
+                    TaskManagerOptions.TASK_MANAGER_LOG_PATH, logFile.toAbsolutePath().toString());
         } catch (Exception e) {
             throw new AssertionError("Could not setup test.", e);
         }
@@ -355,7 +355,7 @@ class WebFrontendITCase {
                             "{\"jid\":\""
                                     + jid
                                     + "\",\"name\":\"Stoppable streaming test job\","
-                                    + "\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\","
+                                    + "\"execution-config\":{\"restart-strategy\":\"Cluster level default restart strategy\","
                                     + "\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}");
         }
 

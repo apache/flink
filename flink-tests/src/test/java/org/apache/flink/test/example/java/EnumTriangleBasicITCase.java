@@ -21,12 +21,12 @@ package org.apache.flink.test.example.java;
 
 import org.apache.flink.examples.java.graph.EnumTriangles;
 import org.apache.flink.test.testdata.EnumTriangleData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** Test {@link EnumTriangles}. */
-public class EnumTriangleBasicITCase extends JavaProgramTestBase {
+public class EnumTriangleBasicITCase extends JavaProgramTestBaseJUnit4 {
 
     protected String edgePath;
     protected String resultPath;

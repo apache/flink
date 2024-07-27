@@ -128,7 +128,7 @@ class SubtaskCurrentAttemptDetailsHandlerTest {
                         address -> null,
                         Executors.directExecutor(),
                         Time.milliseconds(1000L),
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
 
         final SubtaskCurrentAttemptDetailsHandler handler =
                 new SubtaskCurrentAttemptDetailsHandler(
@@ -186,6 +186,7 @@ class SubtaskCurrentAttemptDetailsHandlerTest {
                         expectedState,
                         attempt,
                         assignedResourceLocation.getHostname(),
+                        assignedResourceLocation.getEndpoint(),
                         deployingTs,
                         finishedTs,
                         finishedTs - deployingTs,

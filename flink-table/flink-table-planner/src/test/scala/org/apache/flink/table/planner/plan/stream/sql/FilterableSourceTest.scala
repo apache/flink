@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for pushing filter into table scan */
 class FilterableSourceTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val ddl =
       """
@@ -128,7 +128,7 @@ class FilterableSourceTest extends TableTestBase {
   def testFilterPushdownWithUdf(): Unit = {
     JavaFunc5.closeCalled = false
     JavaFunc5.openCalled = false
-    util.tableEnv.createTemporarySystemFunction("func", new JavaFunc5)
+    util.addTemporarySystemFunction("func", new JavaFunc5)
     val ddl =
       """
         | CREATE Table UdfTable (

@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -31,7 +31,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TopologyGraph}. */
-public class TopologyGraphTest {
+class TopologyGraphTest {
 
     private TestingBatchExecNode[] buildLinkedNodes() {
         // 0 -> 1 -> 2 --------> 5
@@ -72,7 +72,7 @@ public class TopologyGraphTest {
     }
 
     @Test
-    public void testCanReach() {
+    void testCanReach() {
         Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;
@@ -100,7 +100,7 @@ public class TopologyGraphTest {
     }
 
     @Test
-    public void testLink() {
+    void testLink() {
         Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;
@@ -114,7 +114,7 @@ public class TopologyGraphTest {
     }
 
     @Test
-    public void testUnlink() {
+    void testUnlink() {
         Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;
@@ -128,7 +128,7 @@ public class TopologyGraphTest {
     }
 
     @Test
-    public void testCalculateMaximumDistance() {
+    void testCalculateMaximumDistance() {
         Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;
@@ -146,7 +146,7 @@ public class TopologyGraphTest {
     }
 
     @Test
-    public void testBoundedCalculateMaximumDistance() {
+    void testBoundedCalculateMaximumDistance() {
         Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildBoundedTopologyGraph();
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;
@@ -162,7 +162,7 @@ public class TopologyGraphTest {
     }
 
     @Test
-    public void testMakeAsFarAs() {
+    void testMakeAsFarAs() {
         Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;

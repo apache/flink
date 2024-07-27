@@ -27,6 +27,8 @@ import org.junit.ClassRule;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.EXPONENTIAL_DELAY;
+
 /** Test cluster configuration with exponential-delay recovery. */
 public class SimpleRecoveryExponentialDelayRestartStrategyITBase extends SimpleRecoveryITCaseBase {
 
@@ -41,20 +43,19 @@ public class SimpleRecoveryExponentialDelayRestartStrategyITBase extends SimpleR
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
-        config.setString(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
+        config.set(RestartStrategyOptions.RESTART_STRATEGY, EXPONENTIAL_DELAY.getMainValue());
         config.set(
                 RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF,
                 Duration.ofMillis(5));
         config.set(
                 RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF,
                 Duration.ofMillis(100));
-        config.setDouble(
-                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 2);
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 2D);
         config.set(
                 RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD,
                 Duration.ofMillis(1000));
-        config.setDouble(
-                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.2);
+        config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.2);
 
         return config;
     }

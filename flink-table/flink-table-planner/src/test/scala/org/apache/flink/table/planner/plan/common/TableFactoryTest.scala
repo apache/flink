@@ -22,25 +22,26 @@ import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.plan.utils.TestContextTableFactory
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.{Assert, Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util.Optional
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
 
   private val util = if (isBatch) batchTestUtil() else streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     // we should clean the data to avoid serialization exception due to dirty data
     TestCollectionTableFactory.reset()
   }
 
-  @Test
+  @TestTemplate
   def testTableSourceSinkFactory(): Unit = {
     val factory = new TestContextTableFactory(
       ObjectIdentifier.of("cat", "default", "t1"),
@@ -87,13 +88,13 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
     util.tableEnv.executeSql(sinkDDL)
 
     util.tableEnv.explainSql(query)
-    Assert.assertTrue(factory.hasInvokedSource)
-    Assert.assertTrue(factory.hasInvokedSink)
+    assertThat(factory.hasInvokedSource).isTrue
+    assertThat(factory.hasInvokedSink).isTrue
   }
 }
 
 object TableFactoryTest {
-  @Parameterized.Parameters(name = "isBatch: {0}")
+  @Parameters(name = "isBatch: {0}")
   def parameters(): java.util.Collection[Boolean] = {
     java.util.Arrays.asList(true, false)
   }

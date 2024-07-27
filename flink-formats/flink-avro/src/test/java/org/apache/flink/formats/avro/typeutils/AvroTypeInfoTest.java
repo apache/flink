@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.formats.avro.generated.Address;
@@ -41,7 +41,7 @@ class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
     @Test
     void testAvroByDefault() {
         final TypeSerializer<User> serializer =
-                new AvroTypeInfo<>(User.class).createSerializer(new ExecutionConfig());
+                new AvroTypeInfo<>(User.class).createSerializer(new SerializerConfigImpl());
         assertThat(serializer).isInstanceOf(AvroSerializer.class);
     }
 }

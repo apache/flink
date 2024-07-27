@@ -69,7 +69,7 @@ public class TieredStorageResultSubpartitionViewTest {
     @Test
     void testGetNextBuffer() throws IOException {
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
-        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
+        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(0, 1);
         assertThat(availabilityListener).isDone();
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         assertThat(tieredStorageResultSubpartitionView.getNextBuffer()).isNull();
@@ -93,18 +93,18 @@ public class TieredStorageResultSubpartitionViewTest {
     @Test
     void testGetAvailabilityAndBacklog() {
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
-                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(0);
+                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog1.isAvailable()).isEqualTo(false);
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
-                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(2);
+                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(true);
         assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog2.isAvailable()).isEqualTo(true);
     }
 
     @Test
     void testNotifyRequiredSegmentId() {
-        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
+        tieredStorageResultSubpartitionView.notifyRequiredSegmentId(0, 1);
         assertThat(availabilityListener).isDone();
     }
 
@@ -133,7 +133,7 @@ public class TieredStorageResultSubpartitionViewTest {
 
     private static BufferAvailabilityListener createBufferAvailabilityListener(
             CompletableFuture<Void> notifier) {
-        return () -> notifier.complete(null);
+        return (ResultSubpartitionView view) -> notifier.complete(null);
     }
 
     private static List<NettyPayloadManager> createNettyPayloadManagers() {

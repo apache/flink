@@ -2233,9 +2233,20 @@ public class HiveParserSemanticAnalyzer {
             Map<HiveParserASTNode, RelNode> subqueryToRelNode,
             boolean useCaching)
             throws SemanticException {
+        return genExprNodeDesc(expr, input, outerRR, subqueryToRelNode, useCaching, false);
+    }
+
+    public ExprNodeDesc genExprNodeDesc(
+            HiveParserASTNode expr,
+            HiveParserRowResolver input,
+            HiveParserRowResolver outerRR,
+            Map<HiveParserASTNode, RelNode> subqueryToRelNode,
+            boolean useCaching,
+            boolean foldExpr)
+            throws SemanticException {
 
         HiveParserTypeCheckCtx tcCtx =
-                new HiveParserTypeCheckCtx(input, useCaching, false, frameworkConfig, cluster);
+                new HiveParserTypeCheckCtx(input, useCaching, foldExpr, frameworkConfig, cluster);
         tcCtx.setOuterRR(outerRR);
         tcCtx.setSubqueryToRelNode(subqueryToRelNode);
         return genExprNodeDesc(expr, input, tcCtx);

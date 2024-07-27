@@ -25,6 +25,8 @@ import org.apache.flink.annotation.PublicEvolving;
 public enum FunctionKind {
     SCALAR,
 
+    ASYNC_SCALAR,
+
     TABLE,
 
     ASYNC_TABLE,

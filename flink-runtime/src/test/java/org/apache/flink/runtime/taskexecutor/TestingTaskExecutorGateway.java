@@ -40,7 +40,9 @@ import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
@@ -49,6 +51,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -78,6 +81,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                     CompletableFuture<Acknowledge>>
             requestSlotFunction;
 
+    private final Function<JobID, CompletableFuture<Collection<PartitionWithMetrics>>>
+            requestPartitionWithMetricsFunction;
+
     private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
             freeSlotFunction;
 
@@ -103,6 +109,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             operatorEventHandler;
 
     private final Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier;
+
+    private final Supplier<CompletableFuture<ProfilingInfo>> requestProfilingSupplier;
 
     private final Supplier<CompletableFuture<TaskThreadInfoResponse>>
             requestThreadInfoSamplesSupplier;
@@ -136,6 +144,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                                     ResourceManagerId>,
                             CompletableFuture<Acknowledge>>
                     requestSlotFunction,
+            Function<JobID, CompletableFuture<Collection<PartitionWithMetrics>>>
+                    requestPartitionWithMetricsFunction,
             BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
             Consumer<JobID> freeInactiveSlotsConsumer,
             Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction,
@@ -152,6 +162,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                             CompletableFuture<Acknowledge>>
                     operatorEventHandler,
             Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier,
+            Supplier<CompletableFuture<ProfilingInfo>> requestProfilingSupplier,
             Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier,
             QuadFunction<
                             ExecutionAttemptID,
@@ -170,6 +181,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                 Preconditions.checkNotNull(disconnectJobManagerConsumer);
         this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
+        this.requestPartitionWithMetricsFunction =
+                Preconditions.checkNotNull(requestPartitionWithMetricsFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
         this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
         this.heartbeatResourceManagerFunction = heartbeatResourceManagerFunction;
@@ -181,6 +194,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
         this.operatorEventHandler = operatorEventHandler;
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
+        this.requestProfilingSupplier = requestProfilingSupplier;
         this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
         this.triggerCheckpointFunction = triggerCheckpointFunction;
         this.confirmCheckpointFunction = confirmCheckpointFunction;
@@ -203,6 +217,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                         resourceProfile,
                         targetAddress,
                         resourceManagerId));
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getAndRetainPartitionWithMetrics(
+            JobID jobId) {
+        return requestPartitionWithMetricsFunction.apply(jobId);
     }
 
     @Override
@@ -313,7 +333,13 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, Time timeout) {
+            String fileName, Duration timeout) {
+        return FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, Duration timeout) {
         return FutureUtils.completedExceptionally(new UnsupportedOperationException());
     }
 
@@ -343,6 +369,17 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> updateDelegationTokens(
             ResourceManagerId resourceManagerId, byte[] tokens) {
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<ProfilingInfo> requestProfiling(
+            int duration, ProfilingInfo.ProfilingMode mode, Duration timeout) {
+        return requestProfilingSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<Collection<ProfilingInfo>> requestProfilingList(Duration timeout) {
+        return FutureUtils.completedExceptionally(new UnsupportedOperationException());
     }
 
     @Override

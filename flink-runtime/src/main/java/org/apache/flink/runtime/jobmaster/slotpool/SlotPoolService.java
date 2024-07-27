@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -59,12 +58,9 @@ public interface SlotPoolService extends AutoCloseable {
      *
      * @param jobMasterId jobMasterId to start the service with
      * @param address address of the owner
-     * @param mainThreadExecutor mainThreadExecutor to run actions in the main thread
      * @throws Exception if the service cannot be started
      */
-    void start(
-            JobMasterId jobMasterId, String address, ComponentMainThreadExecutor mainThreadExecutor)
-            throws Exception;
+    void start(JobMasterId jobMasterId, String address) throws Exception;
 
     /** Close the slot pool service. */
     void close();

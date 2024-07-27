@@ -263,7 +263,14 @@ class ExecutionConfig(object):
         The restart strategy configurations are all created from :class:`RestartStrategies`.
 
         :param restart_strategy_configuration: Configuration defining the restart strategy to use.
+
+        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
+                  future FLINK major version. Use `stream_execution_environment.configure` method
+                  instead to set the restart strategy.
         """
+        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
+                      " in future FLINK major version. Use `stream_execution_environment.configure`"
+                      " method instead to set the restart strategy.", DeprecationWarning)
         self._j_execution_config.setRestartStrategy(
             restart_strategy_configuration._j_restart_strategy_configuration)
         return self

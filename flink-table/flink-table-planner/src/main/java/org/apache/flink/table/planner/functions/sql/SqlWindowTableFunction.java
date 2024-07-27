@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -42,6 +42,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import java.util.Collections;
 import java.util.List;
@@ -62,6 +63,9 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
 
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
+
+    /** The gap interval, only used for SESSION window. */
+    protected static final String GAP = "GAP";
 
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is
@@ -91,6 +95,27 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
     @Override
     public SqlReturnTypeInference getRowTypeInference() {
         return ARG0_TABLE_FUNCTION_WINDOWING;
+    }
+
+    @Override
+    public void validateCall(
+            SqlCall call,
+            SqlValidator validator,
+            SqlValidatorScope scope,
+            SqlValidatorScope operandScope) {
+        assert call.getOperator() == this;
+        final List<SqlNode> operandList = call.getOperandList();
+        // Validation for DESCRIPTOR or PARTITION BY of SESSION window is broken, and we
+        // make assumptions at different locations those are not validated and not properly scoped.
+        // Theoretically, we should scope identifiers of the above to the result of the subquery
+        // from the first argument. Unfortunately this breaks at other locations which do not expect
+        // it. We run additional validations while deriving the return type, therefore we can skip
+        // it here.
+        SqlNode selectQuery = operandList.get(0);
+        if (selectQuery.getKind().equals(SqlKind.SET_SEMANTICS_TABLE)) {
+            selectQuery = ((SqlCall) selectQuery).getOperandList().get(0);
+        }
+        selectQuery.validate(validator, scope);
     }
 
     /**

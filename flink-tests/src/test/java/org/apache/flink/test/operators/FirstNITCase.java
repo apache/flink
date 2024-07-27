@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.operators.util.CollectionDataSets;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +40,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Integration tests for {@link DataSet#first}. */
 @RunWith(Parameterized.class)
-public class FirstNITCase extends MultipleProgramsTestBase {
+public class FirstNITCase extends MultipleProgramsTestBaseJUnit4 {
     public FirstNITCase(TestExecutionMode mode) {
         super(mode);
     }

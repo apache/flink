@@ -24,9 +24,13 @@ import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocal
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /** Entity holding result of RocksDB instance restore. */
 public class RocksDBRestoreResult {
@@ -39,19 +43,23 @@ public class RocksDBRestoreResult {
     private final UUID backendUID;
     private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
 
+    private final CompletableFuture<Void> asyncCompactAfterRestoreFuture;
+
     public RocksDBRestoreResult(
             RocksDB db,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             long lastCompletedCheckpointId,
             UUID backendUID,
-            SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles) {
+            SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles,
+            @Nullable CompletableFuture<Void> asyncCompactAfterRestoreFuture) {
         this.db = db;
         this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
         this.backendUID = backendUID;
         this.restoredSstFiles = restoredSstFiles;
+        this.asyncCompactAfterRestoreFuture = asyncCompactAfterRestoreFuture;
     }
 
     public RocksDB getDb() {
@@ -76,5 +84,9 @@ public class RocksDBRestoreResult {
 
     public RocksDBNativeMetricMonitor getNativeMetricMonitor() {
         return nativeMetricMonitor;
+    }
+
+    public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
+        return Optional.ofNullable(asyncCompactAfterRestoreFuture);
     }
 }

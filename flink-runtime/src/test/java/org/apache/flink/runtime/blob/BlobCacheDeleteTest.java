@@ -24,6 +24,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -193,11 +194,13 @@ class BlobCacheDeleteTest {
         }
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testDeleteTransientLocalFailsNoJob() throws IOException, InterruptedException {
         testDeleteTransientLocalFails(null);
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testDeleteTransientLocalFailsForJob() throws IOException, InterruptedException {
         testDeleteTransientLocalFails(new JobID());

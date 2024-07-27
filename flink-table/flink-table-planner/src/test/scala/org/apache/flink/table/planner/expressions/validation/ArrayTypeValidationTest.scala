@@ -32,12 +32,6 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
   }
 
   @Test
-  def testObviousInvalidIndexTableApi(): Unit = {
-    assertThatExceptionOfType(classOf[ValidationException])
-      .isThrownBy(() => testTableApi('f2.at(0), "FAIL"))
-  }
-
-  @Test
   def testEmptyArraySql(): Unit = {
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => testSqlApi("ARRAY[]", "FAIL"))

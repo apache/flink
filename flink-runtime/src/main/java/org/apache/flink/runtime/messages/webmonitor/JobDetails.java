@@ -194,7 +194,8 @@ public class JobDetails implements Serializable {
                                 taskVertex.getCurrentExecutionAttempt().getAttemptNumber(),
                                 taskVertex.getCurrentExecutions().stream()
                                         .map(AccessExecution::getAttemptNumber)
-                                        .collect(Collectors.toSet())));
+                                        .collect(Collectors.toSet()),
+                                state.isTerminal()));
             }
 
             if (!vertexAttempts.isEmpty()) {
@@ -355,16 +356,21 @@ public class JobDetails implements Serializable {
 
     /**
      * The CurrentAttempts holds the attempt number of the current representative execution attempt,
-     * and the attempt numbers of all the running attempts.
+     * the attempt numbers of all the running attempts, and whether the current execution has
+     * reached terminal state.
      */
     public static final class CurrentAttempts implements Serializable {
         private final int representativeAttempt;
 
         private final Set<Integer> currentAttempts;
 
-        public CurrentAttempts(int representativeAttempt, Set<Integer> currentAttempts) {
+        private final boolean isTerminalState;
+
+        public CurrentAttempts(
+                int representativeAttempt, Set<Integer> currentAttempts, boolean isTerminalState) {
             this.representativeAttempt = representativeAttempt;
             this.currentAttempts = Collections.unmodifiableSet(currentAttempts);
+            this.isTerminalState = isTerminalState;
         }
 
         public int getRepresentativeAttempt() {
@@ -373,6 +379,10 @@ public class JobDetails implements Serializable {
 
         public Set<Integer> getCurrentAttempts() {
             return currentAttempts;
+        }
+
+        public boolean isTerminalState() {
+            return isTerminalState;
         }
     }
 }

@@ -21,23 +21,30 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -45,12 +52,11 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.Executors;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.EXPONENTIAL_DELAY;
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for configuring {@link StreamExecutionEnvironment} via {@link
@@ -58,25 +64,41 @@ import static org.junit.Assert.assertThat;
  *
  * @see StreamExecutionEnvironmentConfigurationTest
  */
-public class StreamExecutionEnvironmentComplexConfigurationTest {
+class StreamExecutionEnvironmentComplexConfigurationTest {
     @Test
-    public void testLoadingStateBackendFromConfiguration() {
-        StreamExecutionEnvironment envFromConfiguration =
-                StreamExecutionEnvironment.getExecutionEnvironment();
+    void testJobConfigFromEnvToExecutionGraph() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         Configuration configuration = new Configuration();
-        configuration.setString("state.backend", "jobmanager");
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        String path = "file:///valid";
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, path);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY, EXPONENTIAL_DELAY.getMainValue());
 
         // mutate config according to configuration
-        envFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+        env.fromSequence(0, 1).addSink(new DiscardingSink<>());
 
-        StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
-        assertThat(actualStateBackend, instanceOf(MemoryStateBackend.class));
+        DefaultScheduler scheduler =
+                new DefaultSchedulerBuilder(
+                                env.getStreamGraph().getJobGraph(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                Executors.newSingleThreadScheduledExecutor())
+                        .build();
+        Configuration jobConfiguration = scheduler.getExecutionGraph().getJobConfiguration();
+
+        assertThat(jobConfiguration.get(StateBackendOptions.STATE_BACKEND))
+                .isEqualTo(configuration.get(StateBackendOptions.STATE_BACKEND));
+        assertThat(jobConfiguration.get(CheckpointingOptions.CHECKPOINT_STORAGE))
+                .isEqualTo(configuration.get(CheckpointingOptions.CHECKPOINT_STORAGE));
+        assertThat(jobConfiguration.get(RestartStrategyOptions.RESTART_STRATEGY))
+                .isEqualTo(configuration.get(RestartStrategyOptions.RESTART_STRATEGY));
     }
 
     @Test
-    public void testLoadingCachedFilesFromConfiguration() {
+    void testLoadingCachedFilesFromConfiguration() {
         StreamExecutionEnvironment envFromConfiguration =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         envFromConfiguration.registerCachedFile("/tmp4", "file4", true);
@@ -92,9 +114,8 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         envFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(
-                envFromConfiguration.getCachedFiles(),
-                equalTo(
+        assertThat(envFromConfiguration.getCachedFiles())
+                .isEqualTo(
                         Arrays.asList(
                                 Tuple2.of(
                                         "file1",
@@ -105,11 +126,11 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
                                 Tuple2.of(
                                         "file3",
                                         new DistributedCache.DistributedCacheEntry(
-                                                "oss://bucket/file1", false)))));
+                                                "oss://bucket/file1", false))));
     }
 
     @Test
-    public void testLoadingKryoSerializersFromConfiguration() {
+    void testLoadingKryoSerializersFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString(
                 "pipeline.default-kryo-serializers",
@@ -123,12 +144,15 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         LinkedHashMap<Object, Object> serializers = new LinkedHashMap<>();
         serializers.put(CustomPojo.class, CustomPojoSerializer.class);
         assertThat(
-                envFromConfiguration.getConfig().getDefaultKryoSerializerClasses(),
-                equalTo(serializers));
+                        envFromConfiguration
+                                .getConfig()
+                                .getSerializerConfig()
+                                .getDefaultKryoSerializerClasses())
+                .isEqualTo(serializers);
     }
 
     @Test
-    public void testNotOverridingStateBackendWithDefaultsFromConfiguration() {
+    void testNotOverridingStateBackendWithDefaultsFromConfiguration() {
         StreamExecutionEnvironment envFromConfiguration =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         envFromConfiguration.setStateBackend(new MemoryStateBackend());
@@ -138,34 +162,37 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
                 new Configuration(), Thread.currentThread().getContextClassLoader());
 
         StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
-        assertThat(actualStateBackend, instanceOf(MemoryStateBackend.class));
+        assertThat(actualStateBackend).isInstanceOf(MemoryStateBackend.class);
     }
 
     @Test
-    public void testOverridingChangelogStateBackendWithFromConfigurationWhenSet() {
+    void testOverridingChangelogStateBackendWithFromConfigurationWhenSet() {
         StreamExecutionEnvironment envFromConfiguration =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-        assertEquals(
-                TernaryBoolean.UNDEFINED, envFromConfiguration.isChangelogStateBackendEnabled());
+        assertThat(TernaryBoolean.UNDEFINED)
+                .isEqualTo(envFromConfiguration.isChangelogStateBackendEnabled());
 
         Configuration configuration = new Configuration();
-        configuration.setBoolean(ENABLE_STATE_CHANGE_LOG, true);
+        configuration.set(ENABLE_STATE_CHANGE_LOG, true);
         envFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
-        assertEquals(TernaryBoolean.TRUE, envFromConfiguration.isChangelogStateBackendEnabled());
+        assertThat(TernaryBoolean.TRUE)
+                .isEqualTo(envFromConfiguration.isChangelogStateBackendEnabled());
 
         envFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
-        assertEquals(TernaryBoolean.TRUE, envFromConfiguration.isChangelogStateBackendEnabled());
+        assertThat(TernaryBoolean.TRUE)
+                .isEqualTo(envFromConfiguration.isChangelogStateBackendEnabled());
 
-        configuration.setBoolean(ENABLE_STATE_CHANGE_LOG, false);
+        configuration.set(ENABLE_STATE_CHANGE_LOG, false);
         envFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
-        assertEquals(TernaryBoolean.FALSE, envFromConfiguration.isChangelogStateBackendEnabled());
+        assertThat(TernaryBoolean.FALSE)
+                .isEqualTo(envFromConfiguration.isChangelogStateBackendEnabled());
     }
 
     @Test
-    public void testNotOverridingCachedFilesFromConfiguration() {
+    void testNotOverridingCachedFilesFromConfiguration() {
         StreamExecutionEnvironment envFromConfiguration =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         envFromConfiguration.registerCachedFile("/tmp3", "file3", true);
@@ -176,18 +203,17 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         envFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(
-                envFromConfiguration.getCachedFiles(),
-                equalTo(
+        assertThat(envFromConfiguration.getCachedFiles())
+                .isEqualTo(
                         Arrays.asList(
                                 Tuple2.of(
                                         "file3",
                                         new DistributedCache.DistributedCacheEntry(
-                                                "/tmp3", true)))));
+                                                "/tmp3", true))));
     }
 
     @Test
-    public void testLoadingListenersFromConfiguration() {
+    void testLoadingListenersFromConfiguration() {
         StreamExecutionEnvironment envFromConfiguration =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         List<Class> listenersClass =
@@ -201,43 +227,37 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         envFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertEquals(envFromConfiguration.getJobListeners().size(), 2);
-        assertThat(
-                envFromConfiguration.getJobListeners().get(0),
-                instanceOf(BasicJobSubmittedCounter.class));
-        assertThat(
-                envFromConfiguration.getJobListeners().get(1),
-                instanceOf(BasicJobExecutedCounter.class));
+        assertThat(envFromConfiguration.getJobListeners().size()).isEqualTo(2);
+        assertThat(envFromConfiguration.getJobListeners().get(0))
+                .isInstanceOf(BasicJobSubmittedCounter.class);
+        assertThat(envFromConfiguration.getJobListeners().get(1))
+                .isInstanceOf(BasicJobExecutedCounter.class);
     }
 
     @Test
-    public void testGettingEnvironmentWithConfiguration() {
+    void testGettingEnvironmentWithConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setString("state.backend", "jobmanager");
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, 10);
         configuration.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(100));
 
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
-        assertThat(env.getParallelism(), equalTo(10));
-        assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
-        assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
+        assertThat(env.getParallelism()).isEqualTo(10);
+        assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(100L);
     }
 
     @Test
-    public void testLocalEnvironmentExplicitParallelism() {
+    void testLocalEnvironmentExplicitParallelism() {
         Configuration configuration = new Configuration();
-        configuration.setString("state.backend", "jobmanager");
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, 10);
         configuration.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(100));
 
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironment(2, configuration);
 
-        assertThat(env.getParallelism(), equalTo(2));
-        assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
-        assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
+        assertThat(env.getParallelism()).isEqualTo(2);
+        assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(100L);
     }
 
     /** JobSubmitted counter listener for unit test. */

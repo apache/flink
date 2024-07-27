@@ -220,7 +220,7 @@ class KubernetesUtilsTest extends KubernetesTestBase {
     private void testCheckAndUpdatePortConfigOption(
             String port, String fallbackPort, String expectedPort) {
         final Configuration cfg = new Configuration();
-        cfg.setString(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE, port);
+        cfg.set(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE, port);
         KubernetesUtils.checkAndUpdatePortConfigOption(
                 cfg,
                 HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,

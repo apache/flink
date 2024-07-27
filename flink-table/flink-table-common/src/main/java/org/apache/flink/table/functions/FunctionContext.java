@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -120,11 +119,7 @@ public class FunctionContext {
             return jobParameters.getOrDefault(key, defaultValue);
         }
 
-        final GlobalJobParameters conf = context.getExecutionConfig().getGlobalJobParameters();
-        if (conf != null) {
-            return conf.toMap().getOrDefault(key, defaultValue);
-        }
-        return defaultValue;
+        return context.getGlobalJobParameters().getOrDefault(key, defaultValue);
     }
 
     /** Get the external resource information. */

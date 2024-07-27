@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -141,7 +141,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSour
      *     for the message IDs.
      */
     protected MessageAcknowledgingSourceBase(TypeInformation<UId> idTypeInfo) {
-        this.idSerializer = idTypeInfo.createSerializer(new ExecutionConfig());
+        this.idSerializer = idTypeInfo.createSerializer(new SerializerConfigImpl());
     }
 
     @Override

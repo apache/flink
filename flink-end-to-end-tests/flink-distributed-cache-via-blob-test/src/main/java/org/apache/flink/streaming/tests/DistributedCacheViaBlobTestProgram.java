@@ -58,7 +58,7 @@ public class DistributedCacheViaBlobTestProgram {
                                                     "Input directory must not be empty."));
         }
 
-        env.fromElements(1)
+        env.fromData(1)
                 .map(
                         new TestMapFunction(
                                 inputFile.toAbsolutePath().toString(),

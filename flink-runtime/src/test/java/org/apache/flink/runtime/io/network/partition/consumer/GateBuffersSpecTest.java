@@ -22,8 +22,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.Optional;
 
@@ -33,7 +31,6 @@ import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSp
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GateBuffersSpec}. */
-@RunWith(Parameterized.class)
 class GateBuffersSpecTest {
 
     private static ResultPartitionType[] parameters() {

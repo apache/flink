@@ -38,9 +38,11 @@ import org.apache.flink.queryablestate.server.KvStateServerImpl;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -544,19 +546,25 @@ class ClientTest {
         DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
         dummyEnv.setKvStateRegistry(dummyRegistry);
 
+        JobID jobID = new JobID();
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+        TaskKvStateRegistry kvStateRegistry =
+                dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID());
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         AbstractKeyedStateBackend<Integer> backend =
                 abstractBackend.createKeyedStateBackend(
-                        dummyEnv,
-                        new JobID(),
-                        "test_op",
-                        IntSerializer.INSTANCE,
-                        numKeyGroups,
-                        new KeyGroupRange(0, 0),
-                        dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID()),
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                dummyEnv,
+                                jobID,
+                                "test_op",
+                                IntSerializer.INSTANCE,
+                                numKeyGroups,
+                                keyGroupRange,
+                                kvStateRegistry,
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                Collections.emptyList(),
+                                cancelStreamRegistry));
 
         AtomicKvStateRequestStats clientStats = new AtomicKvStateRequestStats();
 

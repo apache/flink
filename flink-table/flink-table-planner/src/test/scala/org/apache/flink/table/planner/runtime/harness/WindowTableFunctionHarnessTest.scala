@@ -29,12 +29,12 @@ import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{LocalDateTime, ZoneId}
 import java.util.{Collection => JCollection}
@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.JavaConversions._
 
 /** Harness tests for processing-time window table function. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneId)
   extends HarnessTestBase(backend) {
 
@@ -60,7 +60,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
       DataTypes.TIMESTAMP_LTZ(3).getLogicalType
     ))
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
@@ -82,7 +82,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testProcessingTimeTumbleWindow(): Unit = {
     val sql =
       """
@@ -90,7 +90,8 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
         |FROM TABLE(TUMBLE(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND))
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTesterForNoState(t1.toAppendStream[Row], "WindowTableFunction")
+    val testHarness =
+      createHarnessTesterForNoState(t1.toDataStream, "WindowTableFunction")
 
     testHarness.open()
     ingestData(testHarness)
@@ -199,7 +200,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
     testHarness.close()
   }
 
-  @Test
+  @TestTemplate
   def testProcessingTimeHopWindow(): Unit = {
     val sql =
       """
@@ -207,7 +208,8 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
         |  HOP(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTesterForNoState(t1.toAppendStream[Row], "WindowTableFunction")
+    val testHarness =
+      createHarnessTesterForNoState(t1.toDataStream, "WindowTableFunction")
 
     testHarness.open()
     ingestData(testHarness)
@@ -416,7 +418,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
     testHarness.close()
   }
 
-  @Test
+  @TestTemplate
   def testProcessingTimeCumulateWindow(): Unit = {
     val sql =
       """
@@ -424,7 +426,8 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
         |  CUMULATE(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND, INTERVAL '15' SECOND))
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTesterForNoState(t1.toAppendStream[Row], "WindowTableFunction")
+    val testHarness =
+      createHarnessTesterForNoState(t1.toDataStream, "WindowTableFunction")
 
     testHarness.open()
     ingestData(testHarness)
@@ -760,7 +763,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
 
 object WindowTableFunctionHarnessTest {
 
-  @Parameterized.Parameters(name = "StateBackend={0}, TimeZone={1}")
+  @Parameters(name = "StateBackend={0}, TimeZone={1}")
   def parameters(): JCollection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(HEAP_BACKEND, ZoneId.of("UTC")),

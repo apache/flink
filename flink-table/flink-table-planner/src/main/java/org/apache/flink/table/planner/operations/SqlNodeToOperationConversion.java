@@ -25,6 +25,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
@@ -69,7 +70,6 @@ import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
 import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
-import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
@@ -122,6 +122,7 @@ import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyType;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -131,7 +132,6 @@ import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
-import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
@@ -300,8 +300,6 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
         } else if (validated instanceof SqlAlterDatabase) {
             return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
-        } else if (validated instanceof SqlShowDatabases) {
-            return Optional.of(converter.convertShowDatabases((SqlShowDatabases) validated));
         } else if (validated instanceof SqlShowCurrentDatabase) {
             return Optional.of(
                     converter.convertShowCurrentDatabase((SqlShowCurrentDatabase) validated));
@@ -451,6 +449,9 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableDropDistribution) {
+            return convertAlterTableDropDistribution(
+                    sqlAlterTable, resolvedCatalogTable, tableIdentifier);
         } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropPrimaryKey) sqlAlterTable, resolvedCatalogTable);
@@ -596,6 +597,33 @@ public class SqlNodeToOperationConversion {
                         tableIdentifier));
     }
 
+    /** Convert ALTER TABLE DROP DISTRIBUTION statement. */
+    private static AlterTableChangeOperation convertAlterTableDropDistribution(
+            SqlAlterTable sqlAlterTable,
+            ResolvedCatalogTable resolvedCatalogTable,
+            ObjectIdentifier tableIdentifier) {
+        if (!resolvedCatalogTable.getDistribution().isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table %s does not have a distribution to drop.", tableIdentifier));
+        }
+
+        List<TableChange> tableChanges = Collections.singletonList(TableChange.dropDistribution());
+        CatalogTable.Builder builder =
+                CatalogTable.newBuilder()
+                        .comment(resolvedCatalogTable.getComment())
+                        .options(resolvedCatalogTable.getOptions())
+                        .schema(resolvedCatalogTable.getUnresolvedSchema())
+                        .partitionKeys(resolvedCatalogTable.getPartitionKeys())
+                        .options(resolvedCatalogTable.getOptions());
+
+        resolvedCatalogTable.getSnapshot().ifPresent(builder::snapshot);
+
+        CatalogTable newTable = builder.build();
+        return new AlterTableChangeOperation(
+                tableIdentifier, tableChanges, newTable, sqlAlterTable.ifTableExists());
+    }
+
     /** Convert CREATE FUNCTION statement. */
     private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
         UnresolvedIdentifier unresolvedIdentifier =
@@ -738,7 +766,9 @@ public class SqlNodeToOperationConversion {
 
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
+        // If it is materialized table, convert it to catalog table for query optimize
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(identifier).toCatalogTable();
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
@@ -894,11 +924,6 @@ public class SqlNodeToOperationConversion {
     /** Convert SHOW CURRENT CATALOG statement. */
     private Operation convertShowCurrentCatalog(SqlShowCurrentCatalog sqlShowCurrentCatalog) {
         return new ShowCurrentCatalogOperation();
-    }
-
-    /** Convert SHOW DATABASES statement. */
-    private Operation convertShowDatabases(SqlShowDatabases sqlShowDatabases) {
-        return new ShowDatabasesOperation();
     }
 
     /** Convert SHOW CURRENT DATABASE statement. */
@@ -1319,12 +1344,17 @@ public class SqlNodeToOperationConversion {
             }
         }
         // delete push down is not applicable, use row-level delete
-        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        tableModify,
+                        () -> {
+                            throw new TableException("Delete statements are not SQL serializable.");
+                        });
         return new SinkModifyOperation(
                 contextResolvedTable,
                 queryOperation,
                 null, // targetColumns
-                SinkModifyOperation.ModifyType.DELETE);
+                ModifyType.DELETE);
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
@@ -1340,7 +1370,12 @@ public class SqlNodeToOperationConversion {
                 catalogManager.getTableOrError(
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
-        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        tableModify,
+                        () -> {
+                            throw new TableException("Update statements are not SQL serializable.");
+                        });
 
         // TODO calc target column list to index array, currently only simple SqlIdentifiers are
         // available, this should be updated after FLINK-31344 fixed
@@ -1348,10 +1383,7 @@ public class SqlNodeToOperationConversion {
                 getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
 
         return new SinkModifyOperation(
-                contextResolvedTable,
-                queryOperation,
-                columnIndices,
-                SinkModifyOperation.ModifyType.UPDATE);
+                contextResolvedTable, queryOperation, columnIndices, ModifyType.UPDATE);
     }
 
     private int[][] getTargetColumnIndices(
@@ -1379,6 +1411,6 @@ public class SqlNodeToOperationConversion {
     private PlannerQueryOperation toQueryOperation(FlinkPlannerImpl planner, SqlNode validated) {
         // transform to a relational tree
         RelRoot relational = planner.rel(validated);
-        return new PlannerQueryOperation(relational.project());
+        return new PlannerQueryOperation(relational.project(), () -> getQuotedSqlString(validated));
     }
 }

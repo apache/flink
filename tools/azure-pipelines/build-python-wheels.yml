@@ -33,11 +33,11 @@ jobs:
     steps:
       - task: UsePythonVersion@0
         inputs:
-          versionSpec: '3.9'
+          versionSpec: '3.11'
       - script: |
           cd flink-python
           python -m pip install --upgrade pip
-          pip install cibuildwheel==2.8.0
+          pip install cibuildwheel==2.16.5
           cibuildwheel --platform macos --output-dir dist .
       - task: PublishPipelineArtifact@0
         inputs:

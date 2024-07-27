@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
@@ -31,8 +32,12 @@ import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssigners;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -66,18 +71,30 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
     // Utilities
     // ------------------------------------------------------------------------------------------
 
-    protected SliceAssigner createSliceAssigner(
+    protected WindowAssigner createWindowAssigner(
             WindowingStrategy windowingStrategy, ZoneId shiftTimeZone) {
         WindowSpec windowSpec = windowingStrategy.getWindow();
         if (windowingStrategy instanceof WindowAttachedWindowingStrategy) {
+            int windowStartIndex =
+                    ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowStart();
             int windowEndIndex =
                     ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowEnd();
-            // we don't need time attribute to assign windows, use a magic value in this case
-            SliceAssigner innerAssigner =
-                    createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
-            return SliceAssigners.windowed(windowEndIndex, innerAssigner);
+            if (isAlignedWindow(windowSpec)) {
+                // we don't need time attribute to assign windows, use a magic value in this case
+                SliceAssigner innerAssigner =
+                        createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
+                return SliceAssigners.windowed(windowEndIndex, innerAssigner);
+            } else {
+                UnsliceAssigner<TimeWindow> innerAssigner =
+                        createUnsliceAssigner(windowSpec, windowEndIndex, shiftTimeZone);
+                return UnsliceAssigners.windowed(windowStartIndex, windowEndIndex, innerAssigner);
+            }
 
         } else if (windowingStrategy instanceof SliceAttachedWindowingStrategy) {
+            checkArgument(
+                    isAlignedWindow(windowSpec),
+                    "UnsliceAssigner with SliceAttachedWindowingStrategy is not supported yet.");
+
             int sliceEndIndex = ((SliceAttachedWindowingStrategy) windowingStrategy).getSliceEnd();
             // we don't need time attribute to assign windows, use a magic value in this case
             SliceAssigner innerAssigner =
@@ -93,14 +110,22 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
             } else {
                 timeAttributeIndex = -1;
             }
-            return createSliceAssigner(windowSpec, timeAttributeIndex, shiftTimeZone);
+            if (isAlignedWindow(windowSpec)) {
+                return createSliceAssigner(windowSpec, timeAttributeIndex, shiftTimeZone);
+            } else {
+                return createUnsliceAssigner(windowSpec, timeAttributeIndex, shiftTimeZone);
+            }
 
         } else {
             throw new UnsupportedOperationException(windowingStrategy + " is not supported yet.");
         }
     }
 
-    protected SliceAssigner createSliceAssigner(
+    protected boolean isAlignedWindow(WindowSpec window) {
+        return window.isAlignedWindow();
+    }
+
+    private SliceAssigner createSliceAssigner(
             WindowSpec windowSpec, int timeAttributeIndex, ZoneId shiftTimeZone) {
         if (windowSpec instanceof TumblingWindowSpec) {
             Duration size = ((TumblingWindowSpec) windowSpec).getSize();
@@ -148,6 +173,15 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
         } else {
             throw new UnsupportedOperationException(windowSpec + " is not supported yet.");
         }
+    }
+
+    private UnsliceAssigner<TimeWindow> createUnsliceAssigner(
+            WindowSpec windowSpec, int timeAttributeIndex, ZoneId shiftTimeZone) {
+        if (windowSpec instanceof SessionWindowSpec) {
+            Duration gap = ((SessionWindowSpec) windowSpec).getGap();
+            return UnsliceAssigners.session(timeAttributeIndex, shiftTimeZone, gap);
+        }
+        throw new UnsupportedOperationException(windowSpec + " is not supported yet.");
     }
 
     protected LogicalType[] convertToLogicalTypes(DataType[] dataTypes) {

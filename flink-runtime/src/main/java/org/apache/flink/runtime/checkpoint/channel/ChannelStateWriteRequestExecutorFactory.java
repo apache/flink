@@ -19,9 +19,12 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
+import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.concurrent.GuardedBy;
+
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -42,10 +45,15 @@ public class ChannelStateWriteRequestExecutorFactory {
     public ChannelStateWriteRequestExecutor getOrCreateExecutor(
             JobVertexID jobVertexID,
             int subtaskIndex,
-            CheckpointStorage checkpointStorage,
+            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+                    checkpointStorageWorkerViewSupplier,
             int maxSubtasksPerChannelStateFile) {
         return getOrCreateExecutor(
-                jobVertexID, subtaskIndex, checkpointStorage, maxSubtasksPerChannelStateFile, true);
+                jobVertexID,
+                subtaskIndex,
+                checkpointStorageWorkerViewSupplier,
+                maxSubtasksPerChannelStateFile,
+                true);
     }
 
     /**
@@ -55,22 +63,27 @@ public class ChannelStateWriteRequestExecutorFactory {
     ChannelStateWriteRequestExecutor getOrCreateExecutor(
             JobVertexID jobVertexID,
             int subtaskIndex,
-            CheckpointStorage checkpointStorage,
+            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+                    checkpointStorageWorkerViewSupplier,
             int maxSubtasksPerChannelStateFile,
             boolean startExecutor) {
         synchronized (lock) {
             if (executor == null) {
+                ChannelStateWriteRequestDispatcher dispatcher =
+                        new ChannelStateWriteRequestDispatcherImpl(
+                                checkpointStorageWorkerViewSupplier,
+                                new ChannelStateSerializerImpl());
                 executor =
                         new ChannelStateWriteRequestExecutorImpl(
-                                new ChannelStateWriteRequestDispatcherImpl(
-                                        checkpointStorage, jobID, new ChannelStateSerializerImpl()),
+                                dispatcher,
                                 maxSubtasksPerChannelStateFile,
                                 executor -> {
                                     assert Thread.holdsLock(lock);
                                     checkState(this.executor == executor);
                                     this.executor = null;
                                 },
-                                lock);
+                                lock,
+                                jobID);
                 if (startExecutor) {
                     executor.start();
                 }

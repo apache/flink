@@ -114,7 +114,7 @@ class ReporterSetupTest {
         configureReporter1(config);
         configureReporter2(config);
 
-        config.setString(MetricOptions.REPORTERS_LIST, "reporter2");
+        config.set(MetricOptions.REPORTERS_LIST, "reporter2");
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 

@@ -35,7 +35,9 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -92,15 +94,11 @@ public abstract class InputTypeStrategiesTestBase {
         callContextMock.argumentDataTypes = actualArgumentTypes;
         callContextMock.argumentLiterals =
                 IntStream.range(0, actualArgumentTypes.size())
-                        .mapToObj(i -> testSpec.literalPos != null && i == testSpec.literalPos)
+                        .mapToObj(i -> testSpec.literals.containsKey(i))
                         .collect(Collectors.toList());
         callContextMock.argumentValues =
                 IntStream.range(0, actualArgumentTypes.size())
-                        .mapToObj(
-                                i ->
-                                        (testSpec.literalPos != null && i == testSpec.literalPos)
-                                                ? Optional.ofNullable(testSpec.literalValue)
-                                                : Optional.empty())
+                        .mapToObj(i -> Optional.ofNullable(testSpec.literals.get(i)))
                         .collect(Collectors.toList());
         callContextMock.argumentNulls =
                 IntStream.range(0, actualArgumentTypes.size())
@@ -161,9 +159,7 @@ public abstract class InputTypeStrategiesTestBase {
 
         private List<List<DataType>> actualArgumentTypes = new ArrayList<>();
 
-        private @Nullable Integer literalPos;
-
-        private @Nullable Object literalValue;
+        private Map<Integer, Object> literals = new HashMap<>();
 
         private @Nullable InputTypeStrategy surroundingStrategy;
 
@@ -207,13 +203,12 @@ public abstract class InputTypeStrategiesTestBase {
         }
 
         public TestSpec calledWithLiteralAt(int pos) {
-            this.literalPos = pos;
+            this.literals.put(pos, null);
             return this;
         }
 
         public TestSpec calledWithLiteralAt(int pos, Object value) {
-            this.literalPos = pos;
-            this.literalValue = value;
+            this.literals.put(pos, value);
             return this;
         }
 

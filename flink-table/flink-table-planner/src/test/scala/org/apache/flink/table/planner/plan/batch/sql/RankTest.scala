@@ -21,8 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 class RankTest extends TableTestBase {
 
@@ -59,7 +59,7 @@ class RankTest extends TableTestBase {
           "please re-check the over window statement.")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithMultiGroups(): Unit = {
     val sqlQuery =
       """
@@ -67,19 +67,22 @@ class RankTest extends TableTestBase {
         |       ROW_NUMBER() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
         |SELECT RANK() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithMultiGroups(): Unit = {
     val sqlQuery =
       """
@@ -87,19 +90,21 @@ class RankTest extends TableTestBase {
         |       RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
         |SELECT dense_rank() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithMultiGroups(): Unit = {
     val sqlQuery =
       """
@@ -107,7 +112,8 @@ class RankTest extends TableTestBase {
         |       DENSE_RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
   @Test

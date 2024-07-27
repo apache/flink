@@ -29,6 +29,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
@@ -73,10 +74,24 @@ public class AvroSchemaConverter {
     @SuppressWarnings("unchecked")
     public static <T extends SpecificRecord> TypeInformation<Row> convertToTypeInfo(
             Class<T> avroClass) {
+        return convertToTypeInfo(avroClass, true);
+    }
+
+    /**
+     * Converts an Avro class into a nested row structure with deterministic field order and data
+     * types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroClass Avro specific record that contains schema information
+     * @param legacyTimestampMapping legacy mapping of timestamp types
+     * @return type information matching the schema
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends SpecificRecord> TypeInformation<Row> convertToTypeInfo(
+            Class<T> avroClass, boolean legacyTimestampMapping) {
         Preconditions.checkNotNull(avroClass, "Avro specific record class must not be null.");
         // determine schema to retrieve deterministic field order
         final Schema schema = SpecificData.get().getSchema(avroClass);
-        return (TypeInformation<Row>) convertToTypeInfo(schema);
+        return (TypeInformation<Row>) convertToTypeInfo(schema, true);
     }
 
     /**
@@ -88,6 +103,20 @@ public class AvroSchemaConverter {
      */
     @SuppressWarnings("unchecked")
     public static <T> TypeInformation<T> convertToTypeInfo(String avroSchemaString) {
+        return convertToTypeInfo(avroSchemaString, true);
+    }
+
+    /**
+     * Converts an Avro schema string into a nested row structure with deterministic field order and
+     * data types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroSchemaString Avro schema definition string
+     * @param legacyTimestampMapping legacy mapping of timestamp types
+     * @return type information matching the schema
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> TypeInformation<T> convertToTypeInfo(
+            String avroSchemaString, boolean legacyTimestampMapping) {
         Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
         final Schema schema;
         try {
@@ -95,10 +124,11 @@ public class AvroSchemaConverter {
         } catch (SchemaParseException e) {
             throw new IllegalArgumentException("Could not parse Avro schema string.", e);
         }
-        return (TypeInformation<T>) convertToTypeInfo(schema);
+        return (TypeInformation<T>) convertToTypeInfo(schema, legacyTimestampMapping);
     }
 
-    private static TypeInformation<?> convertToTypeInfo(Schema schema) {
+    private static TypeInformation<?> convertToTypeInfo(
+            Schema schema, boolean legacyTimestampMapping) {
         switch (schema.getType()) {
             case RECORD:
                 final List<Schema.Field> fields = schema.getFields();
@@ -107,7 +137,7 @@ public class AvroSchemaConverter {
                 final String[] names = new String[fields.size()];
                 for (int i = 0; i < fields.size(); i++) {
                     final Schema.Field field = fields.get(i);
-                    types[i] = convertToTypeInfo(field.schema());
+                    types[i] = convertToTypeInfo(field.schema(), legacyTimestampMapping);
                     names[i] = field.name();
                 }
                 return Types.ROW_NAMED(names, types);
@@ -115,9 +145,12 @@ public class AvroSchemaConverter {
                 return Types.STRING;
             case ARRAY:
                 // result type might either be ObjectArrayTypeInfo or BasicArrayTypeInfo for Strings
-                return Types.OBJECT_ARRAY(convertToTypeInfo(schema.getElementType()));
+                return Types.OBJECT_ARRAY(
+                        convertToTypeInfo(schema.getElementType(), legacyTimestampMapping));
             case MAP:
-                return Types.MAP(Types.STRING, convertToTypeInfo(schema.getValueType()));
+                return Types.MAP(
+                        Types.STRING,
+                        convertToTypeInfo(schema.getValueType(), legacyTimestampMapping));
             case UNION:
                 final Schema actualSchema;
                 if (schema.getTypes().size() == 2
@@ -132,7 +165,7 @@ public class AvroSchemaConverter {
                     // use Kryo for serialization
                     return Types.GENERIC(Object.class);
                 }
-                return convertToTypeInfo(actualSchema);
+                return convertToTypeInfo(actualSchema, legacyTimestampMapping);
             case FIXED:
                 // logical decimal type
                 if (schema.getLogicalType() instanceof LogicalTypes.Decimal) {
@@ -159,12 +192,26 @@ public class AvroSchemaConverter {
                 }
                 return Types.INT;
             case LONG:
-                // logical timestamp type
-                if (schema.getLogicalType() == LogicalTypes.timestampMillis()
-                        || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
-                    return Types.SQL_TIMESTAMP;
-                } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
-                    return Types.SQL_TIME;
+                if (legacyTimestampMapping) {
+                    if (schema.getLogicalType() == LogicalTypes.timestampMillis()
+                            || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+                        return Types.SQL_TIMESTAMP;
+                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
+                            || schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                        return Types.SQL_TIME;
+                    }
+                } else {
+                    // Avro logical timestamp types to Flink DataStream timestamp types
+                    if (schema.getLogicalType() == LogicalTypes.timestampMillis()
+                            || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+                        return Types.INSTANT;
+                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
+                            || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
+                        return Types.LOCAL_DATE_TIME;
+                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
+                            || schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                        return Types.SQL_TIME;
+                    }
                 }
                 return Types.LONG;
             case FLOAT:
@@ -187,6 +234,19 @@ public class AvroSchemaConverter {
      * @return data type matching the schema
      */
     public static DataType convertToDataType(String avroSchemaString) {
+        return convertToDataType(avroSchemaString, true);
+    }
+
+    /**
+     * Converts an Avro schema string into a nested row structure with deterministic field order and
+     * data types that are compatible with Flink's Table & SQL API.
+     *
+     * @param avroSchemaString Avro schema definition string
+     * @param legacyTimestampMapping legacy mapping of local timestamps
+     * @return data type matching the schema
+     */
+    public static DataType convertToDataType(
+            String avroSchemaString, boolean legacyTimestampMapping) {
         Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
         final Schema schema;
         try {
@@ -194,10 +254,10 @@ public class AvroSchemaConverter {
         } catch (SchemaParseException e) {
             throw new IllegalArgumentException("Could not parse Avro schema string.", e);
         }
-        return convertToDataType(schema);
+        return convertToDataType(schema, legacyTimestampMapping);
     }
 
-    private static DataType convertToDataType(Schema schema) {
+    private static DataType convertToDataType(Schema schema, boolean legacyMapping) {
         switch (schema.getType()) {
             case RECORD:
                 final List<Schema.Field> schemaFields = schema.getFields();
@@ -205,17 +265,20 @@ public class AvroSchemaConverter {
                 final DataTypes.Field[] fields = new DataTypes.Field[schemaFields.size()];
                 for (int i = 0; i < schemaFields.size(); i++) {
                     final Schema.Field field = schemaFields.get(i);
-                    fields[i] = DataTypes.FIELD(field.name(), convertToDataType(field.schema()));
+                    fields[i] =
+                            DataTypes.FIELD(
+                                    field.name(), convertToDataType(field.schema(), legacyMapping));
                 }
                 return DataTypes.ROW(fields).notNull();
             case ENUM:
                 return DataTypes.STRING().notNull();
             case ARRAY:
-                return DataTypes.ARRAY(convertToDataType(schema.getElementType())).notNull();
+                return DataTypes.ARRAY(convertToDataType(schema.getElementType(), legacyMapping))
+                        .notNull();
             case MAP:
                 return DataTypes.MAP(
                                 DataTypes.STRING().notNull(),
-                                convertToDataType(schema.getValueType()))
+                                convertToDataType(schema.getValueType(), legacyMapping))
                         .notNull();
             case UNION:
                 final Schema actualSchema;
@@ -236,7 +299,7 @@ public class AvroSchemaConverter {
                     return new AtomicDataType(
                             new TypeInformationRawType<>(false, Types.GENERIC(Object.class)));
                 }
-                DataType converted = convertToDataType(actualSchema);
+                DataType converted = convertToDataType(actualSchema, legacyMapping);
                 return nullable ? converted.nullable() : converted;
             case FIXED:
                 // logical decimal type
@@ -270,16 +333,34 @@ public class AvroSchemaConverter {
                 }
                 return DataTypes.INT().notNull();
             case LONG:
-                // logical timestamp type
-                if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
-                    return DataTypes.TIMESTAMP(3).notNull();
-                } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
-                    return DataTypes.TIMESTAMP(6).notNull();
-                } else if (schema.getLogicalType() == LogicalTypes.timeMillis()) {
-                    return DataTypes.TIME(3).notNull();
-                } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
-                    return DataTypes.TIME(6).notNull();
+                if (legacyMapping) {
+                    // Avro logical timestamp types to Flink SQL timestamp types
+                    if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
+                        return DataTypes.TIMESTAMP(3).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+                        return DataTypes.TIMESTAMP(6).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                        return DataTypes.TIME(3).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+                        return DataTypes.TIME(6).notNull();
+                    }
+                } else {
+                    // Avro logical timestamp types to Flink SQL timestamp types
+                    if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
+                        return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+                        return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timeMillis()) {
+                        return DataTypes.TIME(3).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+                        return DataTypes.TIME(6).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()) {
+                        return DataTypes.TIMESTAMP(3).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
+                        return DataTypes.TIMESTAMP(6).notNull();
+                    }
                 }
+
                 return DataTypes.BIGINT().notNull();
             case FLOAT:
                 return DataTypes.FLOAT().notNull();
@@ -303,7 +384,22 @@ public class AvroSchemaConverter {
      * @return Avro's {@link Schema} matching this logical type.
      */
     public static Schema convertToSchema(LogicalType schema) {
-        return convertToSchema(schema, "org.apache.flink.avro.generated.record");
+        return convertToSchema(schema, true);
+    }
+
+    /**
+     * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
+     *
+     * <p>Use "org.apache.flink.avro.generated.record" as the type name.
+     *
+     * @param schema the schema type, usually it should be the top level record type, e.g. not a
+     *     nested type
+     * @param legacyTimestampMapping whether to use the legacy timestamp mapping
+     * @return Avro's {@link Schema} matching this logical type.
+     */
+    public static Schema convertToSchema(LogicalType schema, boolean legacyTimestampMapping) {
+        return convertToSchema(
+                schema, "org.apache.flink.avro.generated.record", legacyTimestampMapping);
     }
 
     /**
@@ -317,6 +413,22 @@ public class AvroSchemaConverter {
      * @return Avro's {@link Schema} matching this logical type.
      */
     public static Schema convertToSchema(LogicalType logicalType, String rowName) {
+        return convertToSchema(logicalType, rowName, true);
+    }
+
+    /**
+     * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
+     *
+     * <p>The "{rowName}_" is used as the nested row type name prefix in order to generate the right
+     * schema. Nested record type that only differs with type name is still compatible.
+     *
+     * @param logicalType logical type
+     * @param rowName the record name
+     * @param legacyTimestampMapping whether to use legal timestamp mapping
+     * @return Avro's {@link Schema} matching this logical type.
+     */
+    public static Schema convertToSchema(
+            LogicalType logicalType, String rowName, boolean legacyTimestampMapping) {
         int precision;
         boolean nullable = logicalType.isNullable();
         switch (logicalType.getTypeRoot()) {
@@ -352,17 +464,53 @@ public class AvroSchemaConverter {
                 final TimestampType timestampType = (TimestampType) logicalType;
                 precision = timestampType.getPrecision();
                 org.apache.avro.LogicalType avroLogicalType;
-                if (precision <= 3) {
-                    avroLogicalType = LogicalTypes.timestampMillis();
+                if (legacyTimestampMapping) {
+                    if (precision <= 3) {
+                        avroLogicalType = LogicalTypes.timestampMillis();
+                    } else {
+                        throw new IllegalArgumentException(
+                                "Avro does not support TIMESTAMP type "
+                                        + "with precision: "
+                                        + precision
+                                        + ", it only supports precision less than 3.");
+                    }
                 } else {
-                    throw new IllegalArgumentException(
-                            "Avro does not support TIMESTAMP type "
-                                    + "with precision: "
-                                    + precision
-                                    + ", it only supports precision less than 3.");
+                    if (precision <= 3) {
+                        avroLogicalType = LogicalTypes.localTimestampMillis();
+                    } else if (precision <= 6) {
+                        avroLogicalType = LogicalTypes.localTimestampMicros();
+                    } else {
+                        throw new IllegalArgumentException(
+                                "Avro does not support LOCAL TIMESTAMP type "
+                                        + "with precision: "
+                                        + precision
+                                        + ", it only supports precision less than 6.");
+                    }
                 }
                 Schema timestamp = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
                 return nullable ? nullableSchema(timestamp) : timestamp;
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                if (legacyTimestampMapping) {
+                    throw new UnsupportedOperationException(
+                            "Unsupported to derive Schema for type: " + logicalType);
+                } else {
+                    final LocalZonedTimestampType localZonedTimestampType =
+                            (LocalZonedTimestampType) logicalType;
+                    precision = localZonedTimestampType.getPrecision();
+                    if (precision <= 3) {
+                        avroLogicalType = LogicalTypes.timestampMillis();
+                    } else if (precision <= 6) {
+                        avroLogicalType = LogicalTypes.timestampMicros();
+                    } else {
+                        throw new IllegalArgumentException(
+                                "Avro does not support TIMESTAMP type "
+                                        + "with precision: "
+                                        + precision
+                                        + ", it only supports precision less than 6.");
+                    }
+                    timestamp = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
+                    return nullable ? nullableSchema(timestamp) : timestamp;
+                }
             case DATE:
                 // use int to represents Date
                 Schema date = LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
@@ -397,7 +545,11 @@ public class AvroSchemaConverter {
                     LogicalType fieldType = rowType.getTypeAt(i);
                     SchemaBuilder.GenericDefault<Schema> fieldBuilder =
                             builder.name(fieldName)
-                                    .type(convertToSchema(fieldType, rowName + "_" + fieldName));
+                                    .type(
+                                            convertToSchema(
+                                                    fieldType,
+                                                    rowName + "_" + fieldName,
+                                                    legacyTimestampMapping));
 
                     if (fieldType.isNullable()) {
                         builder = fieldBuilder.withDefault(null);
@@ -424,7 +576,6 @@ public class AvroSchemaConverter {
                                 .items(convertToSchema(arrayType.getElementType(), rowName));
                 return nullable ? nullableSchema(array) : array;
             case RAW:
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported to derive Schema for type: " + logicalType);

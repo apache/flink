@@ -34,20 +34,18 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AsyncCheckpointRunnable}. */
-public class AsyncCheckpointRunnableTest {
+class AsyncCheckpointRunnableTest {
 
     @Test
-    public void testReportIncompleteStats() {
+    void testReportIncompleteStats() {
         long checkpointId = 1000L;
         TestEnvironment env = new TestEnvironment();
         new AsyncCheckpointRunnable(
@@ -63,18 +61,17 @@ public class AsyncCheckpointRunnableTest {
                         false,
                         () -> true)
                 .close();
-        assertEquals(
-                checkpointId,
-                ((TestTaskStateManager) env.getTaskStateManager()).getReportedCheckpointId());
+        assertThat(((TestTaskStateManager) env.getTaskStateManager()).getReportedCheckpointId())
+                .isEqualTo(checkpointId);
     }
 
     @Test
-    public void testDeclineWithAsyncCheckpointExceptionWhenRunning() {
+    void testDeclineWithAsyncCheckpointExceptionWhenRunning() {
         testAsyncCheckpointException(true);
     }
 
     @Test
-    public void testDeclineWithAsyncCheckpointExceptionWhenNotRunning() {
+    void testDeclineWithAsyncCheckpointExceptionWhenNotRunning() {
         testAsyncCheckpointException(false);
     }
 
@@ -97,16 +94,15 @@ public class AsyncCheckpointRunnableTest {
         runnable.run();
 
         if (isTaskRunning) {
-            Assert.assertSame(
-                    environment.getCause().getCheckpointFailureReason(),
-                    CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
+            assertThat(environment.getCause().getCheckpointFailureReason())
+                    .isSameAs(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
         } else {
-            Assert.assertNull(environment.getCause());
+            assertThat(environment.getCause()).isNull();
         }
     }
 
     @Test
-    public void testDeclineAsyncCheckpoint() {
+    void testDeclineAsyncCheckpoint() {
         CheckpointFailureReason originalReason =
                 CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
 
@@ -126,11 +122,11 @@ public class AsyncCheckpointRunnableTest {
                 createAsyncRunnable(snapshotsInProgress, environment, false, true);
         runnable.run();
 
-        Assert.assertSame(environment.getCause().getCheckpointFailureReason(), originalReason);
+        assertThat(environment.getCause().getCheckpointFailureReason()).isSameAs(originalReason);
     }
 
     @Test
-    public void testReportFinishedOnRestoreTaskSnapshots() {
+    void testReportFinishedOnRestoreTaskSnapshots() {
         TestEnvironment environment = new TestEnvironment();
         AsyncCheckpointRunnable asyncCheckpointRunnable =
                 createAsyncRunnable(new HashMap<>(), environment, true, true);
@@ -138,16 +134,13 @@ public class AsyncCheckpointRunnableTest {
         TestTaskStateManager testTaskStateManager =
                 (TestTaskStateManager) environment.getTaskStateManager();
 
-        assertEquals(
-                asyncCheckpointRunnable.getCheckpointId(),
-                testTaskStateManager.getReportedCheckpointId());
-        assertEquals(
-                TaskStateSnapshot.FINISHED_ON_RESTORE,
-                testTaskStateManager.getLastJobManagerTaskStateSnapshot());
-        assertEquals(
-                TaskStateSnapshot.FINISHED_ON_RESTORE,
-                testTaskStateManager.getLastTaskManagerTaskStateSnapshot());
-        assertTrue(asyncCheckpointRunnable.getFinishedFuture().isDone());
+        assertThat(testTaskStateManager.getReportedCheckpointId())
+                .isEqualTo(asyncCheckpointRunnable.getCheckpointId());
+        assertThat(testTaskStateManager.getLastJobManagerTaskStateSnapshot())
+                .isEqualTo(TaskStateSnapshot.FINISHED_ON_RESTORE);
+        assertThat(testTaskStateManager.getLastTaskManagerTaskStateSnapshot())
+                .isEqualTo(TaskStateSnapshot.FINISHED_ON_RESTORE);
+        assertThat(asyncCheckpointRunnable.getFinishedFuture()).isDone();
     }
 
     private AsyncCheckpointRunnable createAsyncRunnable(

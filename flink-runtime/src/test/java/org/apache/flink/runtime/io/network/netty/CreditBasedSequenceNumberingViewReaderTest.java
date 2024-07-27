@@ -19,63 +19,69 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.TestingResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CreditBasedSequenceNumberingViewReader}. */
-public class CreditBasedSequenceNumberingViewReaderTest {
+class CreditBasedSequenceNumberingViewReaderTest {
 
     @Test
-    public void testResumeConsumption() throws Exception {
+    void testResumeConsumption() throws Exception {
         int numCredits = 2;
         CreditBasedSequenceNumberingViewReader reader1 =
                 createNetworkSequenceViewReader(numCredits);
 
         reader1.resumeConsumption();
-        assertEquals(numCredits, reader1.getNumCreditsAvailable());
+        assertThat(reader1.getNumCreditsAvailable()).isEqualTo(numCredits);
 
         reader1.addCredit(numCredits);
         reader1.resumeConsumption();
-        assertEquals(2 * numCredits, reader1.getNumCreditsAvailable());
+        assertThat(reader1.getNumCreditsAvailable()).isEqualTo(2 * numCredits);
 
         CreditBasedSequenceNumberingViewReader reader2 = createNetworkSequenceViewReader(0);
 
         reader2.addCredit(numCredits);
-        assertEquals(numCredits, reader2.getNumCreditsAvailable());
+        assertThat(reader2.getNumCreditsAvailable()).isEqualTo(numCredits);
 
         reader2.resumeConsumption();
-        assertEquals(0, reader2.getNumCreditsAvailable());
+        assertThat(reader2.getNumCreditsAvailable()).isZero();
     }
 
     @Test
-    public void testNeedAnnounceBacklog() throws Exception {
+    void testNeedAnnounceBacklog() throws Exception {
         int numCredits = 2;
         CreditBasedSequenceNumberingViewReader reader1 =
                 createNetworkSequenceViewReader(numCredits);
 
-        assertFalse(reader1.needAnnounceBacklog());
+        assertThat(reader1.needAnnounceBacklog()).isFalse();
         reader1.addCredit(-numCredits);
-        assertFalse(reader1.needAnnounceBacklog());
+        assertThat(reader1.needAnnounceBacklog()).isFalse();
 
         CreditBasedSequenceNumberingViewReader reader2 = createNetworkSequenceViewReader(0);
-        assertTrue(reader2.needAnnounceBacklog());
+        assertThat(reader2.needAnnounceBacklog()).isTrue();
 
         reader2.addCredit(numCredits);
-        assertFalse(reader2.needAnnounceBacklog());
+        assertThat(reader2.needAnnounceBacklog()).isFalse();
 
         reader2.addCredit(-numCredits);
-        assertTrue(reader2.needAnnounceBacklog());
+        assertThat(reader2.needAnnounceBacklog()).isTrue();
     }
 
-    private CreditBasedSequenceNumberingViewReader createNetworkSequenceViewReader(
+    @Test
+    void testPeekNextBufferSubpartitionId() throws Exception {
+        int numCredits = 2;
+        CreditBasedSequenceNumberingViewReader reader = createNetworkSequenceViewReader(numCredits);
+        assertThat(reader.peekNextBufferSubpartitionId()).isZero();
+    }
+
+    private static CreditBasedSequenceNumberingViewReader createNetworkSequenceViewReader(
             int initialCredit) throws Exception {
         PartitionRequestQueue queue = new PartitionRequestQueue();
         EmbeddedChannel channel = new EmbeddedChannel(queue);
@@ -83,10 +89,12 @@ public class CreditBasedSequenceNumberingViewReaderTest {
         CreditBasedSequenceNumberingViewReader reader =
                 new CreditBasedSequenceNumberingViewReader(
                         new InputChannelID(), initialCredit, queue);
-        reader.requestSubpartitionView(
-                (ignored1, ignored2, ignored3) -> new NoOpResultSubpartitionView(),
-                new ResultPartitionID(),
-                0);
+        reader.notifySubpartitionsCreated(
+                TestingResultPartition.newBuilder()
+                        .setCreateSubpartitionViewFunction(
+                                (index, listener) -> new NoOpResultSubpartitionView())
+                        .build(),
+                new ResultSubpartitionIndexSet(0));
         return reader;
     }
 }

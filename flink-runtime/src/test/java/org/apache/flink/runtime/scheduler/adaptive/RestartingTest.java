@@ -28,9 +28,10 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -39,25 +40,25 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link Restarting} state of the {@link AdaptiveScheduler}. */
-public class RestartingTest extends TestLogger {
+class RestartingTest {
+    private static final Logger log = LoggerFactory.getLogger(RestartingTest.class);
 
     @Test
-    public void testExecutionGraphCancellationOnEnter() throws Exception {
+    void testExecutionGraphCancellationOnEnter() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             StateTrackingMockExecutionGraph mockExecutionGraph =
                     new StateTrackingMockExecutionGraph();
             createRestartingState(ctx, mockExecutionGraph);
 
-            assertThat(mockExecutionGraph.getState(), is(JobStatus.CANCELLING));
+            assertThat(mockExecutionGraph.getState()).isEqualTo(JobStatus.CANCELLING);
         }
     }
 
     @Test
-    public void testTransitionToWaitingForResourcesWhenCancellationComplete() throws Exception {
+    void testTransitionToWaitingForResourcesWhenCancellationComplete() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             Restarting restarting = createRestartingState(ctx);
             ctx.setExpectWaitingForResources();
@@ -66,7 +67,7 @@ public class RestartingTest extends TestLogger {
     }
 
     @Test
-    public void testCancel() throws Exception {
+    void testCancel() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             Restarting restarting = createRestartingState(ctx);
             ctx.setExpectCancelling(assertNonNull());
@@ -75,19 +76,36 @@ public class RestartingTest extends TestLogger {
     }
 
     @Test
-    public void testSuspend() throws Exception {
+    void testSuspendWithJobInCancellingState() throws Exception {
+        testSuspend(false);
+    }
+
+    @Test
+    void testSuspendWithJobInCancelledState() throws Exception {
+        testSuspend(true);
+    }
+
+    private void testSuspend(boolean cancellationCompleted) throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = createRestartingState(ctx);
+            final StateTrackingMockExecutionGraph executionGraph =
+                    new StateTrackingMockExecutionGraph();
+            final Restarting restarting = createRestartingState(ctx, executionGraph);
+
+            if (cancellationCompleted) {
+                executionGraph.completeTerminationFuture(JobStatus.CANCELED);
+            }
+
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.SUSPENDED));
             final Throwable cause = new RuntimeException("suspend");
             restarting.suspend(cause);
         }
     }
 
     @Test
-    public void testGlobalFailuresAreIgnored() throws Exception {
+    void testGlobalFailuresAreIgnored() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             Restarting restarting = createRestartingState(ctx);
             restarting.handleGlobalFailure(
@@ -97,7 +115,7 @@ public class RestartingTest extends TestLogger {
     }
 
     @Test
-    public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+    void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             StateTrackingMockExecutionGraph mockExecutionGraph =
                     new StateTrackingMockExecutionGraph();
@@ -108,11 +126,11 @@ public class RestartingTest extends TestLogger {
             mockExecutionGraph.completeTerminationFuture(JobStatus.CANCELED);
 
             // this is just a sanity check for the test
-            assertThat(restarting.getExecutionGraph().getState(), is(JobStatus.CANCELED));
+            assertThat(restarting.getExecutionGraph().getState()).isEqualTo(JobStatus.CANCELED);
 
-            assertThat(restarting.getJobStatus(), is(JobStatus.RESTARTING));
-            assertThat(restarting.getJob().getState(), is(JobStatus.RESTARTING));
-            assertThat(restarting.getJob().getStatusTimestamp(JobStatus.CANCELED), is(0L));
+            assertThat(restarting.getJobStatus()).isEqualTo(JobStatus.RESTARTING);
+            assertThat(restarting.getJob().getState()).isEqualTo(JobStatus.RESTARTING);
+            assertThat(restarting.getJob().getStatusTimestamp(JobStatus.CANCELED)).isZero();
         }
     }
 

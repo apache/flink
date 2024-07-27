@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -63,6 +64,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -212,6 +214,47 @@ class JobExceptionsHandlerTest {
                                                         otherFailure.getTaskManagerLocation()),
                                                 JobExceptionsHandler.toTaskManagerId(
                                                         otherFailure.getTaskManagerLocation())))));
+        assertThat(response.getExceptionHistory().isTruncated()).isFalse();
+    }
+
+    @Test
+    void testWithExceptionHistoryAndConcurrentGlobalFailure()
+            throws HandlerRequestException, ExecutionException, InterruptedException {
+        final ExceptionHistoryEntry otherFailure =
+                ExceptionHistoryEntry.createGlobal(
+                        new RuntimeException("exception #1"),
+                        CompletableFuture.completedFuture(Collections.emptyMap()));
+        final RootExceptionHistoryEntry rootCause =
+                fromGlobalFailure(
+                        new RuntimeException("exception #0"),
+                        System.currentTimeMillis(),
+                        Collections.singleton(otherFailure));
+
+        final ExecutionGraphInfo executionGraphInfo = createExecutionGraphInfo(rootCause);
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(executionGraphInfo.getJobId(), 10);
+        final JobExceptionsInfoWithHistory response =
+                testInstance.handleRequest(request, executionGraphInfo);
+
+        assertThat(response.getExceptionHistory().getEntries())
+                .hasSize(1)
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsGlobalFailure(
+                                                rootCause.getException(),
+                                                rootCause.getTimestamp(),
+                                                matchesFailure(
+                                                        otherFailure.getException(),
+                                                        otherFailure.getTimestamp(),
+                                                        otherFailure.getFailureLabelsFuture(),
+                                                        otherFailure.getFailingTaskName(),
+                                                        JobExceptionsHandler.toString(
+                                                                otherFailure
+                                                                        .getTaskManagerLocation()),
+                                                        JobExceptionsHandler.toTaskManagerId(
+                                                                otherFailure
+                                                                        .getTaskManagerLocation()))))));
         assertThat(response.getExceptionHistory().isTruncated()).isFalse();
     }
 
@@ -476,6 +519,7 @@ class JobExceptionsHandlerTest {
                 jobVertexID.toString(),
                 1,
                 1,
+                new SlotSharingGroup(),
                 ResourceProfile.UNKNOWN,
                 emptyAccumulators);
     }
@@ -540,13 +584,20 @@ class JobExceptionsHandlerTest {
     }
 
     private static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {
+        return fromGlobalFailure(cause, timestamp, Collections.emptySet());
+    }
+
+    private static RootExceptionHistoryEntry fromGlobalFailure(
+            Throwable cause,
+            long timestamp,
+            Collection<ExceptionHistoryEntry> concurrentExceptions) {
         return new RootExceptionHistoryEntry(
                 cause,
                 timestamp,
                 FailureEnricherUtils.EMPTY_FAILURE_LABELS,
                 null,
                 null,
-                Collections.emptySet());
+                concurrentExceptions);
     }
 
     // -------- factory methods for instantiating new Matchers --------

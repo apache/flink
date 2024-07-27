@@ -18,30 +18,33 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link FlinkUserCodeClassLoader}. */
-public class FlinkUserCodeClassLoaderTest extends TestLogger {
+class FlinkUserCodeClassLoaderTest {
     @Test
-    public void testExceptionHandling() {
+    void testExceptionHandling() {
         RuntimeException expectedException = new RuntimeException("Expected exception");
         AtomicReference<Throwable> handledException = new AtomicReference<>();
-        try (FlinkUserCodeClassLoader classLoaderWithErrorHandler =
-                new ThrowingURLClassLoader(handledException::set, expectedException)) {
-            classLoaderWithErrorHandler.loadClass("dummy.class");
-            fail("The expected exception is not thrown");
-        } catch (Throwable t) {
-            assertThat(handledException.get(), is(expectedException));
-            assertThat(t, is(expectedException));
-        }
+
+        assertThatThrownBy(
+                        () -> {
+                            try (FlinkUserCodeClassLoader classLoaderWithErrorHandler =
+                                    new ThrowingURLClassLoader(
+                                            handledException::set, expectedException)) {
+                                classLoaderWithErrorHandler.loadClass("dummy.class");
+                            }
+                        })
+                .isSameAs(expectedException);
+
+        assertThat(handledException.get()).isSameAs(expectedException);
     }
 
     private static class ThrowingURLClassLoader extends FlinkUserCodeClassLoader {
@@ -57,6 +60,11 @@ public class FlinkUserCodeClassLoaderTest extends TestLogger {
         @Override
         protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve) {
             throw expectedException;
+        }
+
+        @Override
+        public MutableURLClassLoader copy() {
+            return new ThrowingURLClassLoader(classLoadingExceptionHandler, expectedException);
         }
     }
 }

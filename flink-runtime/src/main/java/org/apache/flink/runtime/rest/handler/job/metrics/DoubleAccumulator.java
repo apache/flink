@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /** An interface for accumulating double values. */
 interface DoubleAccumulator {
 
@@ -119,6 +124,22 @@ interface DoubleAccumulator {
         }
 
         public static DoubleAverageFactory get() {
+            return INSTANCE;
+        }
+    }
+
+    /** Factory for {@link DoubleDataSkew}. */
+    final class DoubleDataSkewFactory implements DoubleAccumulatorFactory<DoubleDataSkew> {
+        private static final DoubleDataSkewFactory INSTANCE = new DoubleDataSkewFactory();
+
+        private DoubleDataSkewFactory() {}
+
+        @Override
+        public DoubleDataSkew get(double init) {
+            return new DoubleDataSkew(init);
+        }
+
+        public static DoubleDataSkewFactory get() {
             return INSTANCE;
         }
     }
@@ -226,6 +247,54 @@ interface DoubleAccumulator {
         @Override
         public double getValue() {
             return sum / count;
+        }
+
+        @Override
+        public String getName() {
+            return NAME;
+        }
+    }
+
+    /**
+     * {@link DoubleAccumulator} that returns the skew percentage over all values. Uses a version of
+     * the Coefficient of Variation (CV) statistic to calculate skew. This version of CV uses
+     * average absolute deviation, instead of std deviation. This method currently assumes a dataset
+     * of positive numbers and 0.
+     */
+    final class DoubleDataSkew implements DoubleAccumulator {
+
+        public static final String NAME = "skew";
+
+        private final List<Double> values = new ArrayList<>();
+
+        @VisibleForTesting
+        DoubleDataSkew() {}
+
+        private DoubleDataSkew(double init) {
+            values.add(init);
+        }
+
+        @Override
+        public void add(double value) {
+            values.add(value);
+        }
+
+        @Override
+        public double getValue() {
+            if (values.isEmpty()) {
+                return 0.0;
+            }
+            double sum = values.stream().reduce(Double::sum).orElse(0.0);
+            double avg = sum / values.size();
+            if (avg == 0.0) {
+                // Avoid division by zero in below calculations
+                // This also makes sense because avg of 0 implies no data skew
+                return 0.0;
+            }
+            double totalAbsDev =
+                    values.stream().map(v -> Math.abs(avg - v)).reduce(Double::sum).orElse(0.0);
+            double avgDev = totalAbsDev / values.size();
+            return Math.min((avgDev / avg) * 100.0, 100.0);
         }
 
         @Override

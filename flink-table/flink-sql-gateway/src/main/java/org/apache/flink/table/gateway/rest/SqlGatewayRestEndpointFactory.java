@@ -26,7 +26,6 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactory;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +47,9 @@ public class SqlGatewayRestEndpointFactory implements SqlGatewayEndpointFactory 
                 SqlGatewayEndpointFactoryUtils.createEndpointFactoryHelper(this, context);
         // Check that ADDRESS must be set
         endpointFactoryHelper.validate();
-        Configuration config = rebuildRestEndpointOptions(context.getEndpointOptions());
+        Configuration config =
+                rebuildRestEndpointOptions(
+                        context.getEndpointOptions(), context.getFlinkConfiguration().toMap());
         try {
             return new SqlGatewayRestEndpoint(config, context.getSqlGatewayService());
         } catch (Exception e) {
@@ -56,26 +57,25 @@ public class SqlGatewayRestEndpointFactory implements SqlGatewayEndpointFactory 
         }
     }
 
-    public static Configuration rebuildRestEndpointOptions(Map<String, String> configMap) {
-        Map<String, String> effectiveConfigMap = new HashMap<>(configMap);
+    public static Configuration rebuildRestEndpointOptions(
+            Map<String, String> endpointConfigMap, Map<String, String> flinkConfigMap) {
+        flinkConfigMap.put(RestOptions.ADDRESS.key(), endpointConfigMap.get(ADDRESS.key()));
 
-        effectiveConfigMap.put(RestOptions.ADDRESS.key(), configMap.get(ADDRESS.key()));
-
-        if (configMap.containsKey(BIND_ADDRESS.key())) {
-            effectiveConfigMap.put(
-                    RestOptions.BIND_ADDRESS.key(), configMap.get(BIND_ADDRESS.key()));
+        if (endpointConfigMap.containsKey(BIND_ADDRESS.key())) {
+            flinkConfigMap.put(
+                    RestOptions.BIND_ADDRESS.key(), endpointConfigMap.get(BIND_ADDRESS.key()));
         }
 
         // we need to override RestOptions.PORT anyway, to use a different default value
-        effectiveConfigMap.put(
+        flinkConfigMap.put(
                 RestOptions.PORT.key(),
-                configMap.getOrDefault(PORT.key(), PORT.defaultValue().toString()));
+                endpointConfigMap.getOrDefault(PORT.key(), PORT.defaultValue().toString()));
 
-        if (configMap.containsKey(BIND_PORT.key())) {
-            effectiveConfigMap.put(RestOptions.BIND_PORT.key(), configMap.get(BIND_PORT.key()));
+        if (endpointConfigMap.containsKey(BIND_PORT.key())) {
+            flinkConfigMap.put(RestOptions.BIND_PORT.key(), endpointConfigMap.get(BIND_PORT.key()));
         }
 
-        return Configuration.fromMap(effectiveConfigMap);
+        return Configuration.fromMap(flinkConfigMap);
     }
 
     @Override

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.expressions.utils
 
-import org.apache.flink.api.common.TaskInfo
+import org.apache.flink.api.common.{TaskInfo, TaskInfoImpl}
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -56,6 +56,8 @@ import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThr
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+
+import javax.annotation.Nullable
 
 import java.util.Collections
 
@@ -115,9 +117,9 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
     }
     if (containsLegacyTypes) {
-      val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
+      val ds = env.fromData(Collections.emptyList[Row](), typeInfo)
       tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)
-      functions.foreach(f => tEnv.registerFunction(f._1, f._2))
+      functions.foreach(f => tEnv.createTemporarySystemFunction(f._1, f._2))
     } else {
       tEnv.createTemporaryView(tableName, tEnv.fromValues(resolvedDataType))
       testSystemFunctions.asScala.foreach(e => tEnv.createTemporarySystemFunction(e._1, e._2))
@@ -187,6 +189,10 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     addSqlTestExpr(sqlExpr, expected, validExprs)
   }
 
+  def testSqlApi(sqlExpr: String): Unit = {
+    addSqlTestExpr(sqlExpr, null, validExprs)
+  }
+
   def testExpectedAllApisException(
       expr: Expression,
       sqlExpr: String,
@@ -228,7 +234,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     if (isRichFunction) {
       val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
       val t = new RuntimeUDFContext(
-        new TaskInfo("ExpressionTest", 1, 0, 1, 1),
+        new TaskInfoImpl("ExpressionTest", 1, 0, 1, 1),
         classOf[ExpressionTestBase].getClassLoader,
         env.getConfig,
         Collections.emptyMap(),
@@ -247,6 +253,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       val converter = DataStructureConverters
         .getConverter(resolvedDataType)
         .asInstanceOf[DataStructureConverter[RowData, Row]]
+      converter.open(getClass.getClassLoader)
       converter.toInternalOrNull(testData)
     }
     try {
@@ -281,7 +288,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
   private def addSqlTestExpr(
       sqlExpr: String,
-      expected: String,
+      @Nullable expected: String,
       exprsContainer: mutable.ArrayBuffer[_],
       exceptionClass: Class[_ <: Throwable] = null): Unit = {
     // create RelNode from SQL expression
@@ -306,7 +313,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
   private def addTestExpr(
       relNode: RelNode,
-      expected: String,
+      @Nullable expected: String,
       summaryString: String,
       exceptionClass: Class[_ <: Throwable],
       exprs: mutable.ArrayBuffer[_]): Unit = {
@@ -343,6 +350,10 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       .zip(result)
       .foreach {
         case ((originalExpr, optimizedExpr, expected), actual) =>
+          if (expected == null) {
+            // no need to check the result
+            return
+          }
           val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
           assertEquals(
             expected,

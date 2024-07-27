@@ -43,7 +43,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType], classLoader: ClassL
   def generateRecordEqualiser(name: String): GeneratedRecordEqualiser = {
     // ignore time zone
     val ctx = new CodeGeneratorContext(new Configuration, classLoader)
-    val className = newName(name)
+    val className = newName(ctx, name)
 
     val equalsMethodCodes = for (idx <- fieldTypes.indices) yield generateEqualsMethod(ctx, idx)
     val equalsMethodCalls = for (idx <- fieldTypes.indices) yield {
@@ -146,7 +146,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType], classLoader: ClassL
       val generatedEqualiserTerm =
         ctx.addReusableObject(generatedEqualiser, "fieldGeneratedEqualiser")
       val equaliserTypeTerm = classOf[RecordEqualiser].getCanonicalName
-      val equaliserTerm = newName("equaliser")
+      val equaliserTerm = newName(ctx, "equaliser")
       ctx.addReusableMember(s"private $equaliserTypeTerm $equaliserTerm = null;")
       ctx.addReusableInitStatement(
         s"""

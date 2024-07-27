@@ -24,8 +24,8 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -39,13 +39,13 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for catalog and system functions in a table environment. */
-public class FunctionITCase extends BatchTestBase {
+class FunctionITCase extends BatchTestBase {
 
     private static final Random random = new Random();
     private String udfClassName;
     private String jarPath;
 
-    @Before
+    @BeforeEach
     @Override
     public void before() throws Exception {
         super.before();
@@ -64,7 +64,7 @@ public class FunctionITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCreateTemporarySystemFunctionByUsingJar() {
+    void testCreateTemporarySystemFunctionByUsingJar() {
         String ddl1 =
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' USING JAR '%s'",
@@ -89,7 +89,7 @@ public class FunctionITCase extends BatchTestBase {
     }
 
     @Test
-    public void testUserDefinedTemporarySystemFunctionByUsingJar() throws Exception {
+    void testUserDefinedTemporarySystemFunctionByUsingJar() throws Exception {
         String functionDDL =
                 String.format(
                         "create temporary system function lowerUdf as '%s' using jar '%s'",

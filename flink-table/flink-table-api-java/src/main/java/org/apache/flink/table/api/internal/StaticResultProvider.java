@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -30,8 +32,10 @@ import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Create result provider from a static set of data using external types. */
 @Internal
@@ -51,6 +55,20 @@ public class StaticResultProvider implements ResultProvider {
                         results[i] = "TRUE";
                     } else if (Boolean.FALSE.equals(value)) {
                         results[i] = "FALSE";
+                    } else if (value instanceof GenericMapData) {
+                        // TODO: This is a temporary solution, the long-term solution is to use
+                        // RowDataToStringConverterImpl
+                        GenericMapData mapData = (GenericMapData) value;
+                        if (mapData.size() == 0) {
+                            results[i] = PrintStyle.NULL_VALUE;
+                        } else {
+                            Object[] keyArr =
+                                    ((GenericArrayData) mapData.keyArray()).toObjectArray();
+                            results[i] =
+                                    Arrays.stream(keyArr)
+                                            .map(key -> key + "=" + mapData.get(key))
+                                            .collect(Collectors.joining(", ", "{", "}"));
+                        }
                     } else {
                         results[i] = value == null ? PrintStyle.NULL_VALUE : "" + value;
                     }

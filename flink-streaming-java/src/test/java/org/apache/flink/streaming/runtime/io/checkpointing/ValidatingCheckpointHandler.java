@@ -32,8 +32,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The invokable handler used for triggering checkpoint and validation. */
 public class ValidatingCheckpointHandler extends AbstractInvokable {
@@ -112,9 +111,9 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics) {
         if (nextExpectedCheckpointId != -1L) {
-            assertEquals(nextExpectedCheckpointId, checkpointMetaData.getCheckpointId());
+            assertThat(checkpointMetaData.getCheckpointId()).isEqualTo(nextExpectedCheckpointId);
         }
-        assertTrue(checkpointMetaData.getTimestamp() > 0);
+        assertThat(checkpointMetaData.getTimestamp()).isPositive();
 
         nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
         triggeredCheckpointCounter++;

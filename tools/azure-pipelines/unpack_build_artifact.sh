@@ -24,19 +24,25 @@ if ! [ -e $FLINK_ARTIFACT_DIR ]; then
 fi
 
 echo "Merging cache"
-cp -RT "$FLINK_ARTIFACT_DIR" "."
+if [ -z "${FLINK_ARTIFACT_FILENAME}" ]; then
+  # for Azure Pipelines
+  cp -RT "$FLINK_ARTIFACT_DIR" "."
+else
+  # for GitHub Actions
+  echo "Extract build artifacts ${FLINK_ARTIFACT_DIR}/${FLINK_ARTIFACT_FILENAME} into local directory."
+  tar -xzf "${FLINK_ARTIFACT_DIR}/${FLINK_ARTIFACT_FILENAME}"
+fi
 
 echo "Adjusting timestamps"
 # adjust timestamps of proto file to avoid re-generation
-find . -type f -name '*.proto' | xargs touch
+find . -type f -name '*.proto' -exec touch {} \;
 # wait a bit for better odds of different timestamps
 sleep 5
 
 # adjust timestamps to prevent recompilation
-find . -type f -name '*.java' | xargs touch
-find . -type f -name '*.scala' | xargs touch
+find . -type f -name '*.java' -exec touch {} \;
+find . -type f -name '*.scala' -exec touch {} \;
 # wait a bit for better odds of different timestamps
 sleep 5
-find . -type f -name '*.class' | xargs touch
-find . -type f -name '*.timestamp' | xargs touch
-
+find . -type f -name '*.class' -exec touch {} \;
+find . -type f -name '*.timestamp' -exec touch {} \;

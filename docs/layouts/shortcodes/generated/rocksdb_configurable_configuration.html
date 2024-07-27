@@ -63,10 +63,22 @@
             <td>The specified compaction style for DB. Candidate compaction style is LEVEL, FIFO, UNIVERSAL or NONE, and Flink chooses 'LEVEL' as default style.<br /><br />Possible values:<ul><li>"LEVEL"</li><li>"UNIVERSAL"</li><li>"FIFO"</li><li>"NONE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.compression.per.level</h5></td>
+            <td style="word-wrap: break-word;">SNAPPY_COMPRESSION</td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>A semicolon-separated list of Compression Type. Different levels can have different compression policies. In many cases, lower levels use fast compression algorithms, while higher levels with more data use slower but more effective compression algorithms. The N th element in the List corresponds to the compression type of the level N-1When <code class="highlighter-rouge">state.backend.rocksdb.compaction.level.use-dynamic-size</code> is true, compression_per_level[0] still determines L0, but other elements are based on the base level and may not match the level seen in the info log<br />Note: If the List size is smaller than the level number, the undefined lower level uses the last Compression Type in the List<br />Some commonly used compression algorithms for candidates include <code class="highlighter-rouge">NO_COMPRESSION</code> ,<code class="highlighter-rouge">SNAPPY_COMPRESSION</code> and <code class="highlighter-rouge">LZ4_COMPRESSION</code><br />The default value is <code class="highlighter-rouge">SNAPPY_COMPRESSION</code>, which means that all data uses the Snappy compression algorithm.Likewise, if set to <code class="highlighter-rouge">NO_COMPRESSION</code> , means that all data is not compressed, which will achieve faster speed but will bring some space amplification.In addition, if we need to consider both spatial amplification and performance, we can also set it to '<code class="highlighter-rouge">NO_COMPRESSION</code>;<code class="highlighter-rouge">NO_COMPRESSION</code>;<code class="highlighter-rouge">LZ4_COMPRESSION</code>', which means that L0 and L1 data will not be compressed, and other data will be compressed using LZ4.<br /><br />Possible values:<ul><li>"NO_COMPRESSION"</li><li>"SNAPPY_COMPRESSION"</li><li>"ZLIB_COMPRESSION"</li><li>"BZLIB2_COMPRESSION"</li><li>"LZ4_COMPRESSION"</li><li>"LZ4HC_COMPRESSION"</li><li>"XPRESS_COMPRESSION"</li><li>"ZSTD_COMPRESSION"</li><li>"DISABLE_COMPRESSION_OPTION"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.files.open</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
             <td>The maximum number of open files (per stateful operator) that can be used by the DB, '-1' means no limit. The default value is '-1'.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.incremental-restore-async-compact-after-rescale</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, an async compaction of RocksDB is started after every restore after which we detect keys (including tombstones) in the database that are outside the key-groups range of the backend.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.log.dir</h5></td>
@@ -93,6 +105,12 @@
             <td>The maximum size of RocksDB's file used for information logging. If the log files becomes larger than this, a new file will be created. If 0, all logs will be written to one log file. The default maximum file size is '25MB'. </td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.rescaling.use-delete-files-in-range</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If true, during rescaling, the deleteFilesInRange API will be invoked to clean up the useless files so that local disk space can be reclaimed more promptly.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.restore-overlap-fraction-threshold</h5></td>
             <td style="word-wrap: break-word;">0.0</td>
             <td>Double</td>
@@ -109,6 +127,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If true, every newly created SST file will contain a Bloom filter. It is disabled by default.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.use-ingest-db-restore-mode</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>A recovery mode that directly clips and ingests multiple DBs during state recovery if the keys in the SST files does not exceed the declared key-group range.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.write-batch-size</h5></td>

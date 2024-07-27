@@ -579,6 +579,39 @@ Calc(select=[a1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinAccessSourcePkWithMiniBatchAssigner">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, d])
++- LogicalProject(a=[$0], b=[$1], d=[$3])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, left_table]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, right_table]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, d])
++- Calc(select=[a, b, d])
+   +- Join(joinType=[InnerJoin], where=[=(a, c)], select=[a, b, c, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], miniBatch=[true])
+      :- Exchange(distribution=[hash[a]])
+      :  +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, left_table]], fields=[a, b])
+      +- Exchange(distribution=[hash[c]])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, right_table]], fields=[c, d])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, d])
++- Calc(select=[a, b, d])
+   +- Join(joinType=[InnerJoin], where=[(a = c)], select=[a, b, c, d], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], miniBatch=[true])
+      :- Exchange(distribution=[hash[a]])
+      :  +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, left_table]], fields=[a, b])
+      +- Exchange(distribution=[hash[c]])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, right_table]], fields=[c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinDisorderChangeLog">
     <Resource name="sql">
       <![CDATA[

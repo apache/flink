@@ -28,12 +28,12 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{Ag
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchOn
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
@@ -43,14 +43,14 @@ import scala.collection.{mutable, Seq}
 import scala.collection.JavaConversions._
 import scala.util.Random
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SplitAggregateITCase(
     partialAggMode: PartialAggMode,
     aggMode: AggMode,
     backend: StateBackendMode)
   extends StreamingWithAggTestBase(aggMode, MiniBatchOn, backend) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -85,7 +85,7 @@ class SplitAggregateITCase(
     tEnv.createTemporaryView("T", t)
   }
 
-  @Test
+  @TestTemplate
   def testCountDistinct(): Unit = {
     val ids = List(1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5)
 
@@ -204,10 +204,10 @@ class SplitAggregateITCase(
       "3,3,3,3,3,3,3,3",
       "4,2,2,2,2,2,2,2",
       "5,4,4,4,4,4,4,4")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAgg(): Unit = {
     val t1 = tEnv.sqlQuery("SELECT COUNT(DISTINCT c) FROM T")
 
@@ -216,10 +216,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMultiCountDistinctAgg(): Unit = {
     val t1 = tEnv.sqlQuery("SELECT COUNT(DISTINCT b), COUNT(DISTINCT c) FROM T")
 
@@ -228,10 +228,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("6,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAggAndOneOrMultiNonDistinctAgg(): Unit = {
     val t1 = tEnv.sqlQuery("SELECT a, SUM(b), COUNT(DISTINCT c), avg(b) FROM T GROUP BY a")
 
@@ -240,10 +240,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,3,2,1", "2,29,5,3", "3,10,2,5", "4,21,3,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAggWithGroupBy(): Unit = {
     val t1 = tEnv.sqlQuery("SELECT a, COUNT(DISTINCT c) FROM T GROUP BY a")
 
@@ -252,10 +252,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,2", "2,5", "3,2", "4,3")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAggWithAndNonDistinctAggOnSameColumn(): Unit = {
     val t1 = tEnv.sqlQuery("SELECT a, COUNT(DISTINCT b), MAX(b), MIN(b) FROM T GROUP BY a")
 
@@ -264,10 +264,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,2,2,1", "2,4,5,2", "3,1,5,5", "4,2,6,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSomeColumnsBothInDistinctAggAndGroupBy(): Unit = {
     val t1 = tEnv.sqlQuery("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM T GROUP BY a")
 
@@ -276,10 +276,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,1,2", "2,1,8", "3,1,2", "4,1,4")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggWithFilterClause(): Unit = {
     val t1 = tEnv.sqlQuery(s"""
                               |SELECT
@@ -296,10 +296,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,1,2,1", "2,3,4,3", "3,1,null,5", "4,2,6,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMinMaxWithRetraction(): Unit = {
     val t1 = tEnv.sqlQuery(s"""
                               |SELECT
@@ -317,10 +317,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("2,2,2,1", "5,1,4,2", "6,2,2,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCountWithSingleDistinctAndRetraction(): Unit = {
     // Test for FLINK-23434. The result is incorrect, because the global agg on incremental agg
     // does not handle retraction message. While if binary mode is on, the result is correct
@@ -342,10 +342,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("2,2,2", "4,1,1", "8,1,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSumCountWithSingleDistinctAndRetraction(): Unit = {
     // Test for FLINK-23434. The plan and the result is incorrect, because sum with retraction
     // will produce two acc values, while sum without retraction will produce only one acc value,
@@ -367,10 +367,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("2,7,2,2", "4,6,1,1", "8,5,1,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggWithJoin(): Unit = {
     val t1 = tEnv.sqlQuery(s"""
                               |SELECT *
@@ -402,10 +402,10 @@ class SplitAggregateITCase(
       "6,2,2,1,4,5,null",
       "6,2,2,1,4,6,Hello 1"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testUvWithRetraction(): Unit = {
     val data = (0 until 1000).map(i => (s"${i % 10}", s"${i % 100}", s"$i")).toList
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
@@ -431,10 +431,10 @@ class SplitAggregateITCase(
 
     val expected =
       List("0,10", "1,10", "2,10", "3,10", "4,10", "5,10", "6,10", "7,10", "8,10", "9,10")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCountDistinctWithBinaryRowSource(): Unit = {
     // this case is failed before, because of object reuse problem
     val data = (0 until 100).map(i => ("1", "1", s"${i % 50}", "1")).toList
@@ -469,10 +469,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,1,50", "1,ALL,50")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleDistinctAggOnSameColumn(): Unit = {
     val t1 = tEnv.sqlQuery(s"""
                               |SELECT
@@ -490,10 +490,10 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,2,1,2,1", "2,4,3,4,3", "3,1,1,null,5", "4,2,2,6,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggFilterClauseBothWithAvgAndCount(): Unit = {
     val t1 = tEnv.sqlQuery(s"""
                               |SELECT
@@ -512,7 +512,38 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,1,3,2,3,1", "2,3,24,8,29,3", "3,1,null,2,10,5", "4,2,6,4,21,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testListAggWithDistinctMultiArgs(): Unit = {
+    val t1 = tEnv.sqlQuery(s"""
+                              |SELECT
+                              |  a,
+                              |  LISTAGG(DISTINCT c, '#')
+                              |FROM T
+                              |GROUP BY a
+       """.stripMargin)
+
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Map[String, List[String]](
+      "1" -> List("Hello 0", "Hello 1"),
+      "2" -> List("Hello 0", "Hello 1", "Hello 2", "Hello 3", "Hello 4"),
+      "3" -> List("Hello 0", "Hello 1"),
+      "4" -> List("Hello 1", "Hello 2", "Hello 3")
+    )
+    val actualData = sink.getRetractResults.sorted
+    val actualMap = actualData.map {
+      str =>
+        // key and value are split by ','
+        val list = str.split(",")
+        val values = list(1).split("#").toList.sorted
+        (list(0), values)
+    }.toMap
+    assertMapStrEquals(expected.toString, actualMap.toString)
   }
 }
 
@@ -525,7 +556,7 @@ object SplitAggregateITCase {
   val PartialAggOn = PartialAggMode(isPartialAggEnabled = true)
   val PartialAggOff = PartialAggMode(isPartialAggEnabled = false)
 
-  @Parameterized.Parameters(name = "PartialAgg={0}, LocalGlobal={1}, StateBackend={2}")
+  @Parameters(name = "PartialAgg={0}, LocalGlobal={1}, StateBackend={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(PartialAggOn, LocalGlobalOff, HEAP_BACKEND),

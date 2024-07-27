@@ -349,9 +349,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         private static final int VERSION = 2;
 
         @SuppressWarnings({"WeakerAccess", "unused"})
-        public TtlSerializerSnapshot() {
-            super(TtlSerializer.class);
-        }
+        public TtlSerializerSnapshot() {}
 
         TtlSerializerSnapshot(TtlSerializer<T> serializerInstance) {
             super(serializerInstance);

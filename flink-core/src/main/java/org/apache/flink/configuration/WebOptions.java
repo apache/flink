@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
 
@@ -60,12 +62,12 @@ public class WebOptions {
                             "Access-Control-Allow-Origin header for all responses from the web-frontend.");
 
     /** The config parameter defining the refresh interval for the web-frontend in milliseconds. */
-    public static final ConfigOption<Long> REFRESH_INTERVAL =
+    public static final ConfigOption<Duration> REFRESH_INTERVAL =
             key("web.refresh-interval")
-                    .longType()
-                    .defaultValue(3000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(3000L))
                     .withDeprecatedKeys("jobmanager.web.refresh-interval")
-                    .withDescription("Refresh interval for the web-frontend in milliseconds.");
+                    .withDescription("Refresh interval for the web-frontend.");
 
     /** Config parameter to override SSL support for the JobManager Web UI. */
     @Deprecated
@@ -204,12 +206,11 @@ public class WebOptions {
                     .withDescription("This config option is no longer used");
 
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
-    public static final ConfigOption<Long> TIMEOUT =
+    public static final ConfigOption<Duration> TIMEOUT =
             key("web.timeout")
-                    .longType()
-                    .defaultValue(10L * 60L * 1000L)
-                    .withDescription(
-                            "Timeout for asynchronous operations by the web monitor in milliseconds.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10L * 60L * 1000L))
+                    .withDescription("Timeout for asynchronous operations by the web monitor.");
 
     // ------------------------------------------------------------------------
 

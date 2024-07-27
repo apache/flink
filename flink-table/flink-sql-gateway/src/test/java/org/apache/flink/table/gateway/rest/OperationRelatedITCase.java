@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest;
 
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -43,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -119,6 +119,9 @@ class OperationRelatedITCase extends RestAPIITCaseBase {
         SessionHandle sessionHandle = new SessionHandle(UUID.fromString(sessionHandleId));
         assertThat(SQL_GATEWAY_SERVICE_EXTENSION.getSessionManager().getSession(sessionHandle))
                 .isNotNull();
+
+        OneShotLatch startLatch = new OneShotLatch();
+        Thread main = Thread.currentThread();
         OperationHandle operationHandle =
                 SQL_GATEWAY_SERVICE_EXTENSION
                         .getService()
@@ -126,11 +129,15 @@ class OperationRelatedITCase extends RestAPIITCaseBase {
                                 sessionHandle,
                                 () -> {
                                     try {
-                                        TimeUnit.SECONDS.sleep(10);
+                                        startLatch.trigger();
+                                        // keep operation in RUNNING state in response to cancel
+                                        // or close operations.
+                                        main.join();
                                     } catch (InterruptedException ignored) {
                                     }
                                     return NotReadyResult.INSTANCE;
                                 });
+        startLatch.await();
         assertThat(operationHandle).isNotNull();
         return Arrays.asList(sessionHandleId, operationHandle.getIdentifier().toString());
     }

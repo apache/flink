@@ -24,6 +24,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
 import org.apache.flink.streaming.runtime.operators.sink.committables.SinkV1CommittableDeserializer;
@@ -49,16 +50,19 @@ class GlobalCommitterSerializer<CommT, GlobalCommT>
     @Nullable private final SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
     private final int subtaskId;
     private final int numberOfSubtasks;
+    private final SinkCommitterMetricGroup metricGroup;
 
     GlobalCommitterSerializer(
             CommittableCollectorSerializer<CommT> committableCollectorSerializer,
             @Nullable SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer,
             int subtaskId,
-            int numberOfSubtasks) {
+            int numberOfSubtasks,
+            SinkCommitterMetricGroup metricGroup) {
         this.committableCollectorSerializer = checkNotNull(committableCollectorSerializer);
         this.globalCommittableSerializer = globalCommittableSerializer;
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
+        this.metricGroup = metricGroup;
     }
 
     @Override
@@ -107,7 +111,8 @@ class GlobalCommitterSerializer<CommT, GlobalCommT>
                 SinkV1CommittableDeserializer.readVersionAndDeserializeList(
                         globalCommittableSerializer, in);
         return new GlobalCommittableWrapper<>(
-                new CommittableCollector<>(subtaskId, numberOfSubtasks), globalCommittables);
+                new CommittableCollector<>(subtaskId, numberOfSubtasks, metricGroup),
+                globalCommittables);
     }
 
     private GlobalCommittableWrapper<CommT, GlobalCommT> deserializeV2(DataInputView in)

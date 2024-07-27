@@ -26,20 +26,20 @@ import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import scala.Enumeration;
 
 import static scala.runtime.BoxedUnit.UNIT;
 
 /** Test for {@link NonDeterministicUpdateAnalyzer}. */
-public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
+class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util.getTableEnv()
                 .executeSql(
                         "create temporary table cdc (\n"
@@ -104,7 +104,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testCdcWithMetaRenameSinkWithCompositePk() {
+    void testCdcWithMetaRenameSinkWithCompositePk() {
         // from NonDeterministicDagTest#testCdcWithMetaRenameSinkWithCompositePk
         util.getTableEnv()
                 .executeSql(
@@ -142,7 +142,34 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testSourceWithComputedColumnSinkWithPk() {
+    void testCdcSourceWithoutPkSinkWithoutPk() {
+        // from NonDeterministicDagTest#testCdcSourceWithoutPkSinkWithoutPk
+        util.getTableEnv()
+                .executeSql(
+                        "create temporary table cdc_without_pk (\n"
+                                + " a int,\n"
+                                + " b bigint,\n"
+                                + " c string,\n"
+                                + " d boolean,\n"
+                                + " metadata_1 int metadata,\n"
+                                + " metadata_2 string metadata\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'changelog-mode' = 'I,UA,UB,D',\n"
+                                + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'\n"
+                                + ")");
+
+        util.doVerifyPlanInsert(
+                "insert into sink_without_pk\n"
+                        + "select metadata_1, b, metadata_2\n"
+                        + "from cdc_without_pk",
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
+    }
+
+    @Test
+    void testSourceWithComputedColumnSinkWithPk() {
         // from NonDeterministicDagTest#testSourceWithComputedColumnSinkWithPk
         util.getTableEnv()
                 .executeSql(
@@ -168,7 +195,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testCdcJoinDimWithPkNonDeterministicLocalCondition() {
+    void testCdcJoinDimWithPkNonDeterministicLocalCondition() {
         // from NonDeterministicDagTest#testCdcJoinDimWithPkNonDeterministicLocalCondition
         util.doVerifyPlanInsert(
                 "insert into sink_without_pk\n"
@@ -183,7 +210,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testCdcWithMetaSinkWithPk() {
+    void testCdcWithMetaSinkWithPk() {
         // from NonDeterministicDagTest#testCdcWithMetaSinkWithPk
         util.doVerifyPlanInsert(
                 "insert into sink_with_pk\n" + "select a, metadata_3, c\n" + "from cdc_with_meta",
@@ -193,7 +220,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testGroupByNonDeterministicFuncWithCdcSource() {
+    void testGroupByNonDeterministicFuncWithCdcSource() {
         // from NonDeterministicDagTest#testGroupByNonDeterministicFuncWithCdcSource
         util.doVerifyPlanInsert(
                 "insert into sink_with_pk\n"
@@ -209,7 +236,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testMultiSinkOnJoinedView() {
+    void testMultiSinkOnJoinedView() {
         // from NonDeterministicDagTest#testMultiSinkOnJoinedView
         util.getTableEnv()
                 .executeSql(
@@ -293,7 +320,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     }
 
     @Test
-    public void testCdcJoinDimWithPkOutputNoPkSinkWithoutPk() {
+    void testCdcJoinDimWithPkOutputNoPkSinkWithoutPk() {
         // from NonDeterministicDagTest#testCdcJoinDimWithPkOutputNoPkSinkWithoutPk
         util.doVerifyPlanInsert(
                 "insert into sink_without_pk\n"

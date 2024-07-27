@@ -723,7 +723,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   @throws(classOf[Exception])
   def collect(): Seq[T] = {
     val id = new AbstractID().toString
-    val serializer = getType().createSerializer(getExecutionEnvironment.getConfig)
+    val serializer =
+      getType().createSerializer(getExecutionEnvironment.getConfig.getSerializerConfig)
 
     javaSet.output(new Utils.CollectHelper[T](id, serializer))
 

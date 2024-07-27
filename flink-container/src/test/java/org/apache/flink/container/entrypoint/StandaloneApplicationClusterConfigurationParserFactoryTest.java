@@ -62,6 +62,11 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
                             new StandaloneApplicationClusterConfigurationParserFactory());
     private static final String JOB_CLASS_NAME = "foobar";
 
+    private static final String[] JOB_JARS = {
+        "local:///opt/flink/artifacts/my-flink-job.jar",
+        "local:///opt/flink/artifacts/my-additional-dep.jar"
+    };
+
     @Test
     void testEntrypointClusterConfigurationToConfigurationParsing() throws FlinkParseException {
         final JobID jobID = JobID.generate();
@@ -84,6 +89,8 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
             String.valueOf(restPort),
             "--job-classname",
             JOB_CLASS_NAME,
+            "--jars",
+            String.join(",", JOB_JARS),
             String.format("-D%s=%s", key, value),
             arg1,
             arg2
@@ -92,6 +99,7 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         final StandaloneApplicationClusterConfiguration clusterConfiguration =
                 commandLineParser.parse(args);
         assertThat(clusterConfiguration.getJobClassName()).isEqualTo(JOB_CLASS_NAME);
+        assertThat(clusterConfiguration.getJars()).isEqualTo(JOB_JARS);
         assertThat(clusterConfiguration.getArgs()).contains(arg1, arg2);
 
         final Configuration configuration =
@@ -235,15 +243,21 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
 
     @Test
     void testShortOptions() throws FlinkParseException {
-        final String jobClassName = "foobar";
+        final String jobClassName = JOB_CLASS_NAME;
         final JobID jobId = new JobID();
         final String savepointRestorePath = "s3://foo/bar";
-
+        final String jars = String.join(",", JOB_JARS);
         final String[] args = {
-            "-c", confDirPath,
-            "-j", jobClassName,
-            "-jid", jobId.toString(),
-            "-s", savepointRestorePath,
+            "-c",
+            confDirPath,
+            "-j",
+            jobClassName,
+            "-jid",
+            jobId.toString(),
+            "-s",
+            savepointRestorePath,
+            "-jars",
+            jars,
             "-n"
         };
 
@@ -253,6 +267,7 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         assertThat(clusterConfiguration.getConfigDir()).isEqualTo(confDirPath);
         assertThat(clusterConfiguration.getJobClassName()).isEqualTo(jobClassName);
         assertThat(clusterConfiguration.getJobId()).isEqualTo(jobId);
+        assertThat(clusterConfiguration.getJars()).isEqualTo(JOB_JARS);
 
         final SavepointRestoreSettings savepointRestoreSettings =
                 clusterConfiguration.getSavepointRestoreSettings();
@@ -270,5 +285,20 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         final StandaloneApplicationClusterConfiguration applicationClusterConfiguration =
                 commandLineParser.parse(args);
         assertThat(applicationClusterConfiguration.getHostname()).isEqualTo(hostName);
+    }
+
+    @Test
+    void testJarsOption() throws FlinkParseException {
+        final String[] args = {
+            "--configDir",
+            confDirPath,
+            "--job-classname",
+            "foobar",
+            "--jars",
+            String.join(",", JOB_JARS)
+        };
+        final StandaloneApplicationClusterConfiguration applicationClusterConfiguration =
+                commandLineParser.parse(args);
+        assertThat(applicationClusterConfiguration.getJars()).containsExactlyInAnyOrder(JOB_JARS);
     }
 }

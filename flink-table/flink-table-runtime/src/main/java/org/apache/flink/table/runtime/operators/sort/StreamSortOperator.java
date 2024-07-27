@@ -26,6 +26,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorAttributes;
+import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -152,5 +154,10 @@ public class StreamSortOperator extends TableStreamOperator<RowData>
                     });
         }
         super.finish();
+    }
+
+    @Override
+    public OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder().setOutputOnlyAfterEndOfStream(true).build();
     }
 }

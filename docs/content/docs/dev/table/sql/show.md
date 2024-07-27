@@ -33,6 +33,7 @@ SHOW CREATE statements are used to print a DDL statement with which a given obje
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
 - SHOW CURRENT CATALOG
+- SHOW CREATE CATALOG
 - SHOW DATABASES
 - SHOW CURRENT DATABASE
 - SHOW TABLES
@@ -101,6 +102,22 @@ tEnv.executeSql("SHOW CURRENT CATALOG").print();
 // +----------------------+
 // |      default_catalog |
 // +----------------------+
+
+// create a catalog
+tEnv.executeSql("CREATE CATALOG cat2 WITH (...)");
+
+// show create catalog
+tEnv.executeSql("SHOW CREATE CATALOG cat2").print();
+// +---------------------------------------------------------------------------------------------+
+// |                                                                                      result |
+// +---------------------------------------------------------------------------------------------+
+// | CREATE CATALOG `cat2` WITH (
+//   'default-database' = 'db',
+//   'type' = 'generic_in_memory'
+// )
+// |
+// +---------------------------------------------------------------------------------------------+
+// 1 row in set
 
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
@@ -214,6 +231,22 @@ tEnv.executeSql("SHOW CATALOGS").print()
 // | default_catalog |
 // +-----------------+
 
+// create a catalog
+tEnv.executeSql("CREATE CATALOG cat2 WITH (...)")
+
+// show create catalog
+tEnv.executeSql("SHOW CREATE CATALOG cat2").print()
+// +---------------------------------------------------------------------------------------------+
+// |                                                                                      result |
+// +---------------------------------------------------------------------------------------------+
+// | CREATE CATALOG `cat2` WITH (
+//   'default-database' = 'db',
+//   'type' = 'generic_in_memory'
+// )
+// |
+// +---------------------------------------------------------------------------------------------+
+// 1 row in set
+
 // show databases
 tEnv.executeSql("SHOW DATABASES").print()
 // +------------------+
@@ -316,6 +349,22 @@ table_env.execute_sql("SHOW CATALOGS").print()
 # | default_catalog |
 # +-----------------+
 
+# create a catalog
+table_env.execute_sql("CREATE CATALOG cat2 WITH (...)")
+
+# show create catalog
+table_env.execute_sql("SHOW CREATE CATALOG cat2").print()
+# +---------------------------------------------------------------------------------------------+
+# |                                                                                      result |
+# +---------------------------------------------------------------------------------------------+
+# | CREATE CATALOG `cat2` WITH (
+#   'default-database' = 'db',
+#   'type' = 'generic_in_memory'
+# )
+#  |
+# +---------------------------------------------------------------------------------------------+
+# 1 row in set
+
 # show databases
 table_env.execute_sql("SHOW DATABASES").print()
 # +------------------+
@@ -411,6 +460,14 @@ table_env.execute_sql("SHOW FULL MODULES").print()
 Flink SQL> SHOW CATALOGS;
 default_catalog
 
+Flink SQL> CREATE CATALOG cat2 WITH (...);
+[INFO] Execute statement succeeded.
+ 
+Flink SQL> SHOW CREATE CATALOG cat2;
+CREATE CATALOG `cat2` WITH (
+  ...
+)
+
 Flink SQL> SHOW DATABASES;
 default_database
 
@@ -504,13 +561,57 @@ SHOW CURRENT CATALOG
 
 Show current catalog.
 
+## SHOW CREATE CATALOG
+
+```sql
+SHOW CREATE CATALOG catalog_name
+```
+
+Show creation statement for an existing catalog.
+
+The output includes the catalog's name and relevant properties, which allows you to gain an intuitive understanding of the underlying catalog's metadata.
+
+Assumes that the catalog `cat2` is created as follows:
+```sql
+create catalog cat2 WITH (
+    'type'='generic_in_memory',
+    'default-database'='db'
+);
+```
+Shows the creation statement.
+```sql
+show create catalog cat2;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE CATALOG `cat2` WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+ |
++---------------------------------------------------------------------------------------------+
+1 row in set
+```
+
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-Show all databases in the current catalog.
+Show all databases within optionally specified catalog. 
+If no catalog is specified, then the default catalog is used. 
+Additionally, a `<sql_like_pattern>` can be used to filter the databases.
+
+**LIKE**
+Show all databases with a `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
+
+The syntax of the SQL pattern in the `LIKE` clause is the same as that of the `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, and `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+**ILIKE**
+The same behavior as `LIKE` but the SQL pattern is case-insensitive.
 
 ## SHOW CURRENT DATABASE
 
@@ -608,7 +709,7 @@ show tables;
 ## SHOW CREATE TABLE
 
 ```sql
-SHOW CREATE TABLE
+SHOW CREATE TABLE [[catalog_name.]db_name.]table_name
 ```
 
 Show create table statement for specified table.
@@ -626,7 +727,7 @@ CREATE TABLE orders (
   ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
   ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
   WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (order_id) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 );
@@ -644,7 +745,7 @@ show create table orders;
   `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
   `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (`order_id`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )

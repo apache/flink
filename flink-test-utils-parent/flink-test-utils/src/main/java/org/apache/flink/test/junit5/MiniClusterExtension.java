@@ -145,6 +145,8 @@ public final class MiniClusterExtension
 
     private InternalMiniClusterExtension internalMiniClusterExtension;
 
+    private TestEnvironment executionEnvironment;
+
     public MiniClusterExtension() {
         this(
                 new MiniClusterResourceConfiguration.Builder()
@@ -248,6 +250,10 @@ public final class MiniClusterExtension
         }
     }
 
+    public TestEnvironment getTestEnvironment() {
+        return this.executionEnvironment;
+    }
+
     // Implementation
 
     private void registerEnv(InternalMiniClusterExtension internalMiniClusterExtension) {
@@ -263,6 +269,12 @@ public final class MiniClusterExtension
                 new TestEnvironment(
                         internalMiniClusterExtension.getMiniCluster(), defaultParallelism, false);
         executionEnvironment.setAsContext();
+        this.executionEnvironment =
+                new TestEnvironment(
+                        internalMiniClusterExtension.getMiniCluster(),
+                        internalMiniClusterExtension.getNumberSlots(),
+                        false);
+        this.executionEnvironment.setAsContext();
         TestStreamEnvironment.setAsContext(
                 internalMiniClusterExtension.getMiniCluster(), defaultParallelism);
     }
@@ -290,6 +302,14 @@ public final class MiniClusterExtension
 
     public Configuration getClientConfiguration() {
         return internalMiniClusterExtension.getClientConfiguration();
+    }
+
+    public Integer getNumberSlots() {
+        return internalMiniClusterExtension.getNumberSlots();
+    }
+
+    public boolean isRunning() {
+        return internalMiniClusterExtension.getMiniCluster().isRunning();
     }
 
     private static class CloseableParameter<T extends AutoCloseable>

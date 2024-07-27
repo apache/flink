@@ -35,6 +35,11 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -56,7 +61,7 @@ import static java.util.Objects.requireNonNull;
  * DataStream<T> result = one.join(two)
  *     .where(new MyFirstKeySelector())
  *     .equalTo(new MyFirstKeySelector())
- *     .window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
+ *     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
  *     .apply(new MyJoinFunction());
  * }</pre>
  */
@@ -187,7 +192,7 @@ public class JoinedStreams<T1, T2> {
                         assigner,
                         null,
                         null,
-                        null);
+                        (Duration) null);
             }
         }
     }
@@ -219,9 +224,37 @@ public class JoinedStreams<T1, T2> {
 
         private final Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor;
 
-        private final Time allowedLateness;
+        @Nullable private final Duration allowedLateness;
 
         private CoGroupedStreams.WithWindow<T1, T2, KEY, W> coGroupedWindowedStream;
+
+        /**
+         * @deprecated Use {@link WithWindow#WithWindow(DataStream, DataStream, KeySelector,
+         *     KeySelector, TypeInformation, WindowAssigner, Trigger, Evictor, Duration)}.
+         */
+        @Deprecated
+        @PublicEvolving
+        protected WithWindow(
+                DataStream<T1> input1,
+                DataStream<T2> input2,
+                KeySelector<T1, KEY> keySelector1,
+                KeySelector<T2, KEY> keySelector2,
+                TypeInformation<KEY> keyType,
+                WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
+                Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
+                Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor,
+                @Nullable Time allowedLateness) {
+            this(
+                    input1,
+                    input2,
+                    keySelector1,
+                    keySelector2,
+                    keyType,
+                    windowAssigner,
+                    trigger,
+                    evictor,
+                    Time.toDuration(allowedLateness));
+        }
 
         @PublicEvolving
         protected WithWindow(
@@ -233,7 +266,7 @@ public class JoinedStreams<T1, T2> {
                 WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
                 Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
                 Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor,
-                Time allowedLateness) {
+                @Nullable Duration allowedLateness) {
 
             this.input1 = requireNonNull(input1);
             this.input2 = requireNonNull(input2);
@@ -291,10 +324,22 @@ public class JoinedStreams<T1, T2> {
         /**
          * Sets the time by which elements are allowed to be late.
          *
-         * @see WindowedStream#allowedLateness(Time)
+         * @see WindowedStream#allowedLateness(Duration)
+         * @deprecated Use {@link #allowedLateness(Duration)}.
+         */
+        @Deprecated
+        @PublicEvolving
+        public WithWindow<T1, T2, KEY, W> allowedLateness(@Nullable Time newLateness) {
+            return allowedLateness(Time.toDuration(newLateness));
+        }
+
+        /**
+         * Sets the time by which elements are allowed to be late.
+         *
+         * @see WindowedStream#allowedLateness(Duration)
          */
         @PublicEvolving
-        public WithWindow<T1, T2, KEY, W> allowedLateness(Time newLateness) {
+        public WithWindow<T1, T2, KEY, W> allowedLateness(@Nullable Duration newLateness) {
             return new WithWindow<>(
                     input1,
                     input2,
@@ -481,9 +526,16 @@ public class JoinedStreams<T1, T2> {
             return (SingleOutputStreamOperator<T>) apply(function, resultType);
         }
 
+        /** @deprecated Use {@link #getAllowedLatenessDuration()}} */
         @VisibleForTesting
+        @Nullable
         Time getAllowedLateness() {
-            return allowedLateness;
+            return getAllowedLatenessDuration().map(Time::of).orElse(null);
+        }
+
+        @VisibleForTesting
+        Optional<Duration> getAllowedLatenessDuration() {
+            return Optional.ofNullable(allowedLateness);
         }
 
         @VisibleForTesting

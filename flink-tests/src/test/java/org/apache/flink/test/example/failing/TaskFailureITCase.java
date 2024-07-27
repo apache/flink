@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.junit.Assert;
 
@@ -39,7 +39,7 @@ import static org.junit.Assert.assertTrue;
  * job must be canceled and the client must report the failure. The second (working) job must finish
  * successfully and compute the correct result.
  */
-public class TaskFailureITCase extends JavaProgramTestBase {
+public class TaskFailureITCase extends JavaProgramTestBaseJUnit4 {
 
     private static final String EXCEPTION_STRING = "This is an expected Test Exception";
 
@@ -90,7 +90,7 @@ public class TaskFailureITCase extends JavaProgramTestBase {
         @Override
         public Long map(Long value) throws Exception {
             throw new RuntimeException(
-                    EXCEPTION_STRING + ":" + getRuntimeContext().getAttemptNumber());
+                    EXCEPTION_STRING + ":" + getRuntimeContext().getTaskInfo().getAttemptNumber());
         }
     }
 }

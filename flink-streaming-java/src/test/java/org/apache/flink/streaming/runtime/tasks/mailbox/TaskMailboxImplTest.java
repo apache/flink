@@ -18,18 +18,16 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -41,28 +39,29 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link TaskMailboxImpl}. */
-public class TaskMailboxImplTest {
+class TaskMailboxImplTest {
 
     private static final RunnableWithException NO_OP = () -> {};
     private static final int DEFAULT_PRIORITY = 0;
     /** Object under test. */
     private TaskMailbox taskMailbox;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         taskMailbox = new TaskMailboxImpl();
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         taskMailbox.close();
     }
 
     @Test
-    public void testPutAsHead() throws InterruptedException {
+    void testPutAsHead() throws InterruptedException {
 
         Mail mailA = new Mail(() -> {}, MAX_PRIORITY, "mailA");
         Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
@@ -74,41 +73,41 @@ public class TaskMailboxImplTest {
         taskMailbox.put(mailD);
         taskMailbox.putFirst(mailA);
 
-        Assert.assertSame(mailA, taskMailbox.take(DEFAULT_PRIORITY));
-        Assert.assertSame(mailB, taskMailbox.take(DEFAULT_PRIORITY));
-        Assert.assertSame(mailC, taskMailbox.take(DEFAULT_PRIORITY));
-        Assert.assertSame(mailD, taskMailbox.take(DEFAULT_PRIORITY));
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailA);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailB);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailC);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailD);
 
-        Assert.assertFalse(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).isNotPresent();
     }
 
     @Test
-    public void testContracts() throws InterruptedException {
+    void testContracts() throws InterruptedException {
         final Queue<Mail> testObjects = new LinkedList<>();
-        Assert.assertFalse(taskMailbox.hasMail());
+        assertThat(taskMailbox.hasMail()).isFalse();
 
         for (int i = 0; i < 10; ++i) {
             final Mail mail = new Mail(NO_OP, DEFAULT_PRIORITY, "mail, DEFAULT_PRIORITY");
             testObjects.add(mail);
             taskMailbox.put(mail);
-            Assert.assertTrue(taskMailbox.hasMail());
+            assertThat(taskMailbox.hasMail()).isTrue();
         }
 
         while (!testObjects.isEmpty()) {
-            assertEquals(testObjects.remove(), taskMailbox.take(DEFAULT_PRIORITY));
-            assertEquals(!testObjects.isEmpty(), taskMailbox.hasMail());
+            assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(testObjects.remove());
+            assertThat(taskMailbox.hasMail()).isEqualTo(!testObjects.isEmpty());
         }
     }
 
     /** Test the producer-consumer pattern using the blocking methods on the mailbox. */
     @Test
-    public void testConcurrentPutTakeBlocking() throws Exception {
+    void testConcurrentPutTakeBlocking() throws Exception {
         testPutTake(mailbox -> mailbox.take(DEFAULT_PRIORITY));
     }
 
     /** Test the producer-consumer pattern using the non-blocking methods & waits on the mailbox. */
     @Test
-    public void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
+    void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
         testPutTake(
                 (mailbox -> {
                     Optional<Mail> optionalMail = mailbox.tryTake(DEFAULT_PRIORITY);
@@ -121,56 +120,51 @@ public class TaskMailboxImplTest {
 
     /** Test that closing the mailbox unblocks pending accesses with correct exceptions. */
     @Test
-    public void testCloseUnblocks() throws InterruptedException {
+    void testCloseUnblocks() throws InterruptedException {
         testAllPuttingUnblocksInternal(TaskMailbox::close);
     }
 
     /** Test that silencing the mailbox unblocks pending accesses with correct exceptions. */
     @Test
-    public void testQuiesceUnblocks() throws InterruptedException {
+    void testQuiesceUnblocks() throws InterruptedException {
         testAllPuttingUnblocksInternal(TaskMailbox::quiesce);
     }
 
     @Test
-    public void testLifeCycleQuiesce() throws InterruptedException {
+    void testLifeCycleQuiesce() throws InterruptedException {
         taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
         taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
         taskMailbox.quiesce();
         testLifecyclePuttingInternal();
         taskMailbox.take(DEFAULT_PRIORITY);
-        Assert.assertTrue(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
-        Assert.assertFalse(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).isPresent();
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).isNotPresent();
     }
 
     @Test
-    public void testLifeCycleClose() throws InterruptedException {
+    void testLifeCycleClose() {
         taskMailbox.close();
         testLifecyclePuttingInternal();
 
-        try {
-            taskMailbox.take(DEFAULT_PRIORITY);
-            Assert.fail();
-        } catch (MailboxClosedException ignore) {
-        }
+        assertThatThrownBy(() -> taskMailbox.take(DEFAULT_PRIORITY))
+                .isInstanceOf(MailboxClosedException.class);
 
-        try {
-            taskMailbox.tryTake(DEFAULT_PRIORITY);
-            Assert.fail();
-        } catch (MailboxClosedException ignore) {
-        }
+        assertThatThrownBy(() -> taskMailbox.tryTake(DEFAULT_PRIORITY))
+                .isInstanceOf(MailboxClosedException.class);
     }
 
     private void testLifecyclePuttingInternal() {
-        try {
-            taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
-            Assert.fail();
-        } catch (MailboxClosedException ignore) {
-        }
-        try {
-            taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP"));
-            Assert.fail();
-        } catch (MailboxClosedException ignore) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                taskMailbox.put(
+                                        new Mail(
+                                                NO_OP,
+                                                DEFAULT_PRIORITY,
+                                                "NO_OP, DEFAULT_PRIORITY")))
+                .isInstanceOf(MailboxClosedException.class);
+
+        assertThatThrownBy(() -> taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP")))
+                .isInstanceOf(MailboxClosedException.class);
     }
 
     private void testAllPuttingUnblocksInternal(Consumer<TaskMailbox> unblockMethod)
@@ -186,25 +180,21 @@ public class TaskMailboxImplTest {
     private void testUnblocksInternal(
             RunnableWithException testMethod, Consumer<TaskMailbox> unblockMethod)
             throws InterruptedException {
-        final Thread[] blockedThreads = new Thread[8];
-        final Exception[] exceptions = new Exception[blockedThreads.length];
+        final CheckedThread[] blockedThreads = new CheckedThread[8];
 
         CountDownLatch countDownLatch = new CountDownLatch(blockedThreads.length);
 
         for (int i = 0; i < blockedThreads.length; ++i) {
-            final int id = i;
-            Thread blocked =
-                    new Thread(
-                            () -> {
-                                try {
-                                    countDownLatch.countDown();
-                                    while (true) {
-                                        testMethod.run();
-                                    }
-                                } catch (Exception ex) {
-                                    exceptions[id] = ex;
-                                }
-                            });
+            CheckedThread blocked =
+                    new CheckedThread() {
+                        @Override
+                        public void go() throws Exception {
+                            countDownLatch.countDown();
+                            while (true) {
+                                testMethod.run();
+                            }
+                        }
+                    };
             blockedThreads[i] = blocked;
             blocked.start();
         }
@@ -212,12 +202,8 @@ public class TaskMailboxImplTest {
         countDownLatch.await();
         unblockMethod.accept(taskMailbox);
 
-        for (Thread blockedThread : blockedThreads) {
-            blockedThread.join();
-        }
-
-        for (Exception exception : exceptions) {
-            assertEquals(MailboxClosedException.class, exception.getClass());
+        for (CheckedThread blockedThread : blockedThreads) {
+            assertThatThrownBy(blockedThread::sync).isInstanceOf(MailboxClosedException.class);
         }
     }
 
@@ -268,12 +254,12 @@ public class TaskMailboxImplTest {
             takeMethod.apply(taskMailbox).run();
         }
         for (int perThreadResult : results) {
-            assertEquals(numMailsPerThread, perThreadResult);
+            assertThat(perThreadResult).isEqualTo(numMailsPerThread);
         }
     }
 
     @Test
-    public void testPutAsHeadWithPriority() throws InterruptedException {
+    void testPutAsHeadWithPriority() throws InterruptedException {
 
         Mail mailA = new Mail(() -> {}, 2, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
@@ -285,18 +271,18 @@ public class TaskMailboxImplTest {
         taskMailbox.put(mailD);
         taskMailbox.putFirst(mailA);
 
-        Assert.assertSame(mailA, taskMailbox.take(2));
-        Assert.assertSame(mailB, taskMailbox.take(2));
-        Assert.assertFalse(taskMailbox.tryTake(2).isPresent());
+        assertThat(taskMailbox.take(2)).isSameAs(mailA);
+        assertThat(taskMailbox.take(2)).isSameAs(mailB);
+        assertThat(taskMailbox.tryTake(2)).isNotPresent();
 
-        Assert.assertSame(mailC, taskMailbox.take(1));
-        Assert.assertSame(mailD, taskMailbox.take(1));
+        assertThat(taskMailbox.take(1)).isSameAs(mailC);
+        assertThat(taskMailbox.take(1)).isSameAs(mailD);
 
-        Assert.assertFalse(taskMailbox.tryTake(1).isPresent());
+        assertThat(taskMailbox.tryTake(1)).isNotPresent();
     }
 
     @Test
-    public void testPutWithPriorityAndReadingFromMainMailbox() throws InterruptedException {
+    void testPutWithPriorityAndReadingFromMainMailbox() throws InterruptedException {
 
         Mail mailA = new Mail(() -> {}, 2, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
@@ -309,10 +295,10 @@ public class TaskMailboxImplTest {
         taskMailbox.putFirst(mailA);
 
         // same order for non-priority and priority on top
-        Assert.assertSame(mailA, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
-        Assert.assertSame(mailC, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
-        Assert.assertSame(mailB, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
-        Assert.assertSame(mailD, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailA);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailC);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailB);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailD);
     }
 
     /**
@@ -325,7 +311,7 @@ public class TaskMailboxImplTest {
      * batch is drained.
      */
     @Test
-    public void testBatchAndNonBatchTake() throws InterruptedException {
+    void testBatchAndNonBatchTake() throws InterruptedException {
         final List<Mail> mails =
                 IntStream.range(0, 6)
                         .mapToObj(i -> new Mail(NO_OP, DEFAULT_PRIORITY, String.valueOf(i)))
@@ -333,54 +319,54 @@ public class TaskMailboxImplTest {
 
         // create a batch with 3 mails
         mails.subList(0, 3).forEach(taskMailbox::put);
-        Assert.assertTrue(taskMailbox.createBatch());
+        assertThat(taskMailbox.createBatch()).isTrue();
         // add 3 more mails after the batch
         mails.subList(3, 6).forEach(taskMailbox::put);
 
         // now take all mails in the batch with all available methods
-        assertEquals(Optional.ofNullable(mails.get(0)), taskMailbox.tryTakeFromBatch());
-        assertEquals(Optional.ofNullable(mails.get(1)), taskMailbox.tryTake(DEFAULT_PRIORITY));
-        assertEquals(mails.get(2), taskMailbox.take(DEFAULT_PRIORITY));
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mails.get(0));
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mails.get(1));
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mails.get(2));
 
         // batch empty, so only regular methods work
-        assertEquals(Optional.empty(), taskMailbox.tryTakeFromBatch());
-        assertEquals(Optional.ofNullable(mails.get(3)), taskMailbox.tryTake(DEFAULT_PRIORITY));
-        assertEquals(mails.get(4), taskMailbox.take(DEFAULT_PRIORITY));
+        assertThat(taskMailbox.tryTakeFromBatch()).isEmpty();
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mails.get(3));
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mails.get(4));
 
         // one unprocessed mail left
-        assertEquals(Collections.singletonList(mails.get(5)), taskMailbox.close());
+        assertThat(taskMailbox.close()).containsExactly(mails.get(5));
     }
 
     @Test
-    public void testBatchDrain() throws Exception {
+    void testBatchDrain() {
 
         Mail mailA = new Mail(() -> {}, MAX_PRIORITY, "mailA");
         Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
 
         taskMailbox.put(mailA);
-        Assert.assertTrue(taskMailbox.createBatch());
+        assertThat(taskMailbox.createBatch()).isTrue();
         taskMailbox.put(mailB);
 
-        assertEquals(Arrays.asList(mailA, mailB), taskMailbox.drain());
+        assertThat(taskMailbox.drain()).containsExactly(mailA, mailB);
     }
 
     @Test
-    public void testBatchPriority() throws Exception {
+    void testBatchPriority() throws Exception {
 
         Mail mailA = new Mail(() -> {}, 1, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
 
         taskMailbox.put(mailA);
-        Assert.assertTrue(taskMailbox.createBatch());
+        assertThat(taskMailbox.createBatch()).isTrue();
         taskMailbox.put(mailB);
 
-        assertEquals(mailB, taskMailbox.take(2));
-        assertEquals(Optional.of(mailA), taskMailbox.tryTakeFromBatch());
+        assertThat(taskMailbox.take(2)).isEqualTo(mailB);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
     }
 
     /** Testing that we cannot close while running exclusively. */
     @Test
-    public void testRunExclusively() throws InterruptedException {
+    void testRunExclusively() throws InterruptedException {
         CountDownLatch exclusiveCodeStarted = new CountDownLatch(1);
 
         final int numMails = 10;
@@ -403,6 +389,6 @@ public class TaskMailboxImplTest {
 
         exclusiveCodeStarted.await();
         // make sure that all 10 messages have been actually enqueued.
-        assertEquals(numMails, taskMailbox.close().size());
+        assertThat(taskMailbox.close()).hasSize(numMails);
     }
 }

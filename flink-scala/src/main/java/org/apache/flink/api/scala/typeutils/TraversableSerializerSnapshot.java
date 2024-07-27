@@ -20,6 +20,7 @@ package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -46,9 +47,7 @@ public class TraversableSerializerSnapshot<T extends TraversableOnce<E>, E>
     private String cbfCode;
 
     @SuppressWarnings("unused")
-    public TraversableSerializerSnapshot() {
-        super(TraversableSerializer.class);
-    }
+    public TraversableSerializerSnapshot() {}
 
     public TraversableSerializerSnapshot(TraversableSerializer<T, E> serializerInstance) {
         super(serializerInstance);
@@ -56,7 +55,6 @@ public class TraversableSerializerSnapshot<T extends TraversableOnce<E>, E>
     }
 
     TraversableSerializerSnapshot(String cbfCode) {
-        super(TraversableSerializer.class);
         checkArgument(cbfCode != null, "cbfCode cannot be null");
 
         this.cbfCode = cbfCode;
@@ -97,8 +95,14 @@ public class TraversableSerializerSnapshot<T extends TraversableOnce<E>, E>
 
     @Override
     protected CompositeTypeSerializerSnapshot.OuterSchemaCompatibility
-            resolveOuterSchemaCompatibility(TraversableSerializer<T, E> newSerializer) {
-        return (cbfCode.equals(newSerializer.cbfCode()))
+            resolveOuterSchemaCompatibility(TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof TraversableSerializerSnapshot)) {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+
+        TraversableSerializerSnapshot<T, E> oldTraversableSerializerSnapshot =
+                (TraversableSerializerSnapshot<T, E>) oldSerializerSnapshot;
+        return (cbfCode.equals(oldTraversableSerializerSnapshot.cbfCode))
                 ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                 : OuterSchemaCompatibility.INCOMPATIBLE;
     }

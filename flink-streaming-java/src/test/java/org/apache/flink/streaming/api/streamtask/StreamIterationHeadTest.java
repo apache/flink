@@ -22,15 +22,15 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamIterationHead}. */
-public class StreamIterationHeadTest {
+class StreamIterationHeadTest {
 
     @Test
-    public void testIterationHeadWatermarkEmission() throws Exception {
+    void testIterationHeadWatermarkEmission() throws Exception {
         StreamTaskTestHarness<Integer> harness =
                 new StreamTaskTestHarness<>(StreamIterationHead::new, BasicTypeInfo.INT_TYPE_INFO);
         harness.setupOutputForSingletonOperatorChain();
@@ -40,7 +40,7 @@ public class StreamIterationHeadTest {
         harness.invoke();
         harness.waitForTaskCompletion();
 
-        assertEquals(1, harness.getOutput().size());
-        assertEquals(new Watermark(Long.MAX_VALUE), harness.getOutput().peek());
+        assertThat(harness.getOutput()).hasSize(1);
+        assertThat(harness.getOutput().peek()).isEqualTo(new Watermark(Long.MAX_VALUE));
     }
 }

@@ -197,9 +197,16 @@ A table source can implement further ability interfaces such as `SupportsProject
 mutate an instance during planning. All abilities can be found in the `org.apache.flink.table.connector.source.abilities`
 package and are listed in the [source abilities table](#source-abilities).
 
-The runtime implementation of a `ScanTableSource` must produce internal data structures. Thus, records
-must be emitted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
+The returned _scan runtime provider_ provides the runtime implementation for reading the data. There are
+different interfaces for runtime implementation, among which `SourceProvider` is the recommended core interface.
+
+Independent of the provider interface, the source runtime implementation must produce internal data structures.
+Thus, records must be emitted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
 that a source can still work on common data structures and perform a conversion at the end.
+
+To support parallelism setting, the dynamic table factory should support the optional `scan.parallelism` option
+defined in `org.apache.flink.table.factories.FactoryUtil` and pass its value to a provider that also implements
+the `ParallelismProvider` interface. 
 
 #### Lookup Table Source
 
@@ -296,9 +303,16 @@ A table sink can implement further ability interfaces such as `SupportsOverwrite
 instance during planning. All abilities can be found in the `org.apache.flink.table.connector.sink.abilities`
 package and are listed in the [sink abilities table](#sink-abilities).
 
-The runtime implementation of a `DynamicTableSink` must consume internal data structures. Thus, records
-must be accepted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
+The returned _sink runtime provider_ provides the runtime implementation for writing the data. There are
+different interfaces for runtime implementation, among which `SinkV2Provider` is the recommended core interface.
+
+Independent of the provider interface, the sink runtime implementation must consume internal data structures.
+Thus, records must be accepted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
 that a sink can still work on common data structures and perform a conversion at the beginning.
+
+To support parallelism setting, the dynamic table factory should support the optional `sink.parallelism` option
+defined in `org.apache.flink.table.factories.FactoryUtil` and pass its value to a provider that also implements
+the `ParallelismProvider` interface.
 
 #### Sink Abilities
 
@@ -319,6 +333,10 @@ that a sink can still work on common data structures and perform a conversion at
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsPartitioning.java" name="SupportsPartitioning" >}}</td>
         <td>Enables to write partitioned data in a <code>DynamicTableSink</code>.</td>
+    </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsBucketing.java" name="SupportsBucketing" >}}</td>
+        <td>Enables bucketing for a <code>DynamicTableSink</code>.</td>
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsWritingMetadata.java" name="SupportsWritingMetadata" >}}</td>

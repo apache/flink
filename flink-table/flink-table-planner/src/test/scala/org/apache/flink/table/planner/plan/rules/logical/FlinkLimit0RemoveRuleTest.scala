@@ -24,14 +24,14 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[FlinkLimit0RemoveRule]]. */
 class FlinkLimit0RemoveRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[BatchOptimizeContext]()
     programs.addLast(
@@ -89,6 +89,6 @@ class FlinkLimit0RemoveRuleTest extends TableTestBase {
 
   @Test
   def testLimitZeroWithJoin(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable Limit 0) ON TRUE")
+    util.verifyRelPlan("SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable LIMIT 0) ON TRUE")
   }
 }

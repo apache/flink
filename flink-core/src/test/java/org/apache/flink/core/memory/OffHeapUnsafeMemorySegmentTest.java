@@ -18,22 +18,22 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using unsafe memory. */
-@RunWith(Parameterized.class)
-public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
 
-    public OffHeapUnsafeMemorySegmentTest(int pageSize) {
+    OffHeapUnsafeMemorySegmentTest(int pageSize) {
         super(pageSize);
     }
 
@@ -47,23 +47,24 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         return MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, owner, () -> {});
     }
 
+    @TestTemplate
     @Override
-    @Test(expected = UnsupportedOperationException.class)
-    public void testByteBufferWrapping() {
-        createSegment(10).wrap(1, 2);
+    void testByteBufferWrapping(int pageSize) {
+        assertThatThrownBy(() -> createSegment(10).wrap(1, 2))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test
-    public void testCallCleanerOnFree() {
+    @TestTemplate
+    void testCallCleanerOnFree() {
         final CompletableFuture<Void> cleanerFuture = new CompletableFuture<>();
         MemorySegmentFactory.allocateOffHeapUnsafeMemory(
                         10, null, () -> cleanerFuture.complete(null))
                 .free();
-        assertTrue(cleanerFuture.isDone());
+        assertThat(cleanerFuture).isDone();
     }
 
-    @Test
-    public void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
+    @TestTemplate
+    void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
         final AtomicInteger counter = new AtomicInteger(0);
         final Runnable cleaner =
                 () -> {
@@ -86,6 +87,6 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         t1.join();
         t2.join();
 
-        assertThat(counter.get(), is(1));
+        assertThat(counter).hasValue(1);
     }
 }

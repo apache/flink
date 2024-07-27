@@ -25,7 +25,6 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.types.Row
 
 import java.lang.{Float => JFloat, Integer => JInt, Long => JLong}
-import java.util
 
 /**
  * User-defined aggregation function to compute the top 10 most visited Int IDs with the highest

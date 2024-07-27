@@ -38,7 +38,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
@@ -47,6 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -56,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests an immediate checkpoint should be triggered right after all tasks reached the end of data.
  */
-public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
+public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
     private static final int SMALL_SOURCE_NUM_RECORDS = 20;
     private static final int BIG_SOURCE_NUM_RECORDS = 100;
 
@@ -82,7 +83,9 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     @Test
     public void testImmediateCheckpointing() throws Exception {
         env.setRestartStrategy(RestartStrategies.noRestart());
-        env.enableCheckpointing(Long.MAX_VALUE - 1);
+        // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
+        env.enableCheckpointing(
+                Duration.ofNanos(Long.MAX_VALUE) /* max duration allowed by FLINK */.toMillis());
         StreamGraph streamGraph = getStreamGraph(env, false, false);
         env.execute(streamGraph);
         assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
@@ -121,7 +124,10 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
                             .get();
             bigResult.get().clear();
 
-            env.enableCheckpointing(Long.MAX_VALUE - 1);
+            // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
+            env.enableCheckpointing(
+                    Duration.ofNanos(Long.MAX_VALUE) /* max duration allowed by FLINK */
+                            .toMillis());
             JobGraph restoredJobGraph = getStreamGraph(env, true, false).getJobGraph();
             restoredJobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(savepointPath, false));
@@ -148,7 +154,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     @Test
     public void testFailoverAfterSomeTasksFinished() throws Exception {
         final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()

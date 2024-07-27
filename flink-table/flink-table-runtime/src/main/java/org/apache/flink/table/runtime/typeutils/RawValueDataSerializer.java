@@ -149,9 +149,7 @@ public final class RawValueDataSerializer<T> extends TypeSerializer<RawValueData
             extends CompositeTypeSerializerSnapshot<RawValueData<T>, RawValueDataSerializer<T>> {
 
         @SuppressWarnings("unused")
-        public RawValueDataSerializerSnapshot() {
-            super(RawValueDataSerializer.class);
-        }
+        public RawValueDataSerializerSnapshot() {}
 
         public RawValueDataSerializerSnapshot(RawValueDataSerializer<T> serializerInstance) {
             super(serializerInstance);

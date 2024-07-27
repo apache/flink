@@ -206,14 +206,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         configuration.set_string('pipeline.time-characteristic', 'IngestionTime')
         configuration.set_string('execution.buffer-timeout', '1 min')
         configuration.set_string('execution.checkpointing.timeout', '12000')
-        configuration.set_string('state.backend', 'jobmanager')
         self.env.configure(configuration)
         self.assertEqual(self.env.is_chaining_enabled(), False)
         self.assertEqual(self.env.get_stream_time_characteristic(),
                          TimeCharacteristic.IngestionTime)
         self.assertEqual(self.env.get_buffer_timeout(), 60000)
         self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
-        self.assertTrue(isinstance(self.env.get_state_backend(), MemoryStateBackend))
+        self.assertTrue(self.env.get_state_backend() is None)
 
     def test_execute(self):
         tmp_dir = tempfile.gettempdir()
@@ -663,7 +662,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         python_dependency_config = dict(
             get_gateway().jvm.org.apache.flink.python.util.PythonDependencyUtils.
             configurePythonDependencies(
-                env._j_stream_execution_environment.getCachedFiles(),
                 env._j_stream_execution_environment.getConfiguration()).toMap())
 
         # Make sure that user specified files and archives are correctly added.

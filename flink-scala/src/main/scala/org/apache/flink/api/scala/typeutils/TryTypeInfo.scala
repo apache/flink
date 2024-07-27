@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
@@ -55,14 +56,19 @@ class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A]) extends 
   override def getGenericParameters = Map[String, TypeInformation[_]]("T" -> elemTypeInfo).asJava
 
   @PublicEvolving
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+  override def createSerializer(serializerConfig: SerializerConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
       // this happens when the type of a DataSet is None, i.e. DataSet[Failure]
-      new TrySerializer(new NothingSerializer, executionConfig).asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(new NothingSerializer, serializerConfig).asInstanceOf[TypeSerializer[T]]
     } else {
-      new TrySerializer(elemTypeInfo.createSerializer(executionConfig), executionConfig)
+      new TrySerializer(elemTypeInfo.createSerializer(serializerConfig), serializerConfig)
         .asInstanceOf[TypeSerializer[T]]
     }
+  }
+
+  @PublicEvolving
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+    createSerializer(executionConfig.getSerializerConfig)
   }
 
   override def equals(obj: Any): Boolean = {

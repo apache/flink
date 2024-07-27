@@ -36,8 +36,9 @@ import java.io.IOException;
  *       This is explained in more detail below.
  *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are
  *       available, they need to be checked whether or not they are compatible to read the data
- *       written by the previous serializer. This is performed by providing the new serializer to
- *       the corresponding serializer configuration snapshots in checkpoints.
+ *       written by the previous serializer. This is performed by providing the new serializer
+ *       snapshots to resolve the compatibility with the corresponding previous serializer snapshots
+ *       in checkpoints.
  *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the
  *       case that new serializers are not compatible to read previous data, a schema conversion
  *       process executed across all data is required before the new serializer can be continued to
@@ -124,11 +125,80 @@ public interface TypeSerializerSnapshot<T> {
      * program's serializer re-serializes the data, thus converting the format during the restore
      * operation.
      *
+     * @deprecated This method has been replaced by {@link TypeSerializerSnapshot
+     *     #resolveSchemaCompatibility(TypeSerializerSnapshot)} and will be removed in the future
+     *     release. It's strongly recommended to migrate from old method to the new one, see the doc
+     *     section "Migrating from deprecated
+     *     `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)`" for
+     *     more details.
      * @param newSerializer the new serializer to check.
      * @return the serializer compatibility result.
      */
-    TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer);
+    @Deprecated
+    default TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
+        // A temporal check to ensure that at least one method is implemented to avoid infinite loop
+        TypeSerializerSnapshot<T> newSerializerSnapshot = newSerializer.snapshotConfiguration();
+        try {
+            Class<?> subClass =
+                    newSerializerSnapshot
+                            .getClass()
+                            .getMethod("resolveSchemaCompatibility", TypeSerializerSnapshot.class)
+                            .getDeclaringClass();
+            if (subClass == TypeSerializerSnapshot.class) {
+                throw new UnsupportedOperationException(
+                        "Must implement at least one method about 'resolveSchemaCompatibility', "
+                                + "Recommend strongly to implement TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot), see FLIP-263 for more details");
+            }
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+        // Call the new method to resolve the schema compatibility which must be implemented
+        return newSerializerSnapshot.resolveSchemaCompatibility(this);
+    }
+
+    /**
+     * Checks current serializer's compatibility to read data written by the prior serializer.
+     *
+     * <p>When a checkpoint/savepoint is restored, this method checks whether the serialization
+     * format of the data in the checkpoint/savepoint is compatible for the format of the serializer
+     * used by the program that restores the checkpoint/savepoint. The outcome can be that the
+     * serialization format is compatible, that the program's serializer needs to reconfigure itself
+     * (meaning to incorporate some information from the TypeSerializerSnapshot to be compatible),
+     * that the format is outright incompatible, or that a migration needed. In the latter case, the
+     * TypeSerializerSnapshot produces a serializer to deserialize the data, and the restoring
+     * program's serializer re-serializes the data, thus converting the format during the restore
+     * operation.
+     *
+     * <p>This method must be implemented to clarify the compatibility. See FLIP-263 for more
+     * details.
+     *
+     * @param oldSerializerSnapshot the old serializer snapshot to check.
+     * @return the serializer compatibility result.
+     */
+    default TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+        // A temporal check to ensure that at least one method is implemented to avoid infinite
+        // loop,
+        // which will be removed after removing the deprecated method
+        // TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer).
+        try {
+            Class<?> subClass =
+                    oldSerializerSnapshot
+                            .getClass()
+                            .getMethod("resolveSchemaCompatibility", TypeSerializer.class)
+                            .getDeclaringClass();
+            if (subClass == TypeSerializerSnapshot.class) {
+                throw new UnsupportedOperationException(
+                        "Must implement at least one method about 'resolveSchemaCompatibility', "
+                                + "Recommend strongly to implement TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot), see FLIP-263 for more details");
+            }
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+        // Call the old method to resolve the schema compatibility which must be implemented
+        return oldSerializerSnapshot.resolveSchemaCompatibility(restoreSerializer());
+    }
 
     // ------------------------------------------------------------------------
     //  read / write utilities

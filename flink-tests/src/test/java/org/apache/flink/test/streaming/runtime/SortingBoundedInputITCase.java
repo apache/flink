@@ -59,7 +59,7 @@ import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransfor
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -84,7 +84,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** An end to end test for sorted inputs for a keyed operator with bounded inputs. */
-public class SortingBoundedInputITCase extends AbstractTestBase {
+public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testOneInputOperator() {
@@ -224,7 +224,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                 WatermarkStrategy.forGenerator(ctx -> GENERATE_WATERMARK_AFTER_4_14_TIMESTAMP)
                         .withTimestampAssigner((r, previousTimestamp) -> r.f1);
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> elements =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -352,7 +352,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                 WatermarkStrategy.forGenerator(ctx -> GENERATE_WATERMARK_AFTER_4_14_TIMESTAMP)
                         .withTimestampAssigner((r, previousTimestamp) -> r.f1);
         SingleOutputStreamOperator<Integer> elements1 =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -370,7 +370,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                         .map(element -> element.f0);
 
         SingleOutputStreamOperator<Integer> elements2 =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),

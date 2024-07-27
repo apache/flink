@@ -69,7 +69,7 @@ Prerequisites for building Flink:
 
 * Unix-like environment (we use Linux, Mac OS X, Cygwin, WSL)
 * Git
-* Maven (we recommend version 3.8.6 and require at least 3.1.1)
+* Maven (we require version 3.8.6)
 * Java 8 or 11 (Java 9 or 10 may work)
 
 ```
@@ -79,9 +79,6 @@ cd flink
 ```
 
 Flink is now installed in `build-target`.
-
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
-To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
 ## Developing Flink
 
@@ -131,6 +128,22 @@ This is an active open-source project. We are always open to people who want to 
 Contact us if you are looking for implementation tasks that fit your skills.
 This article describes [how to contribute to Apache Flink](https://flink.apache.org/contributing/how-to-contribute.html).
 
+## Externalized Connectors
+
+Most Flink connectors have been externalized to individual repos under the [Apache Software Foundation](https://github.com/apache):
+
+* [flink-connector-aws](https://github.com/apache/flink-connector-aws)
+* [flink-connector-cassandra](https://github.com/apache/flink-connector-cassandra)
+* [flink-connector-elasticsearch](https://github.com/apache/flink-connector-elasticsearch)
+* [flink-connector-gcp-pubsub](https://github.com/apache/flink-connector-gcp-pubsub)
+* [flink-connector-hbase](https://github.com/apache/flink-connector-hbase)
+* [flink-connector-jdbc](https://github.com/apache/flink-connector-jdbc)
+* [flink-connector-kafka](https://github.com/apache/flink-connector-kafka)
+* [flink-connector-mongodb](https://github.com/apache/flink-connector-mongodb)
+* [flink-connector-opensearch](https://github.com/apache/flink-connector-opensearch)
+* [flink-connector-prometheus](https://github.com/apache/flink-connector-prometheus)
+* [flink-connector-pulsar](https://github.com/apache/flink-connector-pulsar)
+* [flink-connector-rabbitmq](https://github.com/apache/flink-connector-rabbitmq)
 
 ## About
 

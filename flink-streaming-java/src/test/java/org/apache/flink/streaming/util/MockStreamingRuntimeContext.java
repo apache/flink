@@ -49,6 +49,9 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
                 new MockEnvironmentBuilder()
                         .setTaskName("mockTask")
                         .setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+                        .setParallelism(numParallelSubtasks)
+                        .setMaxParallelism(numParallelSubtasks)
+                        .setSubtaskIndex(subtaskIndex)
                         .build());
     }
 
@@ -73,16 +76,6 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
     @Override
     public boolean isCheckpointingEnabled() {
         return isCheckpointingEnabled;
-    }
-
-    @Override
-    public int getIndexOfThisSubtask() {
-        return subtaskIndex;
-    }
-
-    @Override
-    public int getNumberOfParallelSubtasks() {
-        return numParallelSubtasks;
     }
 
     private static class MockStreamOperator extends AbstractStreamOperator<Integer> {

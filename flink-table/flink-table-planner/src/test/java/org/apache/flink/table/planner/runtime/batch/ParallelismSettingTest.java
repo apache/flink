@@ -25,8 +25,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,8 +38,8 @@ public class ParallelismSettingTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = batchTestUtil(TableConfig.getDefault());
         util.getTableEnv()
                 .getConfig()
@@ -58,7 +58,7 @@ public class ParallelismSettingTest extends TableTestBase {
     }
 
     @Test
-    public void testParallelismSettingAfterSingletonShuffleRemove() {
+    void testParallelismSettingAfterSingletonShuffleRemove() {
         util.getTableEnv()
                 .executeSql(
                         "CREATE TABLE MySink (\n"
@@ -88,7 +88,7 @@ public class ParallelismSettingTest extends TableTestBase {
     }
 
     @Test
-    public void testSortQuery() {
+    void testSortQuery() {
         util.getTableEnv()
                 .executeSql(
                         "CREATE TABLE MySink (\n"
@@ -121,7 +121,7 @@ public class ParallelismSettingTest extends TableTestBase {
     }
 
     @Test
-    public void testLimitQuery() {
+    void testLimitQuery() {
         util.getTableEnv()
                 .executeSql(
                         "CREATE TABLE MySink (\n"
@@ -155,7 +155,7 @@ public class ParallelismSettingTest extends TableTestBase {
     }
 
     @Test
-    public void testSortLimitQuery() {
+    void testSortLimitQuery() {
         util.getTableEnv()
                 .executeSql(
                         "CREATE TABLE MySink (\n"
@@ -190,7 +190,7 @@ public class ParallelismSettingTest extends TableTestBase {
     }
 
     @Test
-    public void testRankQuery() {
+    void testRankQuery() {
         util.getTableEnv()
                 .executeSql(
                         "CREATE TABLE MySink (\n"
@@ -241,7 +241,7 @@ public class ParallelismSettingTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinQuery() {
+    void testJoinQuery() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE MyTable2 (\n"

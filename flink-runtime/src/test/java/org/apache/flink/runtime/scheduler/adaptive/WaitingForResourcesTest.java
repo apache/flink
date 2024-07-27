@@ -51,7 +51,7 @@ class WaitingForResourcesTest {
 
     private static final Duration STABILIZATION_TIMEOUT = Duration.ofSeconds(1);
 
-    @RegisterExtension MockContext ctx = new MockContext();
+    @RegisterExtension private MockContext ctx = new MockContext();
 
     /** WaitingForResources is transitioning to Executing if there are enough resources. */
     @Test

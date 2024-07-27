@@ -145,10 +145,11 @@ It is recommended to automatically format your code by applying the following se
 4. Go to "Settings" → Editor → Code Style → Scala.
 5. Change the "Formatter" to "scalafmt".
 6. Go to "Settings" → "Tools" → "Actions on Save".
-7. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
+7. Under "Formatting Actions", select "Optimize imports" and "Reformat code".
 8. From the "All file types list" next to "Reformat code", select Java and Scala.
 
 For earlier IntelliJ IDEA versions:
+
 6. Go to "Settings" → "Other Settings" → "Save Actions".
 7. Under "General", enable your preferred settings for when to format the code, e.g. "Activate save actions on save".
 8. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
@@ -168,7 +169,7 @@ any of these modules.
 
 1. Go to "Settings" → "Tools" → "Checkstyle".
 2. Set "Scan Scope" to "Only Java sources (including tests)".
-3. For "Checkstyle Version" select "8.14".
+3. For "Checkstyle Version" select "9.3".
 4. Under "Configuration File" click the "+" icon to add a new configuration.
 5. Set "Description" to "Flink".
 6. Select "Use a local Checkstyle file" and point it to `tools/maven/checkstyle.xml` located within
@@ -260,7 +261,7 @@ versions.
 [Flake8](https://pypi.org/project/flake8/) is used to enforce some coding guidelines.
 
 1. Install flake8 for your Python interpreter using `pip install flake8`.
-2. In PyCharm go to "Preferences" → "Tools" → "External Tools".
+2. In PyCharm go to "Settings" → "Tools" → "External Tools".
 3. Select the "+" button to add a new external tool.
 4. Set "Name" to "flake8".
 5. Set "Description" to "Code Style Check".

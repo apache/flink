@@ -124,12 +124,14 @@ public abstract class AbstractAggregatingMetricsHandler<
                         DoubleAccumulator.DoubleMaximumFactory maximumFactory = null;
                         DoubleAccumulator.DoubleAverageFactory averageFactory = null;
                         DoubleAccumulator.DoubleSumFactory sumFactory = null;
+                        DoubleAccumulator.DoubleDataSkewFactory skewFactory = null;
                         // by default we return all aggregations
                         if (requestedAggregations.isEmpty()) {
                             minimumFactory = DoubleAccumulator.DoubleMinimumFactory.get();
                             maximumFactory = DoubleAccumulator.DoubleMaximumFactory.get();
                             averageFactory = DoubleAccumulator.DoubleAverageFactory.get();
                             sumFactory = DoubleAccumulator.DoubleSumFactory.get();
+                            skewFactory = DoubleAccumulator.DoubleDataSkewFactory.get();
                         } else {
                             for (MetricsAggregationParameter.AggregationMode aggregation :
                                     requestedAggregations) {
@@ -149,6 +151,9 @@ public abstract class AbstractAggregatingMetricsHandler<
                                     case SUM:
                                         sumFactory = DoubleAccumulator.DoubleSumFactory.get();
                                         break;
+                                    case SKEW:
+                                        skewFactory = DoubleAccumulator.DoubleDataSkewFactory.get();
+                                        break;
                                     default:
                                         log.warn(
                                                 "Unsupported aggregation specified: {}",
@@ -158,7 +163,11 @@ public abstract class AbstractAggregatingMetricsHandler<
                         }
                         MetricAccumulatorFactory metricAccumulatorFactory =
                                 new MetricAccumulatorFactory(
-                                        minimumFactory, maximumFactory, averageFactory, sumFactory);
+                                        minimumFactory,
+                                        maximumFactory,
+                                        averageFactory,
+                                        sumFactory,
+                                        skewFactory);
 
                         return getAggregatedMetricValues(
                                 stores, requestedMetrics, metricAccumulatorFactory);
@@ -245,16 +254,19 @@ public abstract class AbstractAggregatingMetricsHandler<
         @Nullable private final DoubleAccumulator.DoubleAverageFactory averageFactory;
 
         @Nullable private final DoubleAccumulator.DoubleSumFactory sumFactory;
+        @Nullable private final DoubleAccumulator.DoubleDataSkewFactory dataSkewFactory;
 
         private MetricAccumulatorFactory(
                 @Nullable DoubleAccumulator.DoubleMinimumFactory minimumFactory,
                 @Nullable DoubleAccumulator.DoubleMaximumFactory maximumFactory,
                 @Nullable DoubleAccumulator.DoubleAverageFactory averageFactory,
-                @Nullable DoubleAccumulator.DoubleSumFactory sumFactory) {
+                @Nullable DoubleAccumulator.DoubleSumFactory sumFactory,
+                @Nullable DoubleAccumulator.DoubleDataSkewFactory dataSkewFactory) {
             this.minimumFactory = minimumFactory;
             this.maximumFactory = maximumFactory;
             this.averageFactory = averageFactory;
             this.sumFactory = sumFactory;
+            this.dataSkewFactory = dataSkewFactory;
         }
 
         MetricAccumulator get(String metricName, double init) {
@@ -263,7 +275,8 @@ public abstract class AbstractAggregatingMetricsHandler<
                     minimumFactory == null ? null : minimumFactory.get(init),
                     maximumFactory == null ? null : maximumFactory.get(init),
                     averageFactory == null ? null : averageFactory.get(init),
-                    sumFactory == null ? null : sumFactory.get(init));
+                    sumFactory == null ? null : sumFactory.get(init),
+                    dataSkewFactory == null ? null : dataSkewFactory.get(init));
         }
     }
 
@@ -274,18 +287,21 @@ public abstract class AbstractAggregatingMetricsHandler<
         @Nullable private final DoubleAccumulator max;
         @Nullable private final DoubleAccumulator avg;
         @Nullable private final DoubleAccumulator sum;
+        @Nullable private final DoubleAccumulator skew;
 
         private MetricAccumulator(
                 String metricName,
                 @Nullable DoubleAccumulator min,
                 @Nullable DoubleAccumulator max,
                 @Nullable DoubleAccumulator avg,
-                @Nullable DoubleAccumulator sum) {
+                @Nullable DoubleAccumulator sum,
+                @Nullable DoubleAccumulator.DoubleDataSkew skew) {
             this.metricName = Preconditions.checkNotNull(metricName);
             this.min = min;
             this.max = max;
             this.avg = avg;
             this.sum = sum;
+            this.skew = skew;
         }
 
         void add(double value) {
@@ -301,6 +317,9 @@ public abstract class AbstractAggregatingMetricsHandler<
             if (sum != null) {
                 sum.add(value);
             }
+            if (skew != null) {
+                skew.add(value);
+            }
         }
 
         AggregatedMetric get() {
@@ -309,7 +328,8 @@ public abstract class AbstractAggregatingMetricsHandler<
                     min == null ? null : min.getValue(),
                     max == null ? null : max.getValue(),
                     avg == null ? null : avg.getValue(),
-                    sum == null ? null : sum.getValue());
+                    sum == null ? null : sum.getValue(),
+                    skew == null ? null : skew.getValue());
         }
     }
 }

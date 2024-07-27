@@ -28,10 +28,12 @@ import org.apache.flink.table.planner.runtime.harness.HarnessTestBase.TestingRow
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.HEAP_BACKEND
 import org.apache.flink.table.runtime.operators.join.temporal.BaseTwoInputStreamOperatorWithStateRetention
 import org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
 import org.hamcrest.{Description, TypeSafeMatcher}
 import org.hamcrest.MatcherAssert.assertThat
-import org.junit.{After, Before, Test}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 
@@ -39,6 +41,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** Tests for the [[BaseTwoInputStreamOperatorWithStateRetention]]. */
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BACKEND) {
 
   @transient
@@ -54,7 +57,7 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
   private var testHarness
       : KeyedTwoInputStreamOperatorTestHarness[JLong, RowData, RowData, RowData] = _
 
-  @Before
+  @BeforeEach
   def createTestHarness(): Unit = {
     operatorUnderTest = new StubOperatorWithStateTTL(minRetentionTime, maxRetentionTime)
     testHarness = createTestHarness(operatorUnderTest)
@@ -63,12 +66,12 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
     recordBForFirstKey = insertRecord(1L: JLong, "world")
   }
 
-  @After
+  @AfterEach
   def closeTestHarness(): Unit = {
     testHarness.close()
   }
 
-  @Test
+  @TestTemplate
   def normalScenarioWorks(): Unit = {
     testHarness.setProcessingTime(1L)
     testHarness.processElement1(recordAForFirstKey)
@@ -78,7 +81,7 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
     assertThat(operatorUnderTest, hasFiredCleanUpTimersForTimestamps(5L))
   }
 
-  @Test
+  @TestTemplate
   def whenCurrentTimePlusMinRetentionSmallerThanCurrentCleanupTimeNoNewTimerRegistered(): Unit = {
     testHarness.setProcessingTime(1L)
     testHarness.processElement1(recordAForFirstKey)
@@ -91,7 +94,7 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
     assertThat(operatorUnderTest, hasFiredCleanUpTimersForTimestamps(5L))
   }
 
-  @Test
+  @TestTemplate
   def whenCurrentTimePlusMinRetentionLargerThanCurrentCleanupTimeTimerIsUpdated(): Unit = {
     testHarness.setProcessingTime(1L)
     testHarness.processElement1(recordAForFirstKey)
@@ -104,7 +107,7 @@ class AbstractTwoInputStreamOperatorWithTTLTest extends HarnessTestBase(HEAP_BAC
     assertThat(operatorUnderTest, hasFiredCleanUpTimersForTimestamps(8L))
   }
 
-  @Test
+  @TestTemplate
   def otherSideToSameKeyStateAlsoUpdatesCleanupTimer(): Unit = {
     testHarness.setProcessingTime(1L)
     testHarness.processElement1(recordAForFirstKey)

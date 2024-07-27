@@ -18,10 +18,12 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.config.AggregatePhaseStrategy
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
 import org.apache.flink.table.data.RowData
@@ -32,12 +34,12 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 import java.time.Duration
@@ -47,11 +49,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode)
   extends HarnessTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -65,35 +67,19 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
         // trigger every record for easier harness test
         tableConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(1L))
         // disable local-global to only test the MiniBatchGroupAggFunction
-        tableConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
+        tableConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, AggregatePhaseStrategy.ONE_PHASE)
       case MiniBatchOff =>
         tableConfig.getConfiguration.removeConfig(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
     }
   }
 
-  @Test
+  @TestTemplate
   def testAggregateWithRetraction(): Unit = {
-    val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.createTemporaryView("T", t)
-
-    val sql =
-      """
-        |SELECT a, SUM(c)
-        |FROM (
-        |  SELECT a, b, SUM(c) as c
-        |  FROM T GROUP BY a, b
-        |)GROUP BY a
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
-    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
-    val assertor = new RowDataHarnessAssertor(
-      Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType))
 
+    val (testHarness, outputType) = createAggregation()
+    val assertor = new RowDataHarnessAssertor(outputType)
     testHarness.open()
-
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // set TtlTimeProvider with 1
@@ -151,14 +137,39 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
 
-    val result = testHarness.getOutput
+    // accumulate
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 16L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
 
+    val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
 
     testHarness.close()
   }
 
-  @Test
+  @TestTemplate
+  def testAggregateWithNoStateExpiration(): Unit = {
+    val (testHarness, outputType) = createAggregation()
+    val assertor = new RowDataHarnessAssertor(outputType)
+    testHarness.open()
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // insertion
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong))
+
+    // accumulate
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
+    // We expect there is not output if the result is the same as before when state ttl is not set.
+
+    val result = testHarness.getOutput
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+
+    testHarness.close()
+  }
+
+  @TestTemplate
   def testAggregationWithDistinct(): Unit = {
     val (testHarness, outputTypes) = createAggregationWithDistinct
     val assertor = new RowDataHarnessAssertor(outputTypes)
@@ -220,6 +231,130 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     testHarness.close()
   }
 
+  @TestTemplate
+  def testGlobalAggregateWithRetraction(): Unit = {
+    if (!this.miniBatch.on) {
+      return
+    }
+
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
+
+    val (localTestHarness, globalTestHarness, outputTypes) = createGlobalAggregation()
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+    localTestHarness.open()
+    globalTestHarness.open()
+
+    localTestHarness.open()
+    globalTestHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong))
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "bbb", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "bbb", 1L: JLong))
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
+    // We expect the output here to be displayed even if the result is the same as before,
+    // because we have set an expiration time for the state.
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 1L: JLong))
+
+    // Here we use the output of LocalGroupAggregate as the input of GlobalGroupAggregate.
+    val localResult = localTestHarness.getOutput
+    globalTestHarness.processElements(localResult.asInstanceOf[JCollection[StreamRecord[RowData]]])
+    val globalResult = globalTestHarness.getOutput
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, globalResult)
+    localTestHarness.close()
+    globalTestHarness.close()
+  }
+
+  @TestTemplate
+  def testGlobalAggregateWithNoStateExpiration(): Unit = {
+    if (!this.miniBatch.on) {
+      return
+    }
+
+    val (localTestHarness, globalTestHarness, outputTypes) = createGlobalAggregation()
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+    localTestHarness.open()
+    globalTestHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong))
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "bbb", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "bbb", 1L: JLong))
+
+    // insertion
+    localTestHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
+    // We expect there is not output if the result is the same as before when state ttl is not set.
+
+    // Here we use the output of LocalGroupAggregate as the input of GlobalGroupAggregate.
+    val localResult = localTestHarness.getOutput
+    globalTestHarness.processElements(localResult.asInstanceOf[JCollection[StreamRecord[RowData]]])
+    val globalResult = globalTestHarness.getOutput
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, globalResult)
+    localTestHarness.close()
+    globalTestHarness.close()
+  }
+
+  private def createAggregation()
+      : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    val data = new mutable.MutableList[(String, String, Long)]
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT a, SUM(c)
+        |FROM (
+        |  SELECT a, b, SUM(c) as c
+        |  FROM T GROUP BY a, b
+        |)GROUP BY a
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
+    val outputTypes = Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType)
+    (testHarness, outputTypes)
+  }
+
+  private def createGlobalAggregation()
+      : (OneInputStreamOperatorTestHarness[RowData, RowData], KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    tEnv.getConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, AggregatePhaseStrategy.TWO_PHASE)
+
+    val data = new mutable.MutableList[(String, String, Long)]
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT a, SUM(c)
+        |FROM (
+        |  SELECT a, b, SUM(c) as c
+        |  FROM T GROUP BY a, b
+        |)GROUP BY a
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+
+    val localTestHarness =
+      createHarnessTesterForNoState(t1.toRetractStream[Row], "LocalGroupAggregate")
+    val globalTestHarness = createHarnessTester(t1.toRetractStream[Row], "GlobalGroupAggregate")
+    val outputTypes = Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType)
+
+    (localTestHarness, globalTestHarness, outputTypes)
+  }
+
   private def createAggregationWithDistinct()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val data = new mutable.MutableList[(String, String, Long)]
@@ -248,7 +383,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     (testHarness, outputTypes)
   }
 
-  @Test
+  @TestTemplate
   def testCloseWithoutOpen(): Unit = {
     val (testHarness, outputType) = createAggregationWithDistinct
     testHarness.setup(new RowDataSerializer(outputType: _*))
@@ -260,7 +395,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
 
 object GroupAggregateHarnessTest {
 
-  @Parameterized.Parameters(name = "StateBackend={0}, MiniBatch={1}")
+  @Parameters(name = "StateBackend={0}, MiniBatch={1}")
   def parameters(): JCollection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(HEAP_BACKEND, MiniBatchOff),

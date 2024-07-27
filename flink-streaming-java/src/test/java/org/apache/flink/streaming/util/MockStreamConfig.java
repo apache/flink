@@ -30,13 +30,24 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** A dummy stream config implementation for specifying the number of outputs in tests. */
 public class MockStreamConfig extends StreamConfig {
 
     public MockStreamConfig(Configuration configuration, int numberOfOutputs) {
+        this(configuration, numberOfOutputs, null);
+    }
+
+    public MockStreamConfig(
+            Configuration configuration,
+            int numberOfOutputs,
+            @Nullable Map<Integer, StreamConfig> chainedTaskConfigs) {
+
         super(configuration);
 
         setChainStart();
@@ -71,6 +82,9 @@ public class MockStreamConfig extends StreamConfig {
         }
         setVertexNonChainedOutputs(streamOutputs);
         setOperatorNonChainedOutputs(streamOutputs);
+        if (chainedTaskConfigs != null) {
+            setAndSerializeTransitiveChainedTaskConfigs(chainedTaskConfigs);
+        }
         serializeAllConfigs();
     }
 }

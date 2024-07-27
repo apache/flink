@@ -18,12 +18,20 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.GenericRowData;
@@ -47,6 +55,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -118,44 +128,42 @@ public class NonBufferOverWindowOperatorTest {
     }
 
     private void test(boolean[] resetAccumulators, GenericRowData[] expect) throws Exception {
+        MockEnvironment env = new MockEnvironmentBuilder().build();
+        StreamTask<Object, StreamOperator<Object>> task =
+                new StreamTask<Object, StreamOperator<Object>>(env) {
+                    @Override
+                    protected void init() {}
+                };
+        StreamConfig streamConfig = mock(StreamConfig.class);
+        when(streamConfig.<RowData>getTypeSerializerIn1(
+                        Thread.currentThread().getContextClassLoader()))
+                .thenReturn(inputSer);
+        when(streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
+                        eq(ManagedMemoryUseCase.OPERATOR),
+                        any(Configuration.class),
+                        any(Configuration.class),
+                        any(ClassLoader.class)))
+                .thenReturn(0.99);
+        when(streamConfig.getOperatorID()).thenReturn(new OperatorID());
         operator =
                 new NonBufferOverWindowOperator(functions, comparator, resetAccumulators) {
-                    {
-                        output =
-                                new ConsumerOutput(
-                                        new Consumer<RowData>() {
-                                            @Override
-                                            public void accept(RowData r) {
-                                                collect.add(
-                                                        GenericRowData.of(
-                                                                r.getInt(0),
-                                                                r.getLong(1),
-                                                                r.getLong(2),
-                                                                r.getLong(3),
-                                                                r.getLong(4)));
-                                            }
-                                        });
-                    }
-
-                    @Override
-                    public ClassLoader getUserCodeClassloader() {
-                        return Thread.currentThread().getContextClassLoader();
-                    }
-
-                    @Override
-                    public StreamConfig getOperatorConfig() {
-                        StreamConfig conf = mock(StreamConfig.class);
-                        when(conf.<RowData>getTypeSerializerIn1(getUserCodeClassloader()))
-                                .thenReturn(inputSer);
-                        return conf;
-                    }
-
-                    @Override
                     public StreamingRuntimeContext getRuntimeContext() {
                         return mock(StreamingRuntimeContext.class);
                     }
                 };
         operator.setProcessingTimeService(new TestProcessingTimeService());
+        operator.setup(
+                task,
+                streamConfig,
+                new ConsumerOutput(
+                        r ->
+                                collect.add(
+                                        GenericRowData.of(
+                                                r.getInt(0),
+                                                r.getLong(1),
+                                                r.getLong(2),
+                                                r.getLong(3),
+                                                r.getLong(4)))));
         operator.open();
         addRow(0, 1L, 4L);
         addRow(0, 1L, 1L);
@@ -196,6 +204,11 @@ public class NonBufferOverWindowOperatorTest {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {
             throw new RuntimeException();
         }
 

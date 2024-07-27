@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjects;
 
 import org.junit.Rule;
@@ -96,7 +96,7 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  * </ul>
  */
 @RunWith(Parameterized.class)
-public class StopWithSavepointITCase extends AbstractTestBase {
+public class StopWithSavepointITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();

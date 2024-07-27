@@ -338,6 +338,152 @@ class OverloadedProcedure extends Procedure {
 {{< /tab >}}
 {{< /tabs >}}
 
+### 命名参数
+
+在调用存储过程时，可以使用参数名称来指定参数值。命名参数允许同时传递参数名和值给存储过程，避免了因为错误的参数顺序而导致混淆，并提高了代码的可读性和可维护性。 此外，命名参数还可以省略非必需的参数，默认情况下会使用 `null` 进行填充。
+我们可以通过 `@ArgumentHint` 注解来指定参数的名称，类型，是否是必需的参数等。
+
+下面三个示例展示了如何在不同的范围内使用 `@ArgumentHint`。更多信息请参考注解类的文档。
+
+1. 在存储过程的 `call` 方法的参数上使用 `@ArgumentHint` 注解。
+
+{{< tabs "d2132879-26dc-45ba-8daa-365733a738e0" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.ProcedureHint;
+import org.apache.flink.table.procedure.ProcedureContext;
+import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.types.Row;
+
+public static class NamedParameterProcedure extends Procedure {
+
+  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, @ArgumentHint(name = "a", isOption = true) Integer a, @ArgumentHint(name = "b") Integer b) {
+    return new Integer[] {a + (b == null ? 0 : b)};
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.ProcedureHint
+import org.apache.flink.table.procedure.ProcedureContext
+import org.apache.flink.table.procedures.Procedure
+import org.apache.flink.types.Row
+import scala.annotation.varargs
+
+class NamedParameterProcedure extends Procedure {
+
+  def call(context: ProcedureContext, @ArgumentHint(name = "param1", isOptional = true) a: Integer, @ArgumentHint(name = "param2") b: Integer): Array[Integer] = {
+    Array(a + (if (b == null) 0 else b))
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+2. 在存储过程的 `call` 方法上使用 `@ArgumentHint` 注解。
+
+{{< tabs "5c682030-fdbd-485c-9961-b402971e14d4" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.ProcedureHint;
+import org.apache.flink.table.procedure.ProcedureContext;
+import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.types.Row;
+
+public static class NamedParameterProcedure extends Procedure {
+    
+      @ProcedureHint(
+              argument = {@ArgumentHint(name = "param1", type = @DataTypeHint("INTEGER"), isOptional = false),
+                            @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)}
+      )
+      public @DataTypeHint("INT") Integer[] call(ProcedureContext context, Integer a, Integer b) {
+        return new Integer[] {a + (b == null ? 0 : b)};
+      }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.ProcedureHint
+import org.apache.flink.table.procedure.ProcedureContext
+import org.apache.flink.table.procedures.Procedure
+import org.apache.flink.types.Row
+import scala.annotation.varargs
+
+class NamedParameterProcedure extends Procedure {
+  @ProcedureHint(
+    argument = Array(
+      new ArgumentHint(name = "param1", `type` = new DataTypeHint("INTEGER"), isOptional = false),
+      new ArgumentHint(name = "param2", `type` = new DataTypeHint("INTEGER"), isOptional = true)
+    )
+  )
+    def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
+        Array(a + (if (b == null) 0 else b))
+    }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+3. 在存储过程的 class 上使用 `@ArgumentHint` 注解。
+
+{{< tabs "64db1ce1-1251-4cc4-a7d8-13b5664f9019" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.ProcedureHint;
+import org.apache.flink.table.procedure.ProcedureContext;
+import org.apache.flink.table.procedures.Procedure;
+import org.apache.flink.types.Row;
+
+@ProcedureHint(
+        argument = {@ArgumentHint(name = "param1", type = @DataTypeHint("INTEGER"), isOptional = false),
+                      @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)}
+)
+public static class NamedParameterProcedure extends Procedure {
+
+  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, Integer a, Integer b) {
+    return new Integer[] {a + (b == null ? 0 : b)};
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.ProcedureHint
+import org.apache.flink.table.procedure.ProcedureContext
+import org.apache.flink.table.procedures.Procedure
+import org.apache.flink.types.Row
+import scala.annotation.varargs
+
+@ProcedureHint(
+  argument = Array(
+    new ArgumentHint(name = "param1", `type` = new DataTypeHint("INTEGER"), isOptional = false),
+    new ArgumentHint(name = "param2", `type` = new DataTypeHint("INTEGER"), isOptional = true)
+  )
+)
+class NamedParameterProcedure extends Procedure {
+  def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
+    Array(a + (if (b == null) 0 else b))
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< hint info >}}
+* `@ArgumentHint` 内部包含了 `@DataTypeHint` 注解，因此在 `@ProcedureHint` 中不能同时声明 `input` 和 `argument`, 当作用于函数的参数时 `@ArgumentHint` 也不能和 `@DataTypeHint` 同时使用，推荐使用 `@ArgumentHint`。
+* 命名参数只有在对应的存储过程类不包含重载函数和可变参函数才会生效， 否则使用命名参数会导致报错。
+  {{< /hint >}}
 
 ### 在 Catalog 中返回存储过程
 在实现了一个存储过程后，Catalog 可以通过方法 `Catalog.getProcedure(ObjectPath procedurePath)` 来返回该存储过程，下面的例子展示了如何在 Catalog 中返回存储过程。

@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api.{TableException, TableSchema, Types}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
@@ -30,22 +31,19 @@ import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSour
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
-import org.apache.flink.util.ExceptionUtils
 
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.IterableAssert.assertThatIterable
-import org.junit.{After, Before, Test}
-import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatIterable, assertThatThrownBy}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Boolean => JBoolean}
 import java.util.{Collection => JCollection}
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class AsyncLookupJoinITCase(
     legacyTableSource: Boolean,
     backend: StateBackendMode,
@@ -63,7 +61,7 @@ class AsyncLookupJoinITCase(
 
   val userData = List(rowOf(11, 1L, "Julian"), rowOf(22, 2L, "Jark"), rowOf(33, 3L, "Fabian"))
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     if (legacyTableSource) {
@@ -87,13 +85,13 @@ class AsyncLookupJoinITCase(
     createLookupTable("user_table_with_lookup_threshold3", userData, 3)
   }
 
-  @After
+  @AfterEach
   override def after(): Unit = {
     super.after()
     if (legacyTableSource) {
-      assertEquals(0, InMemoryLookupableTableSource.RESOURCE_COUNTER.get())
+      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER).hasValue(0)
     } else {
-      assertEquals(0, TestValuesTableFactory.RESOURCE_COUNTER.get())
+      assertThat(TestValuesTableFactory.RESOURCE_COUNTER).hasValue(0)
     }
   }
 
@@ -171,7 +169,7 @@ class AsyncLookupJoinITCase(
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableOnMultiKeyFields(): Unit = {
     // test left table's join key define order diffs from right's
     val sql =
@@ -183,53 +181,53 @@ class AsyncLookupJoinITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTable(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableWithPushDown(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableWithNonEqualFilter(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark,22", "3,15,Fabian,Fabian,33")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncLeftJoinTemporalTableWithLocalPredicate(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -237,7 +235,7 @@ class AsyncLookupJoinITCase(
       "WHERE T.id > 1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -245,57 +243,57 @@ class AsyncLookupJoinITCase(
       "3,15,Fabian,Fabian,33",
       "8,11,Hello world,null,null",
       "9,12,Hello world!,null,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableOnMultiFields(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableOnMultiFieldsWithUdf(): Unit = {
-    tEnv.registerFunction("mod1", TestMod)
-    tEnv.registerFunction("wrapper1", TestWrapperUdf)
+    tEnv.createTemporarySystemFunction("mod1", TestMod)
+    tEnv.createTemporarySystemFunction("wrapper1", TestWrapperUdf)
 
     val sql = "SELECT T.id, T.len, wrapper1(D.name) as name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D " +
       "ON mod1(T.id, 4) = D.id AND T.content = D.name"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableWithUdfFilter(): Unit = {
-    tEnv.registerFunction("add", new TestAddWithOpen)
+    tEnv.createTemporarySystemFunction("add", new TestAddWithOpen)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
       "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, TestAddWithOpen.aliveCounter.get())
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(TestAddWithOpen.aliveCounter).hasValue(0)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndAsyncLeftJoinTemporalTable(): Unit = {
     val sql1 = "SELECT max(id) as id, PROCTIME() as proctime FROM src AS T group by len"
 
@@ -310,15 +308,13 @@ class AsyncLookupJoinITCase(
     env.execute()
 
     val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndAsyncLeftJoinWithTryResolveMode(): Unit = {
     // will require a sync lookup function because input has update on TRY_RESOLVE mode
     // there's no test sources that have both sync and async lookup functions
-    thrown.expectMessage("Required sync lookup function by planner")
-    thrown.expect(classOf[TableException])
     tEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
       OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
@@ -332,51 +328,50 @@ class AsyncLookupJoinITCase(
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
+    assertThatThrownBy(
+      () => {
+        tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
 
-    val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+        env.execute()
+
+        val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
+        assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+      })
+      .hasMessageContaining("Required sync lookup function by planner")
+      .isInstanceOf[TableException]
+
   }
 
-  @Test
+  @TestTemplate
   def testAsyncLeftJoinTemporalTable(): Unit = {
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
       Seq("1,12,Julian,11", "2,15,Jark,22", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testExceptionThrownFromAsyncJoinTemporalTable(): Unit = {
-    tEnv.registerFunction("errorFunc", TestExceptionThrown)
+    tEnv.createTemporarySystemFunction("errorFunc", TestExceptionThrown)
 
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
       "where errorFunc(D.name) > cast(1000 as decimal(10,4))" // should exception here
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
 
-    try {
-      env.execute()
-    } catch {
-      case t: Throwable =>
-        val exception = ExceptionUtils.findThrowable(t, classOf[NumberFormatException])
-        assertTrue(exception.isPresent)
-        assertTrue(exception.get().getMessage.contains("Cannot parse"))
-        return
-    }
-    fail("NumberFormatException is expected here!")
+    assertThatThrownBy(() => env.execute())
+      .satisfies(anyCauseMatches(classOf[NumberFormatException], "Cannot parse"))
   }
 
-  @Test
+  @TestTemplate
   def testLookupCacheSharingAcrossSubtasks(): Unit = {
     if (!enableCache) {
       return
@@ -405,7 +400,7 @@ class AsyncLookupJoinITCase(
           |ON T.id = D.id
           |""".stripMargin
       val sink = new TestingAppendSink
-      tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+      tEnv.sqlQuery(sql).toDataStream.addSink(sink)
       env.execute()
 
       // Validate that only one cache is registered
@@ -442,7 +437,7 @@ class AsyncLookupJoinITCase(
     new java.lang.Long(l)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableWithRetry(): Unit = {
     val maxRetryTwiceHint = getAsyncRetryLookupHint("D", 2)
     val sink = new TestingAppendSink
@@ -452,16 +447,16 @@ class AsyncLookupJoinITCase(
                    |JOIN user_table for system_time as of T.proctime AS D
                    |ON T.id = D.id
                    |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
     env.execute()
 
     // the result is deterministic because the test data of lookup source is static
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableWithLookupThresholdWithInsufficientRetry(): Unit = {
     val maxRetryOnceHint = getAsyncRetryLookupHint("D", 1)
     val sink = new TestingAppendSink
@@ -471,7 +466,7 @@ class AsyncLookupJoinITCase(
                    |JOIN user_table_with_lookup_threshold3 for system_time as of T.proctime AS D
                    |ON T.id = D.id
                    |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
     env.execute()
 
@@ -483,10 +478,10 @@ class AsyncLookupJoinITCase(
       // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
       Seq()
     }
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinTemporalTableWithLookupThresholdWithSufficientRetry(): Unit = {
     // When enable async retry, there should left enough time for the async operator doing delayed
     // retry work, but due the fast finish of testing bounded source, it has no assurance of the
@@ -501,12 +496,12 @@ class AsyncLookupJoinITCase(
                    |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
                    |ON T.id = D.id
                    |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
 }
@@ -520,7 +515,7 @@ object AsyncLookupJoinITCase {
   val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
   val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
 
-  @Parameterized.Parameters(name =
+  @Parameters(name =
     "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}, EnableCache={4}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](

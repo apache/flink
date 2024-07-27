@@ -20,10 +20,10 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -89,7 +89,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
                 standaloneClusterStartupPeriodTime,
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)),
+                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
     }
 

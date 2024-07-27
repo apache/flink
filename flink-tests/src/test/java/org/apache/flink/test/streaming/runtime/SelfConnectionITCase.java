@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 
 /** Integration tests for connected streams. */
 @SuppressWarnings("serial")
-public class SelfConnectionITCase extends AbstractTestBase {
+public class SelfConnectionITCase extends AbstractTestBaseJUnit4 {
 
     /** We connect two different data streams in a chain to a CoMap. */
     @Test
@@ -46,7 +46,7 @@ public class SelfConnectionITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<Integer> src = env.fromElements(1, 3, 5);
+        DataStream<Integer> src = env.fromData(1, 3, 5);
 
         DataStream<String> stringMap = src.map(value -> "x " + value);
 
@@ -91,7 +91,7 @@ public class SelfConnectionITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
+        DataStream<Integer> src = env.fromData(1, 3, 5).disableChaining();
 
         DataStream<String> stringMap =
                 src.flatMap(

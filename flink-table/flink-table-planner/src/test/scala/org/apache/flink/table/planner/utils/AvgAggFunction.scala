@@ -20,13 +20,14 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.planner.calcite.FlinkTypeSystem
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
-import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findAvgAggType
 
 import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal, BigInteger, MathContext}
@@ -85,9 +86,20 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
     }
   }
 
-  override def getAccumulatorType: TypeInformation[IntegralAvgAccumulator] = {
-    new TupleTypeInfo(classOf[IntegralAvgAccumulator], Types.LONG, Types.LONG)
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(getValueDataType)
+      .accumulatorTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[IntegralAvgAccumulator],
+            DataTypes.FIELD("f0", DataTypes.BIGINT()),
+            DataTypes.FIELD("f1", DataTypes.BIGINT()))))
+      .outputTypeStrategy(TypeStrategies.explicit(getValueDataType))
+      .build
   }
+
+  def getValueDataType: DataType
 
   /**
    * Convert the intermediate result to the expected aggregation result type
@@ -104,16 +116,22 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
 /** Built-in Byte Avg aggregate function */
 class ByteAvgAggFunction extends IntegralAvgAggFunction[Byte] {
   override def resultTypeConvert(value: Long): Byte = value.toByte
+
+  override def getValueDataType: DataType = DataTypes.TINYINT()
 }
 
 /** Built-in Short Avg aggregate function */
 class ShortAvgAggFunction extends IntegralAvgAggFunction[Short] {
   override def resultTypeConvert(value: Long): Short = value.toShort
+
+  override def getValueDataType: DataType = DataTypes.SMALLINT()
 }
 
 /** Built-in Int Avg aggregate function */
 class IntAvgAggFunction extends IntegralAvgAggFunction[Int] {
   override def resultTypeConvert(value: Long): Int = value.toInt
+
+  override def getValueDataType: DataType = DataTypes.INT()
 }
 
 /** The initial accumulator for Big Integral Avg aggregate function */

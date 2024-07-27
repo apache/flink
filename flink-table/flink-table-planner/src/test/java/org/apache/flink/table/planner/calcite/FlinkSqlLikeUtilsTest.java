@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.table.functions.SqlLikeUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the SqlLikeUtils. */
-public class FlinkSqlLikeUtilsTest {
+class FlinkSqlLikeUtilsTest {
     @Test
-    public void testSqlLike() {
+    void testSqlLike() {
         assertThat(SqlLikeUtils.like("abc", "a.c", "\\")).isEqualTo(false);
         assertThat(SqlLikeUtils.like("a.c", "a.c", "\\")).isEqualTo(true);
         assertThat(SqlLikeUtils.like("abcd", "a.*d", "\\")).isEqualTo(false);

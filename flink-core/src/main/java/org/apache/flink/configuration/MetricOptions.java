@@ -281,7 +281,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>.<operator_name>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator.");
+                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator for Source Enumerator metrics.");
 
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
@@ -310,10 +310,10 @@ public class MetricOptions {
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to an operator. Only effective when a identifier-based reporter is configured");
 
-    public static final ConfigOption<Long> LATENCY_INTERVAL =
+    public static final ConfigOption<Duration> LATENCY_INTERVAL =
             key("metrics.latency.interval")
-                    .longType()
-                    .defaultValue(0L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(0L))
                     .withDescription(
                             "Defines the interval at which latency tracking marks are emitted from the sources."
                                     + " Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly"
@@ -359,12 +359,12 @@ public class MetricOptions {
      * Interval between probing of system resource metrics specified in milliseconds. Has an effect
      * only when {@link #SYSTEM_RESOURCE_METRICS} is enabled.
      */
-    public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
+    public static final ConfigOption<Duration> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
             key("metrics.system-resource-probing-interval")
-                    .longType()
-                    .defaultValue(5000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5000L))
                     .withDescription(
-                            "Interval between probing of system resource metrics specified in milliseconds. Has an effect"
+                            "Interval between probing of system resource metrics specified. Has an effect"
                                     + " only when '"
                                     + SYSTEM_RESOURCE_METRICS.key()
                                     + "' is enabled.");
@@ -401,12 +401,12 @@ public class MetricOptions {
      * The config parameter defining the update interval for the metric fetcher used by the web UI
      * in milliseconds.
      */
-    public static final ConfigOption<Long> METRIC_FETCHER_UPDATE_INTERVAL =
+    public static final ConfigOption<Duration> METRIC_FETCHER_UPDATE_INTERVAL =
             key("metrics.fetcher.update-interval")
-                    .longType()
-                    .defaultValue(10000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000L))
                     .withDescription(
-                            "Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for "
+                            "Update interval for the metric fetcher used by the web UI. Decrease this value for "
                                     + "faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 "
                                     + "disables the metric fetching completely.");
 

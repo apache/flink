@@ -30,7 +30,7 @@ LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
-HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[left])
 :- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])
 :  +- Exchange(distribution=[hash[a]])
 :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
@@ -43,7 +43,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], 
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
 == Optimized Execution Plan ==
-MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[left])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
 :     +- Calc(select=[a, b])
@@ -69,7 +69,7 @@ LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
-HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[left]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 :- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 :  +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -82,7 +82,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], 
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[left])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
 :     +- Calc(select=[a, b])
@@ -91,32 +91,6 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[
    +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
       +- Calc(select=[d, e])
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testExplainWithAgg[extended=false]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1])
-+- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-   +- LogicalProject(a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-
-== Optimized Physical Plan ==
-Calc(select=[EXPR$0])
-+- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-         +- Calc(select=[a])
-            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-
-== Optimized Execution Plan ==
-Calc(select=[EXPR$0])
-+- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-         +- Calc(select=[a])
-            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -135,6 +109,32 @@ Calc(select=[EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, m
       +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[a])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithAgg[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+
+== Optimized Physical Plan ==
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[a])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
 Calc(select=[EXPR$0])
@@ -446,20 +446,6 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testExplainWithTableSourceScan[extended=false]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-
-== Optimized Physical Plan ==
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-
-== Optimized Execution Plan ==
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testExplainWithTableSourceScan[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -468,6 +454,20 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 
 == Optimized Physical Plan ==
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithTableSourceScan[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+
+== Optimized Physical Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

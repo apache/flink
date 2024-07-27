@@ -22,10 +22,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -36,6 +36,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdap
 
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -47,26 +48,30 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class PartitionRequestClientFactoryTest extends TestLogger {
+class PartitionRequestClientFactoryTest {
     private static final ResourceID RESOURCE_ID = ResourceID.generate();
 
-    @Parameter public boolean connectionReuseEnabled;
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(() -> Executors.newFixedThreadPool(10));
+
+    @Parameter private boolean connectionReuseEnabled;
 
     @Parameters(name = "connectionReuseEnabled={0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 
@@ -163,7 +168,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                             RESOURCE_ID, (int) (Math.random() * Integer.MAX_VALUE));
             set.add(factory.createPartitionRequestClient(connectionID));
         }
-        assertThat(set.size()).isLessThanOrEqualTo(maxNumberOfConnections);
+        assertThat(set).hasSizeLessThanOrEqualTo(maxNumberOfConnections);
     }
 
     /**
@@ -288,45 +293,31 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                 new PartitionRequestClientFactory(
                         unstableNettyClient, 2, 1, connectionReuseEnabled);
 
-        ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(10);
-        List<Future<NettyPartitionRequestClient>> futures = new ArrayList<>();
+        List<CompletableFuture<NettyPartitionRequestClient>> futures = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
-            Future<NettyPartitionRequestClient> future =
-                    threadPoolExecutor.submit(
+            futures.add(
+                    CompletableFuture.supplyAsync(
                             () -> {
-                                NettyPartitionRequestClient client = null;
                                 try {
-                                    client =
-                                            factory.createPartitionRequestClient(
-                                                    serverAndClient.getConnectionID(
-                                                            RESOURCE_ID, 0));
+                                    return factory.createPartitionRequestClient(
+                                            serverAndClient.getConnectionID(RESOURCE_ID, 0));
                                 } catch (Exception e) {
-                                    fail(e.getMessage());
+                                    throw new CompletionException(e);
                                 }
-                                return client;
-                            });
-
-            futures.add(future);
+                            },
+                            EXECUTOR_EXTENSION.getExecutor()));
         }
 
         futures.forEach(
-                runnableFuture -> {
-                    NettyPartitionRequestClient client;
-                    try {
-                        client = runnableFuture.get();
-                        assertThat(client).isNotNull();
-                    } catch (Exception e) {
-                        System.out.println(e.getMessage());
-                        fail();
-                    }
-                });
+                runnableFuture ->
+                        assertThatFuture(runnableFuture).eventuallySucceeds().isNotNull());
 
-        threadPoolExecutor.shutdown();
         shutdown(serverAndClient);
     }
 
-    private NettyTestUtil.NettyServerAndClient createNettyServerAndClient() throws Exception {
+    private static NettyTestUtil.NettyServerAndClient createNettyServerAndClient()
+            throws Exception {
         return NettyTestUtil.initServerAndClient(
                 new NettyProtocol(null, null) {
 

@@ -77,6 +77,7 @@ class JobExceptionsInfoWithHistoryNoRootTest
                                                         Collections.emptyMap(),
                                                         "task name #2",
                                                         "location #2",
+                                                        "location #2",
                                                         "taskManagerId #2"))),
                                 new JobExceptionsInfoWithHistory.RootExceptionInfo(
                                         "local task failure #1",
@@ -84,6 +85,7 @@ class JobExceptionsInfoWithHistoryNoRootTest
                                         1L,
                                         Collections.emptyMap(),
                                         "task name",
+                                        "location",
                                         "location",
                                         "taskManagerId",
                                         Collections.emptyList())),

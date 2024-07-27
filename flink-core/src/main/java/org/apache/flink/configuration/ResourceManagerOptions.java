@@ -33,10 +33,10 @@ public class ResourceManagerOptions {
             "resourcemanager.start-worker.retry-interval";
 
     /** Timeout for jobs which don't have a job manager as leader assigned. */
-    public static final ConfigOption<String> JOB_TIMEOUT =
+    public static final ConfigOption<Duration> JOB_TIMEOUT =
             ConfigOptions.key("resourcemanager.job.timeout")
-                    .stringType()
-                    .defaultValue("5 minutes")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             "Timeout for jobs which don't have a job manager as leader assigned.");
 
@@ -63,7 +63,6 @@ public class ResourceManagerOptions {
                                     + " Its not possible to use this configuration key to define port ranges.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MIN_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.min")
                     .intType()
@@ -210,14 +209,14 @@ public class ResourceManagerOptions {
      * by registered slots. If not set, {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT} will be used
      * by default.
      */
-    public static final ConfigOption<Long> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME =
+    public static final ConfigOption<Duration> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME =
             ConfigOptions.key("resourcemanager.standalone.start-up-time")
-                    .longType()
-                    .defaultValue(-1L)
+                    .durationType()
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Time in milliseconds of the start-up period of a standalone cluster. During this time, "
+                                            "Time of the start-up period of a standalone cluster. During this time, "
                                                     + "resource manager of the standalone cluster expects new task executors to be registered, and will not "
                                                     + "fail slot requests that can not be satisfied by any current registered slots. After this time, it will "
                                                     + "fail pending and new coming requests immediately that can not be satisfied by registered slots. If not "
@@ -238,11 +237,11 @@ public class ResourceManagerOptions {
                     .defaultValue(30000L)
                     .withDescription("The timeout for an idle task manager to be released.");
 
-    /** The timeout for an idle task manager to be released, in milliseconds. */
-    public static final ConfigOption<Long> TASK_MANAGER_TIMEOUT =
+    /** The timeout for an idle task manager to be released. */
+    public static final ConfigOption<Duration> TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("resourcemanager.taskmanager-timeout")
-                    .longType()
-                    .defaultValue(30000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
                     .withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
                     .withDescription(
                             Description.builder()
@@ -277,7 +276,7 @@ public class ResourceManagerOptions {
     /**
      * Prefix for passing custom environment variables to Flink's master process. For example for
      * passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
-     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the flink-conf.yaml.
+     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the config.yaml.
      */
     public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
 

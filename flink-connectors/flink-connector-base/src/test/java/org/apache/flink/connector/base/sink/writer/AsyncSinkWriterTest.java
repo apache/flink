@@ -19,6 +19,7 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
 import org.apache.flink.connector.base.sink.writer.strategy.CongestionControlRateLimitingStrategy;
@@ -38,7 +39,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUtils.assertThatBufferStatesAreEqual;
@@ -112,16 +112,20 @@ public class AsyncSinkWriterTest {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
-                        .maxBatchSize(4)
-                        .delay(100)
+                        .maxBatchSize(2)
+                        .delay(50)
                         .build();
-        for (int i = 0; i < 4; i++) {
-            sink.write(String.valueOf(i));
-        }
+        sink.write(String.valueOf(1));
+        // introduce artificial delay, shouldn't be calculated in send time
+        Thread.sleep(50);
+        long sendStartTimestamp = System.currentTimeMillis();
         sink.flush(true);
+        long sendCompleteTimestamp = System.currentTimeMillis();
+
         assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
-                .isGreaterThanOrEqualTo(99);
-        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue()).isLessThan(120);
+                .isGreaterThanOrEqualTo(50);
+        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
+                .isLessThanOrEqualTo(sendCompleteTimestamp - sendStartTimestamp);
     }
 
     @Test
@@ -1103,12 +1107,11 @@ public class AsyncSinkWriterTest {
          * <p>A limitation of this basic implementation is that each element written must be unique.
          *
          * @param requestEntries a set of request entries that should be persisted to {@code res}
-         * @param requestToRetry a Consumer that needs to accept a collection of failure elements
-         *     once all request entries have been persisted
+         * @param resultHandler a handler that will be used to retry failed entries
          */
         @Override
         protected void submitRequestEntries(
-                List<Integer> requestEntries, Consumer<List<Integer>> requestToRetry) {
+                List<Integer> requestEntries, ResultHandler<Integer> resultHandler) {
             maybeDelay();
 
             if (requestEntries.stream().anyMatch(val -> val > 100 && val <= 200)) {
@@ -1131,10 +1134,10 @@ public class AsyncSinkWriterTest {
 
                 requestEntries.removeAll(firstTimeFailed);
                 res.addAll(requestEntries);
-                requestToRetry.accept(firstTimeFailed);
+                resultHandler.retryForEntries(firstTimeFailed);
             } else {
                 res.addAll(requestEntries);
-                requestToRetry.accept(new ArrayList<>());
+                resultHandler.complete();
             }
         }
 
@@ -1195,6 +1198,11 @@ public class AsyncSinkWriterTest {
 
         private AsyncSinkWriterImplBuilder context(Sink.InitContext context) {
             this.context = context;
+            return this;
+        }
+
+        private AsyncSinkWriterImplBuilder context(WriterInitContext context) {
+            this.context = new Sink.InitContextWrapper(context);
             return this;
         }
 
@@ -1281,6 +1289,20 @@ public class AsyncSinkWriterTest {
         private final boolean blockForLimitedTime;
 
         public AsyncSinkReleaseAndBlockWriterImpl(
+                WriterInitContext context,
+                int maxInFlightRequests,
+                CountDownLatch blockedThreadLatch,
+                CountDownLatch delayedStartLatch,
+                boolean blockForLimitedTime) {
+            this(
+                    new Sink.InitContextWrapper(context),
+                    maxInFlightRequests,
+                    blockedThreadLatch,
+                    delayedStartLatch,
+                    blockForLimitedTime);
+        }
+
+        public AsyncSinkReleaseAndBlockWriterImpl(
                 Sink.InitContext context,
                 int maxInFlightRequests,
                 CountDownLatch blockedThreadLatch,
@@ -1305,7 +1327,7 @@ public class AsyncSinkWriterTest {
 
         @Override
         protected void submitRequestEntries(
-                List<Integer> requestEntries, Consumer<List<Integer>> requestToRetry) {
+                List<Integer> requestEntries, ResultHandler<Integer> resultHandler) {
             if (requestEntries.size() == 3) {
                 try {
                     delayedStartLatch.countDown();
@@ -1324,7 +1346,7 @@ public class AsyncSinkWriterTest {
             }
 
             res.addAll(requestEntries);
-            requestToRetry.accept(new ArrayList<>());
+            resultHandler.complete();
         }
     }
 }

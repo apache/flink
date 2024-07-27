@@ -95,7 +95,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 
     @Override
     public CheckpointCoordinator getCheckpointCoordinator() {
-        throw new UnsupportedOperationException();
+        return null;
     }
 
     // -------------------------------

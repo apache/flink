@@ -188,6 +188,25 @@ public abstract class TtlStateTestBase {
     }
 
     @TestTemplate
+    void testValueSetNull() throws Exception {
+        // Only test this on value state
+        assumeThat(ctx()).isInstanceOf(TtlValueStateTestContext.class);
+
+        initTest(
+                StateTtlConfig.UpdateType.OnCreateAndWrite,
+                StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp);
+
+        ctx().update(ctx().updateUnexpired);
+        assertThat(ctx().get())
+                .withFailMessage(UPDATED_UNEXPIRED_AVAIL)
+                .isEqualTo(ctx().getUnexpired);
+
+        // Update null and we get empty.
+        ctx().update(null);
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
+    }
+
+    @TestTemplate
     void testExactExpirationOnWrite() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,

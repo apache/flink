@@ -20,17 +20,15 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link ArrayListSerializerSnapshot}. */
 class ArrayListSerializerUpgradeTest
@@ -86,17 +84,17 @@ class ArrayListSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<ArrayList<String>> testDataMatcher() {
+        public Condition<ArrayList<String>> testDataCondition() {
             ArrayList<String> data = new ArrayList<>(2);
             data.add("Apache");
             data.add("Flink");
-            return is(data);
+            return new Condition<>(data::equals, "value is equal to " + data);
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<ArrayList<String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<ArrayList<String>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

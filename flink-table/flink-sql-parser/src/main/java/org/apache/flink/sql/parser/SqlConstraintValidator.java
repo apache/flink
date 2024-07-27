@@ -89,7 +89,7 @@ public class SqlConstraintValidator {
     }
 
     /** Check table constraint. */
-    private static void validate(SqlTableConstraint constraint) throws SqlValidateException {
+    public static void validate(SqlTableConstraint constraint) throws SqlValidateException {
         if (constraint.isUnique()) {
             throw new SqlValidateException(
                     constraint.getParserPosition(), "UNIQUE constraint is not supported yet");

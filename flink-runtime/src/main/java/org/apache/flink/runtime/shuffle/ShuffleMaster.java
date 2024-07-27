@@ -20,8 +20,13 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -108,4 +113,45 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseabl
             TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
         return MemorySize.ZERO;
     }
+
+    /**
+     * Retrieves specified partitions and their metrics (identified by {@code expectedPartitions}),
+     * the metrics include sizes of sub-partitions in a result partition.
+     *
+     * @param jobId ID of the target job
+     * @param timeout The timeout used for retrieve the specified partitions.
+     * @param expectedPartitions The set of identifiers for the result partitions whose metrics are
+     *     to be fetched.
+     * @return A future will contain a collection of the partitions with their metrics that could be
+     *     retrieved from the expected partitions within the specified timeout period.
+     */
+    default CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            JobID jobId, Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
+
+    /**
+     * Whether the shuffle master supports taking snapshot in batch scenarios if {@link
+     * org.apache.flink.configuration.BatchExecutionOptions#JOB_RECOVERY_ENABLED} is true. If it
+     * returns true, Flink will call {@link #snapshotState} to take snapshot, and call {@link
+     * #restoreState} to restore the state of shuffle master.
+     */
+    default boolean supportsBatchSnapshot() {
+        return false;
+    }
+
+    /** Triggers a snapshot of the shuffle master's state. */
+    default void snapshotState(
+            CompletableFuture<ShuffleMasterSnapshot> snapshotFuture,
+            ShuffleMasterSnapshotContext context) {}
+
+    /** Restores the state of the shuffle master from the provided snapshots. */
+    default void restoreState(List<ShuffleMasterSnapshot> snapshots) {}
+
+    /**
+     * Notifies that the recovery process of result partitions has started.
+     *
+     * @param jobId ID of the target job
+     */
+    default void notifyPartitionRecoveryStarted(JobID jobId) {}
 }

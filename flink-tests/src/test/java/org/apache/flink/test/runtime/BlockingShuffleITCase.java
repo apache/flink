@@ -33,20 +33,20 @@ class BlockingShuffleITCase extends BatchShuffleITCaseBase {
     public void testBoundedBlockingShuffle() throws Exception {
         final int numRecordsToSend = 1000000;
         Configuration configuration = getConfiguration();
-        configuration.setInteger(
+        configuration.set(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
                 Integer.MAX_VALUE);
-        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, false, configuration);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, false, configuration, false);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
     @Test
     public void testBoundedBlockingShuffleWithoutData() throws Exception {
         Configuration configuration = getConfiguration();
-        configuration.setInteger(
+        configuration.set(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
                 Integer.MAX_VALUE);
-        JobGraph jobGraph = createJobGraph(0, false, false, configuration);
+        JobGraph jobGraph = createJobGraph(0, false, false, configuration, false);
         executeJob(jobGraph, configuration, 0);
     }
 
@@ -54,38 +54,36 @@ class BlockingShuffleITCase extends BatchShuffleITCaseBase {
     public void testSortMergeBlockingShuffle() throws Exception {
         final int numRecordsToSend = 1000000;
         Configuration configuration = getConfiguration();
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
-        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, false, configuration);
+        JobGraph jobGraph = createJobGraph(numRecordsToSend, false, false, configuration, false);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 
     @Test
     public void testSortMergeBlockingShuffleWithoutData() throws Exception {
         Configuration configuration = getConfiguration();
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 64);
 
-        JobGraph jobGraph = createJobGraph(0, false, false, configuration);
+        JobGraph jobGraph = createJobGraph(0, false, false, configuration, false);
         executeJob(jobGraph, configuration, 0);
     }
 
     @Test
     public void testDeletePartitionFileOfBoundedBlockingShuffle() throws Exception {
         Configuration configuration = getConfiguration();
-        configuration.setInteger(
+        configuration.set(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
                 Integer.MAX_VALUE);
 
-        JobGraph jobGraph = createJobGraph(0, false, true, configuration);
+        JobGraph jobGraph = createJobGraph(0, false, true, configuration, false);
         executeJob(jobGraph, configuration, 0);
     }
 
     @Test
     public void testDeletePartitionFileOfSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = getConfiguration();
-        JobGraph jobGraph = createJobGraph(0, false, true, configuration);
+        JobGraph jobGraph = createJobGraph(0, false, true, configuration, false);
         executeJob(jobGraph, configuration, 0);
     }
 

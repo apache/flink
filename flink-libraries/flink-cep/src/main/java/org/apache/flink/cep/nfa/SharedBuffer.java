@@ -159,9 +159,7 @@ public class SharedBuffer<V> {
 
         private static final int VERSION = 2;
 
-        public SharedBufferSerializerSnapshot() {
-            super(SharedBufferSerializer.class);
-        }
+        public SharedBufferSerializerSnapshot() {}
 
         public SharedBufferSerializerSnapshot(SharedBufferSerializer<K, V> sharedBufferSerializer) {
             super(sharedBufferSerializer);

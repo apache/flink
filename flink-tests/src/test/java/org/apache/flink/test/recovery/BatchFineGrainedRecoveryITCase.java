@@ -92,7 +92,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
+import static org.apache.flink.runtime.executiongraph.failover.FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -232,7 +232,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
     private static Configuration createConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 PIPELINED_REGION_RESTART_STRATEGY_NAME);
         return configuration;

@@ -26,21 +26,18 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/** Tests {@link ProcessOperator}. */
-public class ProcessOperatorTest extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+/** Tests {@link ProcessOperator}. */
+class ProcessOperatorTest {
 
     @Test
-    public void testTimestampAndWatermarkQuerying() throws Exception {
+    void testTimestampAndWatermarkQuerying() throws Exception {
 
         ProcessOperator<Integer, String> operator =
                 new ProcessOperator<>(new QueryingProcessFunction(TimeDomain.EVENT_TIME));
@@ -71,7 +68,7 @@ public class ProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
+    void testTimestampAndProcessingTimeQuerying() throws Exception {
 
         ProcessOperator<Integer, String> operator =
                 new ProcessOperator<>(new QueryingProcessFunction(TimeDomain.PROCESSING_TIME));
@@ -100,7 +97,7 @@ public class ProcessOperatorTest extends TestLogger {
     }
 
     @Test
-    public void testNullOutputTagRefusal() throws Exception {
+    void testNullOutputTagRefusal() throws Exception {
         ProcessOperator<Integer, String> operator =
                 new ProcessOperator<>(new NullOutputTagEmittingProcessFunction());
 
@@ -112,8 +109,8 @@ public class ProcessOperatorTest extends TestLogger {
 
         testHarness.setProcessingTime(17);
         try {
-            expectedException.expect(IllegalArgumentException.class);
-            testHarness.processElement(new StreamRecord<>(5));
+            assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>(5)))
+                    .isInstanceOf(IllegalArgumentException.class);
         } finally {
             testHarness.close();
         }
@@ -121,7 +118,7 @@ public class ProcessOperatorTest extends TestLogger {
 
     /** This also verifies that the timestamps ouf side-emitted records is correct. */
     @Test
-    public void testSideOutput() throws Exception {
+    void testSideOutput() throws Exception {
         ProcessOperator<Integer, String> operator =
                 new ProcessOperator<>(new SideOutputProcessFunction());
 

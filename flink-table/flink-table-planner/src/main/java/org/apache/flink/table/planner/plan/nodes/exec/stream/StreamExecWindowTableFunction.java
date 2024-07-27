@@ -19,21 +19,43 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecWindowTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.groupwindow.assigners.GroupWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.operator.UnalignedWindowTableFunctionOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.operator.WindowTableFunctionOperatorBase;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.table.planner.plan.utils.WindowTableFunctionUtil.createWindowAssigner;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Stream {@link ExecNode} which acts as a table-valued function to assign a window for each row of
@@ -85,5 +107,57 @@ public class StreamExecWindowTableFunction extends CommonExecWindowTableFunction
                 inputProperties,
                 outputType,
                 description);
+    }
+
+    protected Transformation<RowData> translateWithUnalignedWindow(
+            PlannerBase planner,
+            ExecNodeConfig config,
+            RowType inputRowType,
+            Transformation<RowData> inputTransform) {
+        final WindowTableFunctionOperatorBase windowTableFunctionOperator =
+                createUnalignedWindowTableFunctionOperator(config, inputRowType);
+        final OneInputTransformation<RowData, RowData> transform =
+                ExecNodeUtil.createOneInputTransformation(
+                        inputTransform,
+                        createTransformationMeta(WINDOW_TRANSFORMATION, config),
+                        windowTableFunctionOperator,
+                        InternalTypeInfo.of(getOutputType()),
+                        inputTransform.getParallelism(),
+                        false);
+
+        final int[] partitionKeys = extractPartitionKeys(windowingStrategy.getWindow());
+        // set KeyType and Selector for state
+        final RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        partitionKeys,
+                        InternalTypeInfo.of(inputRowType));
+        transform.setStateKeySelector(selector);
+        transform.setStateKeyType(selector.getProducedType());
+        return transform;
+    }
+
+    private int[] extractPartitionKeys(WindowSpec window) {
+        checkState(
+                window instanceof SessionWindowSpec,
+                "Only support unaligned window with session window now.");
+
+        return ((SessionWindowSpec) window).getPartitionKeyIndices();
+    }
+
+    private WindowTableFunctionOperatorBase createUnalignedWindowTableFunctionOperator(
+            ExecNodeConfig config, RowType inputRowType) {
+        GroupWindowAssigner<TimeWindow> windowAssigner = createWindowAssigner(windowingStrategy);
+        final ZoneId shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(
+                        windowingStrategy.getTimeAttributeType(),
+                        TableConfigUtils.getLocalTimeZone(config));
+
+        return new UnalignedWindowTableFunctionOperator(
+                windowAssigner,
+                windowAssigner.getWindowSerializer(new ExecutionConfig()),
+                new RowDataSerializer(inputRowType),
+                windowingStrategy.getTimeAttributeIndex(),
+                shiftTimeZone);
     }
 }

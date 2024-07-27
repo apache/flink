@@ -22,6 +22,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /** Handle to state handles for the operators in an operator chain. */
 public class ChainedStateHandle<T extends StateObject> implements StateObject {
@@ -85,18 +87,19 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
 
     @Override
     public long getStateSize() {
-        long sumStateSize = 0;
+        return streamInternalHandles().mapToLong(StateObject::getStateSize).sum();
+    }
 
-        if (operatorStateHandles != null) {
-            for (T state : operatorStateHandles) {
-                if (state != null) {
-                    sumStateSize += state.getStateSize();
-                }
-            }
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamInternalHandles().forEach(handle -> handle.collectSizeStats(collector));
+    }
+
+    private Stream<? extends T> streamInternalHandles() {
+        if (operatorStateHandles.isEmpty()) {
+            return Stream.empty();
         }
-
-        // State size as sum of all state sizes
-        return sumStateSize;
+        return operatorStateHandles.stream().filter(Objects::nonNull);
     }
 
     @Override

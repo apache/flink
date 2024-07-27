@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -317,7 +317,7 @@ public class LogicalTypeParserTest {
     }
 
     private static <T> RawType<T> createRawType(Class<T> clazz) {
-        return new RawType<>(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
+        return new RawType<>(clazz, new KryoSerializer<>(clazz, new SerializerConfigImpl()));
     }
 
     @SuppressWarnings("unchecked")

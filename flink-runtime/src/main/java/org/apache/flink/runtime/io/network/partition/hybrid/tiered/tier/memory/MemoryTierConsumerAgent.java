@@ -19,13 +19,17 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -48,14 +52,21 @@ public class MemoryTierConsumerAgent implements TierConsumerAgent {
             TieredStorageNettyService nettyService) {
         for (TieredStorageConsumerSpec tieredStorageConsumerSpec : tieredStorageConsumerSpecs) {
             TieredStoragePartitionId partitionId = tieredStorageConsumerSpec.getPartitionId();
-            TieredStorageSubpartitionId subpartitionId =
-                    tieredStorageConsumerSpec.getSubpartitionId();
-            nettyConnectionReaders
-                    .computeIfAbsent(partitionId, ignore -> new HashMap<>())
-                    .put(
-                            subpartitionId,
-                            nettyService.registerConsumer(partitionId, subpartitionId));
+            for (int subpartitionId : tieredStorageConsumerSpec.getSubpartitionIds().values()) {
+                nettyConnectionReaders
+                        .computeIfAbsent(partitionId, ignore -> new HashMap<>())
+                        .put(
+                                new TieredStorageSubpartitionId(subpartitionId),
+                                nettyService.registerConsumer(
+                                        partitionId,
+                                        new TieredStorageSubpartitionId(subpartitionId)));
+            }
         }
+    }
+
+    @Override
+    public void setup(TieredStorageMemoryManager memoryManager) {
+        // noop
     }
 
     @Override
@@ -69,6 +80,25 @@ public class MemoryTierConsumerAgent implements TierConsumerAgent {
     }
 
     @Override
+    public int peekNextBufferSubpartitionId(
+            TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
+            throws IOException {
+        for (CompletableFuture<NettyConnectionReader> readerFuture :
+                nettyConnectionReaders.get(partitionId).values()) {
+            int subpartitionId;
+            try {
+                subpartitionId = readerFuture.get().peekNextBufferSubpartitionId();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException("Failed to peek subpartition Id.", e);
+            }
+            if (indexSet.contains(subpartitionId)) {
+                return subpartitionId;
+            }
+        }
+        return -1;
+    }
+
+    @Override
     public Optional<Buffer> getNextBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
@@ -78,10 +108,19 @@ public class MemoryTierConsumerAgent implements TierConsumerAgent {
                     .get(partitionId)
                     .get(subpartitionId)
                     .get()
-                    .readBuffer(segmentId);
+                    .readBuffer(subpartitionId.getSubpartitionId(), segmentId);
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to get next buffer.", e);
         }
+    }
+
+    @Override
+    public void updateTierShuffleDescriptor(
+            TieredStoragePartitionId partitionId,
+            TieredStorageInputChannelId inputChannelId,
+            TieredStorageSubpartitionId subpartitionId,
+            TierShuffleDescriptor tierShuffleDescriptor) {
+        // noop
     }
 
     @Override

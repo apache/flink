@@ -24,13 +24,13 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -41,16 +41,13 @@ import java.net.URLClassLoader;
 import java.util.Objects;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link InstantiationUtil}. */
-public class InstantiationUtilTest extends TestLogger {
+class InstantiationUtilTest {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tempFolder;
 
     private static final String PROXY_DEFINITION_FORMAT =
             "import java.lang.reflect.InvocationHandler;"
@@ -65,7 +62,7 @@ public class InstantiationUtilTest extends TestLogger {
                     + "}";
 
     @Test
-    public void testResolveProxyClass() throws Exception {
+    void testResolveProxyClass() throws Exception {
         final String interfaceName = "UserDefinedInterface";
         final String proxyName = "UserProxy";
 
@@ -81,13 +78,13 @@ public class InstantiationUtilTest extends TestLogger {
             byte[] serializeObject = InstantiationUtil.serializeObject(proxy);
             Object deserializedProxy =
                     InstantiationUtil.deserializeObject(serializeObject, userClassLoader);
-            assertNotNull(deserializedProxy);
+            assertThat(deserializedProxy).isNotNull();
         }
     }
 
     private URLClassLoader createClassLoader(String interfaceName, String proxyName)
             throws IOException {
-        return ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
+        return ClassLoaderUtils.withRoot(TempDirUtils.newFolder(tempFolder))
                 .addClass(
                         interfaceName, String.format("interface %s { void test();}", interfaceName))
                 .addClass(proxyName, createProxyDefinition(proxyName))
@@ -99,39 +96,49 @@ public class InstantiationUtilTest extends TestLogger {
     }
 
     @Test
-    public void testInstantiationOfStringValue() {
-        StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, null);
-        assertNotNull(stringValue);
+    void testInstantiationOfStringValue() {
+        Object stringValue = InstantiationUtil.instantiate(StringValue.class, null);
+        assertThat(stringValue).isNotNull();
     }
 
     @Test
-    public void testInstantiationOfStringValueAndCastToValue() {
-        StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
-        assertNotNull(stringValue);
+    void testInstantiationOfStringValueAndCastToValue() {
+        Object stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
+        assertThat(stringValue).isNotNull();
     }
 
     @Test
-    public void testHasNullaryConstructor() {
-        assertTrue(InstantiationUtil.hasPublicNullaryConstructor(StringValue.class));
+    void testHasNullaryConstructor() {
+        assertThat(InstantiationUtil.hasPublicNullaryConstructor(StringValue.class)).isTrue();
+    }
+
+    /**
+     * Test that {@link InstantiationUtil} class per se does not have a nullary public constructor.
+     */
+    @Test
+    void testHasNullaryConstructorFalse() {
+        assertThat(InstantiationUtil.hasPublicNullaryConstructor(InstantiationUtil.class))
+                .isFalse();
     }
 
     @Test
-    public void testClassIsProper() {
-        assertTrue(InstantiationUtil.isProperClass(StringValue.class));
+    void testClassIsProper() {
+        assertThat(InstantiationUtil.isProperClass(StringValue.class)).isTrue();
     }
 
     @Test
-    public void testClassIsNotProper() {
-        assertFalse(InstantiationUtil.isProperClass(Value.class));
-    }
-
-    @Test(expected = RuntimeException.class)
-    public void testCheckForInstantiationOfPrivateClass() {
-        InstantiationUtil.checkForInstantiation(TestClass.class);
+    void testClassIsNotProper() {
+        assertThat(InstantiationUtil.isProperClass(Value.class)).isFalse();
     }
 
     @Test
-    public void testSerializationToByteArray() throws IOException {
+    void testCheckForInstantiationOfPrivateClass() {
+        assertThatThrownBy(() -> InstantiationUtil.checkForInstantiation(TestClass.class))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void testSerializationToByteArray() throws IOException {
         final DoubleValue toSerialize = new DoubleValue(Math.random());
         final DoubleValueSerializer serializer = new DoubleValueSerializer();
 
@@ -140,72 +147,57 @@ public class InstantiationUtilTest extends TestLogger {
         DoubleValue deserialized =
                 InstantiationUtil.deserializeFromByteArray(serializer, serialized);
 
-        assertEquals(
-                "Serialized record is not equal after serialization.", toSerialize, deserialized);
+        assertThat(deserialized).isEqualTo(toSerialize);
     }
 
     @Test
-    public void testCompressionAndSerializationAlongWithDecompressionAndDeserialization()
+    void testCompressionAndSerializationAlongWithDecompressionAndDeserialization()
             throws IOException, ClassNotFoundException {
         final String value = "teststring";
 
-        assertEquals(
-                value,
-                InstantiationUtil.decompressAndDeserializeObject(
-                        InstantiationUtil.serializeObjectAndCompress(value),
-                        getClass().getClassLoader()));
+        assertThat(
+                        (String)
+                                InstantiationUtil.decompressAndDeserializeObject(
+                                        InstantiationUtil.serializeObjectAndCompress(value),
+                                        getClass().getClassLoader()))
+                .isEqualTo(value);
     }
 
     @Test
-    public void testWriteToConfigFailingSerialization() {
-        try {
-            final String key1 = "testkey1";
-            final String key2 = "testkey2";
-            final Configuration config = new Configuration();
+    void testWriteToConfigFailingSerialization() throws IOException {
+        final String key1 = "testkey1";
+        final String key2 = "testkey2";
+        final Configuration config = new Configuration();
 
-            try {
-                InstantiationUtil.writeObjectToConfig(
-                        new TestClassWriteFails(), config, "irgnored");
-                fail("should throw an exception");
-            } catch (TestException e) {
-                // expected
-            } catch (Exception e) {
-                fail("Wrong exception type - exception not properly forwarded");
-            }
+        assertThatThrownBy(
+                        () ->
+                                InstantiationUtil.writeObjectToConfig(
+                                        new TestClassWriteFails(), config, "irgnored"))
+                .isInstanceOf(TestException.class);
 
-            InstantiationUtil.writeObjectToConfig(new TestClassReadFails(), config, key1);
-            InstantiationUtil.writeObjectToConfig(new TestClassReadFailsCNF(), config, key2);
+        InstantiationUtil.writeObjectToConfig(new TestClassReadFails(), config, key1);
+        InstantiationUtil.writeObjectToConfig(new TestClassReadFailsCNF(), config, key2);
 
-            try {
-                InstantiationUtil.readObjectFromConfig(config, key1, getClass().getClassLoader());
-                fail("should throw an exception");
-            } catch (TestException e) {
-                // expected
-            } catch (Exception e) {
-                fail("Wrong exception type - exception not properly forwarded");
-            }
+        assertThatThrownBy(
+                        () ->
+                                InstantiationUtil.readObjectFromConfig(
+                                        config, key1, getClass().getClassLoader()))
+                .isInstanceOf(TestException.class);
 
-            try {
-                InstantiationUtil.readObjectFromConfig(config, key2, getClass().getClassLoader());
-                fail("should throw an exception");
-            } catch (ClassNotFoundException e) {
-                // expected
-            } catch (Exception e) {
-                fail("Wrong exception type - exception not properly forwarded");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                InstantiationUtil.readObjectFromConfig(
+                                        config, key2, getClass().getClassLoader()))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 
     @Test
-    public void testCopyWritable() throws Exception {
+    void testCopyWritable() throws Exception {
         WritableType original = new WritableType();
         WritableType copy = InstantiationUtil.createCopyWritable(original);
 
-        assertTrue(original != copy);
-        assertTrue(original.equals(copy));
+        assertThat(copy).isNotSameAs(original);
+        assertThat(copy).isEqualTo(original);
     }
 
     // --------------------------------------------------------------------------------------------

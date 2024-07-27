@@ -48,8 +48,8 @@ public class Prio0InboundChannelHandlerFactory implements InboundChannelHandlerF
     public Optional<ChannelHandler> createHandler(
             Configuration configuration, Map<String, String> responseHeaders)
             throws ConfigurationException {
-        String redirectFromUrl = configuration.getString(REDIRECT_FROM_URL);
-        String redirectToUrl = configuration.getString(REDIRECT_TO_URL);
+        String redirectFromUrl = configuration.get(REDIRECT_FROM_URL);
+        String redirectToUrl = configuration.get(REDIRECT_TO_URL);
         if (!redirectFromUrl.isEmpty() && !redirectToUrl.isEmpty()) {
             return Optional.of(
                     new ChannelInboundHandlerAdapter() {

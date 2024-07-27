@@ -20,6 +20,7 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -34,6 +35,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Optional;
@@ -84,7 +86,10 @@ class BootstrapStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & 
                         output,
                         operatorChain.getOperatorEventDispatcher());
         mainOperator = mainOperatorAndTimeService.f0;
-        mainOperator.initializeState(createStreamTaskStateInitializer());
+        mainOperator.initializeState(
+                createStreamTaskStateInitializer(
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis())));
         mainOperator.open();
         recordProcessor = RecordProcessorUtils.getRecordProcessor(mainOperator);
     }

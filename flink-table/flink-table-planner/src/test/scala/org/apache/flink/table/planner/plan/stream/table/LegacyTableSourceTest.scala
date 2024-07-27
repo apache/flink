@@ -24,7 +24,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.utils.{TableTestBase, TestLegacyProjectableTableSource, TestNestedProjectableTableSource, TestTableSourceWithTime}
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class LegacyTableSourceTest extends TableTestBase {
 

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
@@ -26,12 +26,12 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 /** Test for [[EnforceLocalHashAggRule]]. */
 class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     super.setup()
     val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
@@ -55,7 +55,9 @@ class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
     // only enabled HashAgg
     util.tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE)
   }
 
 }

@@ -144,7 +144,7 @@ class YarnConfigurationITCase extends YarnTestBase {
                             }
 
                             for (ContainerReport container : containers) {
-                                if (container.getContainerId().getId() == 1) {
+                                if (container.getContainerId().getContainerId() == 1) {
                                     // this should be the application master
                                     assertThat(container.getAllocatedResource().getMemorySize())
                                             .isEqualTo(masterMemory);

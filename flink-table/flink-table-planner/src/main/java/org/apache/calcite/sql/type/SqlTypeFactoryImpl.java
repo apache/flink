@@ -38,7 +38,8 @@ import static java.util.Objects.requireNonNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fix of FLINK-31350: Lines 541 ~ 553.
+ *   <li>Should be removed after fixing CALCITE-6342: Lines 475-485
+ *   <li>Should be removed after fix of FLINK-31350: Lines 552 ~ 564.
  * </ol>
  */
 public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
@@ -470,9 +471,21 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
                                 resultType, nullCount > 0 || nullableCount > 0);
                     }
                 }
+
+                // FLINK MODIFICATION BEGIN
+                // in case we compare TIME(STAMP) and TIME(STAMP)_LTZ we should adjust the precision
+                // as well
+                if (type.getSqlTypeName().getFamily() == resultType.getSqlTypeName().getFamily()
+                        && type.getSqlTypeName().allowsPrec()
+                        && type.getPrecision() != resultType.getPrecision()) {
+                    final int precision =
+                            SqlTypeUtil.maxPrecision(
+                                    resultType.getPrecision(), type.getPrecision());
+
+                    resultType = createSqlType(type.getSqlTypeName(), precision);
+                }
+                // FLINK MODIFICATION END
             } else {
-                // TODO:  datetime precision details; for now we let
-                // leastRestrictiveByCast handle it
                 return null;
             }
         }

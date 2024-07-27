@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link StreamNetworkPointToPointBenchmark}. */
-public class StreamNetworkPointToPointBenchmarkTest {
+class StreamNetworkPointToPointBenchmarkTest {
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         StreamNetworkPointToPointBenchmark benchmark = new StreamNetworkPointToPointBenchmark();
         benchmark.setUp(10);
         try {

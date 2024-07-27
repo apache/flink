@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.plan.stats.TableStats
@@ -26,13 +25,13 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.{BatchPhysicalJo
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class RemoveShuffleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource(
       "x",
@@ -518,7 +517,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -536,7 +535,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -555,7 +554,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),

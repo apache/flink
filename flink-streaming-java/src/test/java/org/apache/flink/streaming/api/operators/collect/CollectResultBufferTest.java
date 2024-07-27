@@ -22,8 +22,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -31,13 +30,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link AbstractCollectResultBuffer} and its subclasses. */
-public class CollectResultBufferTest {
+class CollectResultBufferTest {
 
     private static final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
     @Test
-    public void testUncheckpointedValidResponse() throws Exception {
+    void testUncheckpointedValidResponse() throws Exception {
         String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new UncheckpointedCollectResultBuffer<>(serializer, false);
@@ -52,7 +54,7 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 0);
         // for uncheckpointed buffer, results can be instantly seen by user
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
 
         expected = Arrays.asList(4, 5);
@@ -62,13 +64,13 @@ public class CollectResultBufferTest {
                         version, 0, createSerializedResults(Arrays.asList(3, 4, 5)));
         buffer.dealWithResponse(response, 2);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
     }
 
     @Test
-    public void testUncheckpointedFaultTolerance() throws Exception {
+    void testUncheckpointedFaultTolerance() throws Exception {
         String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new UncheckpointedCollectResultBuffer<>(serializer, true);
@@ -82,7 +84,7 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
 
         // version changed, job restarted
@@ -94,12 +96,12 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
     }
 
-    @Test(expected = RuntimeException.class)
-    public void testUncheckpointedNotFaultTolerance() throws Exception {
+    @Test // (expected = RuntimeException.class)
+    void testUncheckpointedNotFaultTolerance() throws Exception {
         String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new UncheckpointedCollectResultBuffer<>(serializer, false);
@@ -113,17 +115,19 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
 
         // version changed, job restarted
         version = "another";
-        response = new CollectCoordinationResponse(version, 0, Collections.emptyList());
-        buffer.dealWithResponse(response, 0);
+        CollectCoordinationResponse anotherResponse =
+                new CollectCoordinationResponse(version, 0, Collections.emptyList());
+        assertThatThrownBy(() -> buffer.dealWithResponse(anotherResponse, 0))
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
-    public void testCheckpointedValidResponse() throws Exception {
+    void testCheckpointedValidResponse() throws Exception {
         String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new CheckpointedCollectResultBuffer<>(serializer);
@@ -137,7 +141,7 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         // for checkpointed buffer, results can only be seen after a checkpoint
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
 
         response =
                 new CollectCoordinationResponse(
@@ -145,7 +149,7 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 3);
         // results before checkpoint can be seen now
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
 
         expected = Arrays.asList(4, 5, 6);
@@ -156,7 +160,7 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 5);
         // results before checkpoint can be seen now
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
 
         // send some uncommitted data
@@ -172,19 +176,19 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 7);
         // results before checkpoint can be seen now
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
 
         buffer.complete();
         expected = Arrays.asList(8, 9, 10);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
     }
 
     @Test
-    public void testCheckpointedRestart() throws Exception {
+    void testCheckpointedRestart() throws Exception {
         String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new CheckpointedCollectResultBuffer<>(serializer);
@@ -199,7 +203,7 @@ public class CollectResultBufferTest {
                         version, 0, createSerializedResults(Arrays.asList(1, 2, 3)));
         buffer.dealWithResponse(response, 0);
         // for checkpointed buffer, results can only be seen after a checkpoint
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
 
         // version changed, job restarted
         version = "another";
@@ -211,19 +215,19 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         // checkpoint still not done
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
 
         // checkpoint completed
         response = new CollectCoordinationResponse(version, 3, Collections.emptyList());
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
     }
 
     @Test
-    public void testImmediateAccumulatorResult() throws Exception {
+    void testImmediateAccumulatorResult() throws Exception {
         String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new UncheckpointedCollectResultBuffer<>(serializer, false);
@@ -237,9 +241,9 @@ public class CollectResultBufferTest {
         buffer.complete();
 
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            assertThat(buffer.next()).isEqualTo(expectedValue);
         }
-        Assert.assertNull(buffer.next());
+        assertThat(buffer.next()).isNull();
     }
 
     private List<byte[]> createSerializedResults(List<Integer> values) throws Exception {

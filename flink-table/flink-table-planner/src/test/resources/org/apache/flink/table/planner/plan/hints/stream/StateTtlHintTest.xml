@@ -1,0 +1,497 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggStateTtlNotPropagateIntoView">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('TMP' = '2d') */ max(b1) from (select a1, b1, count(*) from T1 group by a1, b1) TMP group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{TMP=2d}]]])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()], hints=[[[ALIAS options:[TMP]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, MAX(b1) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- GroupAggregate(groupBy=[a1, b1], select=[a1, b1])
+         +- Exchange(distribution=[hash[a1, b1]])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggStateTtlNotPropagateOutOfView">
+    <Resource name="sql">
+      <![CDATA[select max(b1) from (select /*+ STATE_TTL('T1' = '4d') */ a1, b1, count(*) from T1 group by a1, b1) TMP group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()], stateTtlHints=[[[STATE_TTL options:{T1=4d}]]], hints=[[[ALIAS options:[TMP]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, MAX(b1) AS EXPR$0])
+   +- Exchange(distribution=[hash[a1]])
+      +- GroupAggregate(groupBy=[a1, b1], select=[a1, b1], stateTtlHints=[[[STATE_TTL options:[4d]]]])
+         +- Exchange(distribution=[hash[a1, b1]])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggStateTtlWithCascadeAgg">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('TMP' = '2d') */ max(b1) from (select /*+ STATE_TTL('T1' = '4d') */ a1, b1, count(*) from T1 group by a1, b1) TMP group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{TMP=2d}]]])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()], stateTtlHints=[[[STATE_TTL options:{T1=4d}]]], hints=[[[ALIAS options:[TMP]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, MAX(b1) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- GroupAggregate(groupBy=[a1, b1], select=[a1, b1], stateTtlHints=[[[STATE_TTL options:[4d]]]])
+         +- Exchange(distribution=[hash[a1, b1]])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggStateTtlWithJoin">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '2d') */ max(b1) from (select T1.* from T1 join T2 on T1.a1 = T2.a2) T1 group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=2d}]]])
+   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T1]]]])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[T1]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, MAX(b1) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, b1])
+         +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a1]])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+            +- Exchange(distribution=[hash[a2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggStateTtlWithJoinHint">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '2d') */ max(b1) from (select  /*+ BROADCAST(T1) */T1.* from T1 join T2 on T1.a1 = T2.a2) T1 group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=2d}]]])
+   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T1]]]])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[T1]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, MAX(b1) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, b1])
+         +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], joinHints=[[[BROADCAST options:[LEFT]]]])
+            :- Exchange(distribution=[hash[a1]])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+            +- Exchange(distribution=[hash[a2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggStateTtlWithView">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('V6' = '2d') */ max(b1) from V6 group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{V6=2d}]]])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()], hints=[[[ALIAS options:[V6]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, MAX(b1) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- GroupAggregate(groupBy=[a1, b1], select=[a1, b1])
+         +- Exchange(distribution=[hash[a1, b1]])
+            +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDuplicateJoinStateTtlHint">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d'), STATE_TTL('T1' = '1d', 'T2' = '8d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
+   +- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{T2=2d, T3=3d}][STATE_TTL inheritPath:[0, 0] options:{T1=1d, T2=8d}]]])
+      :- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0, 0] options:{T2=2d, T3=3d}][STATE_TTL inheritPath:[0, 0, 0] options:{T1=1d, T2=8d}]]])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=3d}]]])
+:- Exchange(distribution=[hash[b2]])
+:  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
+:     :- Exchange(distribution=[hash[a1]])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+:     +- Exchange(distribution=[hash[a2]])
+:        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
++- Exchange(distribution=[hash[b3]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintNotPropagateIntoView">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '1d')*/T1.* from T1 join V5 on T1.a1 = V5.a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=1d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V5]]]])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V5]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- Join(joinType=[InnerJoin], where=[=(a1, a10)], select=[a1, b1, a10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d}]]])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1])
+         +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a1]])
+            :  +- Calc(select=[a1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+            +- Exchange(distribution=[hash[a2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintNotPropagateOutOfView">
+    <Resource name="sql">
+      <![CDATA[select T1.* from T1 join (select /*+ STATE_TTL('T1' = '2d')*/T1.* from T1 join T2 on T1.a1 = T2.a2) tmp on T1.a1 = tmp.a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[tmp]]]])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=2d}]]], hints=[[[ALIAS inheritPath:[0] options:[tmp]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- Join(joinType=[InnerJoin], where=[=(a1, a10)], select=[a1, b1, a10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1])
+         +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=2d}]]])
+            :- Exchange(distribution=[hash[a1]])
+            :  +- Calc(select=[a1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+            +- Exchange(distribution=[hash[a2]])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintOnlyWithRightSide">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d') */* from T1 join T2 on T1.a1 = T2.a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T2=2d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=2d}]]])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintWithAgg">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '1d', 'T2' = '2d')*/T1.b1, sum(T1.a1) from T1 join T2 on T1.b1 = T2.b2 group by T1.b1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], stateTtlHints=[[[STATE_TTL options:{T1=1d, T2=2d}]]])
++- LogicalProject(b1=[$1], a1=[$0])
+   +- LogicalJoin(condition=[=($1, $3)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{T1=1d, T2=2d}]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
++- Exchange(distribution=[hash[b1]])
+   +- Calc(select=[b1, a1])
+      +- Join(joinType=[InnerJoin], where=[=(b1, b2)], select=[a1, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
+         :- Exchange(distribution=[hash[b1]])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+         +- Exchange(distribution=[hash[b2]])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[b2], metadata=[]]], fields=[b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintWithCascadeJoin">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
+   +- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{T1=1d, T2=2d, T3=3d}]]])
+      :- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0, 0] options:{T1=1d, T2=2d, T3=3d}]]])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=3d}]]])
+:- Exchange(distribution=[hash[b2]])
+:  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
+:     :- Exchange(distribution=[hash[a1]])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+:     +- Exchange(distribution=[hash[a2]])
+:        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
++- Exchange(distribution=[hash[b3]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintWithDuplicatedArgs">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T2' = '1d') */* from T1 join T2 on T1.a1 = T2.a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T2=1d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=1d}]]])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinStateTtlHintWithView">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '2d', 'V4' = '1d') */* from T1 join V4 on T1.a1 = V4.a4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a4=[$2], b4=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=2d, V4=1d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalProject(a4=[$0], b4=[$1], hints=[[[ALIAS options:[V4]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, a3, b3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=2d, RIGHT=1d}]]])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a3]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiAggStateTtl">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '2d'), STATE_TTL('T1' = '8d') */ count(*) from T1 group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=2d}][STATE_TTL inheritPath:[0] options:{T1=8d}]]])
+   +- LogicalProject(a1=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, COUNT(*) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleAggStateTtl">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '2d') */ count(*) from T1 group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=2d}]]])
+   +- LogicalProject(a1=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, COUNT(*) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleJoinStateTtlHintWithEachSide">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T1' = '1d') */* from T1 join T2 on T1.a1 = T2.a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=1d, T2=2d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggStateTtlWithMultiKV">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '2d', 'T1' = '8d') */ count(*) from T1 group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=8d}]]])
+   +- LogicalProject(a1=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a1], select=[a1, COUNT(*) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[8d]]]])
+   +- Exchange(distribution=[hash[a1]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStateTtlHintWithJoinHint">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T1' = '1d', 'T2' = '2d'), BROADCAST(T1) */T1.b1, sum(T1.a1) from T1 join T2 on T1.b1 = T2.b2 group by T1.b1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], stateTtlHints=[[[STATE_TTL options:{T1=1d, T2=2d}]]])
++- LogicalProject(b1=[$1], a1=[$0])
+   +- LogicalJoin(condition=[=($1, $3)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0] options:[T1]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{T1=1d, T2=2d}]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
++- Exchange(distribution=[hash[b1]])
+   +- Calc(select=[b1, a1])
+      +- Join(joinType=[InnerJoin], where=[=(b1, b2)], select=[a1, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], joinHints=[[[BROADCAST options:[LEFT]]]], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
+         :- Exchange(distribution=[hash[b1]])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+         +- Exchange(distribution=[hash[b2]])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[b2], metadata=[]]], fields=[b2])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
