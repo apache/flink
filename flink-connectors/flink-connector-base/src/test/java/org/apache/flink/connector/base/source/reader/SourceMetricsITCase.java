@@ -34,6 +34,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -223,6 +224,26 @@ public class SourceMetricsITCase extends TestLogger {
             assertThatGauge(metrics.get(MetricNames.SOURCE_IDLE_TIME)).isEqualTo(0L);
         }
         assertThat(subtaskWithMetrics).isEqualTo(numSplits);
+
+        // Test operator I/O metrics are reused by task metrics
+        List<TaskMetricGroup> taskMetricGroups =
+                reporter.findTaskMetricGroups(jobId, "MetricTestingSource");
+        assertThat(taskMetricGroups).hasSize(parallelism);
+
+        int subtaskWithTaskMetrics = 0;
+        for (TaskMetricGroup taskMetricGroup : taskMetricGroups) {
+            // there are only 2 splits assigned; so two groups will not update metrics
+            if (taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter().getCount() == 0) {
+                continue;
+            }
+
+            subtaskWithTaskMetrics++;
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumBytesInCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
+        }
+        assertThat(subtaskWithTaskMetrics).isEqualTo(numSplits);
     }
 
     private static class LaggingTimestampAssigner
