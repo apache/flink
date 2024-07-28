@@ -1996,7 +1996,7 @@ SqlNode FromClause() :
     SqlLiteral joinType;
 }
 {
-    e = Join()
+    e = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN)
     (
         // Comma joins should only occur at top-level in the FROM clause.
         // Valid:
@@ -2006,7 +2006,7 @@ SqlNode FromClause() :
         //  * FROM a CROSS JOIN (b, c)
         LOOKAHEAD(1)
         <COMMA> { joinType = JoinType.COMMA.symbol(getPos()); }
-        e2 = Join() {
+        e2 = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN) {
             e = new SqlJoin(joinType.getParserPosition(),
                 e,
                 SqlLiteral.createBoolean(false, joinType.getParserPosition()),
@@ -2015,23 +2015,10 @@ SqlNode FromClause() :
                 JoinConditionType.NONE.symbol(SqlParserPos.ZERO),
                 null);
         }
-    )*
-    { return e; }
-}
-
-SqlNode Join() :
-{
-    SqlNode e;
-}
-{
-    e = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN)
-    (
-        LOOKAHEAD(2)
+    |
         e = JoinTable(e)
     )*
-    {
-        return e;
-    }
+    { return e; }
 }
 
 /** Matches "LEFT JOIN t ON ...", "RIGHT JOIN t USING ...", "JOIN t". */
@@ -2179,6 +2166,8 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
         tableRef = addLateral(tableRef, lateral)
         [ tableRef = MatchRecognize(tableRef) ]
     |
+        LOOKAHEAD(2)
+        [ <LATERAL> ] // "LATERAL" is implicit with "UNNEST", so ignore
         <UNNEST> { s = span(); }
         args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_SUB_QUERY)
         [
