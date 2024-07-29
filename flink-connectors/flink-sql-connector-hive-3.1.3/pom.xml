@@ -132,7 +132,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<version>1.8.2</version>
+			<version>1.11.3</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
