@@ -24,22 +24,16 @@ under the License.
 
 # DataGen Connector
 
-The DataGen connector provides a `Source` implementation that allows for generating input data for
-Flink pipelines.
-It is useful when developing locally or demoing without access to external systems such as Kafka.
-The DataGen connector is built-in, no additional dependencies are required.
+`DataGen`连接器提供了原生实现，可以为`Flink`生成输入端数据。
+当在本地开发或演示时，如果无法访问外部系统（如`Kafka`），它就显得非常有用。`DataGen`连接器是内置的，无需额外的依赖项。
 
-Usage
------
+## 用法
 
-The `DataGeneratorSource` produces N data points in parallel. The source splits the sequence
-into as many parallel sub-sequences as there are parallel source subtasks. It drives the data
-generation process by supplying "index" values of type `Long` to the user-provided
-{{< javadoc name="GeneratorFunction" file="org/apache/flink/connector/datagen/source/GeneratorFunction.html" >}}.
+`DataGeneratorSource` 以并行方式生成N条数据。然后将该序列拆分为与并行源subtask数量相同的并行子序列。
+它通过向用户提供的{{< javadoc name="GeneratorFunction" file="org/apache/flink/connector/datagen/source/GeneratorFunction.html" >}}提供`Long`类型的“index”值来驱动数据生成过程。
 
-The `GeneratorFunction` is then used for mapping the (sub-)sequences of `Long` values
-into the generated events of an arbitrary data type. For instance, the following code will produce the sequence of
-`["Number: 0", "Number: 2", ... , "Number: 999"]` records.
+`GeneratorFunction`之后被用于将`Long`长度的值的（子）序列映射到生成的任意数据类型的事件。
+例如，以下代码将生成序列`["Number: 0", "Number: 2", ... , "Number: 999"]`。
 
 ```java
 GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
@@ -54,15 +48,11 @@ DataStreamSource<String> stream =
         "Generator Source");
 ```
 
-The order of elements depends on the parallelism. Each sub-sequence will be produced in order.
-Consequently, if the parallelism is limited to one, this will produce one sequence in order from
-`"Number: 0"` to `"Number: 999"`.
+元素的顺序取决于并行度。每个子序列将按顺序生成。因此，如果并行度限制为 1，则将按顺序生成一个从 `Number: 0` 到 `Number: 999` 的序列。
 
-Rate Limiting
------
+## 速率限制
 
-`DataGeneratorSource` has built-in support for rate limiting. The following code will produce a stream of
-`Long` values at the overall source rate (across all source subtasks) not exceeding 100 events per second.
+`DataGeneratorSource` 支持速率限制参数。以下代码将生成一个`Long`值数据流，其整体速率（包括所有数据源子任务）不超过每秒 100 个事件。
 
 ```java
 GeneratorFunction<Long, Long> generatorFunction = index -> index;
@@ -76,28 +66,20 @@ DataGeneratorSource<String> source =
              Types.STRING);
 ```
 
-Additional rate limiting strategies, such as limiting the number of records emitted per checkpoint, can
-be found in {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}}.
+其他速率限制策略，例如限制每个检查点发出的记录数量，可以在{{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}}中找到。
 
-Boundedness
------
-This source is always bounded. From a practical perspective, however, setting the number of records
-to `Long.MAX_VALUE` turns it into an effectively unbounded source (the end will never be reached). For finite sequences users may want to consider running the application in [`BATCH` execution mode]({{< ref "docs/dev/datastream/execution_mode" >}}#when-canshould-i-use-batch-execution-mode)
-.
+## 有界性
+这个源始终是有界的。然而，从实际的角度来看，将记录数设置为 Long.MAX_VALUE 会使其变成一个有效的无界源（结束点永远无法触达）。对于有限序列，用户可能会考虑以批处理执行模式运行应用程序。
 
-Notes
------
+
+## 注意事项
 
 {{< hint info >}}
-**Note:**  `DataGeneratorSource` can be used to implement Flink jobs with at-least-once and
-end-to-end exactly-once processing guarantees under the condition that the output of the `GeneratorFunction`
-is deterministic with respect to its input, in other words supplying the same `Long` number always
-leads to generating the same output.
+**注意事项1:**  `DataGeneratorSource` 可以用于实现具有至少一次和端到端精确一次语义的 Flink 作业，前提是 `GeneratorFunction` 的输出对于其输入是确定性的，换句话说，提供相同的`Long`值总是会生成相同的输出。
 {{< /hint >}}
 
 {{< hint info >}}
-**Note:**  it is possible to also produce deterministic watermarks right at the
-source based on the generated events and a custom {{< javadoc name="WatermarkStrategy" file="org/apache/flink/api/common/eventtime/WatermarkStrategy.html">}}.  
+**注意事项2:**  还可以根据生成的事件和自定义{{< javadoc name="WatermarkStrategy" file="org/apache/flink/api/common/eventtime/WatermarkStrategy.html">}}，在源文件中生成确定性`Watermark`。
 {{< /hint >}}
 
 
