@@ -33,7 +33,7 @@ An aggregate function computes a single result from multiple input rows. For exa
 SELECT COUNT(*) FROM Orders
 ```
 
-For streaming queries, it is important to understand that Flink runs continuous queries that never terminate. Instead, they update their result table according to the updates on its input tables. For the above query, Flink will output an updated count each time a new row is inserted into the `Orders` table.
+For streaming queries, it is important to understand that Flink runs continuous queries that never terminate. These queries constantly update their result tables in response to modifications in their input tables. For the above query, Flink will output an updated count each time a new row is inserted into the `Orders` table.
 
 Apache Flink supports the standard `GROUP BY` clause for aggregating data.
 
