@@ -27,9 +27,9 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 /**
- * This class specifies an operator state maintained by {@link SavepointMetadata}. An operator state
- * is either represented as an existing {@link OperatorState}, or a {@link
- * org.apache.flink.state.api.BootstrapTransformation} that will be used to create it.
+ * This class specifies an operator state maintained by {@link SavepointMetadataV2}. An operator
+ * state is either represented as an existing {@link OperatorState}, or a {@link
+ * org.apache.flink.state.api.StateBootstrapTransformation} that will be used to create it.
  */
 @Internal
 class OperatorStateSpecV2 {
