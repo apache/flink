@@ -322,6 +322,18 @@ string:
   - sql: POSITION(string1 IN string2)
     table: STRING1.position(STRING2)
     description: 返回 STRING2 中第一次出现 STRING1 的位置（从 1 开始）；如果在 STRING2 中找不到 STRING1 返回 0。
+  - sql: PRINTF(format[, obj]*)
+    table: format.printf(obj...)
+    description: |
+      格式化 print-style 样式的字符串。
+      
+      函数使用 java.util.Formatter (Locale.US) 解析字符串。
+      
+      null obj 被格式化为字符串 "null"。
+      
+      strfmt <CHAR | VARCHAR>, obj <ANY>
+      
+      返回一个 STRING 格式的格式化后的字符串。如果 format 为 `NULL` 或不合法，则返回 `NULL`。
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     table: |
       STRING1.trim(LEADING, STRING2)

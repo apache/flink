@@ -22,6 +22,12 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -36,6 +42,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                         bTrimTestCases(),
                         eltTestCases(),
+                        printfTestCases(),
                         regexpExtractTestCases(),
                         translateTestCases())
                 .flatMap(s -> s);
@@ -188,6 +195,125 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "ELT(-1, 'a')",
                                 "Index must be an integer starting from '0', but was '-1'."));
+    }
+
+    private Stream<TestSetSpec> printfTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PRINTF)
+                        .onFieldsWithData(
+                                null,
+                                "%d %s ",
+                                1024,
+                                10.24,
+                                "1024",
+                                LocalDate.of(2024, 7, 30),
+                                LocalTime.of(10, 24, 0),
+                                LocalDateTime.of(2024, 7, 30, 10, 24, 0, 256),
+                                Instant.parse("2024-07-30T10:24:00.256Z"),
+                                Duration.of(5, ChronoUnit.HOURS),
+                                Boolean.TRUE,
+                                10.24)
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.INT(),
+                                DataTypes.FLOAT(),
+                                DataTypes.STRING(),
+                                DataTypes.DATE(),
+                                DataTypes.TIME(),
+                                DataTypes.TIMESTAMP(),
+                                DataTypes.TIMESTAMP_LTZ(),
+                                DataTypes.INTERVAL(DataTypes.HOUR()),
+                                DataTypes.BOOLEAN(),
+                                DataTypes.DECIMAL(4, 2))
+                        // null input
+                        .testResult($("f0").printf(), "PRINTF(f0)", null, DataTypes.STRING())
+                        .testResult(
+                                lit("%d %s").printf($("f0"), $("f0")),
+                                "PRINTF('%d %s', f0, f0)",
+                                "null null",
+                                DataTypes.STRING())
+                        // empty obj
+                        .testResult(
+                                lit("empty").printf(),
+                                "PRINTF('empty')",
+                                "empty",
+                                DataTypes.STRING())
+                        // invalid format
+                        .testResult(lit("%s").printf(), "PRINTF('%s')", null, DataTypes.STRING())
+                        // extra args
+                        .testResult(
+                                lit("%s %s").printf(1, 2, 3),
+                                "PRINTF('%s %s', 1, 2, 3)",
+                                "1 2",
+                                DataTypes.STRING())
+                        // numeric
+                        .testResult(
+                                lit("%08d").printf($("f2")),
+                                "PRINTF('%08d', f2)",
+                                "00001024",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("%.1f").printf($("f3")),
+                                "PRINTF('%.1f', f3)",
+                                "10.2",
+                                DataTypes.STRING())
+                        // string
+                        .testResult(
+                                lit("%s").printf($("f4")),
+                                "PRINTF('%s', f4)",
+                                "1024",
+                                DataTypes.STRING())
+                        // datetime
+                        .testResult(
+                                lit("%s").printf($("f5")),
+                                "PRINTF('%s', f5)",
+                                "19934",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("%s").printf($("f6")),
+                                "PRINTF('%s', f6)",
+                                "37440000",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("%s").printf($("f7")),
+                                "PRINTF('%s', f7)",
+                                "2024-07-30T10:24",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("%s").printf($("f8")),
+                                "PRINTF('%s', f8)",
+                                "2024-07-30T10:24:00.256",
+                                DataTypes.STRING())
+                        // interval
+                        .testResult(
+                                lit("%s").printf($("f9")),
+                                "PRINTF('%s', f9)",
+                                "18000000",
+                                DataTypes.STRING())
+                        // boolean
+                        .testResult(
+                                lit("%b").printf($("f10")),
+                                "PRINTF('%b', f10)",
+                                "true",
+                                DataTypes.STRING())
+                        // decimal
+                        .testResult(
+                                lit("%s").printf($("f11")),
+                                "PRINTF('%s', f11)",
+                                "10.24",
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PRINTF, "Validation Error")
+                        .onFieldsWithData(1024)
+                        .andDataTypes(DataTypes.INT())
+                        .testTableApiValidationError(
+                                $("f0").printf(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "PRINTF(format <CHARACTER_STRING>, obj <ANY>...)")
+                        .testSqlValidationError(
+                                "PRINTF(f0)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "PRINTF(format <CHARACTER_STRING>, obj <ANY>...)"));
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {

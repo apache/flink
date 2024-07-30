@@ -1310,6 +1310,20 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("parseUrl")(self, part_to_extract, key)
 
+    def printf(self, *obj) -> 'Expression':
+        """
+        Returns a formatted string from printf-style format strings.
+        The function exploits the java.util.Formatter class with Locale.US.
+
+        :param obj: any expression
+        :return: a formatted string. null if format is null or invalid.
+        """
+        gateway = get_gateway()
+        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+        exprs = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
+                 for e in obj]
+        return _binary_op("printf")(self, to_jarray(gateway.jvm.Object, exprs))
+
     @property
     def ltrim(self) -> 'Expression[str]':
         """

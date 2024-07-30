@@ -156,6 +156,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POWER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PRINTF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PROCTIME;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RADIANS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP;
@@ -1261,6 +1262,22 @@ public abstract class BaseExpressions<InType, OutType> {
                         toExpr(),
                         objectToExpression(partToExtract),
                         objectToExpression(key)));
+    }
+
+    /**
+     * Returns a formatted string from printf-style format string. The function exploits the {@link
+     * java.util.Formatter} with Locale.US.
+     *
+     * @param obj any expression
+     * @return a formatted string. null if {@code format} is null or invalid.
+     */
+    public final OutType printf(InType... obj) {
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(obj).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(PRINTF, args));
     }
 
     /** Returns a string that removes the left whitespaces from the given string. */

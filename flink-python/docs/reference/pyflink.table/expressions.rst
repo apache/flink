@@ -192,6 +192,7 @@ string functions
     Expression.url_decode
     Expression.url_encode
     Expression.parse_url
+    Expression.printf
     Expression.ltrim
     Expression.rtrim
     Expression.btrim
