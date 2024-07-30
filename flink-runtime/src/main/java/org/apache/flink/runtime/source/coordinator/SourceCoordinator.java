@@ -166,6 +166,13 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     @VisibleForTesting
     void announceCombinedWatermark() {
+        Set<Integer> subTaskIds = combinedWatermark.keySet();
+        if (subTaskIds.isEmpty()) {
+            LOG.debug(
+                    "Skip distributing maxAllowedWatermark of group={} for source {} - no subtasks.",
+                    watermarkAlignmentParams.getWatermarkGroup(),
+                    operatorName);
+        }
         checkState(
                 watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
@@ -190,7 +197,6 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             maxAllowedWatermark = Watermark.MAX_WATERMARK.getTimestamp();
         }
 
-        Set<Integer> subTaskIds = combinedWatermark.keySet();
         LOG.info(
                 "Distributing maxAllowedWatermark={} of group={} to subTaskIds={} for source {}.",
                 maxAllowedWatermark,
