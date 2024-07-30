@@ -194,6 +194,10 @@ This file is based on the checkstyle file of Apache Beam.
 			<message key="import.illegal" value="{0}; Use flink-shaded-jackson instead."/>
 		</module>
 		<module name="IllegalImport">
+			<property name="illegalPkgs" value="com.jayway.jsonpath"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-jsonpath instead."/>
+		</module>
+		<module name="IllegalImport">
 			<property name="illegalPkgs" value="org.objectweb.asm"/>
 			<message key="import.illegal" value="{0}; Use flink-shaded-asm instead."/>
 		</module>
@@ -227,6 +231,19 @@ This file is based on the checkstyle file of Apache Beam.
 		<module name="RegexpSinglelineJava">
 			<property name="format" value="^import com.google.common.base.Preconditions;$"/>
 			<property name="message" value="Static import functions from Guava Preconditions"/>
+		</module>
+
+		<!--
+			The Nullable & Nonnull annotations check.
+		-->
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import org.jetbrains.annotations.Nullable;$"/>
+			<property name="message" value="Use import javax.annotation.Nullable"/>
+		</module>
+
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import org.jetbrains.annotations.NotNull;$"/>
+			<property name="message" value="Use import javax.annotation.Nonnull"/>
 		</module>
 
 		<!--

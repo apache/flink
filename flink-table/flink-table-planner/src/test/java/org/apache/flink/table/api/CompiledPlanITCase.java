@@ -404,28 +404,13 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    void testBatchMode() {
+    void testCompileAndExecutePlanBatchMode() throws Exception {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
-        String srcTableDdl =
-                "CREATE TABLE src (\n"
-                        + "  a bigint\n"
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'true')";
-        tableEnv.executeSql(srcTableDdl);
+        File sinkPath = createSourceSinkTables();
 
-        String sinkTableDdl =
-                "CREATE TABLE sink (\n"
-                        + "  a bigint\n"
-                        + ") with (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'table-sink-class' = 'DEFAULT')";
-        tableEnv.executeSql(sinkTableDdl);
-
-        assertThatThrownBy(() -> tableEnv.compilePlanSql("INSERT INTO sink SELECT * FROM src"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("The compiled plan feature is not supported in batch mode.");
+        tableEnv.compilePlanSql("INSERT INTO sink SELECT * FROM src").execute().await();
+        assertResult(DATA, sinkPath);
     }
 
     private File createSourceSinkTables() throws IOException {

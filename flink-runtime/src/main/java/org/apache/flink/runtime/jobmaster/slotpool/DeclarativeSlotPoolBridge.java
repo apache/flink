@@ -40,6 +40,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,13 +62,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private final Map<SlotRequestId, PendingRequest> pendingRequests;
     private final Map<SlotRequestId, AllocationID> fulfilledRequests;
-    private final Time idleSlotTimeout;
+    private final Duration idleSlotTimeout;
 
     private final RequestSlotMatchingStrategy requestSlotMatchingStrategy;
 
-    @Nullable private ComponentMainThreadExecutor componentMainThreadExecutor;
-
-    private final Time batchSlotTimeout;
+    private final Duration batchSlotTimeout;
     private boolean isBatchSlotRequestTimeoutCheckDisabled;
 
     private boolean isJobRestarting = false;
@@ -76,11 +75,20 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             JobID jobId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             Clock clock,
-            Time rpcTimeout,
-            Time idleSlotTimeout,
-            Time batchSlotTimeout,
-            RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
-        super(jobId, declarativeSlotPoolFactory, clock, idleSlotTimeout, rpcTimeout);
+            Duration rpcTimeout,
+            Duration idleSlotTimeout,
+            Duration batchSlotTimeout,
+            RequestSlotMatchingStrategy requestSlotMatchingStrategy,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
+        super(
+                jobId,
+                declarativeSlotPoolFactory,
+                clock,
+                idleSlotTimeout,
+                rpcTimeout,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
 
         this.idleSlotTimeout = idleSlotTimeout;
         this.batchSlotTimeout = Preconditions.checkNotNull(batchSlotTimeout);
@@ -106,19 +114,14 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     @Override
-    protected void onStart(ComponentMainThreadExecutor componentMainThreadExecutor) {
-        this.componentMainThreadExecutor = componentMainThreadExecutor;
+    protected void onStart() {
 
         getDeclarativeSlotPool().registerNewSlotsListener(this::newSlotsAreAvailable);
 
         componentMainThreadExecutor.schedule(
-                this::checkIdleSlotTimeout,
-                idleSlotTimeout.toMilliseconds(),
-                TimeUnit.MILLISECONDS);
+                this::checkIdleSlotTimeout, idleSlotTimeout.toMillis(), TimeUnit.MILLISECONDS);
         componentMainThreadExecutor.schedule(
-                this::checkBatchSlotTimeout,
-                batchSlotTimeout.toMilliseconds(),
-                TimeUnit.MILLISECONDS);
+                this::checkBatchSlotTimeout, batchSlotTimeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -454,9 +457,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
         if (componentMainThreadExecutor != null) {
             componentMainThreadExecutor.schedule(
-                    this::checkIdleSlotTimeout,
-                    idleSlotTimeout.toMilliseconds(),
-                    TimeUnit.MILLISECONDS);
+                    this::checkIdleSlotTimeout, idleSlotTimeout.toMillis(), TimeUnit.MILLISECONDS);
         }
     }
 
@@ -492,7 +493,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             for (PendingRequest unfulfillableRequest : unfulfillableRequests) {
                 unfulfillableRequest.markUnfulfillable(currentTimestamp);
 
-                if (unfulfillableRequest.getUnfulfillableSince() + batchSlotTimeout.toMilliseconds()
+                if (unfulfillableRequest.getUnfulfillableSince() + batchSlotTimeout.toMillis()
                         <= currentTimestamp) {
                     timeoutPendingSlotRequest(unfulfillableRequest.getSlotRequestId());
                 }
@@ -502,7 +503,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         if (componentMainThreadExecutor != null) {
             componentMainThreadExecutor.schedule(
                     this::checkBatchSlotTimeout,
-                    batchSlotTimeout.toMilliseconds(),
+                    batchSlotTimeout.toMillis(),
                     TimeUnit.MILLISECONDS);
         }
     }

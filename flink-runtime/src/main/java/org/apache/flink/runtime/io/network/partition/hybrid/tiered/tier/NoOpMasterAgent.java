@@ -18,22 +18,38 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 /** The empty implementation for {@link TierMasterAgent}. */
 public class NoOpMasterAgent implements TierMasterAgent {
 
     public static final NoOpMasterAgent INSTANCE = new NoOpMasterAgent();
 
-    private NoOpMasterAgent() {}
-
     @Override
-    public void addPartition(TieredStoragePartitionId partitionId) {
+    public void registerJob(JobID jobID, TierShuffleHandler tierShuffleHandler) {
         // noop
     }
 
     @Override
-    public void releasePartition(TieredStoragePartitionId partitionId) {
+    public void unregisterJob(JobID jobID) {
+        // noop
+    }
+
+    @Override
+    public TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
+            JobID jobID, ResultPartitionID resultPartitionID) {
+        // noop
+        return NoOpTierShuffleDescriptor.INSTANCE;
+    }
+
+    @Override
+    public void releasePartition(TierShuffleDescriptor shuffleDescriptor) {
+        // noop
+    }
+
+    @Override
+    public void close() {
         // noop
     }
 }

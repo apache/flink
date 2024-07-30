@@ -32,8 +32,9 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -203,7 +204,7 @@ class DebeziumAvroFormatFactoryTest {
         assertThrows(IllegalArgumentException.class, () -> createSerializationSchema(options));
     }
 
-    @NotNull
+    @Nonnull
     private Map<String, String> getRegistryConfigs() {
         final Map<String, String> registryConfigs = new HashMap<>();
         registryConfigs.put("basic.auth.user.info", "something1");

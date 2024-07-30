@@ -38,7 +38,6 @@ import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
@@ -82,6 +81,12 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     .withDescription(
                             "Write parquet timestamp as int64/LogicalTypes instead of int96/OriginalTypes. "
                                     + "Note: Timestamp will be time zone agnostic (NEVER converted to a different time zone).");
+
+    public static final ConfigOption<Integer> BATCH_SIZE =
+            key("batch-size")
+                    .intType()
+                    .defaultValue(2048)
+                    .withDescription("Determine the batch size when reading parquet files.");
 
     @Override
     public BulkDecodingFormat<RowData> createDecodingFormat(
@@ -159,7 +164,7 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                     sourceContext.createTypeInformation(producedDataType),
                     Collections.emptyList(),
                     null,
-                    VectorizedColumnBatch.DEFAULT_SIZE,
+                    formatOptions.get(BATCH_SIZE),
                     formatOptions.get(UTC_TIMEZONE),
                     true);
         }

@@ -25,12 +25,14 @@ import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Optional;
@@ -253,6 +255,12 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         // Step 4: trigger the (active) buffer if needed.
         triggerIfNeeded(false);
         return stateFuture;
+    }
+
+    @Override
+    public <N> void setCurrentNamespaceForState(
+            @Nonnull InternalPartitionedState<N> state, N namespace) {
+        currentContext.setNamespace(state, namespace);
     }
 
     <IN, OUT> void insertActiveBuffer(StateRequest<K, IN, OUT> request) {

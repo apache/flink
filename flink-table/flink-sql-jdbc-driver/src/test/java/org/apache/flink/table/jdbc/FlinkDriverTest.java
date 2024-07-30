@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class FlinkDriverTest {
     @Test
     public void testDriverInfo() {
-        assertEquals(DRIVER_VERSION_MAJOR, 1);
+        assertEquals(DRIVER_VERSION_MAJOR, 2);
         assertEquals(DRIVER_NAME, "Flink JDBC Driver");
     }
 

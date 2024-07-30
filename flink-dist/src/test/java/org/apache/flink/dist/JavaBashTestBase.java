@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Abstract test class for executing bash scripts. */
 abstract class JavaBashTestBase {
     @BeforeAll
-    public static void checkOperatingSystem() {
+    static void checkOperatingSystem() {
         assertThat(OperatingSystem.isWindows())
                 .as("This test checks shell scripts which are not available on Windows.")
                 .isFalse();

@@ -287,6 +287,8 @@ public abstract class Context implements java.io.Serializable {
 
     public abstract KeyedStateStore windowState();
     public abstract KeyedStateStore globalState();
+
+    public abstract <X> void output(OutputTag<X> outputTag, X value);
 }
 ```
 

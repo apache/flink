@@ -19,6 +19,10 @@
 package org.apache.flink.datastream.impl.stream;
 
 import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.common.state.IllegalRedistributionModeException;
+import org.apache.flink.api.common.state.StateDeclaration;
+import org.apache.flink.api.common.state.StateDeclarations;
+import org.apache.flink.api.common.typeinfo.TypeDescriptors;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.dsv2.DataStreamV2SinkUtils;
 import org.apache.flink.api.dag.Transformation;
@@ -38,13 +42,23 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 import static org.apache.flink.datastream.impl.stream.StreamTestUtils.assertProcessType;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KeyedPartitionStreamImpl}. */
 public class KeyedPartitionStreamImplTest {
+
+    private final StateDeclaration modeIdenticalStateDeclaration =
+            StateDeclarations.listStateBuilder("list-state", TypeDescriptors.INT)
+                    .redistributeWithMode(StateDeclaration.RedistributionMode.IDENTICAL)
+                    .build();
+
     @Test
     void testPartitioning() throws Exception {
         ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
@@ -63,6 +77,22 @@ public class KeyedPartitionStreamImplTest {
         Transformation<?> shuffleTransform = transformations.get(1).getInputs().get(0);
         assertThat(shuffleTransform).isInstanceOf(PartitionTransformation.class);
         assertThat(transformations.get(2).getParallelism()).isOne();
+    }
+
+    @Test
+    void testStateErrorWithOneInputStream() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        KeyedPartitionStream<Integer, Integer> stream = createKeyedStream(env);
+
+        assertThatThrownBy(
+                        () ->
+                                stream.keyBy((data) -> 1)
+                                        .process(
+                                                new NoOpOneInputStreamProcessFunction(
+                                                        new HashSet<>(
+                                                                Collections.singletonList(
+                                                                        modeIdenticalStateDeclaration)))))
+                .isInstanceOf(IllegalRedistributionModeException.class);
     }
 
     @Test
@@ -98,6 +128,21 @@ public class KeyedPartitionStreamImplTest {
     }
 
     @Test
+    void testStateErrorWithProcessTwoOutput() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        KeyedPartitionStream<Integer, Integer> stream = createKeyedStream(env);
+
+        assertThatThrownBy(
+                        () ->
+                                stream.process(
+                                        new NoOpTwoOutputStreamProcessFunction(
+                                                new HashSet<>(
+                                                        Collections.singletonList(
+                                                                modeIdenticalStateDeclaration)))))
+                .isInstanceOf(IllegalRedistributionModeException.class);
+    }
+
+    @Test
     void testConnectKeyedStream() throws Exception {
         ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
         KeyedPartitionStream<Integer, Integer> stream = createKeyedStream(env);
@@ -122,6 +167,26 @@ public class KeyedPartitionStreamImplTest {
     }
 
     @Test
+    void testStateErrorWithConnectKeyedStream() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        KeyedPartitionStream<Integer, Integer> stream = createKeyedStream(env);
+
+        assertThatThrownBy(
+                        () ->
+                                stream.connectAndProcess(
+                                        createKeyedStream(
+                                                env,
+                                                new TestingTransformation<>("t2", Types.LONG, 1),
+                                                (KeySelector<Long, Integer>) Math::toIntExact),
+                                        new StreamTestUtils
+                                                .NoOpTwoInputNonBroadcastStreamProcessFunction(
+                                                new HashSet<>(
+                                                        Collections.singletonList(
+                                                                modeIdenticalStateDeclaration)))))
+                .isInstanceOf(IllegalRedistributionModeException.class);
+    }
+
+    @Test
     void testConnectBroadcastStream() throws Exception {
         ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
         KeyedPartitionStream<Long, Long> stream =
@@ -136,6 +201,26 @@ public class KeyedPartitionStreamImplTest {
         assertThat(transformations).hasSize(2);
         assertProcessType(transformations.get(0), TwoInputTransformation.class, Types.LONG);
         assertProcessType(transformations.get(1), TwoInputTransformation.class, Types.LONG);
+    }
+
+    @Test
+    void testStateErrorWithConnectBroadcastStream() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        KeyedPartitionStream<Long, Long> stream =
+                createKeyedStream(env, new TestingTransformation<>("t1", Types.LONG, 1), x -> x);
+        BroadcastStreamImpl<Integer> s =
+                new BroadcastStreamImpl<>(env, new TestingTransformation<>("t2", Types.INT, 1));
+
+        assertThatCode(
+                        () ->
+                                stream.connectAndProcess(
+                                        s,
+                                        new StreamTestUtils
+                                                .NoOpTwoInputBroadcastStreamProcessFunction(
+                                                new HashSet<>(
+                                                        Collections.singletonList(
+                                                                modeIdenticalStateDeclaration)))))
+                .doesNotThrowAnyException();
     }
 
     @Test

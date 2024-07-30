@@ -45,11 +45,13 @@ public class DeploymentOptions {
                                     .list(
                                             text("remote"),
                                             text("local"),
+                                            text("yarn-application"),
                                             text("yarn-per-job (deprecated)"),
                                             text("yarn-session"),
+                                            text("kubernetes-application"),
                                             text("kubernetes-session"))
                                     .text(
-                                            "And one of the following values when calling %s:",
+                                            "And one of the following values when calling %s (deprecated):",
                                             TextElement.code("bin/flink run-application"))
                                     .list(text("yarn-application"), text("kubernetes-application"))
                                     .build());
@@ -77,6 +79,14 @@ public class DeploymentOptions {
                     .withDescription(
                             "Custom JobListeners to be registered with the execution environment."
                                     + " The registered listeners cannot have constructors with arguments.");
+
+    public static final ConfigOption<List<String>> JOB_STATUS_CHANGED_LISTENERS =
+            key("execution.job-status-changed-listeners")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When job is created or its status is changed, Flink will generate job event and notify job status changed listener.");
 
     public static final ConfigOption<Boolean> SHUTDOWN_ON_APPLICATION_FINISH =
             ConfigOptions.key("execution.shutdown-on-application-finish")

@@ -53,6 +53,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -544,6 +545,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
             base = new Configuration();
         }
         Configuration configuration = new Configuration();
+        Map<String, String> baseMap = base.toMap();
+        Map<String, String> onTopMap = onTop.toMap();
         for (ConfigOption<?> option : ForStConfigurableOptions.CANDIDATE_CONFIGS) {
             Optional<?> baseValue = base.getOptional(option);
             Optional<?> topValue = onTop.getOptional(option);
@@ -552,6 +555,11 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 Object validValue = topValue.isPresent() ? topValue.get() : baseValue.get();
                 ForStConfigurableOptions.checkArgumentValid(option, validValue);
                 configuration.setString(option.key(), validValue.toString());
+                String valueString =
+                        topValue.isPresent()
+                                ? onTopMap.get(option.key())
+                                : baseMap.get(option.key());
+                configuration.setString(option.key(), valueString);
             }
         }
         return configuration;

@@ -28,7 +28,7 @@ under the License.
 
 
 
-ALTER statements are used to modified a registered table/view/function definition in the [Catalog]({{< ref "docs/dev/table/catalogs" >}}).
+ALTER statements are used to modify the definition of a table, view or function that has already been registered in the [Catalog]({{< ref "docs/dev/table/catalogs" >}}), or the definition of a catalog itself.
 
 Flink SQL supports the following ALTER statements for now:
 
@@ -36,6 +36,7 @@ Flink SQL supports the following ALTER statements for now:
 - ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
+- ALTER CATALOG
 
 ## Run an ALTER statement
 
@@ -333,9 +334,9 @@ Flink SQL> DESC CATALOG EXTENDED cat2;
 The following grammar gives an overview about the available syntax:
 ```text
 ALTER TABLE [IF EXISTS] table_name {
-    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...]}
-  | MODIFY { <schema_component> | (<schema_component> [, ...]) }
-  | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...]}
+    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...] | <distribution> }
+  | MODIFY { <schema_component> | (<schema_component> [, ...]) | <distribution> }
+  | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...] | DISTRIBUTION }
   | RENAME old_column_name TO new_column_name
   | RENAME TO new_table_name
   | SET (key1=val1, ...)
@@ -368,6 +369,12 @@ ALTER TABLE [IF EXISTS] table_name {
   
 <partition_component>:
   PARTITION (key1=val1, key2=val2, ...) [WITH (key1=val1, key2=val2, ...)]
+  
+<distribution>:
+{
+    DISTRIBUTION BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) ] [INTO n BUCKETS]
+  | DISTRIBUTION INTO n BUCKETS
+} 
 ```
 
 **IF EXISTS**
@@ -375,7 +382,7 @@ ALTER TABLE [IF EXISTS] table_name {
 If the table does not exist, nothing happens.
 
 ### ADD
-Use `ADD` clause to add [columns]({{< ref "docs/dev/table/sql/create" >}}#columns), [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key), [watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark) and [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by) to an existing table. 
+Use `ADD` clause to add [columns]({{< ref "docs/dev/table/sql/create" >}}#columns), [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key), a [watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark), [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by), and a [distribution]({{< ref "docs/dev/table/sql/create" >}}#distributed) to an existing table. 
 
 To add a column at the specified position, use `FIRST` or `AFTER col_name`. By default, the column is appended at last.
 
@@ -398,6 +405,18 @@ ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1');
 
 -- add two new partitions
 ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1,p2='b') with ('k2'='v2');
+
+-- add new distribution using a hash on uid into 4 buckets
+ALTER TABLE MyTable ADD DISTRIBUTION BY HASH(uid) INTO 4 BUCKETS;
+
+-- add new distribution on uid into 4 buckets
+CREATE TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
+
+-- add new distribution on uid.
+CREATE TABLE MyTable ADD DISTRIBUTION BY (uid);
+
+-- add new distribution into 4 buckets
+CREATE TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
 ```
 <span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
 
@@ -446,6 +465,9 @@ ALTER TABLE MyTable DROP PARTITION (`id` = 1), PARTITION (`id` = 2);
 
 -- drop a watermark
 ALTER TABLE MyTable DROP WATERMARK;
+
+-- drop distribution
+ALTER TABLE MyTable DROP DISTRIBUTION;
 ```
 
 ### RENAME
@@ -540,10 +562,15 @@ If the function doesn't exist, nothing happens.
 
 Language tag to instruct flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA.
 
+{{< top >}}
+
 ## ALTER CATALOG
 
 ```sql
-ALTER CATALOG catalog_name SET (key1=val1, ...)
+ALTER CATALOG catalog_name 
+    SET (key1=val1, ...)
+  | RESET (key1, ...)
+  | COMMENT 'comment'
 ```
 
 ### SET
@@ -555,6 +582,27 @@ The following examples illustrate the usage of the `SET` statements.
 ```sql
 -- set 'default-database'
 ALTER CATALOG cat2 SET ('default-database'='db');
+```
+
+### RESET
+
+Reset one or more properties to its default value in the specified catalog.
+
+The following examples illustrate the usage of the `RESET` statements.
+
+```sql
+-- reset 'default-database'
+ALTER CATALOG cat2 RESET ('default-database');
+```
+
+### COMMENT
+
+Set comment in the specified catalog. If the comment is already set in the catalog, override the old value with the new one.
+
+The following examples illustrate the usage of the `COMMENT` statements.
+
+```sql
+ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2''';
 ```
 
 {{< top >}}

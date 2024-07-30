@@ -26,36 +26,36 @@ public class GateBuffersSpec {
 
     private final int effectiveExclusiveBuffersPerChannel;
 
-    private final int expectedBuffersPerGate;
+    private final int requiredFloatingBuffers;
 
-    private final int minBuffersPerGate;
+    private final int totalFloatingBuffers;
 
-    private final int maxBuffersPerGate;
+    private final int targetTotalBuffersPerGate;
 
     GateBuffersSpec(
             int effectiveExclusiveBuffersPerChannel,
-            int expectedBuffersPerGate,
-            int minBuffersPerGate,
-            int maxBuffersPerGate) {
+            int requiredFloatingBuffers,
+            int totalFloatingBuffers,
+            int targetTotalBuffersPerGate) {
         this.effectiveExclusiveBuffersPerChannel = effectiveExclusiveBuffersPerChannel;
-        this.expectedBuffersPerGate = expectedBuffersPerGate;
-        this.minBuffersPerGate = minBuffersPerGate;
-        this.maxBuffersPerGate = maxBuffersPerGate;
+        this.requiredFloatingBuffers = requiredFloatingBuffers;
+        this.totalFloatingBuffers = totalFloatingBuffers;
+        this.targetTotalBuffersPerGate = targetTotalBuffersPerGate;
     }
 
-    int getExpectedBuffersPerGate() {
-        return expectedBuffersPerGate;
+    int getRequiredFloatingBuffers() {
+        return requiredFloatingBuffers;
     }
 
-    int getMinBuffersPerGate() {
-        return minBuffersPerGate;
-    }
-
-    public int getMaxBuffersPerGate() {
-        return maxBuffersPerGate;
+    int getTotalFloatingBuffers() {
+        return totalFloatingBuffers;
     }
 
     int getEffectiveExclusiveBuffersPerChannel() {
         return effectiveExclusiveBuffersPerChannel;
+    }
+
+    public int targetTotalBuffersPerGate() {
+        return targetTotalBuffersPerGate;
     }
 }

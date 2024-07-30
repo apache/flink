@@ -38,13 +38,18 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.planner.utils.TimestampStringUtils;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.logical.LogicalTableModify;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.util.TimestampString;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -123,6 +128,7 @@ public class DeletePushDownUtilsTest {
                                 .column("f0", DataTypes.INT().notNull())
                                 .column("f1", DataTypes.STRING().nullable())
                                 .column("f2", DataTypes.BIGINT().nullable())
+                                .column("f3", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().nullable())
                                 .build(),
                         null,
                         Collections.emptyList(),
@@ -154,6 +160,17 @@ public class DeletePushDownUtilsTest {
         tableModify = getTableModifyFromSql("DELETE FROM t where f0 > (select count(1) from t)");
         optionalResolvedExpressions = DeletePushDownUtils.getResolvedFilterExpressions(tableModify);
         assertThat(optionalResolvedExpressions).isEmpty();
+
+        String dateTime = "2024-05-13 08:00:00";
+        tableModify =
+                getTableModifyFromSql(String.format("DELETE FROM t where f3 > '%s'", dateTime));
+        LocalDateTime ldt = TimestampStringUtils.toLocalDateTime(new TimestampString(dateTime));
+        Instant instant = ldt.toInstant(ZoneId.systemDefault().getRules().getOffset(ldt));
+        optionalResolvedExpressions = DeletePushDownUtils.getResolvedFilterExpressions(tableModify);
+        assertThat(optionalResolvedExpressions).isPresent();
+        verifyExpression(
+                optionalResolvedExpressions,
+                String.format("[greaterThan(f3, %s)]", instant.toString()));
     }
 
     private CatalogTable createTestCatalogTable(Map<String, String> options) {

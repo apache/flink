@@ -307,18 +307,38 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     }
 
     public void advanceWatermark(long time) throws Exception {
+        Preconditions.checkState(
+                tryAdvanceWatermark(
+                        time,
+                        () -> {
+                            // Never stop advancing.
+                            return false;
+                        }));
+    }
+
+    /**
+     * @return true if following watermarks can be processed immediately. False if the firing timers
+     *     should be interrupted as soon as possible.
+     */
+    public boolean tryAdvanceWatermark(
+            long time, InternalTimeServiceManager.ShouldStopAdvancingFn shouldStopAdvancingFn)
+            throws Exception {
         currentWatermark = time;
-
         InternalTimer<K, N> timer;
-
+        boolean interrupted = false;
         while ((timer = eventTimeTimersQueue.peek()) != null
                 && timer.getTimestamp() <= time
-                && !cancellationContext.isCancelled()) {
+                && !cancellationContext.isCancelled()
+                && !interrupted) {
             keyContext.setCurrentKey(timer.getKey());
             eventTimeTimersQueue.poll();
             triggerTarget.onEventTime(timer);
             taskIOMetricGroup.getNumFiredTimers().inc();
+            // Check if we should stop advancing after at least one iteration to guarantee progress
+            // and prevent a potential starvation.
+            interrupted = shouldStopAdvancingFn.test();
         }
+        return !interrupted;
     }
 
     /**

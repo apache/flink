@@ -112,7 +112,7 @@ The `ExternalizedCheckpointRetention` mode configures what happens with checkpoi
 Similarly to [savepoints]({{< ref "docs/ops/state/savepoints" >}}), a checkpoint consists
 of a meta data file and, depending on the state backend, some additional data
 files. The meta data file and data files are stored in the directory that is
-configured via `state.checkpoints.dir` in the configuration files, 
+configured via `execution.checkpointing.dir` in the configuration files, 
 and also can be specified for per job in the code.
 
 The current checkpoint directory layout ([introduced by FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531)) is as follows:
@@ -138,7 +138,7 @@ The checkpoint directory is not part of a public API and can be changed in the f
 #### Configure globally via configuration files
 
 ```yaml
-state.checkpoints.dir: hdfs:///checkpoints/
+execution.checkpointing.dir: hdfs:///checkpoints/
 ```
 
 #### Configure for per job on the checkpoint configuration

@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 
 import javax.annotation.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -55,6 +58,9 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
 
     /** The keyGroup to which key belongs. */
     private final int keyGroup;
+
+    /** The namespaces of states. Lazy initialization for saving memory. */
+    private Map<InternalPartitionedState<?>, Object> namespaces = null;
 
     /**
      * The extra context info which is used to hold customized data defined by state backend. The
@@ -109,6 +115,18 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
 
     public int getKeyGroup() {
         return keyGroup;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <N> N getNamespace(InternalPartitionedState<N> state) {
+        return namespaces == null ? null : (N) namespaces.get(state);
+    }
+
+    public <N> void setNamespace(InternalPartitionedState<N> state, N namespace) {
+        if (namespaces == null) {
+            namespaces = new HashMap<>();
+        }
+        namespaces.put(state, namespace);
     }
 
     public void setExtra(Object extra) {

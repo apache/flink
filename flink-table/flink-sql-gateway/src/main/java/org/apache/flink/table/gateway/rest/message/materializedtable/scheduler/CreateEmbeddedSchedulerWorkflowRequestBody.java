@@ -36,7 +36,6 @@ public class CreateEmbeddedSchedulerWorkflowRequestBody implements RequestBody {
     private static final String FIELD_NAME_CRON_EXPRESSION = "cronExpression";
     private static final String FIELD_NAME_INIT_CONFIG = "initConfig";
     private static final String FIELD_NAME_EXECUTION_CONFIG = "executionConfig";
-    private static final String FIELD_NAME_SCHEDULE_TIME = "customScheduleTime";
     private static final String FIELD_NAME_REST_ENDPOINT_URL = "restEndpointUrl";
 
     @JsonProperty(FIELD_NAME_MATERIALIZED_TABLE)
@@ -52,10 +51,7 @@ public class CreateEmbeddedSchedulerWorkflowRequestBody implements RequestBody {
     @Nullable
     private final Map<String, String> executionConfig;
 
-    @JsonProperty(FIELD_NAME_SCHEDULE_TIME)
-    @Nullable
-    private final String customScheduleTime;
-
+    @JsonProperty(FIELD_NAME_REST_ENDPOINT_URL)
     private final String restEndpointUrl;
 
     @JsonCreator
@@ -65,13 +61,11 @@ public class CreateEmbeddedSchedulerWorkflowRequestBody implements RequestBody {
             @Nullable @JsonProperty(FIELD_NAME_INIT_CONFIG) Map<String, String> initConfig,
             @Nullable @JsonProperty(FIELD_NAME_EXECUTION_CONFIG)
                     Map<String, String> executionConfig,
-            @Nullable @JsonProperty(FIELD_NAME_SCHEDULE_TIME) String customScheduleTime,
             @JsonProperty(FIELD_NAME_REST_ENDPOINT_URL) String restEndpointUrl) {
         this.materializedTableIdentifier = materializedTableIdentifier;
         this.cronExpression = cronExpression;
         this.initConfig = initConfig;
         this.executionConfig = executionConfig;
-        this.customScheduleTime = customScheduleTime;
         this.restEndpointUrl = restEndpointUrl;
     }
 
@@ -87,11 +81,6 @@ public class CreateEmbeddedSchedulerWorkflowRequestBody implements RequestBody {
     @Nullable
     public Map<String, String> getExecutionConfig() {
         return executionConfig;
-    }
-
-    @Nullable
-    public String getCustomScheduleTime() {
-        return customScheduleTime;
     }
 
     public String getCronExpression() {

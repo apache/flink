@@ -70,17 +70,28 @@ public class SqlDistribution extends SqlCall {
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.newlineAndIndent();
+        unparse(writer, leftPrec, rightPrec, "DISTRIBUTED", true);
+    }
+
+    public void unparseAlter(SqlWriter writer, int leftPrec, int rightPrec) {
+        unparse(writer, leftPrec, rightPrec, "DISTRIBUTION", false);
+    }
+
+    private void unparse(
+            SqlWriter writer, int leftPrec, int rightPrec, String keyword, boolean printNewlines) {
+        if (printNewlines) {
+            writer.newlineAndIndent();
+        }
 
         if (bucketColumns.size() == 0 && bucketCount != null) {
-            writer.keyword("DISTRIBUTED INTO");
+            writer.keyword(keyword + " INTO");
             bucketCount.unparse(writer, leftPrec, rightPrec);
             writer.keyword("BUCKETS");
             writer.newlineAndIndent();
             return;
         }
 
-        writer.keyword("DISTRIBUTED BY");
+        writer.keyword(keyword + " BY");
         if (distributionKind != null) {
             writer.print(distributionKind);
         }
@@ -93,7 +104,9 @@ public class SqlDistribution extends SqlCall {
             bucketCount.unparse(writer, leftPrec, rightPrec);
             writer.keyword("BUCKETS");
         }
-        writer.newlineAndIndent();
+        if (printNewlines) {
+            writer.newlineAndIndent();
+        }
     }
 
     public Optional<String> getDistributionKind() {

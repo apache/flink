@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.20-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -235,7 +235,14 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-  </dependencies>
+
+		<dependency>
+			<groupId>net.javacrumbs.json-unit</groupId>
+			<artifactId>json-unit-assertj</artifactId>
+			<version>2.23.0</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>
@@ -354,16 +361,17 @@ under the License.
 							<shadedPattern>org.apache.flink.calcite.shaded.org.checkerframework</shadedPattern>
 						</relocation>
 
-						<!-- These are relocated to match package names, but not included in this jar -->
+						<!-- These are used by Calcite and need to be relocated to match shaded
+						 package names, but not included in this jar -->
 						<relocation>
 							<pattern>com.fasterxml</pattern>
 							<!-- From flink-shaded-jackson -->
 							<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml</shadedPattern>
 						</relocation>
 						<relocation>
-							<pattern>com.jayway</pattern>
-							<!-- From flink-table-runtime -->
-							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
+							<pattern>com.jayway.jsonpath</pattern>
+							<!-- From flink-shaded-jsonpath -->
+							<shadedPattern>org.apache.flink.shaded.com.jayway.jsonpath</shadedPattern>
 						</relocation>
 
 						<relocation>

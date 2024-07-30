@@ -116,7 +116,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
@@ -869,10 +868,6 @@ public class HiveServer2Endpoint implements TCLIService.Iface, SqlGatewayEndpoin
                                     .inputProtocolFactory(
                                             new TBinaryProtocol.Factory(
                                                     true, true, maxMessageSize, maxMessageSize))
-                                    .requestTimeout(requestTimeoutMs)
-                                    .requestTimeoutUnit(TimeUnit.MILLISECONDS)
-                                    .beBackoffSlotLength(backOffSlotLengthMs)
-                                    .beBackoffSlotLengthUnit(TimeUnit.MILLISECONDS)
                                     .executorService(executor));
         } catch (Exception e) {
             throw new SqlGatewayException("Failed to build the server.", e);

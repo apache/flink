@@ -212,6 +212,12 @@ public class SSLUtils {
                                 ? SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD
                                 : SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD,
                         config.get(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+        // do not use getAndCheckOption here as there is no fallback option and a default is
+        // specified
+        String truststoreType =
+                internal
+                        ? config.get(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_TYPE)
+                        : config.get(SecurityOptions.SSL_REST_TRUSTSTORE_TYPE);
 
         // Support for the REST client connecting to external HTTPS URLs to fall back to the
         // default trust store of the provider (JDK).
@@ -233,7 +239,7 @@ public class SSLUtils {
                             + " is missing.");
         }
 
-        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        KeyStore trustStore = KeyStore.getInstance(truststoreType);
         try (InputStream trustStoreFile =
                 Files.newInputStream(new File(trustStoreFilePath).toPath())) {
             trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
@@ -285,7 +291,14 @@ public class SSLUtils {
                                 : SecurityOptions.SSL_REST_KEY_PASSWORD,
                         SecurityOptions.SSL_KEY_PASSWORD);
 
-        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        // do not use getAndCheckOption here as there is no fallback option and a default is
+        // specified
+        String keystoreType =
+                internal
+                        ? config.get(SecurityOptions.SSL_INTERNAL_KEYSTORE_TYPE)
+                        : config.get(SecurityOptions.SSL_REST_KEYSTORE_TYPE);
+
+        KeyStore keyStore = KeyStore.getInstance(keystoreType);
         try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
             keyStore.load(keyStoreFile, keystorePassword.toCharArray());
         }

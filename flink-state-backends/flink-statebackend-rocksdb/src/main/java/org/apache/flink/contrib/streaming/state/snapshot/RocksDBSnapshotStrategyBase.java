@@ -24,6 +24,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -418,7 +419,9 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
                 // (created from a previous checkpoint).
                 return Optional.of(
                         new PlaceholderStreamStateHandle(
-                                handle.getStreamStateHandleID(), handle.getStateSize()));
+                                handle.getStreamStateHandleID(),
+                                handle.getStateSize(),
+                                FileMergingSnapshotManager.isFileMergingHandle(handle)));
             } else {
                 // Don't use any uploaded but not confirmed handles because they might be deleted
                 // (by TM) if the previous checkpoint failed. See FLINK-25395

@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -34,6 +35,11 @@ import org.apache.flink.datastream.impl.operators.TwoInputBroadcastProcessOperat
 import org.apache.flink.datastream.impl.utils.StreamUtils;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+
+import java.util.Collections;
+import java.util.HashSet;
+
+import static org.apache.flink.datastream.impl.utils.StreamUtils.validateStates;
 
 /** The implementation of {@link BroadcastStream}. */
 public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements BroadcastStream<T> {
@@ -53,6 +59,9 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
     public <K, T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction) {
+        // no state redistribution mode check is required here, since all redistribution modes are
+        // acceptable
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,
@@ -77,6 +86,10 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
     public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             NonKeyedPartitionStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(Collections.singletonList(StateDeclaration.RedistributionMode.NONE)));
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,

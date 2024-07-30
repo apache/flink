@@ -2333,4 +2333,10 @@ class CalcITCase extends BatchTestBase {
       Seq(row(2.0), row(2.0), row(2.0))
     )
   }
+
+  @Test
+  def testIfNull(): Unit = {
+    // reported in FLINK-35832
+    checkResult("SELECT IFNULL(JSON_VALUE('{\"a\":16}','$.a'),'0')", Seq(row("16")));
+  }
 }

@@ -105,16 +105,15 @@ public class TieredStorageProducerClient {
             throws IOException {
 
         if (isBroadcast && !isBroadcastOnly) {
+            int currentPosition = record.position();
             for (int i = 0; i < numSubpartitions; ++i) {
                 // As the tiered storage subpartition ID is created only for broadcast records,
                 // which are fewer than normal records, the performance impact of generating new
                 // TieredStorageSubpartitionId objects is expected to be manageable. If the
                 // performance is significantly affected, this logic will be optimized accordingly.
                 bufferAccumulator.receive(
-                        record.duplicate(),
-                        new TieredStorageSubpartitionId(i),
-                        dataType,
-                        isBroadcast);
+                        record, new TieredStorageSubpartitionId(i), dataType, isBroadcast);
+                record.position(currentPosition);
             }
         } else {
             bufferAccumulator.receive(record, subpartitionId, dataType, isBroadcast);

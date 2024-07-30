@@ -18,10 +18,10 @@
 
 package org.apache.flink.core.fs;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,65 +33,85 @@ import java.nio.file.StandardOpenOption;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-/** Tests for the {@link RefCountedFileWithStream}. */
-public class RefCountedFileWithStreamTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+/** Tests for the {@link RefCountedFileWithStream}. */
+class RefCountedFileWithStreamTest {
+
+    @TempDir private static java.nio.file.Path tempFolder;
 
     @Test
-    public void writeShouldSucceed() throws IOException {
+    void writeShouldSucceed() throws IOException {
         byte[] content = bytesOf("hello world");
 
-        final RefCountedFileWithStream fileUnderTest = getClosedRefCountedFileWithContent(content);
-        long fileLength = fileUnderTest.getLength();
+        final File newFile =
+                new File(
+                        TempDirUtils.newFolder(tempFolder).toPath().toFile(),
+                        ".tmp_" + UUID.randomUUID());
+        final OutputStream out =
+                Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 
-        Assert.assertEquals(content.length, fileLength);
+        final RefCountedFileWithStream fileUnderTest1 =
+                RefCountedFileWithStream.newFile(newFile, out);
+
+        fileUnderTest1.write(content, 0, content.length);
+
+        fileUnderTest1.closeStream();
+
+        assertThat(fileUnderTest1.getLength()).isEqualTo(content.length);
     }
 
     @Test
-    public void closeShouldNotReleaseReference() throws IOException {
-        getClosedRefCountedFileWithContent("hello world");
-        verifyTheFileIsStillThere();
+    void closeShouldNotReleaseReference() throws IOException {
+        Path path = TempDirUtils.newFolder(tempFolder).toPath();
+        getClosedRefCountedFileWithContent("hello world", path);
+        try (Stream<Path> files = Files.list(path)) {
+            assertThat(files).hasSize(1);
+        }
     }
 
-    @Test(expected = IOException.class)
-    public void writeAfterCloseShouldThrowException() throws IOException {
-        final RefCountedFileWithStream fileUnderTest =
-                getClosedRefCountedFileWithContent("hello world");
-        byte[] content = bytesOf("Hello Again");
-        fileUnderTest.write(content, 0, content.length);
+    @Test
+    void writeAfterCloseShouldThrowException() {
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(
+                        () -> {
+                            final RefCountedFileWithStream fileUnderTest =
+                                    getClosedRefCountedFileWithContent(
+                                            "hello world",
+                                            TempDirUtils.newFolder(tempFolder).toPath());
+                            byte[] content = bytesOf("Hello Again");
+                            fileUnderTest.write(content, 0, content.length);
+                        });
     }
 
-    @Test(expected = IOException.class)
-    public void flushAfterCloseShouldThrowException() throws IOException {
-        final RefCountedFileWithStream fileUnderTest =
-                getClosedRefCountedFileWithContent("hello world");
-        fileUnderTest.flush();
+    @Test
+    void flushAfterCloseShouldThrowException() {
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(
+                        () -> {
+                            final RefCountedFileWithStream fileUnderTest =
+                                    getClosedRefCountedFileWithContent(
+                                            "hello world",
+                                            TempDirUtils.newFolder(tempFolder).toPath());
+                            fileUnderTest.flush();
+                        });
     }
 
     // ------------------------------------- Utilities -------------------------------------
 
-    private void verifyTheFileIsStillThere() throws IOException {
-        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-            Assert.assertEquals(1L, files.count());
-        }
-    }
+    private RefCountedFileWithStream getClosedRefCountedFileWithContent(
+            String content, Path tempFolder) throws IOException {
 
-    private RefCountedFileWithStream getClosedRefCountedFileWithContent(String content)
-            throws IOException {
-        return getClosedRefCountedFileWithContent(bytesOf(content));
-    }
-
-    private RefCountedFileWithStream getClosedRefCountedFileWithContent(byte[] content)
-            throws IOException {
-        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
+        byte[] content1 = bytesOf(content);
+        final File newFile = new File(tempFolder.toFile(), ".tmp_" + UUID.randomUUID());
         final OutputStream out =
                 Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 
         final RefCountedFileWithStream fileUnderTest =
                 RefCountedFileWithStream.newFile(newFile, out);
 
-        fileUnderTest.write(content, 0, content.length);
+        fileUnderTest.write(content1, 0, content1.length);
 
         fileUnderTest.closeStream();
         return fileUnderTest;

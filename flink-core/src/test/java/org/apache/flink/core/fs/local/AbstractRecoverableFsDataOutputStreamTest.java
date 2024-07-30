@@ -50,7 +50,7 @@ public abstract class AbstractRecoverableFsDataOutputStreamTest {
      * commit.
      */
     @Test
-    public void testDurableWriteOnCommit() throws IOException {
+    void testDurableWriteOnCommit() throws IOException {
         // Setup
         final int seed = 4711;
         final Random random = new Random(seed);

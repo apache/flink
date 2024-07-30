@@ -18,16 +18,21 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlNumericLiteral;
 
 import javax.annotation.Nullable;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Utils methods for converting sql to operations. */
 public class OperationConverterUtils {
@@ -101,5 +107,30 @@ public class OperationConverterUtils {
                                             ((SqlTableOption) p).getValueString()));
         }
         return properties;
+    }
+
+    public static TableDistribution getDistributionFromSqlDistribution(
+            SqlDistribution distribution) {
+        TableDistribution.Kind kind =
+                TableDistribution.Kind.valueOf(
+                        distribution
+                                .getDistributionKind()
+                                .orElse(TableDistribution.Kind.UNKNOWN.toString()));
+        Integer bucketCount = null;
+        SqlNumericLiteral count = distribution.getBucketCount();
+        if (count != null && count.isInteger()) {
+            bucketCount = ((BigDecimal) (count).getValue()).intValue();
+        }
+
+        List<String> bucketColumns = Collections.emptyList();
+
+        SqlNodeList columns = distribution.getBucketColumns();
+        if (columns != null) {
+            bucketColumns =
+                    columns.getList().stream()
+                            .map(p -> ((SqlIdentifier) p).getSimple())
+                            .collect(Collectors.toList());
+        }
+        return TableDistribution.of(kind, bucketCount, bucketColumns);
     }
 }

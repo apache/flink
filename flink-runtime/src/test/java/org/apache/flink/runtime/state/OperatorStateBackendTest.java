@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManage
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
@@ -451,8 +453,9 @@ class OperatorStateBackendTest {
                         checkpointBaseDir,
                         AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
 
+        JobID jobId = JobID.generate();
         final FileMergingSnapshotManager.SubtaskKey subtaskKey =
-                new FileMergingSnapshotManager.SubtaskKey("jobId", "opId", 1, 1);
+                new FileMergingSnapshotManager.SubtaskKey(jobId.toHexString(), "opId", 1, 1);
         LocalFileSystem fs = getSharedInstance();
         CheckpointStorageLocationReference cslReference =
                 AbstractFsCheckpointStorageAccess.encodePathAsReference(
@@ -1123,7 +1126,9 @@ class OperatorStateBackendTest {
             SubtaskKey subtaskKey) {
         FileMergingSnapshotManager mgr =
                 new FileMergingSnapshotManagerBuilder(
-                                "test-1", FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                                JobID.fromHexString(subtaskKey.getJobIDString()),
+                                new ResourceID("test-1"),
+                                FileMergingType.MERGE_WITHIN_CHECKPOINT)
                         .build();
 
         mgr.initFileSystem(

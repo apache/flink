@@ -27,7 +27,12 @@ import org.apache.pekko.remote.transport.netty.ConfigSSLEngineProvider;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.util.List;
 
 /**
@@ -38,6 +43,8 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     private final String sslTrustStore;
     private final String sslTrustStorePassword;
     private final List<String> sslCertFingerprints;
+    private final String sslKeyStoreType;
+    private final String sslTrustStoreType;
 
     public CustomSSLEngineProvider(ActorSystem system) {
         super(system);
@@ -46,6 +53,8 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
         sslTrustStore = securityConfig.getString("trust-store");
         sslTrustStorePassword = securityConfig.getString("trust-store-password");
         sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");
+        sslKeyStoreType = securityConfig.getString("key-store-type");
+        sslTrustStoreType = securityConfig.getString("trust-store-type");
     }
 
     @Override
@@ -59,13 +68,35 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
                                     .fingerprints(sslCertFingerprints)
                                     .build();
 
-            trustManagerFactory.init(loadKeystore(sslTrustStore, sslTrustStorePassword));
+            trustManagerFactory.init(
+                    loadKeystore(sslTrustStore, sslTrustStorePassword, sslTrustStoreType));
             return trustManagerFactory.getTrustManagers();
-        } catch (GeneralSecurityException e) {
+        } catch (GeneralSecurityException | IOException e) {
             // replicate exception handling from SSLEngineProvider
             throw new RemoteTransportException(
                     "Server SSL connection could not be established because SSL context could not be constructed",
                     e);
         }
+    }
+
+    @Override
+    public KeyStore loadKeystore(String filename, String password) {
+        try {
+            return loadKeystore(filename, password, sslKeyStoreType);
+        } catch (IOException | GeneralSecurityException e) {
+            throw new RemoteTransportException(
+                    "Server SSL connection could not be established because key store could not be loaded",
+                    e);
+        }
+    }
+
+    private KeyStore loadKeystore(String filename, String password, String keystoreType)
+            throws IOException, GeneralSecurityException {
+        KeyStore keyStore = KeyStore.getInstance(keystoreType);
+        try (InputStream fin = Files.newInputStream(Paths.get(filename))) {
+            char[] passwordCharArray = password.toCharArray();
+            keyStore.load(fin, passwordCharArray);
+        }
+        return keyStore;
     }
 }

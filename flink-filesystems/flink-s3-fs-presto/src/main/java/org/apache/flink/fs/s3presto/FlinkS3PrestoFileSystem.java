@@ -42,6 +42,7 @@ public class FlinkS3PrestoFileSystem extends FlinkS3FileSystem {
 
     public FlinkS3PrestoFileSystem(
             FileSystem hadoopS3FileSystem,
+            @Nullable S5CmdConfiguration s5CmdConfiguration,
             String localTmpDirectory,
             @Nullable String entropyInjectionKey,
             int entropyLength,
@@ -50,6 +51,7 @@ public class FlinkS3PrestoFileSystem extends FlinkS3FileSystem {
             int maxConcurrentUploadsPerStream) {
         super(
                 hadoopS3FileSystem,
+                s5CmdConfiguration,
                 localTmpDirectory,
                 entropyInjectionKey,
                 entropyLength,

@@ -19,12 +19,10 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -41,12 +39,13 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,6 +57,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclarativeSlotPoolService}. */
@@ -65,8 +65,7 @@ class DeclarativeSlotPoolServiceTest {
 
     private static final JobID jobId = new JobID();
     private static final JobMasterId jobMasterId = JobMasterId.generate();
-    private final ComponentMainThreadExecutor mainThreadExecutor =
-            ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    private final ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
     private static final String address = "localhost";
 
     @Test
@@ -359,10 +358,12 @@ class DeclarativeSlotPoolServiceTest {
                         jobId,
                         declarativeSlotPoolFactory,
                         SystemClock.getInstance(),
-                        Time.seconds(20L),
-                        Time.seconds(20L));
+                        Duration.ofSeconds(20L),
+                        Duration.ofSeconds(20L),
+                        Duration.ZERO,
+                        mainThreadExecutor);
 
-        declarativeSlotPoolService.start(jobMasterId, address, mainThreadExecutor);
+        declarativeSlotPoolService.start(jobMasterId, address);
 
         return declarativeSlotPoolService;
     }

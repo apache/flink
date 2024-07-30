@@ -62,7 +62,8 @@ public class WorkflowSchedulerFactoryUtil {
         String identifier = configuration.get(WORKFLOW_SCHEDULER_TYPE);
         if (StringUtils.isNullOrWhitespaceOnly(identifier)) {
             LOG.warn(
-                    "Workflow scheduler options do not contain an option key '%s' for discovering an workflow scheduler.");
+                    "Workflow scheduler options do not contain an option key '{}' for discovering an workflow scheduler.",
+                    WORKFLOW_SCHEDULER_TYPE.key());
             return null;
         }
 

@@ -83,7 +83,7 @@ public class ForStStateExecutor implements StateExecutor {
                 () -> {
                     long startTime = System.currentTimeMillis();
                     List<CompletableFuture<Void>> futures = new ArrayList<>(2);
-                    List<ForStDBPutRequest<?, ?>> putRequests =
+                    List<ForStDBPutRequest<?, ?, ?>> putRequests =
                             stateRequestClassifier.pollDbPutRequests();
                     if (!putRequests.isEmpty()) {
                         ForStWriteBatchOperation writeOperations =
@@ -92,7 +92,7 @@ public class ForStStateExecutor implements StateExecutor {
                         futures.add(writeOperations.process());
                     }
 
-                    List<ForStDBGetRequest<?, ?>> getRequests =
+                    List<ForStDBGetRequest<?, ?, ?>> getRequests =
                             stateRequestClassifier.pollDbGetRequests();
                     if (!getRequests.isEmpty()) {
                         ForStGeneralMultiGetOperation getOperations =

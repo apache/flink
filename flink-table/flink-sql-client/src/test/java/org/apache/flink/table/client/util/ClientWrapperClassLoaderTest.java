@@ -45,7 +45,7 @@ public class ClientWrapperClassLoaderTest {
     private static File userJar;
 
     @BeforeAll
-    public static void prepare(@TempDir File tempDir) throws Exception {
+    static void prepare(@TempDir File tempDir) throws Exception {
         Map<String, String> classNameCodes = new HashMap<>();
         classNameCodes.put(
                 GENERATED_LOWER_UDF_CLASS,

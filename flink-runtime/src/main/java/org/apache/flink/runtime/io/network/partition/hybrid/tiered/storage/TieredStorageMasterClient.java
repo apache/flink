@@ -18,10 +18,18 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleHandler;
+import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Client of the Tiered Storage used by the master. */
 public class TieredStorageMasterClient {
@@ -32,11 +40,37 @@ public class TieredStorageMasterClient {
         this.tiers = tiers;
     }
 
-    public void addPartition(TieredStoragePartitionId partitionId) {
-        tiers.forEach(tierMasterAgent -> tierMasterAgent.addPartition(partitionId));
+    public void registerJob(JobID jobID, TierShuffleHandler shuffleHandler) {
+        tiers.forEach(tierMasterAgent -> tierMasterAgent.registerJob(jobID, shuffleHandler));
     }
 
-    public void releasePartition(TieredStoragePartitionId partitionId) {
-        tiers.forEach(tierMasterAgent -> tierMasterAgent.releasePartition(partitionId));
+    public void unregisterJob(JobID jobID) {
+        tiers.forEach(tierMasterAgent -> tierMasterAgent.unregisterJob(jobID));
+    }
+
+    public List<TierShuffleDescriptor> addPartitionAndGetShuffleDescriptor(
+            JobID jobID, ResultPartitionID resultPartitionID) {
+        return tiers.stream()
+                .map(
+                        tierMasterAgent ->
+                                tierMasterAgent.addPartitionAndGetShuffleDescriptor(
+                                        jobID, resultPartitionID))
+                .collect(Collectors.toList());
+    }
+
+    public void releasePartition(ShuffleDescriptor shuffleDescriptor) {
+        checkState(shuffleDescriptor instanceof NettyShuffleDescriptor);
+        List<TierShuffleDescriptor> tierShuffleDescriptors =
+                ((NettyShuffleDescriptor) shuffleDescriptor).getTierShuffleDescriptors();
+        if (tierShuffleDescriptors != null && !tierShuffleDescriptors.isEmpty()) {
+            checkState(tierShuffleDescriptors.size() == tiers.size());
+            for (int i = 0; i < tierShuffleDescriptors.size(); i++) {
+                tiers.get(i).releasePartition(tierShuffleDescriptors.get(i));
+            }
+        }
+    }
+
+    public void close() {
+        tiers.forEach(TierMasterAgent::close);
     }
 }

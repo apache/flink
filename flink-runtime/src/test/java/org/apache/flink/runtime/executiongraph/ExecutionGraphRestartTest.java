@@ -405,7 +405,7 @@ class ExecutionGraphRestartTest {
     private static void setupSlotPool(SlotPool slotPool) throws Exception {
         final String jobManagerAddress = "foobar";
         final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-        slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
+        slotPool.start(JobMasterId.generate(), jobManagerAddress);
         slotPool.connectToResourceManager(resourceManagerGateway);
     }
 

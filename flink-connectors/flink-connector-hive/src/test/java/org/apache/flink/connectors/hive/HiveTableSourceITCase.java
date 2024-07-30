@@ -1035,19 +1035,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         sortedRows.addAll(rows);
         sortedRows.addAll(rows);
         sortedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
-
-        List<Row> expectedRows = new ArrayList<>();
-        for (int i = 0; i < sortedRows.size(); i++) {
-            Row rowExpect = Row.copy(sortedRows.get(i));
-            Row nestedRow = (Row) rowExpect.getField(2);
-            if (nestedRow.getField(0) == null
-                    && nestedRow.getField(1) == null
-                    && nestedRow.getField(2) == null) {
-                rowExpect.setField(2, null);
-            }
-            expectedRows.add(rowExpect);
-        }
-        return expectedRows;
+        return sortedRows;
     }
 
     private static CloseableIterator<Row> executeAndGetResult(StreamTableEnvironment tEnv)

@@ -35,10 +35,13 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     private final PhysicalStateHandleID physicalID;
     private final long stateSize;
+    private final boolean fileMerged;
 
-    public PlaceholderStreamStateHandle(PhysicalStateHandleID physicalID, long stateSize) {
+    public PlaceholderStreamStateHandle(
+            PhysicalStateHandleID physicalID, long stateSize, boolean fileMerged) {
         this.physicalID = physicalID;
         this.stateSize = stateSize;
+        this.fileMerged = fileMerged;
     }
 
     @Override
@@ -66,5 +69,9 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
     @Override
     public long getStateSize() {
         return stateSize;
+    }
+
+    public boolean isFileMerged() {
+        return fileMerged;
     }
 }

@@ -572,7 +572,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<Acknowledge> declareRequiredResources(
-            JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
+            JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Duration timeout) {
         final JobID jobId = resourceRequirements.getJobId();
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             final JobManagerRegistration jobManagerRegistration =

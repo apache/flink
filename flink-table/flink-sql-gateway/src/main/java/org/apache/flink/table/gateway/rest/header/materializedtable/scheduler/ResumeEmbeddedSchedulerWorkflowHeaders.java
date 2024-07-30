@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest.header.materializedtable.scheduler;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -33,6 +34,7 @@ import java.util.Collections;
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.V3;
 
 /** Message headers for resume workflow in embedded scheduler. */
+@Documentation.ExcludeFromDocumentation("The embedded rest api.")
 public class ResumeEmbeddedSchedulerWorkflowHeaders
         implements SqlGatewayMessageHeaders<
                 ResumeEmbeddedSchedulerWorkflowRequestBody,
@@ -86,5 +88,10 @@ public class ResumeEmbeddedSchedulerWorkflowHeaders
     @Override
     public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
         return Collections.singleton(V3);
+    }
+
+    @Override
+    public String operationId() {
+        return "resumeWorkflow";
     }
 }

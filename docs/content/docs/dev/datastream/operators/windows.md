@@ -780,6 +780,14 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
          * State accessor for per-key global state.
          */
         public abstract KeyedStateStore globalState();
+
+        /**
+         * Emits a record to the side output identified by the {@code OutputTag}.
+         *
+         * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
+         * @param value The record to emit.
+         */
+        public abstract <X> void output(OutputTag<X> outputTag, X value);
     }
 
 }

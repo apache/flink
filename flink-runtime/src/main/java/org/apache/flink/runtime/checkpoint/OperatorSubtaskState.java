@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.SharedStateRegistryImpl.EmptyDiscardStateO
 import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -225,6 +226,13 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         registerSharedState(sharedStateRegistry, managedKeyedState, checkpointID);
         registerSharedState(sharedStateRegistry, rawKeyedState, checkpointID);
+        registerFileMergingDirectoryHandle(
+                sharedStateRegistry,
+                managedOperatorState.stream()
+                        .filter(e -> e instanceof FileMergingOperatorStreamStateHandle)
+                        .map(e -> (FileMergingOperatorStreamStateHandle) e)
+                        .collect(Collectors.toList()),
+                checkpointID);
     }
 
     private static void registerSharedState(
@@ -240,6 +248,17 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                         new SharedStateRegistryKey(stateHandle.getStateHandleId().getKeyString()),
                         new EmptyDiscardStateObjectForRegister(stateHandle.getStateHandleId()),
                         checkpointID);
+                stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
+            }
+        }
+    }
+
+    private static void registerFileMergingDirectoryHandle(
+            SharedStateRegistry sharedStateRegistry,
+            Iterable<FileMergingOperatorStreamStateHandle> stateHandles,
+            long checkpointID) {
+        for (FileMergingOperatorStreamStateHandle stateHandle : stateHandles) {
+            if (stateHandle != null) {
                 stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
             }
         }

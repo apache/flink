@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.20-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
@@ -33,6 +33,10 @@ under the License.
 
 	<properties>
 		<presto.version>0.272</presto.version>
+		<surefire.module.config> <!--
+			S5CmdOnPrestoS3FileSystemITCase uses ArraysAsListSerializer indirectly
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

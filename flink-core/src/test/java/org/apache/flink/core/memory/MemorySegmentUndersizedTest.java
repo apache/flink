@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,14 +28,13 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for undersized {@link MemorySegment} (in both heap and off-heap modes). */
-public class MemorySegmentUndersizedTest {
+class MemorySegmentUndersizedTest {
 
     @Test
-    public void testZeroSizeHeapSegment() {
+    void testZeroSizeHeapSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(0);
 
         testZeroSizeBuffer(segment);
@@ -43,7 +42,7 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testZeroSizeOffHeapSegment() {
+    void testZeroSizeOffHeapSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledOffHeapMemory(0);
 
         testZeroSizeBuffer(segment);
@@ -51,7 +50,7 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testZeroSizeOffHeapUnsafeSegment() {
+    void testZeroSizeOffHeapUnsafeSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateOffHeapUnsafeMemory(0);
 
         testZeroSizeBuffer(segment);
@@ -59,1119 +58,485 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testSizeOneHeapSegment() {
+    void testSizeOneHeapSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateUnpooledSegment(1));
     }
 
     @Test
-    public void testSizeOneOffHeapSegment() {
+    void testSizeOneOffHeapSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateUnpooledOffHeapMemory(1));
     }
 
     @Test
-    public void testSizeOneOffHeapUnsafeSegment() {
+    void testSizeOneOffHeapUnsafeSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateOffHeapUnsafeMemory(1));
     }
 
     private static void testZeroSizeBuffer(MemorySegment segment) {
         // ------ bytes ------
 
-        try {
-            segment.put(0, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(0, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(0)).isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ booleans ------
 
-        try {
-            segment.putBoolean(0, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(0, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     private static void testSegmentWithSizeLargerZero(MemorySegment segment) {
 
         // ------ bytes ------
+        assertThatThrownBy(() -> segment.put(1, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(1, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(-1, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(-1, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(8, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(8, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(-8, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(-8, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(Integer.MAX_VALUE, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, (byte) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(Integer.MIN_VALUE, (byte) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(-1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(-8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-
-        try {
-            segment.get(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ booleans ------
 
-        try {
-            segment.putBoolean(1, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(1, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putBoolean(-1, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(-1, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putBoolean(8, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(8, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putBoolean(-8, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(-8, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putBoolean(Integer.MAX_VALUE, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(Integer.MAX_VALUE, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putBoolean(Integer.MIN_VALUE, true);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putBoolean(Integer.MIN_VALUE, true))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(-1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(8))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(-8))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getBoolean(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getBoolean(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ chars ------
 
-        try {
-            segment.putChar(0, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(0, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putChar(1, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(1, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putChar(-1, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(-1, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putChar(8, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(8, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putChar(-8, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(-8, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putChar(Integer.MAX_VALUE, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(Integer.MAX_VALUE, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putChar(Integer.MIN_VALUE, 'a');
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putChar(Integer.MIN_VALUE, 'a'))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(0)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(-1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(-8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getChar(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getChar(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ shorts ------
 
-        try {
-            segment.putShort(0, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(0, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putShort(1, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(1, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putShort(-1, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(-1, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putShort(8, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(8, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putShort(-8, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(-8, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putShort(Integer.MAX_VALUE, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(Integer.MAX_VALUE, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putShort(Integer.MIN_VALUE, (short) 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putShort(Integer.MIN_VALUE, (short) 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(0)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(-1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(-8))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getShort(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getShort(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ ints ------
 
-        try {
-            segment.putInt(0, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(0, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putInt(1, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(1, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putInt(-1, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(-1, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putInt(8, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(8, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putInt(-8, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(-8, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putInt(Integer.MAX_VALUE, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(Integer.MAX_VALUE, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putInt(Integer.MIN_VALUE, 0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putInt(Integer.MIN_VALUE, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getInt(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-        try {
-            segment.getInt(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getInt(0)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getInt(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getInt(1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getInt(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getInt(-1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getInt(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getInt(8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getInt(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getInt(-8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getInt(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getInt(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+
+        assertThatThrownBy(() -> segment.getInt(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ longs ------
 
-        try {
-            segment.putLong(0, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(0, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putLong(1, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(1, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putLong(-1, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(-1, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putLong(8, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(8, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putLong(-8, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(-8, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putLong(Integer.MAX_VALUE, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(Integer.MAX_VALUE, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putLong(Integer.MIN_VALUE, 0L);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putLong(Integer.MIN_VALUE, 0L))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getLong(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-        try {
-            segment.getLong(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getLong(0)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getLong(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getLong(1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getLong(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getLong(-1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getLong(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getLong(8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getLong(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getLong(-8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getLong(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getLong(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+
+        assertThatThrownBy(() -> segment.getLong(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ floats ------
 
-        try {
-            segment.putFloat(0, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(0, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putFloat(1, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(1, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putFloat(-1, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(-1, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putFloat(8, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(8, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putFloat(-8, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(-8, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putFloat(Integer.MAX_VALUE, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(Integer.MAX_VALUE, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putFloat(Integer.MIN_VALUE, 0.0f);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putFloat(Integer.MIN_VALUE, 0.0f))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getFloat(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-        try {
-            segment.getFloat(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getFloat(0)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getFloat(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getFloat(1)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getFloat(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getFloat(-1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getFloat(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getFloat(8)).isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getFloat(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getFloat(-8))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getFloat(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getFloat(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+
+        assertThatThrownBy(() -> segment.getFloat(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ doubles ------
 
-        try {
-            segment.putDouble(0, 0.0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putDouble(0, 0.0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putDouble(1, 0.0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putDouble(1, 0.0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putDouble(-1, 0.0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putDouble(-1, 0.0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putDouble(8, 0.0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putDouble(8, 0.0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putDouble(Integer.MAX_VALUE, 0.0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putDouble(Integer.MAX_VALUE, 0.0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.putDouble(Integer.MIN_VALUE, 0.0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.putDouble(Integer.MIN_VALUE, 0.0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getDouble(0);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-        try {
-            segment.getDouble(1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getDouble(0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getDouble(-1);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getDouble(1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getDouble(8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getDouble(-1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getDouble(-8);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getDouble(8))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getDouble(Integer.MAX_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getDouble(-8))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.getDouble(Integer.MIN_VALUE);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.getDouble(Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+
+        assertThatThrownBy(() -> segment.getDouble(Integer.MIN_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ byte[] ------
 
-        try {
-            segment.put(0, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(0, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(1, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(1, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(-1, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(-1, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(8, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(8, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(-8, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(-8, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(Integer.MAX_VALUE, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(Integer.MIN_VALUE, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(0, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(0, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(1, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(1, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(-1, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(-1, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(8, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(8, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(-8, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(-8, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(Integer.MAX_VALUE, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(Integer.MAX_VALUE, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(Integer.MIN_VALUE, new byte[7]);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-
+        assertThatThrownBy(() -> segment.get(Integer.MIN_VALUE, new byte[7]))
+                .isInstanceOf(IndexOutOfBoundsException.class);
         // ------ ByteBuffer ------
 
         final ByteBuffer buf = ByteBuffer.allocate(7);
         final int numBytes = 3;
 
-        try {
-            segment.put(0, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(0, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(1, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(1, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(-1, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(-1, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(8, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(8, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(-8, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(-8, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(Integer.MAX_VALUE, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(Integer.MIN_VALUE, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(0, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-        try {
-            segment.get(1, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(0, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(-1, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(1, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(8, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(-1, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(-8, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(8, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(Integer.MAX_VALUE, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(-8, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(Integer.MIN_VALUE, buf, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(Integer.MAX_VALUE, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+
+        assertThatThrownBy(() -> segment.get(Integer.MIN_VALUE, buf, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // ------ DataInput / DataOutput ------
 
         final DataInput dataInput = new DataInputStream(new ByteArrayInputStream(new byte[20]));
         final DataOutput dataOutput = new DataOutputStream(new ByteArrayOutputStream());
 
-        try {
-            segment.put(dataInput, 0, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, 0, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(dataInput, 1, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, 1, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(dataInput, -1, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, -1, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(dataInput, 8, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, 8, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(dataInput, -8, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, -8, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(dataInput, Integer.MAX_VALUE, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, Integer.MAX_VALUE, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.put(dataInput, Integer.MIN_VALUE, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.put(dataInput, Integer.MIN_VALUE, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(dataOutput, 0, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
-        try {
-            segment.get(dataOutput, 1, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(dataOutput, 0, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(dataOutput, -1, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(dataOutput, 1, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(dataOutput, 8, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(dataOutput, -1, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(dataOutput, -8, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(dataOutput, 8, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(dataOutput, Integer.MAX_VALUE, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(dataOutput, -8, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
-        try {
-            segment.get(dataOutput, Integer.MIN_VALUE, numBytes);
-            fail("IndexOutOfBoundsException expected");
-        } catch (Exception e) {
-            assertTrue(e instanceof IndexOutOfBoundsException);
-        }
+        assertThatThrownBy(() -> segment.get(dataOutput, Integer.MAX_VALUE, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+
+        assertThatThrownBy(() -> segment.get(dataOutput, Integer.MIN_VALUE, numBytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 }

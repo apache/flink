@@ -23,6 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{JavaTableFunc1, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
@@ -205,6 +206,21 @@ class CalcTest extends TableTestBase {
   @Test
   def testCalcMergeWithNonDeterministicExpr2(): Unit = {
     val sqlQuery = "SELECT a FROM (SELECT a, b FROM MyTable) t WHERE random_udf(b) > 10"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcMergeWithCorrelate(): Unit = {
+    util.addTemporarySystemFunction("str_split", new StringSplit())
+    val sqlQuery =
+      """
+        |SELECT a, r FROM (
+        | SELECT a, random_udf(b) r FROM (
+        |  select a, b, c1 FROM MyTable, LATERAL TABLE(str_split(c)) AS T(c1)
+        | ) t
+        |)
+        |WHERE r > 10
+        |""".stripMargin
     util.verifyRelPlan(sqlQuery)
   }
 }

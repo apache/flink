@@ -39,6 +39,10 @@ public class FlinkFilterProjectTransposeRule extends FilterProjectTransposeRule 
 
     public static final RelOptRule INSTANCE = new FlinkFilterProjectTransposeRule(Config.DEFAULT);
 
+    public static FlinkFilterProjectTransposeRule build(Config config) {
+        return new FlinkFilterProjectTransposeRule(config);
+    }
+
     protected FlinkFilterProjectTransposeRule(Config config) {
         super(config);
     }

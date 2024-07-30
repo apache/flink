@@ -34,6 +34,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
@@ -101,7 +102,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.assertj.core.api.Assertions;
@@ -738,10 +739,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     private CheckpointStatsSnapshot getTestCheckpointStatsSnapshotWithTwoFailedCheckpoints() {
         CheckpointStatsTracker checkpointStatsTracker =
-                new CheckpointStatsTracker(
-                        10,
-                        UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-                        new JobID());
+                new DefaultCheckpointStatsTracker(
+                        10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
         checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
         return checkpointStatsTracker.createSnapshot();

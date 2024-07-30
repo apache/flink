@@ -21,6 +21,12 @@
             <td>Custom JobListeners to be registered with the execution environment. The registered listeners cannot have constructors with arguments.</td>
         </tr>
         <tr>
+            <td><h5>execution.job-status-changed-listeners</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>When job is created or its status is changed, Flink will generate job event and notify job status changed listener.</td>
+        </tr>
+        <tr>
             <td><h5>execution.program-config.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -54,7 +60,7 @@
             <td><h5>execution.target</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The deployment target for the execution. This can take one of the following values when calling <code class="highlighter-rouge">bin/flink run</code>:<ul><li>remote</li><li>local</li><li>yarn-per-job (deprecated)</li><li>yarn-session</li><li>kubernetes-session</li></ul>And one of the following values when calling <code class="highlighter-rouge">bin/flink run-application</code>:<ul><li>yarn-application</li><li>kubernetes-application</li></ul></td>
+            <td>The deployment target for the execution. This can take one of the following values when calling <code class="highlighter-rouge">bin/flink run</code>:<ul><li>remote</li><li>local</li><li>yarn-application</li><li>yarn-per-job (deprecated)</li><li>yarn-session</li><li>kubernetes-application</li><li>kubernetes-session</li></ul>And one of the following values when calling <code class="highlighter-rouge">bin/flink run-application</code> (deprecated):<ul><li>yarn-application</li><li>kubernetes-application</li></ul></td>
         </tr>
     </tbody>
 </table>

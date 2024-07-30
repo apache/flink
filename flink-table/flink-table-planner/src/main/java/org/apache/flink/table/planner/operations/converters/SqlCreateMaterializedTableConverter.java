@@ -37,6 +37,8 @@ import org.apache.flink.table.operations.materializedtable.CreateMaterializedTab
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -46,9 +48,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
 import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
 import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
 
@@ -129,7 +134,12 @@ public class SqlCreateMaterializedTableConverter
                 sqlCreateMaterializedTable.getPartitionKeyList().getList().stream()
                         .map(p -> ((SqlIdentifier) p).getSimple())
                         .collect(Collectors.toList());
-        verifyPartitioningColumnsExist(resolvedSchema, partitionKeys);
+        verifyPartitioningColumnsExist(
+                resolvedSchema,
+                partitionKeys,
+                options.keySet().stream()
+                        .filter(k -> k.startsWith(PARTITION_FIELDS))
+                        .collect(Collectors.toSet()));
 
         // verify and build primary key
         sqlCreateMaterializedTable
@@ -158,7 +168,10 @@ public class SqlCreateMaterializedTableConverter
     }
 
     private static void verifyPartitioningColumnsExist(
-            ResolvedSchema resolvedSchema, List<String> partitionKeys) {
+            ResolvedSchema resolvedSchema,
+            List<String> partitionKeys,
+            Set<String> partitionFieldOptions) {
+        // verify partition key whether exists
         for (String partitionKey : partitionKeys) {
             if (!resolvedSchema.getColumn(partitionKey).isPresent()) {
                 throw new ValidationException(
@@ -167,6 +180,38 @@ public class SqlCreateMaterializedTableConverter
                                 partitionKey,
                                 resolvedSchema.getColumnNames().stream()
                                         .collect(Collectors.joining("', '", "'", "'"))));
+            }
+        }
+
+        // verify partition key used by materialized table partition option
+        // partition.fields.#.date-formatter whether exist
+        for (String partitionOption : partitionFieldOptions) {
+            String partitionKey =
+                    partitionOption.substring(
+                            PARTITION_FIELDS.length() + 1,
+                            partitionOption.length() - (DATE_FORMATTER.length() + 1));
+            // partition key used in option partition.fields.#.date-formatter must be existed
+            if (!partitionKeys.contains(partitionKey)) {
+                throw new ValidationException(
+                        String.format(
+                                "Column '%s' referenced by materialized table option '%s' isn't a partition column. Available partition columns: [%s].",
+                                partitionKey,
+                                partitionOption,
+                                partitionKeys.stream()
+                                        .collect(Collectors.joining("', '", "'", "'"))));
+            }
+
+            // partition key used in option partition.fields.#.date-formatter must be string type
+            LogicalType partitionKeyType =
+                    resolvedSchema.getColumn(partitionKey).get().getDataType().getLogicalType();
+            if (!partitionKeyType
+                    .getTypeRoot()
+                    .getFamilies()
+                    .contains(LogicalTypeFamily.CHARACTER_STRING)) {
+                throw new ValidationException(
+                        String.format(
+                                "Materialized table option '%s' only supports referring to char, varchar and string type partition column. Column %s type is %s.",
+                                partitionOption, partitionKey, partitionKeyType.asSummaryString()));
             }
         }
     }

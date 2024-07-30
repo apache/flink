@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.dag.Transformation;
@@ -49,6 +50,10 @@ import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.util.OutputTag;
 
+import java.util.Collections;
+import java.util.HashSet;
+
+import static org.apache.flink.datastream.impl.utils.StreamUtils.validateStates;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The implementation of {@link KeyedPartitionStream}. */
@@ -102,6 +107,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     @Override
     public <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> process(
             OneInputStreamProcessFunction<V, OUT> processFunction) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(
+                        Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
+
         TypeInformation<OUT> outType;
         outType = StreamUtils.getOutputTypeForOneInputProcessFunction(processFunction, getType());
 
@@ -118,6 +128,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     public <OUT> ProcessConfigurableAndKeyedPartitionStream<K, OUT> process(
             OneInputStreamProcessFunction<V, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(
+                        Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
+
         TypeInformation<OUT> outType =
                 StreamUtils.getOutputTypeForOneInputProcessFunction(processFunction, getType());
         KeyedProcessOperator<K, V, OUT> operator =
@@ -142,6 +157,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
             TwoOutputStreamProcessFunction<V, OUT1, OUT2> processFunction,
             KeySelector<OUT1, K> keySelector1,
             KeySelector<OUT2, K> keySelector2) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(
+                        Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
+
         Tuple2<TypeInformation<OUT1>, TypeInformation<OUT2>> twoOutputType =
                 StreamUtils.getOutputTypesForTwoOutputProcessFunction(processFunction, getType());
         TypeInformation<OUT1> firstOutputType = twoOutputType.f0;
@@ -188,6 +208,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     @Override
     public <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<V, OUT1, OUT2> processFunction) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(
+                        Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
+
         Tuple2<TypeInformation<OUT1>, TypeInformation<OUT2>> twoOutputType =
                 StreamUtils.getOutputTypesForTwoOutputProcessFunction(processFunction, getType());
         TypeInformation<OUT1> firstOutputType = twoOutputType.f0;
@@ -217,6 +242,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputNonBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(
+                        Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputNonBroadcastProcessFunction(
                         processFunction,
@@ -242,6 +272,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputNonBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(
+                        Collections.singletonList(StateDeclaration.RedistributionMode.IDENTICAL)));
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputNonBroadcastProcessFunction(
                         processFunction,
@@ -274,6 +309,9 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             BroadcastStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction) {
+        // no state redistribution mode check is required here, since all redistribution modes are
+        // acceptable
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,
@@ -299,6 +337,9 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
             BroadcastStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
+        // no state redistribution mode check is required here, since all redistribution modes are
+        // acceptable
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,

@@ -41,6 +41,6 @@ public class FetchResultsTokenPathParameter extends MessagePathParameter<Long> {
 
     @Override
     public String getDescription() {
-        return "The OperationHandle that identifies a operation.";
+        return "The token that identifies which batch of data to fetch.";
     }
 }

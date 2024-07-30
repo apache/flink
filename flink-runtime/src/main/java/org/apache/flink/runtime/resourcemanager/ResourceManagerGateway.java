@@ -88,7 +88,7 @@ public interface ResourceManagerGateway
     CompletableFuture<Acknowledge> declareRequiredResources(
             JobMasterId jobMasterId,
             ResourceRequirements resourceRequirements,
-            @RpcTimeout Time timeout);
+            @RpcTimeout Duration timeout);
 
     /**
      * Register a {@link TaskExecutor} at the resource manager.

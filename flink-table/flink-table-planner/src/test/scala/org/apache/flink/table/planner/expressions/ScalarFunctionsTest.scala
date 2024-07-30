@@ -2786,10 +2786,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     val url = "CAST('http://user:pass@host' AS VARCHAR(50))"
     val base64 = "CAST('aGVsbG8gd29ybGQ=' AS VARCHAR(20))"
 
-    testSqlApi(s"IFNULL(SUBSTR($str1, 2, 3), $str2)", "el")
-    testSqlApi(s"IFNULL(SUBSTRING($str1, 2, 3), $str2)", "el")
-    testSqlApi(s"IFNULL(LEFT($str1, 3), $str2)", "He")
-    testSqlApi(s"IFNULL(RIGHT($str1, 3), $str2)", "ll")
+    testSqlApi(s"IFNULL(SUBSTR($str1, 2, 3), $str2)", "ell")
+    testSqlApi(s"IFNULL(SUBSTRING($str1, 2, 3), $str2)", "ell")
+    testSqlApi(s"IFNULL(LEFT($str1, 3), $str2)", "Hel")
+    testSqlApi(s"IFNULL(RIGHT($str1, 3), $str2)", "llo")
     testSqlApi(s"IFNULL(REGEXP_EXTRACT($str1, 'H(.+?)l(.+?)$$', 2), $str2)", "lo")
     testSqlApi(s"IFNULL(REGEXP_REPLACE($str1, 'e.l', 'EXL'), $str2)", "HEXLo")
     testSqlApi(s"IFNULL(UPPER($str1), $str2)", "HELLO")
@@ -2799,9 +2799,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"IFNULL(LPAD($str1, 7, $str3), $str2)", "heHello")
     testSqlApi(s"IFNULL(RPAD($str1, 7, $str3), $str2)", "Hellohe")
     testSqlApi(s"IFNULL(REPEAT($str1, 2), $str2)", "HelloHello")
-    testSqlApi(s"IFNULL(REVERSE($str1), $str2)", "ol")
+    testSqlApi(s"IFNULL(REVERSE($str1), $str2)", "olleH")
     testSqlApi(s"IFNULL(REPLACE($str3, ' ', '_'), $str2)", "hello_world")
-    testSqlApi(s"IFNULL(SPLIT_INDEX($str3, ' ', 1), $str2)", "wo")
+    testSqlApi(s"IFNULL(SPLIT_INDEX($str3, ' ', 1), $str2)", "world")
     testSqlApi(s"IFNULL(MD5($str1), $str2)", "8b1a9953c4611296a827abf8c47804d7")
     testSqlApi(s"IFNULL(SHA1($str1), $str2)", "f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0")
     testSqlApi(
@@ -2822,7 +2822,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       s"IFNULL(SHA2($str1, 256), $str2)",
       "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969")
-    testSqlApi(s"IFNULL(PARSE_URL($url, 'HOST'), $str2)", "ho")
+    testSqlApi(s"IFNULL(PARSE_URL($url, 'HOST'), $str2)", "host")
     testSqlApi(s"IFNULL(FROM_BASE64($base64), $str2)", "hello world")
     testSqlApi(s"IFNULL(TO_BASE64($str3), $str2)", "aGVsbG8gd29ybGQ=")
     testSqlApi(s"IFNULL(CHR(65), $str2)", "A")
@@ -2834,7 +2834,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"IFNULL(RTRIM($str4), $str2)", " hello")
     testSqlApi(s"IFNULL($str1 || $str2, $str2)", "HelloHi")
     testSqlApi(s"IFNULL(SUBSTRING(UUID(), 9, 1), $str2)", "-")
-    testSqlApi(s"IFNULL(DECODE(ENCODE($str1, 'utf-8'), 'utf-8'), $str2)", "He")
+    testSqlApi(s"IFNULL(DECODE(ENCODE($str1, 'utf-8'), 'utf-8'), $str2)", "Hello")
 
     testSqlApi(s"IFNULL(CAST(DATE '2021-04-06' AS VARCHAR(10)), $str2)", "2021-04-06")
     testSqlApi(s"IFNULL(CAST(TIME '11:05:30' AS VARCHAR(8)), $str2)", "11:05:30")

@@ -155,7 +155,7 @@ class SessionManagerImplTest {
                                                 "cat2",
                                                 CatalogDescriptor.of("cat2", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat2 already exists in catalog store.");
+                .hasMessageContaining("Catalog cat2 already exists.");
 
         sessionManager.stop();
     }

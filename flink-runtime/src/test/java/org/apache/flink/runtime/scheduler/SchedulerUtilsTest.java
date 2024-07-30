@@ -114,7 +114,7 @@ class SchedulerUtilsTest {
                 buildIncrementalHandle(
                         localPath,
                         new PlaceholderStreamStateHandle(
-                                handle.getStreamStateHandleID(), handle.getStateSize()),
+                                handle.getStreamStateHandleID(), handle.getStateSize(), false),
                         backendId);
         newHandle.registerSharedStates(sharedStateRegistry, 1L);
 

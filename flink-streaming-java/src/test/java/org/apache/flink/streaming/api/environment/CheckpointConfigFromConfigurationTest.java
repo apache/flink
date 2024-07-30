@@ -151,6 +151,14 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::enableUnalignedCheckpoints)
                         .getterVia(CheckpointConfig::isUnalignedCheckpointsEnabled)
                         .nonDefaultValue(true),
+                TestSpec.testValue(true)
+                        .whenSetFromFile(
+                                "execution.checkpointing.unaligned.interruptible-timers.enabled",
+                                "true")
+                        .viaSetter(CheckpointConfig::enableUnalignedCheckpointsInterruptibleTimers)
+                        .getterVia(
+                                CheckpointConfig::isUnalignedCheckpointsInterruptibleTimersEnabled)
+                        .nonDefaultValue(true),
                 TestSpec.testValue(
                                 (CheckpointStorage)
                                         new FileSystemCheckpointStorage(

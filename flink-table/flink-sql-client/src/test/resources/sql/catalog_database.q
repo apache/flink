@@ -35,6 +35,7 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, colu
 Was expecting one of:
     <EOF>
     "WITH" ...
+    "COMMENT" ...
     ";" ...
 !error
 
@@ -91,6 +92,189 @@ drop catalog c1;
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalog which is currently in use.
 !error
+
+create catalog cat_comment comment 'hello ''catalog''' WITH ('type'='generic_in_memory', 'default-database'='db');
+[INFO] Execute statement succeeded.
+!info
+
+show create catalog cat_comment;
++--------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                         result |
++--------------------------------------------------------------------------------------------------------------------------------+
+| CREATE CATALOG `cat_comment` COMMENT 'hello ''catalog''' WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+ |
++--------------------------------------------------------------------------------------------------------------------------------+
+1 row in set
+!ok
+
+describe catalog cat_comment;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |       cat_comment |
+|      type | generic_in_memory |
+|   comment |   hello 'catalog' |
++-----------+-------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat_comment;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |       cat_comment |
+|                    type | generic_in_memory |
+|                 comment |   hello 'catalog' |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+create catalog if not exists cat_comment comment 'hello' with ('type' = 'generic_in_memory');
+[INFO] Execute statement succeeded.
+!info
+
+create catalog cat_comment comment 'hello2' with ('type' = 'generic_in_memory');
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.catalog.exceptions.CatalogException: Catalog cat_comment already exists.
+!error
+
+create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
+[INFO] Execute statement succeeded.
+!info
+
+show create catalog cat2;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE CATALOG `cat2` WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+ |
++---------------------------------------------------------------------------------------------+
+1 row in set
+!ok
+
+describe catalog cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+desc catalog cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+desc catalog extended cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+alter catalog cat2 set ('default-database'='db_new');
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |            db_new |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+alter catalog cat2 reset ('default-database', 'k1');
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+alter catalog cat2 reset ('type');
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support changing 'type'
+!error
+
+alter catalog cat2 reset ();
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support empty key
+!error
+
+alter catalog cat2 comment 'comment for catalog ''cat2''';
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-----------+----------------------------+
+| info name |                 info value |
++-----------+----------------------------+
+|      name |                       cat2 |
+|      type |          generic_in_memory |
+|   comment | comment for catalog 'cat2' |
++-----------+----------------------------+
+3 rows in set
+!ok
+
+alter catalog cat2 comment '';
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
 
 # ==========================================================================
 # test database
@@ -685,87 +869,4 @@ show tables from db1 like 'p_r%';
 |     person |
 +------------+
 1 row in set
-!ok
-
-# ==========================================================================
-# test catalog
-# ==========================================================================
-
-create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
-[INFO] Execute statement succeeded.
-!info
-
-show create catalog cat2;
-+---------------------------------------------------------------------------------------------+
-|                                                                                      result |
-+---------------------------------------------------------------------------------------------+
-| CREATE CATALOG `cat2` WITH (
-  'default-database' = 'db',
-  'type' = 'generic_in_memory'
-)
- |
-+---------------------------------------------------------------------------------------------+
-1 row in set
-!ok
-
-describe catalog cat2;
-+-----------+-------------------+
-| info name |        info value |
-+-----------+-------------------+
-|      name |              cat2 |
-|      type | generic_in_memory |
-|   comment |                   |
-+-----------+-------------------+
-3 rows in set
-!ok
-
-describe catalog extended cat2;
-+-------------------------+-------------------+
-|               info name |        info value |
-+-------------------------+-------------------+
-|                    name |              cat2 |
-|                    type | generic_in_memory |
-|                 comment |                   |
-| option:default-database |                db |
-+-------------------------+-------------------+
-4 rows in set
-!ok
-
-desc catalog cat2;
-+-----------+-------------------+
-| info name |        info value |
-+-----------+-------------------+
-|      name |              cat2 |
-|      type | generic_in_memory |
-|   comment |                   |
-+-----------+-------------------+
-3 rows in set
-!ok
-
-desc catalog extended cat2;
-+-------------------------+-------------------+
-|               info name |        info value |
-+-------------------------+-------------------+
-|                    name |              cat2 |
-|                    type | generic_in_memory |
-|                 comment |                   |
-| option:default-database |                db |
-+-------------------------+-------------------+
-4 rows in set
-!ok
-
-alter catalog cat2 set ('default-database'='db_new');
-[INFO] Execute statement succeeded.
-!info
-
-desc catalog extended cat2;
-+-------------------------+-------------------+
-|               info name |        info value |
-+-------------------------+-------------------+
-|                    name |              cat2 |
-|                    type | generic_in_memory |
-|                 comment |                   |
-| option:default-database |            db_new |
-+-------------------------+-------------------+
-4 rows in set
 !ok

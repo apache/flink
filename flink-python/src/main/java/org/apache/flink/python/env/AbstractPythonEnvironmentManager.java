@@ -22,14 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
+import org.apache.flink.util.CompressionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava32.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -58,6 +58,11 @@ public class FileStateHandle implements StreamStateHandle {
         this.stateSize = stateSize;
     }
 
+    @Override
+    public Optional<Path> maybeGetPath() {
+        return Optional.of(getFilePath());
+    }
+
     /**
      * Gets the path where this handle's state is stored.
      *

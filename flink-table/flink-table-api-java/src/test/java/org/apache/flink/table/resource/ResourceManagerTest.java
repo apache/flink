@@ -88,7 +88,7 @@ public class ResourceManagerTest {
     private ResourceManager resourceManager;
 
     @BeforeAll
-    public static void prepare() throws Exception {
+    static void prepare() throws Exception {
         udfJar =
                 UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder,

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
@@ -37,7 +37,7 @@ import java.util.Collection;
  *
  * @param <CommittableT> The type of the committables.
  */
-@PublicEvolving
+@Public
 public interface SupportsCommitter<CommittableT> {
 
     /**

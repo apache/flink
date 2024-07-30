@@ -28,6 +28,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,10 +41,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CreateCatalogOperation implements CreateOperation {
     private final String catalogName;
     private final Map<String, String> properties;
+    @Nullable private final String comment;
+    private final boolean ignoreIfExists;
 
-    public CreateCatalogOperation(String catalogName, Map<String, String> properties) {
+    public CreateCatalogOperation(
+            String catalogName,
+            Map<String, String> properties,
+            @Nullable String comment,
+            boolean ignoreIfExists) {
         this.catalogName = checkNotNull(catalogName);
         this.properties = Collections.unmodifiableMap(checkNotNull(properties));
+        this.comment = comment;
+        this.ignoreIfExists = ignoreIfExists;
     }
 
     public String getCatalogName() {
@@ -53,11 +63,19 @@ public class CreateCatalogOperation implements CreateOperation {
         return properties;
     }
 
+    public boolean isIgnoreIfExists() {
+        return ignoreIfExists;
+    }
+
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("catalogName", catalogName);
         params.put("properties", properties);
+        if (comment != null) {
+            params.put("comment", comment);
+        }
+        params.put("ignoreIfExists", ignoreIfExists);
 
         return OperationUtils.formatWithChildren(
                 "CREATE CATALOG", params, Collections.emptyList(), Operation::asSummaryString);
@@ -69,7 +87,9 @@ public class CreateCatalogOperation implements CreateOperation {
             ctx.getCatalogManager()
                     .createCatalog(
                             catalogName,
-                            CatalogDescriptor.of(catalogName, Configuration.fromMap(properties)));
+                            CatalogDescriptor.of(
+                                    catalogName, Configuration.fromMap(properties), comment),
+                            ignoreIfExists);
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {

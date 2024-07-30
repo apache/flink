@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.{createTempFile, createTempFolder}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -389,7 +389,7 @@ class TableSourceITCase extends BatchTestBase {
   @Test
   def testTableHintWithLogicalTableScanReuse(): Unit = {
     tEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""

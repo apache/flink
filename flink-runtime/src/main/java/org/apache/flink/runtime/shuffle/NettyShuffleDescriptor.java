@@ -22,9 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Optional;
 
 /** Default implementation of {@link ShuffleDescriptor} for {@link NettyShuffleMaster}. */
@@ -38,13 +42,24 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 
     private final ResultPartitionID resultPartitionID;
 
+    @Nullable private final List<TierShuffleDescriptor> tierShuffleDescriptors;
+
     public NettyShuffleDescriptor(
             ResourceID producerLocation,
             PartitionConnectionInfo partitionConnectionInfo,
             ResultPartitionID resultPartitionID) {
+        this(producerLocation, partitionConnectionInfo, resultPartitionID, null);
+    }
+
+    public NettyShuffleDescriptor(
+            ResourceID producerLocation,
+            PartitionConnectionInfo partitionConnectionInfo,
+            ResultPartitionID resultPartitionID,
+            @Nullable List<TierShuffleDescriptor> tierShuffleDescriptors) {
         this.producerLocation = producerLocation;
         this.partitionConnectionInfo = partitionConnectionInfo;
         this.resultPartitionID = resultPartitionID;
+        this.tierShuffleDescriptors = tierShuffleDescriptors;
     }
 
     public ConnectionID getConnectionId() {
@@ -66,6 +81,11 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 
     public boolean isLocalTo(ResourceID consumerLocation) {
         return producerLocation.equals(consumerLocation);
+    }
+
+    @Nullable
+    public List<TierShuffleDescriptor> getTierShuffleDescriptors() {
+        return tierShuffleDescriptors;
     }
 
     /** Information for connection to partition producer for shuffle exchange. */

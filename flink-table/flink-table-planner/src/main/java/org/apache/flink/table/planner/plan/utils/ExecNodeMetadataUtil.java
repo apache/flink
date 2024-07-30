@@ -28,6 +28,9 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
@@ -148,6 +151,10 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
                     add(StreamExecPythonOverAggregate.class);
+                    // Batch execution mode
+                    add(BatchExecSink.class);
+                    add(BatchExecTableSourceScan.class);
+                    add(BatchExecCalc.class);
                 }
             };
 
@@ -198,8 +205,9 @@ public final class ExecNodeMetadataUtil {
     }
 
     public static <T extends ExecNode<?>> boolean isUnsupported(Class<T> execNode) {
-        return !StreamExecNode.class.isAssignableFrom(execNode)
-                || UNSUPPORTED_JSON_SERDE_CLASSES.contains(execNode);
+        boolean streamOrKnownExecNode =
+                StreamExecNode.class.isAssignableFrom(execNode) || execNodes().contains(execNode);
+        return !streamOrKnownExecNode || UNSUPPORTED_JSON_SERDE_CLASSES.contains(execNode);
     }
 
     public static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {

@@ -21,8 +21,6 @@ package org.apache.flink.table.gateway.workflow;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.annotation.Nullable;
-
 import java.util.Map;
 import java.util.Objects;
 
@@ -40,8 +38,6 @@ public class WorkflowInfo {
     private final Map<String, String> initConfig;
     private final Map<String, String> executionConfig;
 
-    private final @Nullable String customSchedulerTime;
-
     private final String restEndpointUrl;
 
     @JsonCreator
@@ -50,13 +46,11 @@ public class WorkflowInfo {
             @JsonProperty("dynamicOptions") Map<String, String> dynamicOptions,
             @JsonProperty("initConfig") Map<String, String> initConfig,
             @JsonProperty("executionConfig") Map<String, String> executionConfig,
-            @JsonProperty("customSchedulerTime") @Nullable String customSchedulerTime,
             @JsonProperty("restEndpointUrl") String restEndpointUrl) {
         this.materializedTableIdentifier = materializedTableIdentifier;
         this.dynamicOptions = dynamicOptions;
         this.initConfig = initConfig;
         this.executionConfig = executionConfig;
-        this.customSchedulerTime = customSchedulerTime;
         this.restEndpointUrl = restEndpointUrl;
     }
 
@@ -76,11 +70,6 @@ public class WorkflowInfo {
         return executionConfig;
     }
 
-    @Nullable
-    public String getCustomSchedulerTime() {
-        return customSchedulerTime;
-    }
-
     public String getRestEndpointUrl() {
         return restEndpointUrl;
     }
@@ -97,7 +86,6 @@ public class WorkflowInfo {
         return Objects.equals(materializedTableIdentifier, that.materializedTableIdentifier)
                 && Objects.equals(initConfig, that.initConfig)
                 && Objects.equals(executionConfig, that.executionConfig)
-                && Objects.equals(customSchedulerTime, that.customSchedulerTime)
                 && Objects.equals(restEndpointUrl, that.restEndpointUrl);
     }
 
@@ -108,7 +96,6 @@ public class WorkflowInfo {
                 dynamicOptions,
                 initConfig,
                 executionConfig,
-                customSchedulerTime,
                 restEndpointUrl);
     }
 
@@ -124,9 +111,6 @@ public class WorkflowInfo {
                 + initConfig
                 + ", executionConfig="
                 + executionConfig
-                + ", customSchedulerTime='"
-                + customSchedulerTime
-                + '\''
                 + ", restEndpointUrl='"
                 + restEndpointUrl
                 + '\''

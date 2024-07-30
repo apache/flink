@@ -169,59 +169,6 @@ class StreamPlanner(
       classLoader)
   }
 
-  override def loadPlan(planReference: PlanReference): InternalPlan = {
-    val ctx = createSerdeContext
-    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
-    val execNodeGraph = planReference match {
-      case filePlanReference: FilePlanReference =>
-        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
-      case contentPlanReference: ContentPlanReference =>
-        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
-      case resourcePlanReference: ResourcePlanReference =>
-        val url = resourcePlanReference.getClassLoader
-          .getResource(resourcePlanReference.getResourcePath)
-        if (url == null) {
-          throw new IOException("Cannot load the plan reference from classpath: " + planReference)
-        }
-        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
-      case _ =>
-        throw new IllegalStateException(
-          "Unknown PlanReference. This is a bug, please contact the developers")
-    }
-
-    new ExecNodeGraphInternalPlan(
-      // ensures that the JSON output is always normalized
-      () =>
-        JsonSerdeUtil
-          .createObjectWriter(ctx)
-          .withDefaultPrettyPrinter()
-          .writeValueAsString(execNodeGraph),
-      execNodeGraph)
-  }
-
-  override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan = {
-    beforeTranslation()
-    val relNodes = modifyOperations.map(translateToRel)
-    val optimizedRelNodes = optimize(relNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
-    afterTranslation()
-
-    val compiledJson = JsonSerdeUtil
-      .createObjectWriter(createSerdeContext)
-      .withDefaultPrettyPrinter()
-      .writeValueAsString(execGraph)
-
-    new ExecNodeGraphInternalPlan(() => compiledJson, execGraph)
-  }
-
-  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
-    beforeTranslation()
-    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
-    val transformations = translateToPlan(execGraph)
-    afterTranslation()
-    transformations
-  }
-
   override def explainPlan(plan: InternalPlan, extraDetails: ExplainDetail*): String = {
     beforeTranslation()
     val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph

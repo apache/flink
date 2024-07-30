@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.20-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-parquet</artifactId>
@@ -86,6 +86,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
+		</dependency>
+
+		<!-- Runtime -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- Parquet -->
@@ -273,7 +281,7 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-	</dependencies>
+    </dependencies>
 
 	<dependencyManagement>
 		<dependencies>

@@ -95,7 +95,8 @@ public class ConfigurationOptionLocator {
                             "org.apache.flink.streaming.api.environment.CheckpointConfig",
                             "org.apache.flink.contrib.streaming.state.PredefinedOptions",
                             "org.apache.flink.python.PythonConfig",
-                            "org.apache.flink.cep.configuration.SharedBufferCacheConfig"));
+                            "org.apache.flink.cep.configuration.SharedBufferCacheConfig",
+                            "org.apache.flink.table.api.config.LookupJoinHintOptions"));
 
     private static final String DEFAULT_PATH_PREFIX = "src/main/java";
 

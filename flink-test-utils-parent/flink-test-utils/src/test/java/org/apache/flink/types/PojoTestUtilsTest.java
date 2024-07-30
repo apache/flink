@@ -62,6 +62,6 @@ class PojoTestUtilsTest {
     }
 
     public static class PojoRequiringKryo {
-        public List<?> x;
+        public List<Integer> x;
     }
 }

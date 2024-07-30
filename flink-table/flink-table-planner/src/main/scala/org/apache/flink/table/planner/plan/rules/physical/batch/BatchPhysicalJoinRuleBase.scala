@@ -322,7 +322,8 @@ trait BatchPhysicalJoinRuleBase {
 }
 object BatchPhysicalJoinRuleBase {
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
     key("table.optimizer.semi-anti-join.build-distinct.ndv-ratio")
@@ -335,7 +336,8 @@ object BatchPhysicalJoinRuleBase {
           " We add this configuration to help the optimizer to decide whether to" +
           " add the distinct.")
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.shuffle-by-partial-key-enabled")

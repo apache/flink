@@ -61,7 +61,7 @@ class UtilsTest {
         final Path applicationFilesDir = Files.createTempDirectory(tempDir, ".flink");
         Files.createTempFile(applicationFilesDir, "flink", ".jar");
         try (Stream<Path> files = Files.list(tempDir)) {
-            assertThat(files.count()).isEqualTo(1L);
+            assertThat(files).hasSize(1);
         }
         try (Stream<Path> files = Files.list(applicationFilesDir)) {
             assertThat(files).hasSize(1);

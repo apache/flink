@@ -155,8 +155,8 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -779,9 +779,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final FileMergingSnapshotManager fileMergingSnapshotManager =
                     fileMergingManager.fileMergingSnapshotManagerForTask(
                             jobId,
+                            getResourceID(),
                             tdd.getExecutionAttemptId(),
                             taskManagerConfiguration.getConfiguration(),
-                            jobInformation.getJobConfiguration());
+                            jobInformation.getJobConfiguration(),
+                            jobGroup);
 
             final FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManagerClosable =
                     fileMergingSnapshotManager == null

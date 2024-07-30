@@ -627,15 +627,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             final ExecutionJobVertex jobVertex, List<BlockingResultInfo> inputs) {
         int vertexInitialParallelism = jobVertex.getParallelism();
         ForwardGroup forwardGroup = forwardGroupsByJobVertexId.get(jobVertex.getJobVertexId());
-        if (!jobVertex.isParallelismDecided()
-                && forwardGroup != null
-                && forwardGroup.isParallelismDecided()) {
-            vertexInitialParallelism = forwardGroup.getParallelism();
-            log.info(
-                    "Parallelism of JobVertex: {} ({}) is decided to be {} according to forward group's parallelism.",
-                    jobVertex.getName(),
-                    jobVertex.getJobVertexId(),
-                    vertexInitialParallelism);
+        if (!jobVertex.isParallelismDecided() && forwardGroup != null) {
+            checkState(!forwardGroup.isParallelismDecided());
         }
 
         int vertexMinParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
@@ -674,6 +667,36 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
         if (forwardGroup != null && !forwardGroup.isParallelismDecided()) {
             forwardGroup.setParallelism(parallelismAndInputInfos.getParallelism());
+
+            // When the parallelism for a forward group is determined, we ensure that the
+            // parallelism for all job vertices within that group is also set.
+            // This approach ensures that each forward edge produces single subpartition.
+            //
+            // This setting is crucial because the Sink V2 committer relies on the interplay
+            // between the CommittableSummary and the CommittableWithLineage, which are sent by
+            // the upstream Sink V2 Writer. The committer expects to receive CommittableSummary
+            // before CommittableWithLineage.
+            //
+            // If the number of subpartitions produced by a forward edge is greater than one,
+            // the ordering of these elements received by the committer cannot be assured, which
+            // would break the assumption that CommittableSummary is received before
+            // CommittableWithLineage.
+            for (JobVertexID jobVertexId : forwardGroup.getJobVertexIds()) {
+                ExecutionJobVertex executionJobVertex = getExecutionJobVertex(jobVertexId);
+                if (!executionJobVertex.isParallelismDecided()) {
+                    log.info(
+                            "Parallelism of JobVertex: {} ({}) is decided to be {} according to forward group's parallelism.",
+                            executionJobVertex.getName(),
+                            executionJobVertex.getJobVertexId(),
+                            parallelismAndInputInfos.getParallelism());
+                    changeJobVertexParallelism(
+                            executionJobVertex, parallelismAndInputInfos.getParallelism());
+                } else {
+                    checkState(
+                            parallelismAndInputInfos.getParallelism()
+                                    == executionJobVertex.getParallelism());
+                }
+            }
         }
 
         return parallelismAndInputInfos;

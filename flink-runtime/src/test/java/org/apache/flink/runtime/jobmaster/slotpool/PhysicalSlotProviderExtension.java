@@ -63,7 +63,10 @@ public class PhysicalSlotProviderExtension implements BeforeEachCallback, AfterE
         this.mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         singleThreadScheduledExecutorService);
-        slotPool = new DeclarativeSlotPoolBridgeBuilder().buildAndStart(mainThreadExecutor);
+        slotPool =
+                new DeclarativeSlotPoolBridgeBuilder()
+                        .setMainThreadExecutor(mainThreadExecutor)
+                        .buildAndStart();
         physicalSlotProvider = new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
     }
 

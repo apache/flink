@@ -46,7 +46,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
@@ -211,7 +211,7 @@ public class SequentialChannelStateReaderImplTest {
                                     .setSingleInputGateIndex(i)
                                     .setBufferPoolFactory(
                                             networkBufferPool.createBufferPool(
-                                                    1, 1, parLevel * buffersPerChannel))
+                                                    1, buffersPerChannel))
                                     .setSegmentProvider(networkBufferPool)
                                     .setChannelFactory(
                                             (builder, gate) ->

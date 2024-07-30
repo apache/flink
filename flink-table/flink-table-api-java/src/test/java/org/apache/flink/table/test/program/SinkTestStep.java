@@ -110,7 +110,7 @@ public final class SinkTestStep extends TableTestStep {
                         : TestKind.SINK_WITH_RESTORE_DATA;
     }
 
-    public boolean getTestChangelogData() {
+    public boolean shouldTestChangelogData() {
         return testChangelogData;
     }
 

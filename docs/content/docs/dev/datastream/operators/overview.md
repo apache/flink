@@ -617,6 +617,34 @@ env.execute()
 {{< /tab >}}
 {{< /tabs>}}
 
+### Full Window Partition
+#### DataStream &rarr; PartitionWindowedStream
+
+Collects all records of each partition separately into a full window and processes them. The window 
+emission will be triggered at the end of inputs. 
+This approach is primarily applicable to batch processing scenarios.
+For non-keyed DataStream, a partition contains all records of a subtask. 
+For KeyedStream, a partition contains all records of a key. 
+
+```java
+DataStream<Integer> dataStream = //...
+PartitionWindowedStream<Integer> partitionWindowedDataStream = dataStream.fullWindowPartition();
+// do full window partition processing with PartitionWindowedStream
+DataStream<Integer> resultStream = partitionWindowedDataStream.mapPartition(
+    new MapPartitionFunction<Integer, Integer>() {
+        @Override
+        public void mapPartition(
+                Iterable<Integer> values, Collector<Integer> out) {
+            int result = 0;
+            for (Integer value : values) {
+                result += value;
+            }
+            out.collect(result);
+        }
+    }
+);
+```
+
 ## Physical Partitioning
 
 Flink also gives low-level control (if desired) on the exact stream partitioning after a transformation, via the following functions.

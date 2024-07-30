@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
-import org.apache.flink.table.planner.utils.{CatalogTableStatisticsConverter, TableConfigUtils}
+import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.sources.PartitionableTableSource
@@ -38,7 +38,6 @@ import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle, RexUtil}
 
 import java.util
-import java.util.TimeZone
 
 import scala.collection.{mutable, JavaConversions}
 import scala.collection.JavaConversions._
@@ -157,8 +156,7 @@ class PushPartitionIntoLegacyTableSourceScanRule
               rexBuilder,
               inputFields,
               context.getFunctionCatalog,
-              context.getCatalogManager,
-              TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)))
+              context.getCatalogManager)
             def toExpressions: Option[Seq[Expression]] = {
               val expressions = new mutable.ArrayBuffer[Expression]()
               for (predicate <- partitionPredicates) {

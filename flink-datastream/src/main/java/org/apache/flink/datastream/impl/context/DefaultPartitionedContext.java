@@ -18,12 +18,14 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -40,9 +42,13 @@ public class DefaultPartitionedContext implements PartitionedContext {
             RuntimeContext context,
             Supplier<Object> currentKeySupplier,
             Consumer<Object> currentKeySetter,
-            ProcessingTimeManager processingTimeManager) {
+            ProcessingTimeManager processingTimeManager,
+            StreamingRuntimeContext operatorContext,
+            OperatorStateStore operatorStateStore) {
         this.context = context;
-        this.stateManager = new DefaultStateManager(currentKeySupplier, currentKeySetter);
+        this.stateManager =
+                new DefaultStateManager(
+                        currentKeySupplier, currentKeySetter, operatorContext, operatorStateStore);
         this.processingTimeManager = processingTimeManager;
     }
 

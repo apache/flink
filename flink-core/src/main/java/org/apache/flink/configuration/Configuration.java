@@ -593,6 +593,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *     with the given key.
      * @return the (default) value associated with the given key.
      */
+    @Internal
     public byte[] getBytes(String key, byte[] defaultValue) {
         return getRawValue(key)
                 .map(
@@ -616,6 +617,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param key The key under which the bytes are added.
      * @param bytes The bytes to be added.
      */
+    @Internal
     public void setBytes(String key, byte[] bytes) {
         setValueInternal(key, bytes);
     }

@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.LookupJoinHintOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.hint.JoinStrategy;
-import org.apache.flink.table.planner.hint.LookupJoinHintOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 

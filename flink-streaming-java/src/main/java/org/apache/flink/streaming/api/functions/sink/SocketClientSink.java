@@ -42,7 +42,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * message. This significantly reduced throughput, but also decreases message latency.
  *
  * @param <IN> data to be written into the Socket.
+ * @deprecated This interface will be removed in future versions. Use the new {@link
+ *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
+@Deprecated
 @PublicEvolving
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 

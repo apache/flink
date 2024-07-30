@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.time.Time;
 
+import java.math.BigInteger;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -38,6 +39,8 @@ public class TimeUtils {
 
     private static final Map<String, ChronoUnit> LABEL_TO_UNIT_MAP =
             Collections.unmodifiableMap(initMap());
+
+    private static final BigInteger NANOS_PER_SECOND = BigInteger.valueOf(1_000_000_000L);
 
     /**
      * Parse the given string to a java {@link Duration}. The string is in format "{length
@@ -79,30 +82,45 @@ public class TimeUtils {
             throw new NumberFormatException("text does not start with a number");
         }
 
-        final long value;
+        final BigInteger value;
         try {
-            value = Long.parseLong(number); // this throws a NumberFormatException on overflow
+            value = new BigInteger(number); // this throws a NumberFormatException
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
-                    "The value '"
-                            + number
-                            + "' cannot be re represented as 64bit number (numeric overflow).");
+                    "The value '" + number + "' cannot be represented as an integer number.", e);
         }
 
+        final ChronoUnit unit;
         if (unitLabel.isEmpty()) {
-            return Duration.of(value, ChronoUnit.MILLIS);
-        }
-
-        ChronoUnit unit = LABEL_TO_UNIT_MAP.get(unitLabel);
-        if (unit != null) {
-            return Duration.of(value, unit);
+            unit = ChronoUnit.MILLIS;
         } else {
+            unit = LABEL_TO_UNIT_MAP.get(unitLabel);
+        }
+        if (unit == null) {
             throw new IllegalArgumentException(
                     "Time interval unit label '"
                             + unitLabel
                             + "' does not match any of the recognized units: "
                             + TimeUnit.getAllUnits());
         }
+
+        try {
+            return convertBigIntToDuration(value, unit);
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException(
+                    "The value '"
+                            + number
+                            + "' cannot be represented as java.time.Duration (numeric overflow).",
+                    e);
+        }
+    }
+
+    private static Duration convertBigIntToDuration(BigInteger value, ChronoUnit unit) {
+        final BigInteger nanos = value.multiply(BigInteger.valueOf(unit.getDuration().toNanos()));
+
+        final BigInteger[] dividedAndRemainder = nanos.divideAndRemainder(NANOS_PER_SECOND);
+        return Duration.ofSeconds(dividedAndRemainder[0].longValueExact())
+                .plusNanos(dividedAndRemainder[1].longValueExact());
     }
 
     private static Map<String, ChronoUnit> initMap() {
@@ -136,17 +154,35 @@ public class TimeUtils {
      * <b>NOTE:</b> It supports only durations that fit into long.
      */
     public static String formatWithHighestUnit(Duration duration) {
-        long nanos = duration.toNanos();
+        BigInteger nanos = toNanos(duration);
 
         TimeUnit highestIntegerUnit = getHighestIntegerUnit(nanos);
         return String.format(
-                "%d %s",
-                nanos / highestIntegerUnit.unit.getDuration().toNanos(),
+                "%s %s",
+                nanos.divide(highestIntegerUnit.getUnitAsNanos()),
                 highestIntegerUnit.getLabels().get(0));
     }
 
-    private static TimeUnit getHighestIntegerUnit(long nanos) {
-        if (nanos == 0) {
+    /**
+     * Converted from {@link Duration#toNanos()}, but produces {@link BigInteger} and does not throw
+     * an exception on overflow.
+     */
+    private static BigInteger toNanos(Duration duration) {
+        long tempSeconds = duration.getSeconds();
+        long tempNanos = duration.getNano();
+        if (tempSeconds < 0) {
+            // change the seconds and nano value to
+            // handle Long.MIN_VALUE case
+            tempSeconds = tempSeconds + 1;
+            tempNanos = tempNanos - NANOS_PER_SECOND.longValue();
+        }
+        return BigInteger.valueOf(tempSeconds)
+                .multiply(NANOS_PER_SECOND)
+                .add(BigInteger.valueOf(tempNanos));
+    }
+
+    private static TimeUnit getHighestIntegerUnit(BigInteger nanos) {
+        if (nanos.compareTo(BigInteger.ZERO) == 0) {
             return TimeUnit.MILLISECONDS;
         }
 
@@ -162,7 +198,7 @@ public class TimeUtils {
 
         TimeUnit highestIntegerUnit = null;
         for (TimeUnit timeUnit : orderedUnits) {
-            if (nanos % timeUnit.unit.getDuration().toNanos() != 0) {
+            if (nanos.remainder(timeUnit.getUnitAsNanos()).compareTo(BigInteger.ZERO) != 0) {
                 break;
             }
             highestIntegerUnit = timeUnit;
@@ -187,12 +223,13 @@ public class TimeUtils {
 
         private final ChronoUnit unit;
 
+        private final BigInteger unitAsNanos;
+
         TimeUnit(ChronoUnit unit, String[]... labels) {
             this.unit = unit;
+            this.unitAsNanos = BigInteger.valueOf(unit.getDuration().toNanos());
             this.labels =
-                    Arrays.stream(labels)
-                            .flatMap(ls -> Arrays.stream(ls))
-                            .collect(Collectors.toList());
+                    Arrays.stream(labels).flatMap(Arrays::stream).collect(Collectors.toList());
         }
 
         /**
@@ -217,6 +254,10 @@ public class TimeUtils {
 
         public ChronoUnit getUnit() {
             return unit;
+        }
+
+        public BigInteger getUnitAsNanos() {
+            return unitAsNanos;
         }
 
         public static String getAllUnits() {

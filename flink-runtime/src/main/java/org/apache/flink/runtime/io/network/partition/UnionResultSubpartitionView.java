@@ -21,8 +21,8 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.BiMap;
-import org.apache.flink.shaded.guava31.com.google.common.collect.HashBiMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.BiMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.HashBiMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

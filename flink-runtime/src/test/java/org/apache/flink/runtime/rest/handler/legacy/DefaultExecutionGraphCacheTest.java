@@ -54,7 +54,7 @@ class DefaultExecutionGraphCacheTest {
     private static final JobID expectedJobId = new JobID();
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         expectedExecutionGraphInfo =
                 new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
     }

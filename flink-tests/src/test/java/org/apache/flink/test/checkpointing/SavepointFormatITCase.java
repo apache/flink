@@ -49,7 +49,6 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.TestLogger;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -58,6 +57,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
+
+import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
 import java.util.LinkedList;
@@ -271,7 +272,7 @@ public class SavepointFormatITCase extends TestLogger {
         }
     }
 
-    @NotNull
+    @Nonnull
     private Predicate<OperatorState> hasKeyedState() {
         return op ->
                 op.hasSubtaskStates()

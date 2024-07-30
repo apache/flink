@@ -8,7 +8,7 @@ migration test is meant to be added to that module:
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>fink-migration-test-utils</artifactId>
+    <artifactId>flink-migration-test-utils</artifactId>
     <version>${project.version}</version>
     <scope>test</scope>
 </dependency>

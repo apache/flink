@@ -36,7 +36,7 @@ public class InternalMapStateTest extends InternalKeyedStateTestBase {
         MapStateDescriptor<String, Integer> descriptor =
                 new MapStateDescriptor<>(
                         "testState", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-        InternalMapState<String, String, Integer> mapState =
+        InternalMapState<String, Void, String, Integer> mapState =
                 new InternalMapState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 

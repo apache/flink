@@ -35,6 +35,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
@@ -133,22 +135,22 @@ public final class FileUtils {
     //  Simple reading and writing of files
     // ------------------------------------------------------------------------
 
-    public static String readFile(File file, String charsetName) throws IOException {
+    public static String readFile(File file, Charset charset) throws IOException {
         byte[] bytes = readAllBytes(file.toPath());
-        return new String(bytes, charsetName);
+        return new String(bytes, charset);
     }
 
     public static String readFileUtf8(File file) throws IOException {
-        return readFile(file, "UTF-8");
+        return readFile(file, StandardCharsets.UTF_8);
     }
 
-    public static void writeFile(File file, String contents, String encoding) throws IOException {
-        byte[] bytes = contents.getBytes(encoding);
+    public static void writeFile(File file, String contents, Charset charset) throws IOException {
+        byte[] bytes = contents.getBytes(charset);
         Files.write(file.toPath(), bytes, StandardOpenOption.WRITE);
     }
 
     public static void writeFileUtf8(File file, String contents) throws IOException {
-        writeFile(file, contents, "UTF-8");
+        writeFile(file, contents, StandardCharsets.UTF_8);
     }
 
     /**
@@ -418,14 +420,6 @@ public final class FileUtils {
             throws IOException {
         synchronized (DELETE_LOCK) {
             toRun.accept(file);
-            // briefly wait and fall through the loop
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                // restore the interruption flag and error out of the method
-                Thread.currentThread().interrupt();
-                throw new IOException("operation interrupted");
-            }
         }
     }
 
@@ -666,7 +660,7 @@ public final class FileUtils {
      */
     public static boolean isJarFile(java.nio.file.Path file) {
         return JAR_FILE_EXTENSION.equals(
-                org.apache.flink.shaded.guava31.com.google.common.io.Files.getFileExtension(
+                org.apache.flink.shaded.guava32.com.google.common.io.Files.getFileExtension(
                         file.toString()));
     }
 
@@ -678,7 +672,7 @@ public final class FileUtils {
      */
     public static String stripFileExtension(String fileName) {
         final String extension =
-                org.apache.flink.shaded.guava31.com.google.common.io.Files.getFileExtension(
+                org.apache.flink.shaded.guava32.com.google.common.io.Files.getFileExtension(
                         fileName);
         if (!extension.isEmpty()) {
             return fileName.substring(0, fileName.lastIndexOf(extension) - 1);

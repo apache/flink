@@ -7,5 +7,6 @@
   },
   "roles": ["user", "viewer"],
   "balance": 13.37,
+  "longBalance": 123456789.987654321,
   "contains blank": "right"
 }

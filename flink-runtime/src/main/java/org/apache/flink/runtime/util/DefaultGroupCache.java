@@ -20,10 +20,10 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
-import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalNotification;
 
 import javax.annotation.concurrent.NotThreadSafe;
 

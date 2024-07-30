@@ -28,6 +28,7 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -62,6 +63,8 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
         super.open();
         this.collector = getOutputCollector();
         StreamingRuntimeContext operatorContext = getRuntimeContext();
+        OperatorStateBackend operatorStateBackend = getOperatorStateBackend();
+
         TaskInfo taskInfo = operatorContext.getTaskInfo();
         this.context =
                 new DefaultRuntimeContext(
@@ -73,7 +76,12 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
+                        context,
+                        this::currentKey,
+                        this::setCurrentKey,
+                        getProcessingTimeManager(),
+                        operatorContext,
+                        operatorStateBackend);
         this.nonPartitionedContext = getNonPartitionedContext();
     }
 

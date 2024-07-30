@@ -33,7 +33,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <ACC> TThe type of the accumulator (intermediate aggregation state).
  * @param <OUT> The type of the values that are returned from the state.
  */
-public class InternalAggregatingState<K, IN, ACC, OUT> extends InternalKeyedState<K, ACC>
+public class InternalAggregatingState<K, N, IN, ACC, OUT> extends InternalKeyedState<K, N, ACC>
         implements AggregatingState<IN, OUT> {
 
     protected final AggregateFunction<IN, ACC, OUT> aggregateFunction;

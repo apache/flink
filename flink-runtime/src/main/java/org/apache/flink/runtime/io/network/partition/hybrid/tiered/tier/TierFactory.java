@@ -18,25 +18,39 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** A factory that creates all the components of a tier. */
 public interface TierFactory {
 
+    /** Sets up the tier factory based on the {@link Configuration}. */
+    void setup(Configuration configuration);
+
+    /** Get the {@link TieredStorageMemorySpec} of the master-side agent. */
+    TieredStorageMemorySpec getMasterAgentMemorySpec();
+
+    /** Get the {@link TieredStorageMemorySpec} of the producer-side agent. */
+    TieredStorageMemorySpec getProducerAgentMemorySpec();
+
+    /** Get the {@link TieredStorageMemorySpec} of the consumer-side agent. */
+    TieredStorageMemorySpec getConsumerAgentMemorySpec();
+
     /** Creates the master-side agent of a Tier. */
     TierMasterAgent createMasterAgent(TieredStorageResourceRegistry tieredStorageResourceRegistry);
 
     /** Creates the producer-side agent of a Tier. */
     TierProducerAgent createProducerAgent(
+            int numPartitions,
             int numSubpartitions,
             TieredStoragePartitionId partitionID,
             String dataFileBasePath,
@@ -46,11 +60,12 @@ public interface TierFactory {
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
-            int maxRequestedBuffers,
-            Duration bufferRequestTimeout);
+            List<TierShuffleDescriptor> shuffleDescriptors,
+            int maxRequestedBuffer);
 
     /** Creates the consumer-side agent of a Tier. */
     TierConsumerAgent createConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            List<TierShuffleDescriptor> shuffleDescriptors,
             TieredStorageNettyService nettyService);
 }

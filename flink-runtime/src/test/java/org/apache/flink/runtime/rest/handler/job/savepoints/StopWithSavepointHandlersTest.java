@@ -172,7 +172,7 @@ class StopWithSavepointHandlersTest {
         } catch (RestHandlerException rhe) {
             assertThat(rhe.getMessage())
                     .isEqualTo(
-                            "Config key [state.savepoints.dir] is not set. "
+                            "Config key [execution.checkpointing.savepoint-dir] is not set. "
                                     + "Property [targetDirectory] must be provided.");
             assertThat(rhe.getHttpResponseStatus()).isEqualTo(HttpResponseStatus.BAD_REQUEST);
         }

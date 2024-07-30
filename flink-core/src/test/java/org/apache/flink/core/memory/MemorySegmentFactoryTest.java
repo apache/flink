@@ -17,45 +17,48 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.lang.System.arraycopy;
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** {@link MemorySegmentFactory} test. */
-public class MemorySegmentFactoryTest {
+class MemorySegmentFactoryTest {
 
     @Test
-    public void testWrapCopyChangingData() {
+    void testWrapCopyChangingData() {
         byte[] data = {1, 2, 3, 4, 5};
         byte[] changingData = new byte[data.length];
         arraycopy(data, 0, changingData, 0, data.length);
         MemorySegment segment = MemorySegmentFactory.wrapCopy(changingData, 0, changingData.length);
         changingData[0]++;
-        assertArrayEquals(data, segment.getHeapMemory());
+        assertThat(segment.getHeapMemory()).containsExactly(data);
     }
 
     @Test
-    public void testWrapPartialCopy() {
+    void testWrapPartialCopy() {
         byte[] data = {1, 2, 3, 5, 6};
         MemorySegment segment = MemorySegmentFactory.wrapCopy(data, 0, data.length / 2);
         byte[] exp = new byte[segment.size()];
         arraycopy(data, 0, exp, 0, exp.length);
-        assertArrayEquals(exp, segment.getHeapMemory());
+        assertThat(segment.getHeapMemory()).containsExactly(exp);
     }
 
     @Test
-    public void testWrapCopyEmpty() {
+    void testWrapCopyEmpty() {
         MemorySegmentFactory.wrapCopy(new byte[0], 0, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrapCopyWrongStart() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+    @Test
+    void testWrapCopyWrongStart() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrapCopyWrongEnd() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+    @Test
+    void testWrapCopyWrongEnd() {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10));
     }
 }

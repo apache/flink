@@ -18,10 +18,10 @@
 
 package org.apache.flink.core.fs;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,32 +31,30 @@ import java.nio.file.Path;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RefCountedFile}. */
-public class RefCountedFileTest {
+class RefCountedFileTest {
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tempFolder;
 
     @Test
-    public void releaseToZeroRefCounterShouldDeleteTheFile() throws IOException {
-        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-        checkState(newFile.createNewFile());
+    void releaseToZeroRefCounterShouldDeleteTheFile() throws IOException {
+        final File newFile = TempDirUtils.newFile(tempFolder, ".tmp_" + UUID.randomUUID());
 
         RefCountedFile fileUnderTest = new RefCountedFile(newFile);
         verifyTheFileIsStillThere();
 
         fileUnderTest.release();
 
-        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-            Assert.assertEquals(0L, files.count());
+        try (Stream<Path> files = Files.list(tempFolder)) {
+            assertThat(files).isEmpty();
         }
     }
 
     @Test
-    public void retainsShouldRequirePlusOneReleasesToDeleteTheFile() throws IOException {
-        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-        checkState(newFile.createNewFile());
+    void retainsShouldRequirePlusOneReleasesToDeleteTheFile() throws IOException {
+        final File newFile = TempDirUtils.newFile(tempFolder, ".tmp_" + UUID.randomUUID());
 
         // the reference counter always starts with 1 (not 0). This is why we need +1 releases
         RefCountedFile fileUnderTest = new RefCountedFile(newFile);
@@ -65,26 +63,26 @@ public class RefCountedFileTest {
         fileUnderTest.retain();
         fileUnderTest.retain();
 
-        Assert.assertEquals(3, fileUnderTest.getReferenceCounter());
+        assertThat(fileUnderTest.getReferenceCounter()).isEqualTo(3);
 
         fileUnderTest.release();
-        Assert.assertEquals(2, fileUnderTest.getReferenceCounter());
+        assertThat(fileUnderTest.getReferenceCounter()).isEqualTo(2);
         verifyTheFileIsStillThere();
 
         fileUnderTest.release();
-        Assert.assertEquals(1, fileUnderTest.getReferenceCounter());
+        assertThat(fileUnderTest.getReferenceCounter()).isOne();
         verifyTheFileIsStillThere();
 
         fileUnderTest.release();
         // the file is deleted now
-        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-            Assert.assertEquals(0L, files.count());
+        try (Stream<Path> files = Files.list(tempFolder)) {
+            assertThat(files).isEmpty();
         }
     }
 
     private void verifyTheFileIsStillThere() throws IOException {
-        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-            Assert.assertEquals(1L, files.count());
+        try (Stream<Path> files = Files.list(tempFolder)) {
+            assertThat(files).hasSize(1);
         }
     }
 

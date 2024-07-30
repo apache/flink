@@ -28,7 +28,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;

@@ -72,6 +72,11 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     }
 
     @Override
+    public Optional<Path> maybeGetPath() {
+        return wrappedStreamStateHandle.maybeGetPath();
+    }
+
+    @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
         return wrappedStreamStateHandle.getStreamStateHandleID();
     }

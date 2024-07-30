@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -148,6 +150,13 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         throw new UnsupportedOperationException(
                 "Never getRecordProcessor from AbstractAsyncStateStreamOperatorV2,"
                         + " since this part is handled by the Input.");
+    }
+
+    /** Create new state (v2) based on new state descriptor. */
+    protected <N, S extends State, T> S getOrCreateKeyedState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<T> stateDescriptor)
+            throws Exception {
+        return stateHandler.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
     }
 
     @Override

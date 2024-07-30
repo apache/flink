@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.fusion.spec
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD, TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED, TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -26,7 +27,6 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{getReuseRowFieldExpr
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator.genAdaptiveLocalHashAggValueProjectionExpr
 import org.apache.flink.table.planner.codegen.agg.batch.{AggCodeGenHelper, HashAggCodeGenHelper}
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genGetValueFromFlatAggregateBuffer, genInitFlatAggregateBuffer}
-import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator.{TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD, TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED, TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD}
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenHelper.{buildAggregateAggBuffMapping, genAggregate, genCreateFallbackSorter, genHashAggValueExpr, genRetryAppendToMap, genReusableEmptyAggBuffer, prepareFallbackSorter}
 import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpecBase, OpFusionContext}
 import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{constructDoConsumeCode, constructDoConsumeFunction, evaluateVariables}

@@ -77,6 +77,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     }
 
     @Override
+    public Optional<org.apache.flink.core.fs.Path> maybeGetPath() {
+        return delegateStateHandle.maybeGetPath();
+    }
+
+    @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
         return delegateStateHandle.getStreamStateHandleID();
     }

@@ -34,7 +34,8 @@ public class InternalListStateTest extends InternalKeyedStateTestBase {
     public void testEachOperation() {
         ListStateDescriptor<Integer> descriptor =
                 new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
-        InternalListState<String, Integer> listState = new InternalListState<>(aec, descriptor);
+        InternalListState<String, Void, Integer> listState =
+                new InternalListState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         listState.asyncClear();

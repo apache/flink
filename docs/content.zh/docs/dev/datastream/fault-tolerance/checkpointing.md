@@ -253,18 +253,18 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 ##  统一的 checkpoint 文件合并机制 (实验性功能)
 
 Flink 1.20 引入了 MVP 版本的统一 checkpoint 文件合并机制，该机制允许把分散的 checkpoint 小文件合并到大文件中，减少 checkpoint 文件创建删除的次数，
-有助于减轻文件过多问题带来的文件系统元数据管理的压力。可以通过将 `state.checkpoints.file-merging.enabled` 设置为 `true` 来开启该机制。
-**注意**，考虑 trade-off，开启该机制会导致空间放大，即文件系统上的实际占用会比 state size 更大，可以通过设置 `state.checkpoints.file-merging.max-space-amplification`
+有助于减轻文件过多问题带来的文件系统元数据管理的压力。可以通过将 `execution.checkpointing.file-merging.enabled` 设置为 `true` 来开启该机制。
+**注意**，考虑 trade-off，开启该机制会导致空间放大，即文件系统上的实际占用会比 state size 更大，可以通过设置 `execution.checkpointing.file-merging.max-space-amplification`
 来控制文件放大的上限。
 
 该机制适用于 Flink 中的 keyed state、operator state 和 channel state。对 shared scope state 
 提供 subtask 级别的合并；对 private scope state 提供 TaskManager 级别的合并，可以通过
- `state.checkpoints.file-merging.max-subtasks-per-file` 选项配置单个文件允许写入的最大 subtask 数目。
+ `execution.checkpointing.file-merging.max-subtasks-per-file` 选项配置单个文件允许写入的最大 subtask 数目。
 
-统一文件合并机制也支持跨 checkpoint 的文件合并，通过设置 `state.checkpoints.file-merging.across-checkpoint-boundary` 为 `true` 开启。
+统一文件合并机制也支持跨 checkpoint 的文件合并，通过设置 `execution.checkpointing.file-merging.across-checkpoint-boundary` 为 `true` 开启。
 
 该机制引入了文件池用于处理并发写的场景，文件池有两种模式，Non-blocking 模式的文件池会对每个文件请求即时返回一个物理文件，在频繁请求的情况下会创建出许多物理文件；
-而 Blocking 模式的文件池会一直阻塞文件请求，直到文件池中有返回的文件可用，可以通过设置 `state.checkpoints.file-merging.pool-blocking` 为 `true` 
+而 Blocking 模式的文件池会一直阻塞文件请求，直到文件池中有返回的文件可用，可以通过设置 `execution.checkpointing.file-merging.pool-blocking` 为 `true` 
 选择 Blocking 模式，设置为 `false` 选择 Non-blocking 模式。
 
 {{< top >}}

@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
@@ -46,16 +48,25 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -399,6 +410,80 @@ public class FsCheckpointStateOutputStreamTest {
         // the directory must still exist as a proper directory
         assertThat(directory).exists();
         assertThat(directory).isDirectory();
+    }
+
+    /**
+     * FLINK-28984. This test checks that the inner stream should be closed when
+     * FsCheckpointStateOutputStream#close() and FsCheckpointStateOutputStream#flushToFile() run
+     * concurrently.
+     */
+    @TestTemplate
+    public void testCleanupWhenCloseableRegistryClosedBeforeCreatingStream() throws Exception {
+        OneShotLatch streamCreationLatch = new OneShotLatch();
+        OneShotLatch startCloseLatch = new OneShotLatch();
+        OneShotLatch endCloseLatch = new OneShotLatch();
+        FileSystem fs = mock(FileSystem.class);
+        FSDataOutputStream fsDataOutputStream = mock(FSDataOutputStream.class);
+
+        // mock the FileSystem#create method to simulate concurrency situation with
+        // FsCheckpointStateOutputStream#close thread
+        doAnswer(
+                        invocation -> {
+                            // make sure stream creation thread goes first
+                            streamCreationLatch.trigger();
+                            // wait for CloseableRegistry#close (and
+                            // FsCheckpointStateOutputStream#close) getting to be triggered
+                            startCloseLatch.await();
+                            // make sure the CloseableRegistry#close cannot be completed due to
+                            // failing to acquire lock
+                            assertThrows(
+                                    TimeoutException.class,
+                                    () -> endCloseLatch.await(1, TimeUnit.SECONDS));
+                            return fsDataOutputStream;
+                        })
+                .when(fs)
+                .create(any(Path.class), any(FileSystem.WriteMode.class));
+
+        FsCheckpointStateOutputStream outputStream =
+                new FsCheckpointStateOutputStream(
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
+                        fs,
+                        1024,
+                        1,
+                        relativePaths);
+        CompletableFuture<Void> flushFuture;
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
+        closeableRegistry.registerCloseable(outputStream);
+        flushFuture =
+                CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                // try to create a stream
+                                outputStream.flushToFile();
+                            } catch (IOException e) {
+                                // ignore this exception because we don't want to fail the test due
+                                // to IO issue
+                            }
+                        },
+                        Executors.newSingleThreadExecutor());
+        // make sure stream creation thread goes first
+        streamCreationLatch.await();
+        // verify the outputStream and inner fsDataOutputStream is not closed
+        assertFalse(outputStream.isClosed());
+        verify(fsDataOutputStream, never()).close();
+
+        // start to close the outputStream (inside closeableRegistry)
+        startCloseLatch.trigger();
+        closeableRegistry.close();
+        // This endCloseLatch should not be triggered in time because the
+        // FsCheckpointStateOutputStream#close will be blocked due to failing to acquire lock
+        endCloseLatch.trigger();
+        // wait for flush completed
+        flushFuture.get();
+
+        // verify the outputStream and inner fsDataOutputStream is correctly closed
+        assertTrue(outputStream.isClosed());
+        verify(fsDataOutputStream).close();
     }
 
     // ------------------------------------------------------------------------

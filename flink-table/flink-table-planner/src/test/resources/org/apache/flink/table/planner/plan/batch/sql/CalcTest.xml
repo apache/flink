@@ -72,6 +72,37 @@ Calc(select=[a], where=[>(random_udf(b), 10)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcMergeWithCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, r FROM (
+ SELECT a, random_udf(b) r FROM (
+  select a, b, c1 FROM MyTable, LATERAL TABLE(str_split(c)) AS T(c1)
+ ) t
+)
+WHERE r > 10
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], r=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a=[$0], r=[random_udf($1)])
+      +- LogicalProject(a=[$0], b=[$1], c1=[$3])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableFunctionScan(invocation=[str_split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, r], where=[>(r, 10)])
++- Calc(select=[a, random_udf(b) AS r])
+   +- Correlate(invocation=[str_split($cor0.c)], correlate=[table(str_split($cor0.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCollationDeriveOnCalc">
     <Resource name="sql">
       <![CDATA[SELECT CAST(a AS INT), CAST(b AS VARCHAR) FROM (VALUES (3, 'c')) T(a,b)]]>

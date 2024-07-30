@@ -52,12 +52,12 @@ class AvroExternalJarProgramITCase {
                             .build());
 
     @BeforeAll
-    public static void setUp() throws Exception {
+    static void setUp() throws Exception {
         MINI_CLUSTER.start();
     }
 
     @AfterAll
-    public static void tearDown() {
+    static void tearDown() {
         TestEnvironment.unsetAsContext();
         MINI_CLUSTER.closeAsync();
     }

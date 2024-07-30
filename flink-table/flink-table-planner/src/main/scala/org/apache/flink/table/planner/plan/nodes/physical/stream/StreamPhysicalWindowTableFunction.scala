@@ -40,7 +40,7 @@ class StreamPhysicalWindowTableFunction(
   extends CommonPhysicalWindowTableFunction(cluster, traitSet, inputRel, outputRowType, windowing)
   with StreamPhysicalRel {
 
-  override def requireWatermark: Boolean = true
+  override def requireWatermark: Boolean = windowing.isRowtime
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamPhysicalWindowTableFunction(

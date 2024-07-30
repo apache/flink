@@ -34,7 +34,7 @@ import java.io.IOException;
  * @param <K> The key type of the table.
  * @param <V> The value type of the table.
  */
-public interface ForStInnerTable<K, V> {
+public interface ForStInnerTable<K, N, V> {
 
     /** Get the columnFamily handle corresponding to table. */
     ColumnFamilyHandle getColumnFamilyHandle();
@@ -46,7 +46,7 @@ public interface ForStInnerTable<K, V> {
      * @return the key bytes
      * @throws IOException Thrown if the serialization encountered an I/O related error.
      */
-    byte[] serializeKey(K key) throws IOException;
+    byte[] serializeKey(ContextKey<K, N> key) throws IOException;
 
     /**
      * Serialize the given value to the outputView.
@@ -73,7 +73,7 @@ public interface ForStInnerTable<K, V> {
      * @param stateRequest The given stateRequest.
      * @return The corresponding ForSt GetRequest.
      */
-    ForStDBGetRequest<K, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest);
+    ForStDBGetRequest<K, N, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest);
 
     /**
      * Build a {@link ForStDBPutRequest} that belong to {@code ForStInnerTable} with the given
@@ -82,5 +82,5 @@ public interface ForStInnerTable<K, V> {
      * @param stateRequest The given stateRequest.
      * @return The corresponding ForSt PutRequest.
      */
-    ForStDBPutRequest<K, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest);
+    ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest);
 }

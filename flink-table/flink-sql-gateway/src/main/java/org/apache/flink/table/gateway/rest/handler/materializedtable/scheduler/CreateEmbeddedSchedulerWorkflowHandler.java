@@ -74,7 +74,6 @@ public class CreateEmbeddedSchedulerWorkflowHandler
         String cronExpression = request.getRequestBody().getCronExpression();
         Map<String, String> initConfig = request.getRequestBody().getInitConfig();
         Map<String, String> executionConfig = request.getRequestBody().getExecutionConfig();
-        String customScheduleTime = request.getRequestBody().getCustomScheduleTime();
         String restEndpointURL = request.getRequestBody().getRestEndpointUrl();
         WorkflowInfo workflowInfo =
                 new WorkflowInfo(
@@ -82,7 +81,6 @@ public class CreateEmbeddedSchedulerWorkflowHandler
                         Collections.emptyMap(),
                         initConfig == null ? Collections.emptyMap() : initConfig,
                         executionConfig == null ? Collections.emptyMap() : executionConfig,
-                        customScheduleTime,
                         restEndpointURL);
         try {
             JobDetail jobDetail =

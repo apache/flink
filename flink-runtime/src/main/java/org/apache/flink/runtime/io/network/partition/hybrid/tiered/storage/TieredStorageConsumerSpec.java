@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 /** Describe the different data sources in {@link TieredStorageConsumerClient}. */
 public class TieredStorageConsumerSpec {
 
+    private final int gateIndex;
+
     private final TieredStoragePartitionId tieredStoragePartitionId;
 
     private final TieredStorageInputChannelId tieredStorageInputChannelId;
@@ -32,12 +34,18 @@ public class TieredStorageConsumerSpec {
     private final ResultSubpartitionIndexSet tieredStorageSubpartitionIds;
 
     public TieredStorageConsumerSpec(
+            int gateIndex,
             TieredStoragePartitionId tieredStoragePartitionId,
             TieredStorageInputChannelId tieredStorageInputChannelId,
             ResultSubpartitionIndexSet tieredStorageSubpartitionIds) {
+        this.gateIndex = gateIndex;
         this.tieredStoragePartitionId = tieredStoragePartitionId;
         this.tieredStorageInputChannelId = tieredStorageInputChannelId;
         this.tieredStorageSubpartitionIds = tieredStorageSubpartitionIds;
+    }
+
+    public int getGateIndex() {
+        return gateIndex;
     }
 
     public TieredStoragePartitionId getPartitionId() {

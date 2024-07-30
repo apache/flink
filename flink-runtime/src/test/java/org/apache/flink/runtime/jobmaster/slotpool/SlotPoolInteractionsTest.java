@@ -116,13 +116,15 @@ class SlotPoolInteractionsTest {
 
     private DeclarativeSlotPoolBridge createAndSetUpSlotPool() throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
-                .buildAndStart(testMainThreadExecutor.getMainThreadExecutor());
+                .setMainThreadExecutor(testMainThreadExecutor.getMainThreadExecutor())
+                .buildAndStart();
     }
 
     private DeclarativeSlotPoolBridge createAndSetUpSlotPoolWithoutResourceManager()
             throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(null)
-                .buildAndStart(testMainThreadExecutor.getMainThreadExecutor());
+                .setMainThreadExecutor(testMainThreadExecutor.getMainThreadExecutor())
+                .buildAndStart();
     }
 }

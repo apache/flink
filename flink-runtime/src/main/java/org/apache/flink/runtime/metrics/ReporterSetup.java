@@ -33,7 +33,7 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.traces.reporter.TraceReporterFactory;
 import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

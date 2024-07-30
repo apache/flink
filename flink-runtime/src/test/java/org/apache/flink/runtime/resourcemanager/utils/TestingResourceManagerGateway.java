@@ -297,7 +297,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> declareRequiredResources(
-            JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
+            JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Duration timeout) {
         return declareRequiredResourcesFunction.apply(jobMasterId, resourceRequirements);
     }
 

@@ -55,7 +55,7 @@ class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testAggState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
-        InternalAggregatingState<String, Integer, Integer, Integer> state =
+        InternalAggregatingState<String, Void, Integer, Integer, Integer> state =
                 new InternalAggregatingState<>(aec, descriptor);
 
         aec.setCurrentContext(aec.buildContext("test", "test"));

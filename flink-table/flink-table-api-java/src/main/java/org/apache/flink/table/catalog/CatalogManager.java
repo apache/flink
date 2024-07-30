@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -295,65 +294,73 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *
      * @param catalogName the given catalog name under which to create the given catalog
      * @param catalogDescriptor catalog descriptor for creating catalog
+     * @param ignoreIfExists if false exception will be thrown if a catalog exists.
      * @throws CatalogException If the catalog already exists in the catalog store or initialized
      *     catalogs, or if an error occurs while creating the catalog or storing the {@link
      *     CatalogDescriptor}
      */
-    public void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor)
+    public void createCatalog(
+            String catalogName, CatalogDescriptor catalogDescriptor, boolean ignoreIfExists)
             throws CatalogException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(catalogName),
                 "Catalog name cannot be null or empty.");
         checkNotNull(catalogDescriptor, "Catalog descriptor cannot be null");
 
-        if (catalogStoreHolder.catalogStore().contains(catalogName)) {
-            throw new CatalogException(
-                    format("Catalog %s already exists in catalog store.", catalogName));
-        }
-        if (catalogs.containsKey(catalogName)) {
-            throw new CatalogException(
-                    format("Catalog %s already exists in initialized catalogs.", catalogName));
-        }
+        boolean catalogExistsInStore = catalogStoreHolder.catalogStore().contains(catalogName);
+        boolean catalogExistsInMemory = catalogs.containsKey(catalogName);
 
-        Catalog catalog = initCatalog(catalogName, catalogDescriptor);
-        catalog.open();
-        catalogs.put(catalogName, catalog);
+        if (catalogExistsInStore || catalogExistsInMemory) {
+            if (!ignoreIfExists) {
+                throw new CatalogException(format("Catalog %s already exists.", catalogName));
+            }
+        } else {
+            // Store the catalog in the catalog store
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
 
-        catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
+            // Initialize and store the catalog in memory
+            Catalog catalog = initCatalog(catalogName, catalogDescriptor);
+            catalog.open();
+            catalogs.put(catalogName, catalog);
+        }
+    }
+
+    public void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor) {
+        createCatalog(catalogName, catalogDescriptor, false);
     }
 
     /**
      * Alters a catalog under the given name. The catalog name must be unique.
      *
      * @param catalogName the given catalog name under which to alter the given catalog
-     * @param catalogDescriptor catalog descriptor for altering catalog
+     * @param catalogChange catalog change to update the underlying catalog descriptor
      * @throws CatalogException If the catalog neither exists in the catalog store nor in the
      *     initialized catalogs, or if an error occurs while creating the catalog or storing the
      *     {@link CatalogDescriptor}
      */
-    public void alterCatalog(String catalogName, CatalogDescriptor catalogDescriptor)
+    public void alterCatalog(String catalogName, CatalogChange catalogChange)
             throws CatalogException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(catalogName),
                 "Catalog name cannot be null or empty.");
-        checkNotNull(catalogDescriptor, "Catalog descriptor cannot be null");
+        checkNotNull(catalogChange, "Catalog change cannot be null.");
+
         CatalogStore catalogStore = catalogStoreHolder.catalogStore();
-        Optional<CatalogDescriptor> oldCatalogDescriptor = getCatalogDescriptor(catalogName);
-        if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
-            Configuration conf = oldCatalogDescriptor.get().getConfiguration();
-            conf.addAll(catalogDescriptor.getConfiguration());
-            CatalogDescriptor newCatalogDescriptor = CatalogDescriptor.of(catalogName, conf);
-            Catalog newCatalog = initCatalog(catalogName, newCatalogDescriptor);
+        Optional<CatalogDescriptor> oldDescriptorOpt = getCatalogDescriptor(catalogName);
+
+        if (catalogStore.contains(catalogName) && oldDescriptorOpt.isPresent()) {
+            CatalogDescriptor newDescriptor = catalogChange.applyChange(oldDescriptorOpt.get());
+            Catalog newCatalog = initCatalog(catalogName, newDescriptor);
             catalogStore.removeCatalog(catalogName, false);
             if (catalogs.containsKey(catalogName)) {
                 catalogs.get(catalogName).close();
             }
             newCatalog.open();
             catalogs.put(catalogName, newCatalog);
-            catalogStoreHolder.catalogStore().storeCatalog(catalogName, newCatalogDescriptor);
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, newDescriptor);
         } else {
             throw new CatalogException(
-                    format("Catalog %s not exists in the catalog store.", catalogName));
+                    String.format("Catalog %s does not exist in the catalog store.", catalogName));
         }
     }
 
@@ -1250,7 +1257,19 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *     exist.
      */
     public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true);
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
+    }
+
+    /**
+     * Drops a materialized table in a given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the materialized table to drop.
+     * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
+     *     exist.
+     */
+    public void dropMaterializedTable(
+            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, true);
     }
 
     /**
@@ -1261,16 +1280,19 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *     exist.
      */
     public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, false);
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);
     }
 
     private void dropTableInternal(
-            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, boolean isDropTable) {
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists,
+            boolean isDropTable,
+            boolean isDropMaterializedTable) {
         Predicate<CatalogBaseTable> filter =
                 isDropTable
-                        ? table ->
-                                table instanceof CatalogTable
-                                        || table instanceof CatalogMaterializedTable
+                        ? isDropMaterializedTable
+                                ? table -> table instanceof CatalogMaterializedTable
+                                : table -> table instanceof CatalogTable
                         : table -> table instanceof CatalogView;
         // Same name temporary table or view exists.
         if (filter.test(temporaryTables.get(objectIdentifier))) {
@@ -1310,7 +1332,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     ignoreIfNotExists,
                     "DropTable");
         } else if (!ignoreIfNotExists) {
-            String tableOrView = isDropTable ? "Table" : "View";
+            String tableOrView =
+                    isDropTable ? isDropMaterializedTable ? "Materialized Table" : "Table" : "View";
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",

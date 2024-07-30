@@ -509,7 +509,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {}
 
     @Override
     public JobMasterId getFencingToken() {

@@ -107,7 +107,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -115,6 +115,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1595,11 +1596,12 @@ public class DefaultSchedulerTest {
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         scheduledExecutorService);
 
-        final Time slotTimeout = Time.milliseconds(5L);
+        final Duration slotTimeout = Duration.ofMillis(5L);
         final SlotPool slotPool =
                 new DeclarativeSlotPoolBridgeBuilder()
                         .setBatchSlotTimeout(slotTimeout)
-                        .buildAndStart(singleThreadMainThreadExecutor);
+                        .setMainThreadExecutor(singleThreadMainThreadExecutor)
+                        .buildAndStart();
         final PhysicalSlotProvider slotProvider =
                 new PhysicalSlotProviderImpl(
                         LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
@@ -1613,7 +1615,7 @@ public class DefaultSchedulerTest {
                                         .addJob(new JobID(), "jobName"))
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
-                                        slotProvider, slotTimeout))
+                                        slotProvider, Time.fromDuration(slotTimeout)))
                         .build();
 
         final AdaptiveSchedulerTest.SubmissionBufferingTaskManagerGateway taskManagerGateway =

@@ -108,17 +108,26 @@ SqlUseCatalog SqlUseCatalog() :
 
 /**
 * Parses a create catalog statement.
-* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+* CREATE CATALOG [IF NOT EXISTS] catalog_name [COMMENT 'comment_value'] [WITH (property_name=property_value, ...)];
 */
 SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 {
     SqlParserPos startPos;
     SqlIdentifier catalogName;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNode comment = null;
+    boolean ifNotExists = false;
 }
 {
     <CATALOG> { startPos = getPos(); }
+
+    ifNotExists = IfNotExistsOpt()
+
     catalogName = SimpleIdentifier()
+    [
+        <COMMENT>
+        comment = StringLiteral()
+    ]
     [
         <WITH>
         propertyList = Properties()
@@ -126,7 +135,9 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     {
         return new SqlCreateCatalog(startPos.plus(getPos()),
             catalogName,
-            propertyList);
+            propertyList,
+            comment,
+            ifNotExists);
     }
 }
 
@@ -149,24 +160,42 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 
 /**
 * Parses an alter catalog statement.
-* ALTER CATALOG catalog_name SET (key1=val1, key2=val2, ...);
 */
 SqlAlterCatalog SqlAlterCatalog() :
 {
     SqlParserPos startPos;
     SqlIdentifier catalogName;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNode comment = null;
 }
 {
     <ALTER> <CATALOG> { startPos = getPos(); }
     catalogName = SimpleIdentifier()
-    <SET>
-    propertyList = Properties()
-    {
-        return new SqlAlterCatalogOptions(startPos.plus(getPos()),
-                    catalogName,
-                    propertyList);
-    }
+    (
+        <SET>
+        propertyList = Properties()
+        {
+            return new SqlAlterCatalogOptions(startPos.plus(getPos()),
+                        catalogName,
+                        propertyList);
+        }
+    |
+        <RESET>
+        propertyList = PropertyKeys()
+        {
+            return new SqlAlterCatalogReset(startPos.plus(getPos()),
+                           catalogName,
+                           propertyList);
+        }
+    |
+        <COMMENT>
+        comment = StringLiteral()
+        {
+            return new SqlAlterCatalogComment(startPos.plus(getPos()),
+                                       catalogName,
+                                       comment);
+        }
+    )
 }
 
 /**
@@ -770,6 +799,7 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
+    SqlDistribution distribution = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
     SqlIdentifier originColumnIdentifier;
@@ -856,6 +886,7 @@ SqlAlterTable SqlAlterTable() :
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
                         ctx.watermark,
+                        ctx.distribution,
                         ifExists);
         }
         )
@@ -878,6 +909,7 @@ SqlAlterTable SqlAlterTable() :
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
                         ctx.watermark,
+                        ctx.distribution,
                         ifExists);
         }
 
@@ -926,6 +958,13 @@ SqlAlterTable SqlAlterTable() :
                             startPos.plus(getPos()),
                             tableIdentifier,
                             constraintName,
+                            ifExists);
+            }
+        |
+            <DISTRIBUTION> {
+                return new SqlAlterTableDropDistribution(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
                             ifExists);
             }
         |
@@ -1167,6 +1206,9 @@ void AlterTableAddOrModify(AlterTableContext context) :
         }
     |
         Watermark(context)
+    |
+        <DISTRIBUTION>
+        context.distribution = SqlDistribution(getPos())
     )
 }
 
@@ -1432,7 +1474,6 @@ SqlDistribution SqlDistribution(SqlParserPos startPos) :
     String distributionKind = null;
     SqlNumericLiteral bucketCount = null;
     SqlNodeList bucketColumns = SqlNodeList.EMPTY;
-    SqlDistribution distribution = null;
 }
 {
     (
@@ -1464,11 +1505,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 	SqlCharStringLiteral comment = null;
 	SqlTableLike tableLike = null;
     SqlNode asQuery = null;
-
     SqlNodeList propertyList = SqlNodeList.EMPTY;
-    String distributionKind = null;
-    SqlNumericLiteral bucketCount = null;
-    SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlParserPos pos = startPos;
@@ -1670,9 +1707,6 @@ SqlNode SqlReplaceTable() :
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
-    String distributionKind = null;
-    SqlNumericLiteral bucketCount = null;
-    SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     boolean ifNotExists = false;

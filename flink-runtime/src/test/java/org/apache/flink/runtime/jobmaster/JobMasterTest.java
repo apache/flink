@@ -485,7 +485,9 @@ class JobMasterTest {
         @Nonnull
         @Override
         public SlotPoolService createSlotPoolService(
-                @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+                @Nonnull JobID jobId,
+                DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+                @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
             return new TestingSlotPool(jobId, hasReceivedSlotOffers);
         }
     }
@@ -505,10 +507,7 @@ class JobMasterTest {
         }
 
         @Override
-        public void start(
-                JobMasterId jobMasterId,
-                String newJobManagerAddress,
-                ComponentMainThreadExecutor jmMainThreadScheduledExecutor) {}
+        public void start(JobMasterId jobMasterId, String newJobManagerAddress) {}
 
         @Override
         public void close() {

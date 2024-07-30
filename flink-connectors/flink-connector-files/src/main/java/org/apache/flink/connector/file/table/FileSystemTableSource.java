@@ -264,7 +264,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         return bulkFormat;
     }
 
-    protected SourceProvider createSourceProvider(BulkFormat<RowData, FileSourceSplit> bulkFormat) {
+    private SourceProvider createSourceProvider(BulkFormat<RowData, FileSourceSplit> bulkFormat) {
         final FileSource.FileSourceBuilder<RowData> fileSourceBuilder =
                 FileSource.forBulkFileFormat(bulkFormat, paths());
 
@@ -287,7 +287,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         return SourceProvider.of(fileSourceBuilder.build());
     }
 
-    protected Path[] paths() {
+    private Path[] paths() {
         if (partitionKeys.isEmpty()) {
             return new Path[] {path};
         } else {

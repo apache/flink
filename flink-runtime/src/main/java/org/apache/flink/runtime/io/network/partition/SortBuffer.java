@@ -76,7 +76,7 @@ public abstract class SortBuffer implements DataBuffer {
     private final int bufferSize;
 
     /** Number of guaranteed buffers can be allocated from the buffer pool for data sort. */
-    private int numGuaranteedBuffers;
+    private final int numGuaranteedBuffers;
 
     // ---------------------------------------------------------------------------------------------
     // Statistics and states
@@ -184,27 +184,6 @@ public abstract class SortBuffer implements DataBuffer {
         return false;
     }
 
-    /**
-     * Try to release some unused memory segments.
-     *
-     * <p>Note that this class is not thread safe, so please make sure to call {@link
-     * #append(ByteBuffer source, int targetSubpartition, Buffer.DataType dataType)} and this method
-     * with lock acquired.
-     *
-     * @param numFreeSegments the number of segments to be released.
-     * @return true if released successfully, otherwise false.
-     */
-    public boolean returnFreeSegments(int numFreeSegments) {
-        if (numFreeSegments < numGuaranteedBuffers - segments.size()) {
-            for (int i = 0; i < numFreeSegments; i++) {
-                bufferRecycler.recycle(freeSegments.poll());
-            }
-            numGuaranteedBuffers -= numFreeSegments;
-            return true;
-        }
-        return false;
-    }
-
     private void writeIndex(int subpartitionIndex, int numRecordBytes, Buffer.DataType dataType) {
         MemorySegment segment = segments.get(writeSegmentIndex);
 
@@ -263,11 +242,11 @@ public abstract class SortBuffer implements DataBuffer {
         }
 
         // allocate exactly enough buffers for the appended record
-        while (availableBytes < numBytesRequired) {
+        do {
             MemorySegment segment = freeSegments.poll();
             availableBytes += bufferSize;
             addBuffer(checkNotNull(segment));
-        }
+        } while (availableBytes < numBytesRequired);
 
         return true;
     }

@@ -23,56 +23,41 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.IOException;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeTest.createAllocatedSlot;
-import static org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeTest.createDeclarativeSlotPoolBridge;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclarativeSlotPoolBridge}. */
 @ExtendWith(ParameterizedTestExtension.class)
-class DeclarativeSlotPoolBridgeResourceDeclarationTest {
-
-    private static final JobMasterId jobMasterId = JobMasterId.generate();
-    private final ComponentMainThreadExecutor mainThreadExecutor =
-            ComponentMainThreadExecutorServiceAdapter.forMainThread();
-
-    @Parameter private RequestSlotMatchingStrategy requestSlotMatchingStrategy;
+class DeclarativeSlotPoolBridgeResourceDeclarationTest
+        extends AbstractDeclarativeSlotPoolBridgeTest {
 
     private RequirementListener requirementListener;
     private DeclarativeSlotPoolBridge declarativeSlotPoolBridge;
-
-    @Parameters(name = "RequestSlotMatchingStrategy: {0}")
-    public static Collection<RequestSlotMatchingStrategy> data() throws IOException {
-        return Arrays.asList(
-                SimpleRequestSlotMatchingStrategy.INSTANCE,
-                PreferredAllocationRequestSlotMatchingStrategy.INSTANCE);
-    }
 
     @BeforeEach
     void setup() {
         requirementListener = new RequirementListener();
 
+        constructDeclarativeSlotPoolBridge(componentMainThreadExecutor);
+    }
+
+    private void constructDeclarativeSlotPoolBridge(
+            ComponentMainThreadExecutor mainThreadExecutor) {
         final TestingDeclarativeSlotPoolBuilder slotPoolBuilder =
                 TestingDeclarativeSlotPool.builder()
                         .setIncreaseResourceRequirementsByConsumer(
@@ -93,7 +78,10 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
                 new TestingDeclarativeSlotPoolFactory(slotPoolBuilder);
         declarativeSlotPoolBridge =
                 createDeclarativeSlotPoolBridge(
-                        declarativeSlotPoolFactory, requestSlotMatchingStrategy);
+                        declarativeSlotPoolFactory,
+                        requestSlotMatchingStrategy,
+                        slotRequestMaxInterval,
+                        mainThreadExecutor);
     }
 
     @AfterEach
@@ -105,7 +93,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
     @TestTemplate
     void testRequirementsIncreasedOnNewAllocation() throws Exception {
-        declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+        declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
         // requesting the allocation of a new slot should increase the requirements
         declarativeSlotPoolBridge.requestNewAllocatedSlot(
@@ -122,7 +110,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
             ComponentMainThreadExecutor mainThreadExecutor =
                     ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                             scheduledExecutorService);
-            declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+            constructDeclarativeSlotPoolBridge(mainThreadExecutor);
+            declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
             // requesting the allocation of a new slot increases the requirements
             final CompletableFuture<PhysicalSlot> allocationFuture =
@@ -156,7 +145,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
     @TestTemplate
     void testRequirementsUnchangedOnNewSlotsNotification() throws Exception {
-        declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+        declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
         // notifications about new slots should not affect requirements
         final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
@@ -167,7 +156,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
     @TestTemplate
     void testRequirementsIncreasedOnSlotReservation() throws Exception {
-        declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+        declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
         final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
@@ -182,7 +171,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
     @TestTemplate
     void testRequirementsDecreasedOnSlotFreeing() throws Exception {
-        declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+        declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
         final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
@@ -200,7 +189,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
     @TestTemplate
     void testRequirementsDecreasedOnSlotAllocationFailure() throws Exception {
-        declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+        declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
         final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));

@@ -21,9 +21,9 @@ package org.apache.flink.runtime.checkpoint.hooks;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.net.URL;
@@ -169,7 +169,7 @@ class MasterHooksTest {
         Runnable command;
 
         @Override
-        public void execute(@NotNull Runnable command) {
+        public void execute(@Nonnull Runnable command) {
             this.command = command;
         }
     }

@@ -54,11 +54,12 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import javax.annotation.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -511,7 +512,7 @@ class CommonExecSinkITCase {
         };
     }
 
-    @NotNull
+    @Nullable
     private TableFactoryHarness.SinkBase buildDataStreamSinkProvider(
             SharedReference<List<RowData>> fetched) {
         return new TableFactoryHarness.SinkBase() {

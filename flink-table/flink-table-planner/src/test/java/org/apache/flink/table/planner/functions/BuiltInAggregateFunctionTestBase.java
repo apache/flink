@@ -44,7 +44,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.Executable;
@@ -53,6 +52,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -511,7 +511,7 @@ abstract class BuiltInAggregateFunctionTestBase {
             return tEnv.sqlQuery(stringBuilder.toString()).execute();
         }
 
-        @NotNull
+        @Nonnull
         private static List<ResolvedExpression> recreateSelectList(
                 AggregateQueryOperation aggQueryOperation,
                 ProjectQueryOperation projectQueryOperation) {

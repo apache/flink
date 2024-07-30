@@ -93,31 +93,31 @@ class ConjunctFutureTest {
 
         assertThat(result.getNumFuturesTotal()).isEqualTo(4);
         assertThat(result.getNumFuturesCompleted()).isOne();
-        assertThat(result.isDone()).isFalse();
-        assertThat(resultMapped.isDone()).isFalse();
+        assertThat(result).isNotDone();
+        assertThat(resultMapped).isNotDone();
 
         // complete two more futures
         future4.complete(new Object());
         assertThat(result.getNumFuturesCompleted()).isEqualTo(2);
-        assertThat(result.isDone()).isFalse();
-        assertThat(resultMapped.isDone()).isFalse();
+        assertThat(result).isNotDone();
+        assertThat(resultMapped).isNotDone();
 
         future1.complete(new Object());
         assertThat(result.getNumFuturesCompleted()).isEqualTo(3);
-        assertThat(result.isDone()).isFalse();
-        assertThat(resultMapped.isDone()).isFalse();
+        assertThat(result).isNotDone();
+        assertThat(resultMapped).isNotDone();
 
         // complete one future again
         future1.complete(new Object());
         assertThat(result.getNumFuturesCompleted()).isEqualTo(3);
-        assertThat(result.isDone()).isFalse();
-        assertThat(resultMapped.isDone()).isFalse();
+        assertThat(result).isNotDone();
+        assertThat(resultMapped).isNotDone();
 
         // complete the final future
         future3.complete(new Object());
         assertThat(result.getNumFuturesCompleted()).isEqualTo(4);
-        assertThat(result.isDone()).isTrue();
-        assertThat(resultMapped.isDone()).isTrue();
+        assertThat(result).isDone();
+        assertThat(resultMapped).isDone();
     }
 
     @TestTemplate
@@ -140,14 +140,14 @@ class ConjunctFutureTest {
 
         assertThat(result.getNumFuturesTotal()).isEqualTo(4);
         assertThat(result.getNumFuturesCompleted()).isZero();
-        assertThat(result.isDone()).isFalse();
-        assertThat(resultMapped.isDone()).isFalse();
+        assertThat(result).isNotDone();
+        assertThat(resultMapped).isNotDone();
 
         future2.completeExceptionally(new IOException());
 
         assertThat(result.getNumFuturesCompleted()).isZero();
-        assertThat(result.isDone()).isTrue();
-        assertThat(resultMapped.isDone()).isTrue();
+        assertThat(result).isDone();
+        assertThat(resultMapped).isDone();
 
         assertThatThrownBy(result::get)
                 .isInstanceOf(ExecutionException.class)
@@ -184,8 +184,8 @@ class ConjunctFutureTest {
         future2.completeExceptionally(new IOException());
 
         assertThat(result.getNumFuturesCompleted()).isEqualTo(3);
-        assertThat(result.isDone()).isTrue();
-        assertThat(resultMapped.isDone()).isTrue();
+        assertThat(result).isDone();
+        assertThat(resultMapped).isDone();
 
         assertThatThrownBy(result::get)
                 .isInstanceOf(ExecutionException.class)
@@ -218,11 +218,11 @@ class ConjunctFutureTest {
         Collections.shuffle(shuffledFutures);
 
         for (Tuple2<Integer, CompletableFuture<Integer>> shuffledFuture : shuffledFutures) {
-            assertThat(result.isDone()).isFalse();
+            assertThat(result).isNotDone();
             shuffledFuture.f1.complete(shuffledFuture.f0);
         }
 
-        assertThat(result.isDone()).isTrue();
+        assertThat(result).isDone();
 
         assertThat(result.get())
                 .isEqualTo(IntStream.range(0, numberFutures).boxed().collect(Collectors.toList()));
@@ -236,7 +236,7 @@ class ConjunctFutureTest {
 
         assertThat(result.getNumFuturesTotal()).isZero();
         assertThat(result.getNumFuturesCompleted()).isZero();
-        assertThat(result.isDone()).isTrue();
+        assertThat(result).isDone();
     }
 
     /** Factory to create {@link ConjunctFuture} for testing. */

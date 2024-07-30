@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.filemerging;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
@@ -83,12 +82,9 @@ public class FileMergingOperatorStreamStateHandle extends OperatorStreamStateHan
         LOG.trace(
                 "Registering FileMergingOperatorStreamStateHandle for checkpoint {} from backend.",
                 checkpointId);
-        stateRegistry.registerReference(
-                new SharedStateRegistryKey(
-                        getDelegateStateHandle().getStreamStateHandleID().getKeyString()),
-                getDelegateStateHandle(),
-                checkpointId);
-
+        // Only register the directory here, leave the delegateStateHandle unregistered, since the
+        // OperatorSubtaskState will only take care of the keyed state while leaving others
+        // unregistered.
         stateRegistry.registerReference(
                 taskOwnedDirHandle.createStateRegistryKey(), taskOwnedDirHandle, checkpointId);
         stateRegistry.registerReference(

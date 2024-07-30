@@ -92,6 +92,13 @@ public class BatchExecutionInternalTimeServiceManager<K>
     }
 
     @Override
+    public boolean tryAdvanceWatermark(
+            Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) {
+        advanceWatermark(watermark);
+        return true;
+    }
+
+    @Override
     public void snapshotToRawKeyedState(
             KeyedStateCheckpointOutputStream context, String operatorName) throws Exception {
         throw new UnsupportedOperationException("Checkpoints are not supported in BATCH execution");

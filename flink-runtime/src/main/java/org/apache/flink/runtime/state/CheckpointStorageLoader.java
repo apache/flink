@@ -48,7 +48,8 @@ public class CheckpointStorageLoader {
 
     /**
      * Loads the checkpoint storage from the configuration, from the parameter
-     * 'state.checkpoint-storage', as defined in {@link CheckpointingOptions#CHECKPOINT_STORAGE}.
+     * 'execution.checkpointing.storage', as defined in {@link
+     * CheckpointingOptions#CHECKPOINT_STORAGE}.
      *
      * <p>The implementation can be specified either via their shortcut name, or via the class name
      * of a {@link CheckpointStorageFactory}. If a CheckpointStorageFactory class name is specified,

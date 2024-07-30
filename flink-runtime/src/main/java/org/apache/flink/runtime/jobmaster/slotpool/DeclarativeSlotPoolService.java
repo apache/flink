@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -41,8 +40,10 @@ import org.apache.flink.util.clock.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,7 +57,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
     private final JobID jobId;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final DeclarativeSlotPool declarativeSlotPool;
 
@@ -75,21 +76,30 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
     @Nullable private String jobManagerAddress;
 
     private State state = State.CREATED;
+    protected final ComponentMainThreadExecutor componentMainThreadExecutor;
 
     public DeclarativeSlotPoolService(
             JobID jobId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             Clock clock,
-            Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Duration idleSlotTimeout,
+            Duration rpcTimeout,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.jobId = jobId;
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
         this.registeredTaskManagers = new HashSet<>();
+        this.componentMainThreadExecutor = componentMainThreadExecutor;
 
         this.declarativeSlotPool =
                 declarativeSlotPoolFactory.create(
-                        jobId, this::declareResourceRequirements, idleSlotTimeout, rpcTimeout);
+                        jobId,
+                        this::declareResourceRequirements,
+                        idleSlotTimeout,
+                        rpcTimeout,
+                        slotRequestMaxInterval,
+                        componentMainThreadExecutor);
     }
 
     protected DeclarativeSlotPool getDeclarativeSlotPool() {
@@ -110,9 +120,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
     }
 
     @Override
-    public final void start(
-            JobMasterId jobMasterId, String address, ComponentMainThreadExecutor mainThreadExecutor)
-            throws Exception {
+    public final void start(JobMasterId jobMasterId, String address) throws Exception {
         Preconditions.checkState(
                 state == State.CREATED, "The DeclarativeSlotPoolService can only be started once.");
 
@@ -121,9 +129,9 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
         this.resourceRequirementServiceConnectionManager =
                 DefaultDeclareResourceRequirementServiceConnectionManager.create(
-                        mainThreadExecutor);
+                        componentMainThreadExecutor);
 
-        onStart(mainThreadExecutor);
+        onStart();
 
         state = State.STARTED;
     }
@@ -131,10 +139,8 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
     /**
      * This method is called when the slot pool service is started. It can be overridden by
      * subclasses.
-     *
-     * @param componentMainThreadExecutor componentMainThreadExecutor used by this slot pool service
      */
-    protected void onStart(ComponentMainThreadExecutor componentMainThreadExecutor) {}
+    protected void onStart() {}
 
     protected void assertHasBeenStarted() {
         Preconditions.checkState(

@@ -249,7 +249,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testPropagateUpdateKindAmongRelNodeBlocks(): Unit = {
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     util.addTable("""
                     |create table sink1 (

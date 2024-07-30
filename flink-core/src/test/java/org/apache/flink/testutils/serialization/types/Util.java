@@ -27,7 +27,7 @@ public final class Util {
 
     private static final long SEED = 64871654635745873L;
 
-    private static Random random = new Random(SEED);
+    private static final Random random = new Random(SEED);
 
     public static SerializationTestType randomRecord(SerializationTestTypeFactory type) {
         return type.factory().getRandom(Util.random);

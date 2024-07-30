@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
@@ -126,7 +127,9 @@ public class InternalKeyedStateTestBase {
 
                 @Nonnull
                 @Override
-                public <SV, S extends State> S createState(@Nonnull StateDescriptor<SV> stateDesc)
+                public <N, S extends State, SV> S createState(
+                        TypeSerializer<N> namespaceSerializer,
+                        @Nonnull StateDescriptor<SV> stateDesc)
                         throws Exception {
                     return null;
                 }

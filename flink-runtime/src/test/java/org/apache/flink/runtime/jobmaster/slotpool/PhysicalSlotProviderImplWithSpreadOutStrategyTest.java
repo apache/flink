@@ -107,7 +107,9 @@ class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
             throws Exception {
         DeclarativeSlotPoolBridge slotPool =
                 new DeclarativeSlotPoolBridgeBuilder()
-                        .buildAndStart(physicalSlotProviderExtension.getMainThreadExecutor());
+                        .setMainThreadExecutor(
+                                physicalSlotProviderExtension.getMainThreadExecutor())
+                        .buildAndStart();
         assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled()).isTrue();
 
         final PhysicalSlotProvider slotProvider =

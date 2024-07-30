@@ -40,6 +40,10 @@ public class HeapRowVector extends AbstractHeapVector
         return fields;
     }
 
+    public void setFields(WritableColumnVector[] fields) {
+        this.fields = fields;
+    }
+
     @Override
     public ColumnarRowData getRow(int i) {
         ColumnarRowData columnarRowData = new ColumnarRowData(new VectorizedColumnBatch(fields));

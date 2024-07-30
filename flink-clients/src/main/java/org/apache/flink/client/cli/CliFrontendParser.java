@@ -561,6 +561,7 @@ public class CliFrontendParser {
         formatter.setLeftPadding(5);
         formatter.setWidth(80);
 
+        System.out.println("\nDEPRECATED: Please use \"run\" for Application Mode as well.");
         System.out.println("\nAction \"run-application\" runs an application in Application Mode.");
         System.out.println("\n  Syntax: run-application [OPTIONS] <jar-file> <arguments>");
         formatter.setSyntaxPrefix("  \"run-application\" action options:");

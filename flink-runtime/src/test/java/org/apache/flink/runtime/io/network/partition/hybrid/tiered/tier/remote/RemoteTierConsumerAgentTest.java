@@ -60,6 +60,7 @@ class RemoteTierConsumerAgentTest {
                 new RemoteTierConsumerAgent(
                         Collections.singletonList(
                                 new TieredStorageConsumerSpec(
+                                        0,
                                         partitionId,
                                         new TieredStorageInputChannelId(0),
                                         new ResultSubpartitionIndexSet(0))),
@@ -92,6 +93,7 @@ class RemoteTierConsumerAgentTest {
                 new RemoteTierConsumerAgent(
                         Collections.singletonList(
                                 new TieredStorageConsumerSpec(
+                                        0,
                                         partitionId,
                                         new TieredStorageInputChannelId(0),
                                         new ResultSubpartitionIndexSet(0))),

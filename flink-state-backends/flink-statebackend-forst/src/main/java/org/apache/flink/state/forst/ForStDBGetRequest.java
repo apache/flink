@@ -30,13 +30,14 @@ import java.io.IOException;
  * @param <K> The type of key in get access request.
  * @param <V> The type of value returned by get request.
  */
-public class ForStDBGetRequest<K, V> {
+public class ForStDBGetRequest<K, N, V> {
 
-    private final K key;
-    private final ForStInnerTable<K, V> table;
+    private final ContextKey<K, N> key;
+    private final ForStInnerTable<K, N, V> table;
     private final InternalStateFuture<V> future;
 
-    private ForStDBGetRequest(K key, ForStInnerTable<K, V> table, InternalStateFuture<V> future) {
+    private ForStDBGetRequest(
+            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<V> future) {
         this.key = key;
         this.table = table;
         this.future = future;
@@ -63,8 +64,8 @@ public class ForStDBGetRequest<K, V> {
         future.completeExceptionally(message, ex);
     }
 
-    static <K, V> ForStDBGetRequest<K, V> of(
-            K key, ForStInnerTable<K, V> table, InternalStateFuture<V> future) {
+    static <K, N, V> ForStDBGetRequest<K, N, V> of(
+            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<V> future) {
         return new ForStDBGetRequest<>(key, table, future);
     }
 }

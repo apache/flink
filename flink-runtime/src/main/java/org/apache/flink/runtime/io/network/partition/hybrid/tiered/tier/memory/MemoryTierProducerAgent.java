@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_SEGMENT;
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getMemoryTierName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The memory tier implementation of {@link TierProducerAgent}. */
@@ -108,8 +109,9 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
                         && subpartitionProducerAgents[subpartitionId.getSubpartitionId()]
                                         .numQueuedBuffers()
                                 < subpartitionMaxQueuedBuffers
-                        && (memoryManager.getMaxNonReclaimableBuffers(this)
-                                        - memoryManager.numOwnerRequestedBuffer(this))
+                        && (memoryManager.getMaxNonReclaimableBuffers(getMemoryTierName())
+                                        - memoryManager.numOwnerRequestedBuffer(
+                                                getMemoryTierName()))
                                 > Math.max(numBuffersPerSegment, minNumBuffers)
                         && memoryManager.ensureCapacity(
                                 Math.max(numBuffersPerSegment, minNumBuffers));
@@ -137,7 +139,7 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
             return false;
         }
         if (finishedBuffer.isBuffer()) {
-            memoryManager.transferBufferOwnership(bufferOwner, this, finishedBuffer);
+            memoryManager.transferBufferOwnership(bufferOwner, getMemoryTierName(), finishedBuffer);
         }
         currentSubpartitionWriteBuffers[subpartitionIndex]++;
         addFinishedBuffer(finishedBuffer, subpartitionIndex);

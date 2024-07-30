@@ -656,6 +656,16 @@ public class CheckpointConfig implements java.io.Serializable {
         return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED);
     }
 
+    @Experimental
+    public void enableUnalignedCheckpointsInterruptibleTimers(boolean enabled) {
+        configuration.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
+    }
+
+    @Experimental
+    public boolean isUnalignedCheckpointsInterruptibleTimersEnabled() {
+        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
+    }
+
     /**
      * Only relevant if {@link #isUnalignedCheckpointsEnabled} is enabled.
      *
@@ -1065,6 +1075,9 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
+        configuration
+                .getOptional(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS)
+                .ifPresent(this::enableUnalignedCheckpointsInterruptibleTimers);
         configuration
                 .getOptional(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
                 .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);

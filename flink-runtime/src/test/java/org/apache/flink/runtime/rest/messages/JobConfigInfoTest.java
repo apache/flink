@@ -43,8 +43,7 @@ class JobConfigInfoTest extends RestResponseMarshallingTestBase<JobConfigInfo> {
         globalJobParameters.put("hi", "ho");
 
         final JobConfigInfo.ExecutionConfigInfo executionConfigInfo =
-                new JobConfigInfo.ExecutionConfigInfo(
-                        "foobar", "always", 42, false, globalJobParameters);
+                new JobConfigInfo.ExecutionConfigInfo("always", 42, false, globalJobParameters);
         return new JobConfigInfo(new JobID(), "testJob", executionConfigInfo);
     }
 }

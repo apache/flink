@@ -287,6 +287,24 @@ LogicalProject(a=[$0], b=[$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWithTimestampWithTimeZone">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MTable WHERE a > '2024-05-13 08:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'2024-05-13 08:00:00'):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[true], filter=[greaterThan(a, 2024-05-13T00:00:00Z)]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPartialPushDown2">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE amount > 2 OR price > 10]]>

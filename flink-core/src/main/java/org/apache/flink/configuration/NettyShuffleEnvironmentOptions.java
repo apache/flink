@@ -490,6 +490,24 @@ public class NettyShuffleEnvironmentOptions {
                                     + " is configured. The new mode is currently in an experimental phase. It can be set to false to fallback to the legacy mode "
                                     + " if something unexpected. Once the new mode reaches a stable state, the legacy mode as well as the option will be removed.");
 
+    /** The option to configure the tiered factory creator remote class name for hybrid shuffle. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Experimental
+    public static final ConfigOption<String>
+            NETWORK_HYBRID_SHUFFLE_EXTERNAL_REMOTE_TIER_FACTORY_CLASS_NAME =
+                    key("taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class")
+                            .stringType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    "The option configures the class that is responsible for creating an "
+                                            + "external remote tier factory for hybrid shuffle. If "
+                                            + "configured, the hybrid shuffle will only initialize "
+                                            + "the specified remote tier according to the given class "
+                                            + "name. Currently, since the tier interfaces are not yet "
+                                            + "public and are still actively evolving, it is recommended "
+                                            + "that users do not independently implement the external "
+                                            + "remote tier until the tier interfaces are stabilized. ");
+
     /** The option to configure the base remote storage path for hybrid shuffle. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     @Experimental
@@ -506,19 +524,6 @@ public class NettyShuffleEnvironmentOptions {
                                     + "If the option is not configured and "
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is true, the remote storage will be disabled.");
-
-    /** The option to decouple the needed memory of hybrid shuffle and the job topology. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    @Experimental
-    public static final ConfigOption<Boolean> NETWORK_HYBRID_SHUFFLE_ENABLE_MEMORY_DECOUPLING =
-            key("taskmanager.network.hybrid-shuffle.memory-decoupling.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "The option is used to make the memory that is used by hybrid shuffle decoupled from the complexity of the"
-                                    + " job topology and the number of tasks on the task manager. It significantly reduces the chance of "
-                                    + "the \"Insufficient number of network buffers\" exception, while the workloads may suffer performance "
-                                    + "reduction silently.");
 
     /**
      * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed

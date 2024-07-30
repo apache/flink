@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate}
@@ -62,7 +63,7 @@ class IncrementalAggregateRule
 
     // whether incremental aggregate is enabled
     val incrementalAggEnabled =
-      tableConfig.get(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
+      tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&
     finalLocalAgg.partialFinalType == PartialFinalType.FINAL &&
@@ -155,7 +156,16 @@ class IncrementalAggregateRule
 object IncrementalAggregateRule {
   val INSTANCE = new IncrementalAggregateRule
 
-  // It is a experimental config, will may be removed later.
+  /**
+   * Whether to enable incremental aggregation.
+   *
+   * @deprecated
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
+   *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED]]
+   *   instead.
+   */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.incremental-agg-enabled")

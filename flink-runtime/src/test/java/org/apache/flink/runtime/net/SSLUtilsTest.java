@@ -40,6 +40,7 @@ import java.io.InputStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
@@ -148,6 +149,17 @@ public class SSLUtilsTest {
                 .isInstanceOf(Exception.class);
     }
 
+    /** Tests that REST Client SSL Engine creation fails with bad SSL configuration. */
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testRESTClientSSLBadTruststoreType(String sslProvider) {
+        Configuration clientConfig = createRestSslConfigWithTrustStore(sslProvider);
+        clientConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE_TYPE, "bad-truststore-type");
+
+        assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(clientConfig))
+                .isInstanceOf(KeyStoreException.class);
+    }
+
     @ParameterizedTest
     @MethodSource("parameters")
     void testRESTSSLConfigCipherAlgorithms(String sslProvider) throws Exception {
@@ -206,6 +218,17 @@ public class SSLUtilsTest {
 
         assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
                 .isInstanceOf(Exception.class);
+    }
+
+    /** Tests that REST Server SSL Engine creation fails with bad SSL configuration. */
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testRESTServerSSLBadKeystoreType(String sslProvider) {
+        Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
+        serverConfig.set(SecurityOptions.SSL_REST_KEYSTORE_TYPE, "bad-keystore-type");
+
+        assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
+                .isInstanceOf(KeyStoreException.class);
     }
 
     // ----------------------- mutual auth contexts --------------------------
@@ -295,6 +318,19 @@ public class SSLUtilsTest {
 
     @ParameterizedTest
     @MethodSource("parameters")
+    void testInternalSSLWrongTruststoreType(String sslProvider) {
+        final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+        config.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_TYPE, "bad-truststore-type");
+
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(KeyStoreException.class);
+
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(KeyStoreException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
     void testInternalSSLWrongKeyPassword(String sslProvider) {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         config.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "badpw");
@@ -304,6 +340,19 @@ public class SSLUtilsTest {
 
         assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
                 .isInstanceOf(Exception.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testInternalSSLWrongKeystoreType(String sslProvider) {
+        final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+        config.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_TYPE, "bad-keystore-type");
+
+        assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
+                .isInstanceOf(KeyStoreException.class);
+
+        assertThatThrownBy(() -> SSLUtils.createInternalClientSSLEngineFactory(config))
+                .isInstanceOf(KeyStoreException.class);
     }
 
     // -------------------- protocols and cipher suites -----------------------

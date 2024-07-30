@@ -263,4 +263,18 @@ class PekkoUtilsTest {
                 .isEqualTo("org.apache.flink.runtime.rpc.pekko.CustomSSLEngineProvider");
         assertThat(sslConfig.getStringList("security.cert-fingerprints")).contains(fingerprint);
     }
+
+    @Test
+    void getConfigCustomKeyOrTruststoreType() {
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_TYPE, "JKS");
+        configuration.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_TYPE, "JKS");
+
+        final Config config =
+                PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+        assertThat(securityConfig.getString("key-store-type")).isEqualTo("JKS");
+        assertThat(securityConfig.getString("trust-store-type")).isEqualTo("JKS");
+    }
 }

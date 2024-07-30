@@ -69,7 +69,7 @@ elif [ "${OUT_TYPE}" == "s3" ]; then
   S3_DATA_PREFIX="${RANDOM_PREFIX}"
   S3_CHECKPOINT_PREFIX="${RANDOM_PREFIX}-chk"
   JOB_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/${S3_DATA_PREFIX}"
-  set_config_key "state.checkpoints.dir" "s3://$IT_CASE_S3_BUCKET/${S3_CHECKPOINT_PREFIX}"
+  set_config_key "execution.checkpointing.dir" "s3://$IT_CASE_S3_BUCKET/${S3_CHECKPOINT_PREFIX}"
 
   # overwrites implementation for local runs
   function get_complete_result {

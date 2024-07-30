@@ -120,6 +120,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
             randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
+            randomize(
+                    conf, CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true, false);
             randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
             if (!conf.contains(CheckpointingOptions.FILE_MERGING_ENABLED)) {
                 randomize(conf, CheckpointingOptions.FILE_MERGING_ENABLED, true);

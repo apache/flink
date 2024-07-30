@@ -45,8 +45,8 @@ import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.net.URL
-import java.time.ZoneId
-import java.util.{Arrays, List => JList, TimeZone}
+import java.time.{ZoneId, ZoneOffset}
+import java.util.{Arrays, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -716,17 +716,12 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
 
-    val shanghai = ZoneId.of("Asia/Shanghai")
-    val (converted, _) = extractConjunctiveConditions(
-      and,
-      -1,
-      fieldNames,
-      relBuilder,
-      functionCatalog,
-      TimeZone.getTimeZone(shanghai))
+    val (converted, _) =
+      extractConjunctiveConditions(and, -1, fieldNames, relBuilder, functionCatalog)
 
     val datetime = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01.123456")
-    val instant = datetime.toInstant(shanghai.getRules.getOffset(datetime))
+    val instant =
+      datetime.toInstant(ZoneId.of(ZoneOffset.UTC.getId).getRules.getOffset(datetime))
 
     {
       val expected = Array[Expression](
@@ -775,16 +770,14 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       maxCnfNodeCount: Int,
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
-      catalog: FunctionCatalog,
-      tz: TimeZone = TimeZone.getDefault): (Array[Expression], Array[RexNode]) = {
+      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
     RexNodeExtractor.extractConjunctiveConditions(
       expr,
       maxCnfNodeCount,
       inputFieldNames,
       rexBuilder,
       catalog,
-      catalogManager,
-      tz)
+      catalogManager)
   }
 
 }

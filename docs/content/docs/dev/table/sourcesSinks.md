@@ -335,6 +335,10 @@ the `ParallelismProvider` interface.
         <td>Enables to write partitioned data in a <code>DynamicTableSink</code>.</td>
     </tr>
     <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsBucketing.java" name="SupportsBucketing" >}}</td>
+        <td>Enables bucketing for a <code>DynamicTableSink</code>.</td>
+    </tr>
+    <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsWritingMetadata.java" name="SupportsWritingMetadata" >}}</td>
         <td>Enables to write metadata columns into a <code>DynamicTableSink</code>. A table sink is
         responsible for accepting requested metadata columns at the end of consumed rows and persist

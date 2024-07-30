@@ -19,14 +19,16 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
-import org.apache.flink.table.delegation.{Executor, Parser, ParserFactory, Planner}
+import org.apache.flink.table.delegation._
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
@@ -38,10 +40,11 @@ import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
-import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -60,6 +63,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
 
+import java.io.{File, IOException}
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
@@ -180,6 +184,57 @@ abstract class PlannerBase(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
     transformations
+  }
+
+  override def loadPlan(planReference: PlanReference): InternalPlan = {
+    val ctx = createSerdeContext
+    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val execNodeGraph = planReference match {
+      case filePlanReference: FilePlanReference =>
+        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
+      case contentPlanReference: ContentPlanReference =>
+        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
+      case resourcePlanReference: ResourcePlanReference =>
+        val url = resourcePlanReference.getClassLoader
+          .getResource(resourcePlanReference.getResourcePath)
+        if (url == null) {
+          throw new IOException("Cannot load the plan reference from classpath: " + planReference)
+        }
+        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
+      case _ =>
+        throw new IllegalStateException(
+          "Unknown PlanReference. This is a bug, please contact the developers")
+    }
+    compileExecNodeGraphToInternalPlan(ctx, execNodeGraph)
+  }
+
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan = {
+    beforeTranslation()
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
+    afterTranslation()
+    compileExecNodeGraphToInternalPlan(createSerdeContext, execGraph)
+  }
+
+  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
+    beforeTranslation()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
+    val transformations = translateToPlan(execGraph)
+    afterTranslation()
+    transformations
+  }
+
+  private def compileExecNodeGraphToInternalPlan(
+      ctx: SerdeContext,
+      execNodeGraph: ExecNodeGraph) = {
+    new ExecNodeGraphInternalPlan(
+      () =>
+        JsonSerdeUtil
+          .createObjectWriter(ctx)
+          .withDefaultPrettyPrinter()
+          .writeValueAsString(execNodeGraph),
+      execNodeGraph)
   }
 
   /** Converts a relational tree of [[ModifyOperation]] into a Calcite relational expression. */

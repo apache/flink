@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.gateway.rest.header.materializedtable.scheduler;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
 /** Message headers for suspend workflow in embedded scheduler. */
+@Documentation.ExcludeFromDocumentation("The embedded rest api.")
 public class SuspendEmbeddedSchedulerWorkflowHeaders
         extends AbstractEmbeddedSchedulerWorkflowHeaders {
 
@@ -46,5 +48,10 @@ public class SuspendEmbeddedSchedulerWorkflowHeaders
 
     public static SuspendEmbeddedSchedulerWorkflowHeaders getInstance() {
         return INSTANCE;
+    }
+
+    @Override
+    public String operationId() {
+        return "suspendWorkflow";
     }
 }

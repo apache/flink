@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -32,7 +33,7 @@ import java.util.Objects;
  * @param <K> The type of the raw key.
  */
 @ThreadSafe
-public class ContextKey<K> {
+public class ContextKey<K, N> {
 
     private final RecordContext<K> recordContext;
 
@@ -48,6 +49,10 @@ public class ContextKey<K> {
         return recordContext.getKeyGroup();
     }
 
+    public N getNamespace(InternalPartitionedState<N> state) {
+        return recordContext.getNamespace(state);
+    }
+
     /**
      * Get the serialized key. If the cached serialized key within {@code RecordContext#payload} is
      * null, the provided serialization function will be called, and the serialization result will
@@ -57,7 +62,7 @@ public class ContextKey<K> {
      * @return the serialized bytes.
      */
     public byte[] getOrCreateSerializedKey(
-            FunctionWithException<ContextKey<K>, byte[], IOException> serializeKeyFunc)
+            FunctionWithException<ContextKey<K, N>, byte[], IOException> serializeKeyFunc)
             throws IOException {
         if (recordContext.getExtra() != null) {
             return (byte[]) recordContext.getExtra();
@@ -84,7 +89,7 @@ public class ContextKey<K> {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ContextKey<?> that = (ContextKey<?>) o;
+        ContextKey<?, ?> that = (ContextKey<?, ?>) o;
         return Objects.equals(recordContext, that.recordContext);
     }
 }

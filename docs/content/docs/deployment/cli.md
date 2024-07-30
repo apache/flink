@@ -117,7 +117,7 @@ Savepoint completed. Path: file:/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0
 You can resume your program from this savepoint with the run command.
 ```
 The savepoint folder is optional and needs to be specified if 
-[state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
 
 Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
 
@@ -236,7 +236,7 @@ Suspending job "cca7bc1061d61cf15238e92312c2fc20" with a savepoint.
 Savepoint completed. Path: file:/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab
 ```
 We have to use `--savepointPath` to specify the savepoint folder if 
-[state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
 
 If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
 barrier. This will make all registered event-time timers fire, thus flushing out any state that 
@@ -363,7 +363,7 @@ Here's an overview of actions supported by Flink's CLI tool:
             <td>
                 This action can be used to create or disposing savepoints for a given job. It might be
                 necessary to specify a savepoint directory besides the JobID, if the 
-                <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 
+                <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">execution.checkpointing.savepoint-dir</a> 
                 parameter was not specified in <code class="highlighter-rouge">Flink configuration file</code>.
             </td>
         </tr>
