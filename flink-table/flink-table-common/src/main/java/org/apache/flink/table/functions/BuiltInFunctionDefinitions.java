@@ -1244,6 +1244,21 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition PRINTF =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("PRINTF")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            varyingSequence(
+                                    Arrays.asList("strfmt", "obj"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING), ANY)))
+                    .outputTypeStrategy(
+                            nullableIfArgs(
+                                    ConstantArgumentCount.of(0), explicit(DataTypes.STRING())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.PrintfFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition UUID =
             BuiltInFunctionDefinition.newBuilder()
                     .name("uuid")

@@ -260,6 +260,13 @@ string:
   - sql: POSITION(string1 IN string2)
     table: STRING1.position(STRING2)
     description: Returns the position (start from 1) of the first occurrence of STRING1 in STRING2; returns 0 if STRING1 cannot be found in STRING2.
+  - sql: PRINTF(strfmt, obj...)
+    table: strfmt.printf(obj...)
+    description: |
+      Returns a formatted string from printf-style format string.
+      The function exploits the java.util.Formatter class with Locale.US. For details, see java.util.Formatter.
+      strfmt <CHAR | VARCHAR>, obj <ANY>
+      Returns a STRING representation of the formatted strfmt. `NULL` if strfmt is `NULL`.
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     table: |
       STRING1.trim(LEADING, STRING2)
