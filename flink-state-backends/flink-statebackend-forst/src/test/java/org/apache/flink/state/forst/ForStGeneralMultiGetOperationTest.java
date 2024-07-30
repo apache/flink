@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.VoidNamespace;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,9 +35,9 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
 
     @Test
     public void testValueStateMultiGet() throws Exception {
-        ForStValueState<Integer, Void, String> valueState1 =
+        ForStValueState<Integer, VoidNamespace, String> valueState1 =
                 buildForStValueState("test-multiGet-1");
-        ForStValueState<Integer, Void, String> valueState2 =
+        ForStValueState<Integer, VoidNamespace, String> valueState2 =
                 buildForStValueState("test-multiGet-2");
         List<ForStDBGetRequest<?, ?, ?>> batchGetRequest = new ArrayList<>();
         List<Tuple2<String, TestStateFuture<String>>> resultCheckList = new ArrayList<>();
@@ -44,9 +45,9 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
         int keyNum = 1000;
         for (int i = 0; i < keyNum; i++) {
             TestStateFuture<String> future = new TestStateFuture<>();
-            ForStValueState<Integer, Void, String> table =
+            ForStValueState<Integer, VoidNamespace, String> table =
                     ((i % 2 == 0) ? valueState1 : valueState2);
-            ForStDBGetRequest<Integer, Void, String> request =
+            ForStDBGetRequest<Integer, VoidNamespace, String> request =
                     ForStDBGetRequest.of(buildContextKey(i), table, future);
             batchGetRequest.add(request);
 

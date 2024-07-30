@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -33,6 +32,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.function.BiFunctionWithException;
@@ -96,14 +97,14 @@ public class ForStDBOperationTestBase {
         };
     }
 
-    protected ContextKey<Integer, Void> buildContextKey(int i) {
+    protected ContextKey<Integer, VoidNamespace> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
                 new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
         return new ContextKey<>(recordContext);
     }
 
-    protected ForStValueState<Integer, Void, String> buildForStValueState(String stateName)
+    protected ForStValueState<Integer, VoidNamespace, String> buildForStValueState(String stateName)
             throws Exception {
         ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
         ValueStateDescriptor<String> valueStateDescriptor =
@@ -118,7 +119,8 @@ public class ForStDBOperationTestBase {
                 cf,
                 valueStateDescriptor,
                 serializedKeyBuilder,
-                () -> VoidSerializer.INSTANCE,
+                VoidNamespace.INSTANCE,
+                () -> VoidNamespaceSerializer.INSTANCE,
                 valueSerializerView,
                 valueDeserializerView);
     }
