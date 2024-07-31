@@ -390,7 +390,7 @@ class CorrelateITCase extends StreamingTestBase {
   }
 
   @Test
-  def testL1eftJoinPartialProjectWithEmptyOutput(): Unit = {
+  def testLateralCrossJoin(): Unit = {
     val data = List((1, 2, "x|y"))
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)

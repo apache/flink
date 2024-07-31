@@ -3266,6 +3266,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "CREATE MODEL AS SELECT syntax does not support to specify explicit output columns."));
     }
 
+    /*
+     * This test was backported from Calcite 1.38 (CALCITE-6266).
+     * Remove it together with upgrade to Calcite 1.38.
+     */
     @Test
     void testFromValuesWithoutParens() {
         sql("select 1 from ^values^('x')")
@@ -3285,6 +3289,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "    \"UNNEST\" \\.\\.\\.\n.*");
     }
 
+    /*
+     * This test was backported from Calcite 1.38 (CALCITE-6266).
+     * Remove it together with upgrade to Calcite 1.38.
+     */
     @Test
     void testUnnest() {
         sql("select*from unnest(x)").ok("SELECT *\n" + "FROM UNNEST(`X`)");
