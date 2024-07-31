@@ -144,7 +144,9 @@ class DefaultJobManagerRunnerRegistryTest {
 
         assertThatFuture(
                         testInstance.localCleanupAsync(
-                                jobManagerRunner.getJobID(), Executors.directExecutor()))
+                                jobManagerRunner.getJobID(),
+                                Executors.directExecutor(),
+                                Executors.directExecutor()))
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
@@ -162,7 +164,9 @@ class DefaultJobManagerRunnerRegistryTest {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
         final CompletableFuture<Void> cleanupResult =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), Executors.directExecutor());
+                        jobManagerRunner.getJobID(),
+                        Executors.directExecutor(),
+                        Executors.directExecutor());
 
         // Wait for the unregister future to complete
         cleanupResult.get();
@@ -181,7 +185,9 @@ class DefaultJobManagerRunnerRegistryTest {
 
         final CompletableFuture<Void> cleanupResult =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), Executors.directExecutor());
+                        jobManagerRunner.getJobID(),
+                        Executors.directExecutor(),
+                        Executors.directExecutor());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
                 .isTrue()
                 .as(
@@ -204,7 +210,9 @@ class DefaultJobManagerRunnerRegistryTest {
         // this call shouldn't block
         final CompletableFuture<Void> cleanupFuture =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), Executors.directExecutor());
+                        jobManagerRunner.getJobID(),
+                        Executors.directExecutor(),
+                        Executors.directExecutor());
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
                 .isTrue()
@@ -236,7 +244,11 @@ class DefaultJobManagerRunnerRegistryTest {
 
     @Test
     void testLocalCleanupAsyncOnUnknownJobId() {
-        assertThat(testInstance.localCleanupAsync(new JobID(), Executors.directExecutor()))
+        assertThat(
+                        testInstance.localCleanupAsync(
+                                new JobID(),
+                                Executors.directExecutor(),
+                                Executors.directExecutor()))
                 .isCompleted();
     }
 }

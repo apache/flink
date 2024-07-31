@@ -43,8 +43,10 @@ public interface LocallyCleanableInMainThreadResource {
      * {@code mainThreadExecutor} for cleanups. Thread-safety must be ensured.
      *
      * @param jobId The {@link JobID} of the job for which the local data should be cleaned up.
+     * @param cleanupExecutor The fallback executor for IO-heavy operations.
      * @param mainThreadExecutor The main thread executor.
      * @return The cleanup result future.
      */
-    CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor mainThreadExecutor);
+    CompletableFuture<Void> localCleanupAsync(
+            JobID jobId, Executor cleanupExecutor, Executor mainThreadExecutor);
 }
