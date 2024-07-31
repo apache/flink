@@ -224,6 +224,11 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull())
                         // normal cases
                         .testResult(
+                                lit("www.apache.org").btrim("a"),
+                                "BTRIM('www.apache.org', 'a')",
+                                "www.apache.org",
+                                DataTypes.STRING().notNull())
+                        .testResult(
                                 $("f1").btrim(),
                                 "BTRIM(f1)",
                                 "\uD83D\uDE00www.apache.org  \f",

@@ -343,8 +343,8 @@ string:
   - sql: BTRIM(str[, trimStr])
     table: str.btrim([trimStr])
     description: |
-      从 str 的前缀和后缀字符中裁去 trimStr 中的字符。trimStr 默认设置为空格。      
-      str <CHAR | VARCHAR>[, trimStr <CHAR | VARCHAR>]
+      从 str 的左边和右边删除 trimStr 中的字符。trimStr 默认设置为空格。      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)

@@ -278,7 +278,7 @@ string:
     table: str.btrim([trimStr])
     description: |
       Removes any leading and trailing characters within trimStr from str. trimStr is set to a space character by default.
-      str <CHAR | VARCHAR>[, trimStr <CHAR | VARCHAR>]
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
