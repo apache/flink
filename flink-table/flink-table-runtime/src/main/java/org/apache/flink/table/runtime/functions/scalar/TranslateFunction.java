@@ -34,9 +34,9 @@ import java.util.Map;
 @Internal
 public class TranslateFunction extends BuiltInScalarFunction {
 
-    private transient String lastFrom = "";
-    private transient String lastTo = "";
-    private transient Map<Integer, String> dict;
+    private static String lastFrom = "";
+    private static String lastTo = "";
+    private static Map<Integer, String> dict;
 
     public TranslateFunction(SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TRANSLATE, context);
