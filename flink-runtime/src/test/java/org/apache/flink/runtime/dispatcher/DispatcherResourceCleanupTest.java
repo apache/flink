@@ -28,9 +28,6 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -122,7 +119,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private CompletableFuture<JobID> localCleanupFuture;
     private CompletableFuture<JobID> globalCleanupFuture;
-    private ComponentMainThreadExecutor mainThreadExecutor;
 
     @BeforeClass
     public static void setupClass() {
@@ -136,8 +132,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         globalCleanupFuture = new CompletableFuture<>();
         localCleanupFuture = new CompletableFuture<>();
-
-        mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
         blobServer =
                 BlobUtils.createBlobServer(
@@ -214,9 +208,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 // JobManagerRunnerRegistry needs to be added explicitly
                                 // because cleaning it will trigger the closeAsync latch
                                 // provided by TestingJobManagerRunner
-                                .withLocallyCleanableResource(
-                                        DispatcherResourceCleanerFactory.toLocallyCleanableResource(
-                                                jobManagerRunnerRegistry, mainThreadExecutor))
+                                .withLocallyCleanableInMainThreadResource(jobManagerRunnerRegistry)
                                 .withGloballyCleanableResource(
                                         (jobId, ignoredExecutor) -> {
                                             globalCleanupFuture.complete(jobId);

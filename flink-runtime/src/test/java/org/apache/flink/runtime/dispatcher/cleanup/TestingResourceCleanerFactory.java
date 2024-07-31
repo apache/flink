@@ -26,20 +26,24 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /** {@code TestingResourceCleanerFactory} for adding custom {@link ResourceCleaner} creation. */
 public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
 
     private final Collection<LocallyCleanableResource> locallyCleanableResources;
+    private Collection<LocallyCleanableInMainThreadResource> locallyCleanableInMainThreadResources;
     private final Collection<GloballyCleanableResource> globallyCleanableResources;
 
     private final Executor cleanupExecutor;
 
     private TestingResourceCleanerFactory(
             Collection<LocallyCleanableResource> locallyCleanableResources,
+            Collection<LocallyCleanableInMainThreadResource> locallyCleanableInMainThreadResources,
             Collection<GloballyCleanableResource> globallyCleanableResources,
             Executor cleanupExecutor) {
         this.locallyCleanableResources = locallyCleanableResources;
+        this.locallyCleanableInMainThreadResources = locallyCleanableInMainThreadResources;
         this.globallyCleanableResources = globallyCleanableResources;
         this.cleanupExecutor = cleanupExecutor;
     }
@@ -49,6 +53,14 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
             ComponentMainThreadExecutor mainThreadExecutor) {
         Collection<LocallyCleanableResource> locallyCleanableResources =
                 this.locallyCleanableResources;
+
+        locallyCleanableResources.addAll(
+                locallyCleanableInMainThreadResources.stream()
+                        .map(
+                                r ->
+                                        DispatcherResourceCleanerFactory.toLocallyCleanableResource(
+                                                r, mainThreadExecutor))
+                        .collect(Collectors.toList()));
 
         return createResourceCleaner(
                 mainThreadExecutor,
@@ -93,6 +105,8 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
     public static class Builder {
 
         private Collection<LocallyCleanableResource> locallyCleanableResource = new ArrayList<>();
+        private Collection<LocallyCleanableInMainThreadResource>
+                locallyCleanableInMainThreadResources = new ArrayList<>();
         private Collection<GloballyCleanableResource> globallyCleanableResources =
                 new ArrayList<>();
 
@@ -108,6 +122,12 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
         public Builder withLocallyCleanableResource(
                 LocallyCleanableResource locallyCleanableResource) {
             this.locallyCleanableResource.add(locallyCleanableResource);
+            return this;
+        }
+
+        public Builder withLocallyCleanableInMainThreadResource(
+                LocallyCleanableInMainThreadResource locallyCleanableResource) {
+            this.locallyCleanableInMainThreadResources.add(locallyCleanableResource);
             return this;
         }
 
@@ -130,7 +150,10 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
 
         public TestingResourceCleanerFactory build() {
             return new TestingResourceCleanerFactory(
-                    locallyCleanableResource, globallyCleanableResources, cleanupExecutor);
+                    locallyCleanableResource,
+                    locallyCleanableInMainThreadResources,
+                    globallyCleanableResources,
+                    cleanupExecutor);
         }
     }
 }
