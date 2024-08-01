@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,7 +54,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /** Class representing the operators in the streaming programs, with all their properties. */
 @Internal
-public class StreamNode {
+public class StreamNode implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final int id;
     private int parallelism;
