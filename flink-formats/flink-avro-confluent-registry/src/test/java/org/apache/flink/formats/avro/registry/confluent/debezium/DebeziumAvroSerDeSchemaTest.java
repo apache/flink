@@ -27,6 +27,7 @@ import org.apache.flink.formats.avro.RegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentSchemaRegistryCoder;
+import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroDecodingFormat.ReadableMetadata;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -77,7 +78,7 @@ class DebeziumAvroSerDeSchemaTest {
                                     FIELD("description", STRING()),
                                     FIELD("weight", DOUBLE()))
                             .getLogicalType();
-
+    private static final List<ReadableMetadata> requestedMetadata = Collections.emptyList();
     private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST =
             new Schema.Parser().parse(new String(readBytesFromFile("debezium-test-schema.json")));
 
@@ -88,7 +89,7 @@ class DebeziumAvroSerDeSchemaTest {
 
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
-                        fromLogicalToDataType(rowType));
+                        fromLogicalToDataType(rowType), requestedMetadata);
         RowType rowTypeSe =
                 DebeziumAvroSerializationSchema.createDebeziumAvroRowType(
                         fromLogicalToDataType(rowType));
@@ -149,7 +150,7 @@ class DebeziumAvroSerDeSchemaTest {
     public List<String> testDeserialization(String dataPath) throws Exception {
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
-                        fromLogicalToDataType(rowType));
+                        fromLogicalToDataType(rowType), requestedMetadata);
 
         client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 

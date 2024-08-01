@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -32,14 +33,18 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nonnull;
+
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -117,7 +122,7 @@ class DebeziumAvroFormatFactoryTest {
 
     private static final RowType ROW_TYPE =
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
-
+    private static final List<ReadableMetadata> REQUESTED_METADATA = Collections.emptyList();
     private static final String SUBJECT = "test-debezium-avro";
     private static final String REGISTRY_URL = "http://localhost:8081";
 
@@ -128,7 +133,8 @@ class DebeziumAvroFormatFactoryTest {
 
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        ROW_TYPE,
+                        fromLogicalToDataType(ROW_TYPE),
+                        REQUESTED_METADATA,
                         InternalTypeInfo.of(ROW_TYPE),
                         REGISTRY_URL,
                         null,
@@ -152,7 +158,8 @@ class DebeziumAvroFormatFactoryTest {
 
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        ROW_TYPE,
+                        fromLogicalToDataType(ROW_TYPE),
+                        REQUESTED_METADATA,
                         InternalTypeInfo.of(ROW_TYPE),
                         REGISTRY_URL,
                         AVRO_SCHEMA,
@@ -203,7 +210,7 @@ class DebeziumAvroFormatFactoryTest {
         assertThrows(IllegalArgumentException.class, () -> createSerializationSchema(options));
     }
 
-    @NotNull
+   @Nonnull
     private Map<String, String> getRegistryConfigs() {
         final Map<String, String> registryConfigs = new HashMap<>();
         registryConfigs.put("basic.auth.user.info", "something1");
