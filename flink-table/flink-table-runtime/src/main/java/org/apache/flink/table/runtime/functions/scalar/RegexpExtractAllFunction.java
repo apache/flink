@@ -25,6 +25,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
+import org.apache.flink.table.utils.ThreadLocalCache;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
@@ -40,8 +41,13 @@ import java.util.regex.PatternSyntaxException;
 @Internal
 public class RegexpExtractAllFunction extends BuiltInScalarFunction {
 
-    private static StringData lastRegex = null;
-    private static Pattern lastPattern = null;
+    private static final ThreadLocalCache<String, Pattern> REGEXP_PATTERN_CACHE =
+            new ThreadLocalCache<String, Pattern>() {
+                @Override
+                public Pattern getNewInstance(String key) {
+                    return Pattern.compile(key);
+                }
+            };
 
     public RegexpExtractAllFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.REGEXP_EXTRACT_ALL, context);
@@ -60,29 +66,22 @@ public class RegexpExtractAllFunction extends BuiltInScalarFunction {
             extractIndex = 0;
         }
 
-        List<StringData> list = new ArrayList<>();
-        Matcher matcher = getLastMatcher(str, regex);
+        Matcher matcher;
+        try {
+            matcher = REGEXP_PATTERN_CACHE.get(regex.toString()).matcher(str.toString());
+        } catch (PatternSyntaxException e) {
+            throw new FlinkRuntimeException(e);
+        }
 
         checkGroupIndex(matcher.groupCount(), extractIndex);
 
+        List<StringData> list = new ArrayList<>();
         while (matcher.find()) {
             MatchResult matchResult = matcher.toMatchResult();
             list.add(BinaryStringData.fromString(matchResult.group(extractIndex)));
         }
 
         return new GenericArrayData(list.toArray());
-    }
-
-    private Matcher getLastMatcher(StringData str, StringData regex) {
-        if (!regex.equals(lastRegex)) {
-            try {
-                lastPattern = Pattern.compile(regex.toString());
-            } catch (PatternSyntaxException t) {
-                throw new FlinkRuntimeException(t);
-            }
-            lastRegex = ((BinaryStringData) regex).copy();
-        }
-        return lastPattern.matcher(str.toString());
     }
 
     private void checkGroupIndex(int groupCount, int groupIdx) {
