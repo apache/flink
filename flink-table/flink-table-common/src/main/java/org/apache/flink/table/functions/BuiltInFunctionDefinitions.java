@@ -971,7 +971,7 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     // By default, Calcite parse TRANSLATE as TRANSLATE3, hence it is necessary to modify the
-    // name filed to ensure it is called correctly.
+    // name field to ensure it is called correctly.
     public static final BuiltInFunctionDefinition TRANSLATE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("TRANSLATE3")

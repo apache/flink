@@ -965,6 +965,8 @@ public class BinaryStringDataUtil {
     }
 
     public static boolean isEmpty(BinaryStringData str) {
+        // check javaObject or binarySection directly rather than call
+        // BinaryStringData#getSizeInBytes to avoid performance loss caused by materialization
         if (str.javaObject != null) {
             return str.javaObject.isEmpty();
         } else {

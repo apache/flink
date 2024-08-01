@@ -882,7 +882,8 @@ public abstract class BaseExpressions<InType, OutType> {
     /**
      * Translate an {@code expr} where all characters in {@code fromStr} have been replaced with
      * those in {@code toStr}. <br>
-     * If {@code toStr} has a shorter length than {@code fromStr}, unmatched characters are removed.
+     * NOTE: If {@code toStr} has a shorter length than {@code fromStr}, unmatched characters are
+     * removed.
      *
      * @param fromStr a STRING expression
      * @param toStr a STRING expression

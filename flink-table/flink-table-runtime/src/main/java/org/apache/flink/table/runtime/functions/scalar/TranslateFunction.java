@@ -24,6 +24,9 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.utils.ThreadLocalCache;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nullable;
 
@@ -34,9 +37,13 @@ import java.util.Map;
 @Internal
 public class TranslateFunction extends BuiltInScalarFunction {
 
-    private static String lastFrom = "";
-    private static String lastTo = "";
-    private static Map<Integer, String> dict;
+    private static final ThreadLocalCache<Pair<String, String>, Map<Integer, String>> DICT_CACHE =
+            new ThreadLocalCache<Pair<String, String>, Map<Integer, String>>() {
+                @Override
+                public Map<Integer, String> getNewInstance(Pair<String, String> key) {
+                    return buildDict(key.getLeft(), key.getRight());
+                }
+            };
 
     public TranslateFunction(SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TRANSLATE, context);
@@ -55,23 +62,20 @@ public class TranslateFunction extends BuiltInScalarFunction {
         final String from = fromStr.toString();
         final String to = toStr == null ? "" : toStr.toString();
 
-        if (!from.equals(lastFrom) || !to.equals(lastTo)) {
-            lastFrom = from;
-            lastTo = to;
-            dict = buildDict(from, to);
-        }
+        Map<Integer, String> dict = DICT_CACHE.get(Pair.of(from, to));
 
-        return BinaryStringData.fromString(translate(source));
+        return BinaryStringData.fromString(translate(source, dict));
     }
 
-    private String translate(String expr) {
+    private String translate(String expr, Map<Integer, String> dict) {
         StringBuilder res = new StringBuilder();
         for (int i = 0; i < expr.length(); ) {
             int codePoint = expr.codePointAt(i);
-            i += Character.charCount(codePoint);
+            int charCount = Character.charCount(codePoint);
+            i += charCount;
             String ch = dict.get(codePoint);
             if (ch == null) {
-                res.append(Character.toChars(codePoint));
+                res.append(expr, i - charCount, i);
             } else {
                 res.append(ch);
             }
@@ -79,16 +83,18 @@ public class TranslateFunction extends BuiltInScalarFunction {
         return res.toString();
     }
 
-    private Map<Integer, String> buildDict(String from, String to) {
+    private static Map<Integer, String> buildDict(String from, String to) {
         HashMap<Integer, String> hashDict = new HashMap<>();
 
         int i = 0;
         int j = 0;
         while (i < from.length()) {
             int toCodePoint = -1;
+            int toCharCount = 1;
             if (j < to.length()) {
                 toCodePoint = to.codePointAt(j);
-                j += Character.charCount(toCodePoint);
+                toCharCount = Character.charCount(toCodePoint);
+                j += toCharCount;
             }
 
             int fromCodePoint = from.codePointAt(i);
@@ -97,8 +103,7 @@ public class TranslateFunction extends BuiltInScalarFunction {
             // ignore duplicate mapping
             if (!hashDict.containsKey(fromCodePoint)) {
                 hashDict.put(
-                        fromCodePoint,
-                        toCodePoint == -1 ? "" : String.valueOf(Character.toChars(toCodePoint)));
+                        fromCodePoint, toCodePoint == -1 ? "" : to.substring(j - toCharCount, j));
             }
         }
 
