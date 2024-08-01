@@ -42,14 +42,15 @@ public class PrintfFunction extends BuiltInScalarFunction {
         if (strfmt == null) {
             return null;
         }
-        try {
-            StringBuffer strBuf = new StringBuffer();
-            Formatter formatter = new Formatter(strBuf, Locale.US);
-            formatter.format(strfmt.toString(), obj);
 
-            return BinaryStringData.fromString(strBuf.toString());
+        StringBuilder strBuf = new StringBuilder();
+        Formatter formatter = new Formatter(strBuf, Locale.US);
+        try {
+            formatter.format(strfmt.toString(), obj);
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }
+
+        return BinaryStringData.fromString(strBuf.toString());
     }
 }
