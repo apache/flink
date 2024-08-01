@@ -155,6 +155,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PROCTIME;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RADIANS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_COUNT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
@@ -1097,6 +1098,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType regexp(InType regex) {
         return toApiSpecificExpression(unresolvedCall(REGEXP, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
+     * Returns the number of times {@code str} matches the {@code regex} pattern. {@code regex} must
+     * be a Java regular expression.
+     */
+    public OutType regexpCount(InType regex) {
+        return toApiSpecificExpression(
+                unresolvedCall(REGEXP_COUNT, toExpr(), objectToExpression(regex)));
     }
 
     /**

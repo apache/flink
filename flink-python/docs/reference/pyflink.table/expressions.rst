@@ -176,6 +176,7 @@ string functions
     Expression.rpad
     Expression.overlay
     Expression.regexp
+    Expression.regexp_count
     Expression.regexp_replace
     Expression.regexp_extract
     Expression.from_base64
