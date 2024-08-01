@@ -75,10 +75,11 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.util.SlotSelectionStrategyUtils;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraphWrapper;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +87,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
@@ -100,8 +102,9 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
     @Override
     public SchedulerNG createInstance(
             Logger log,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             Executor ioExecutor,
+            ExecutorService serializationExecutor,
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
@@ -121,6 +124,16 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
+        JobGraph jobGraph;
+
+        if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
+        } else {
+            jobGraph =
+                    ((StreamGraphWrapper) executionPlan)
+                            .deserializeStreamGraph(userCodeLoader, serializationExecutor)
+                            .getJobGraph(userCodeLoader);
+        }
 
         final SlotPool slotPool =
                 slotPoolService

@@ -22,8 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
-import org.apache.flink.streaming.api.graph.ExecutionPlan;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -33,6 +31,7 @@ import org.apache.flink.runtime.util.BlobServerExtension;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -159,7 +158,7 @@ abstract class JarHandlerParameterTest<
                         getUnresolvedJarMessageParameters(),
                         getUnresolvedJarMessageParameters(),
                         jarWithManifest));
-        validateGraphWithFlinkConfig((JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.get());
+        validateGraphWithFlinkConfig(LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.get());
     }
 
     @Test
@@ -249,32 +248,35 @@ abstract class JarHandlerParameterTest<
 
     abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
 
-    JobGraph validateDefaultGraph() {
-        JobGraph jobGraph = (JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
+    ExecutionPlan validateDefaultGraph() throws Exception {
+        ExecutionPlan executionPlan = LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
+
         assertThat(ParameterProgram.actualArguments).isEmpty();
-        assertThat(getExecutionConfig(jobGraph).getParallelism())
+        assertThat(getExecutionConfig(executionPlan).getParallelism())
                 .isEqualTo(CoreOptions.DEFAULT_PARALLELISM.defaultValue().intValue());
-        return jobGraph;
+        return executionPlan;
     }
 
-    JobGraph validateGraph() {
-        JobGraph jobGraph = (JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
+    ExecutionPlan validateGraph() throws Exception {
+        ExecutionPlan executionPlan = LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
+
         assertThat(ParameterProgram.actualArguments).isEqualTo(PROG_ARGS);
-        assertThat(getExecutionConfig(jobGraph).getParallelism()).isEqualTo(PARALLELISM);
-        return jobGraph;
+        assertThat(getExecutionConfig(executionPlan).getParallelism()).isEqualTo(PARALLELISM);
+        return executionPlan;
     }
 
-    abstract void validateGraphWithFlinkConfig(JobGraph jobGraph);
+    abstract void validateGraphWithFlinkConfig(ExecutionPlan executionPlan);
 
     private static Optional<ExecutionPlan> getLastSubmittedJobGraphAndReset() {
         return Optional.ofNullable(LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null));
     }
 
-    static ExecutionConfig getExecutionConfig(JobGraph jobGraph) {
+    static ExecutionConfig getExecutionConfig(ExecutionPlan executionPlan) {
         ExecutionConfig executionConfig;
         try {
             executionConfig =
-                    jobGraph.getSerializedExecutionConfig()
+                    executionPlan
+                            .getSerializedExecutionConfig()
                             .deserializeValue(ParameterProgram.class.getClassLoader());
         } catch (Exception e) {
             throw new AssertionError("Exception while deserializing ExecutionConfig.", e);

@@ -23,14 +23,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -135,8 +134,8 @@ class JarPlanHandlerParameterTest
     }
 
     @Override
-    void validateGraphWithFlinkConfig(JobGraph jobGraph) {
-        final ExecutionConfig executionConfig = getExecutionConfig(jobGraph);
+    void validateGraphWithFlinkConfig(ExecutionPlan executionPlan) {
+        final ExecutionConfig executionConfig = getExecutionConfig(executionPlan);
         assertThat(executionConfig.getParallelism())
                 .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
         assertThat(executionConfig.getTaskCancellationTimeout())

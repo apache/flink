@@ -41,13 +41,15 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraphWrapper;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
-
 import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerComponents.createSchedulerComponents;
@@ -59,8 +61,9 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
     @Override
     public SchedulerNG createInstance(
             final Logger log,
-            final JobGraph jobGraph,
+            final ExecutionPlan executionPlan,
             final Executor ioExecutor,
+            final ExecutorService serializationExecutor,
             final Configuration jobMasterConfiguration,
             final SlotPoolService slotPoolService,
             final ScheduledExecutorService futureExecutor,
@@ -80,6 +83,16 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final Collection<FailureEnricher> failureEnrichers,
             final BlocklistOperations blocklistOperations)
             throws Exception {
+        JobGraph jobGraph;
+
+        if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
+        } else {
+            jobGraph =
+                    ((StreamGraphWrapper) executionPlan)
+                            .deserializeStreamGraph(userCodeLoader, serializationExecutor)
+                            .getJobGraph(userCodeLoader);
+        }
 
         final SlotPool slotPool =
                 slotPoolService

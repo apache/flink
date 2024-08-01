@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -26,6 +28,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -40,6 +43,7 @@ import java.util.Map;
  * <p>This interface provides methods for accessing general properties of execution plans, such as
  * the job id and job name.
  */
+@Internal
 public interface ExecutionPlan extends Serializable {
     long serialVersionUID = 1L;
 
@@ -173,4 +177,22 @@ public interface ExecutionPlan extends Serializable {
      * @param savepointRestoreSettings the settings for savepoint restoration
      */
     void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings);
+
+    /**
+     * Checks if the checkpointing was enabled.
+     *
+     * @return true if checkpointing enabled
+     */
+    default boolean isCheckpointingEnabled() {
+        JobCheckpointingSettings checkpointingSettings = getCheckpointingSettings();
+        if (checkpointingSettings == null) {
+            return false;
+        }
+
+        return checkpointingSettings
+                .getCheckpointCoordinatorConfiguration()
+                .isCheckpointingEnabled();
+    }
+
+    SerializedValue<ExecutionConfig> getSerializedExecutionConfig();
 }

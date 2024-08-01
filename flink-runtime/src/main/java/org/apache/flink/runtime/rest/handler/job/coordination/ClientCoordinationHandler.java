@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.coordination;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;

@@ -248,6 +248,7 @@ public class JobGraph implements ExecutionPlan {
      *
      * @return ExecutionConfig
      */
+    @Override
     public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
         return serializedExecutionConfig;
     }
@@ -404,20 +405,6 @@ public class JobGraph implements ExecutionPlan {
     @Override
     public JobCheckpointingSettings getCheckpointingSettings() {
         return snapshotSettings;
-    }
-
-    /**
-     * Checks if the checkpointing was enabled for this job graph.
-     *
-     * @return true if checkpointing enabled
-     */
-    public boolean isCheckpointingEnabled() {
-
-        if (snapshotSettings == null) {
-            return false;
-        }
-
-        return snapshotSettings.getCheckpointCoordinatorConfiguration().isCheckpointingEnabled();
     }
 
     /**

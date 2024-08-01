@@ -29,12 +29,12 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -90,10 +90,10 @@ public interface ClusterClient<T> extends AutoCloseable {
     /**
      * Submit the given {@link JobGraph} to the cluster.
      *
-     * @param jobGraph to submit
+     * @param executionPlan to submit
      * @return {@link JobID} of the submitted job
      */
-    CompletableFuture<JobID> submitJob(JobGraph jobGraph);
+    CompletableFuture<JobID> submitJob(ExecutionPlan executionPlan);
 
     /** Requests the {@link JobStatus} of the job with the given {@link JobID}. */
     CompletableFuture<JobStatus> getJobStatus(JobID jobId);

@@ -396,7 +396,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void startRecoveredJobs() {
         for (ExecutionPlan recoveredJob : recoveredJobs) {
-            runRecoveredJob((JobGraph) recoveredJob);
+            runRecoveredJob(recoveredJob);
         }
         recoveredJobs.clear();
     }

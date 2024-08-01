@@ -28,23 +28,21 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -73,8 +71,8 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
-    public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
-        return miniCluster.submitJob(jobGraph).thenApply(JobSubmissionResult::getJobID);
+    public CompletableFuture<JobID> submitJob(ExecutionPlan executionPlan) {
+        return miniCluster.submitJob(executionPlan).thenApply(JobSubmissionResult::getJobID);
     }
 
     @Override
