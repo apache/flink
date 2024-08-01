@@ -409,16 +409,14 @@ string:
       返回一个新字符串，它用 STRING3（非重叠）替换 STRING1 中所有出现的 STRING2。
       例如 `'hello world'.replace('world', 'flink')` 返回 `'hello flink'`；
       `'ababab'.replace('abab', 'z')` 返回 `'zab'`。
-  - sql: TRANSLATE(expr, fromStr, toStr)
-    table: expr.translate(fromStr, toStr)
+  - sql: REGEXP_COUNT(str, regex)
+    table: str.regexpCount(regex)
     description: |
-      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+      返回字符串 str 匹配正则表达式模式 regex 的次数。regex 必须是一个 Java 正则表达式。
       
-      如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
       
-      expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>
-      
-      返回 STRING 格式的转换结果。
+      返回一个 `INTEGER` 表示匹配成功的次数。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
@@ -435,6 +433,16 @@ string:
       `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
       
       返回一个 `ARRAY<STRING>`，表示所有匹配的子串。如果任何参数为 `NULL`或非法，则返回 `NULL`。
+  - sql: TRANSLATE(expr, fromStr, toStr)
+    table: expr.translate(fromStr, toStr)
+    description: |
+      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+
+      如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
+
+      `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
+
+      返回 `STRING` 格式的转换结果。
   - sql: INITCAP(string)
     table: STRING.initCap()
     description: |

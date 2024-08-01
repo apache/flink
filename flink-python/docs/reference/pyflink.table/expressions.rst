@@ -178,6 +178,7 @@ string functions
     Expression.rpad
     Expression.overlay
     Expression.regexp
+    Expression.regexp_count
     Expression.regexp_replace
     Expression.regexp_extract
     Expression.regexp_extract_all
