@@ -25,13 +25,94 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /** Test Regexp functions correct behaviour. */
 class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(regexpExtractTestCases(), regexpExtractAllTestCases()).flatMap(s -> s);
+        return Stream.of(
+                        regexpCountTestCases(),
+                        regexpExtractTestCases(),
+                        regexpExtractAllTestCases())
+                .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> regexpCountTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_COUNT)
+                        .onFieldsWithData(null, "abcdeabde")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f0").regexpCount($("f1")),
+                                "REGEXP_COUNT(f0, f1)",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                $("f1").regexpCount($("f0")),
+                                "REGEXP_COUNT(f1, f0)",
+                                null,
+                                DataTypes.INT())
+                        // invalid regexp
+                        .testResult(
+                                $("f1").regexpCount("("),
+                                "REGEXP_COUNT(f1, '(')",
+                                null,
+                                DataTypes.INT())
+                        // normal cases
+                        .testResult(
+                                lit("hello world! Hello everyone!").regexpCount("Hello"),
+                                "REGEXP_COUNT('hello world! Hello everyone!', 'Hello')",
+                                1,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("abcabcabc").regexpCount("abcab"),
+                                "REGEXP_COUNT('abcabcabc', 'abcab')",
+                                1,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("abcd").regexpCount("z"),
+                                "REGEXP_COUNT('abcd', 'z')",
+                                0,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("^abc").regexpCount("\\^abc"),
+                                "REGEXP_COUNT('^abc', '\\^abc')",
+                                1,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("a.b.c.d").regexpCount("\\."),
+                                "REGEXP_COUNT('a.b.c.d', '\\.')",
+                                3,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("a*b*c*d").regexpCount("\\*"),
+                                "REGEXP_COUNT('a*b*c*d', '\\*')",
+                                3,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("abc123xyz456").regexpCount("\\d"),
+                                "REGEXP_COUNT('abc123xyz456', '\\d')",
+                                6,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("Helloworld! Hello everyone!").regexpCount("\\bHello\\b"),
+                                "REGEXP_COUNT('Helloworld! Hello everyone!', '\\bHello\\b')",
+                                1,
+                                DataTypes.INT()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_COUNT, "Validation Error")
+                        .onFieldsWithData(1024)
+                        .andDataTypes(DataTypes.INT())
+                        .testTableApiValidationError(
+                                $("f0").regexpCount("1024"),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "REGEXP_COUNT(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "REGEXP_COUNT(f0, '1024')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "REGEXP_COUNT(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {

@@ -1204,6 +1204,17 @@ class Expression(Generic[T]):
         """
         return _binary_op("regexp")(self, regex)
 
+    def regexp_count(self, regex) -> 'Expression':
+        """
+        Returns the number of times str matches the regex pattern.
+        regex must be a Java regular expression.
+        null if any of the arguments are null or regex is invalid.
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: An INTEGER representation of the number of matches.
+        """
+        return _binary_op("regexpCount")(self, regex)
+
     def regexp_replace(self,
                        regex: Union[str, 'Expression[str]'],
                        replacement: Union[str, 'Expression[str]']) -> 'Expression[str]':
