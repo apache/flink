@@ -1,0 +1,6 @@
+{
+  "namespace": "com.kubetrade.schema.common",
+  "type": "enum",
+  "name": "Exchange",
+  "symbols" : ["GEMINI"]
+}

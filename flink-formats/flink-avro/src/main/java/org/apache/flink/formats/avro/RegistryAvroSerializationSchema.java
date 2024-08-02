@@ -28,6 +28,7 @@ import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -107,9 +108,16 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
     }
 
     @Override
-    public byte[] serialize(T object) {
-        checkAvroInitialized();
+    public byte[] serialize(T element) {
+        return serializeWithAdditionalProperties(element, null, null);
+    }
 
+    @Override
+    public byte[] serializeWithAdditionalProperties(
+            T object,
+            Map<String, Object> inputAdditionalProperties,
+            Map<String, Object> outputAdditionalProperties) {
+        checkAvroInitialized();
         if (object == null) {
             return null;
         } else {
@@ -117,7 +125,20 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
                 ByteArrayOutputStream outputStream = getOutputStream();
                 outputStream.reset();
                 Encoder encoder = getEncoder();
-                schemaCoder.writeSchema(getSchema(), outputStream);
+                if (inputAdditionalProperties == null) {
+                    throw new RuntimeException(
+                            "inputAdditionalProperties"
+                                    + inputAdditionalProperties
+                                    + ",out"
+                                    + outputAdditionalProperties);
+                    //                    schemaCoder.writeSchema(getSchema(), outputStream);
+                } else {
+                    schemaCoder.writeSchema(
+                            getSchema(),
+                            outputStream,
+                            inputAdditionalProperties,
+                            outputAdditionalProperties);
+                }
                 getDatumWriter().write(object, encoder);
                 encoder.flush();
                 return outputStream.toByteArray();

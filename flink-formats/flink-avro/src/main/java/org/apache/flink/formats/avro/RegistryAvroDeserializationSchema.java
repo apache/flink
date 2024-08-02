@@ -29,6 +29,8 @@ import org.apache.avro.specific.SpecificRecord;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -89,12 +91,29 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 
     @Override
     public T deserialize(@Nullable byte[] message) throws IOException {
+        return deserializeWithAdditionalProperties(message, new HashMap<>());
+    }
+
+    @Override
+    public T deserializeWithAdditionalProperties(
+            byte[] message, Map<String, Object> inputAdditionalProperties) throws IOException {
         if (message == null) {
             return null;
         }
+
         checkAvroInitialized();
+
         getInputStream().setBuffer(message);
-        Schema writerSchema = schemaCoder.readSchema(getInputStream());
+        Schema writerSchema;
+        // get the schema passing in additional properties
+        if (inputAdditionalProperties == null) {
+            writerSchema = schemaCoder.readSchema(getInputStream());
+        } else {
+            writerSchema =
+                    schemaCoder.readSchemaWithAdditionalParameters(
+                            getInputStream(), inputAdditionalProperties);
+        }
+
         Schema readerSchema = getReaderSchema();
 
         GenericDatumReader<T> datumReader = getDatumReader();

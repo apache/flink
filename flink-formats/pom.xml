@@ -50,7 +50,9 @@ under the License.
 		<module>flink-orc-nohive</module>
 		<module>flink-hadoop-bulk</module>
 		<module>flink-format-common</module>
-    </modules>
+		<module>flink-avro-apicurio-registry</module>
+		<module>flink-sql-avro-apicurio-registry</module>
+	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
 		in the jars-with-dependencies (uber jars) of formats and

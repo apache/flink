@@ -1,0 +1,15 @@
+{
+  "namespace": "com.kubetrade.schema.trade",
+  "type": "record",
+  "name": "TradeKey",
+  "fields": [
+    {
+      "name": "exchange",
+      "type": "com.kubetrade.schema.common.Exchange"
+    },
+    {
+      "name": "key",
+      "type": "string"
+    }
+  ]
+}

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Schema coder that allows reading schema that is somehow embedded into serialized record. Used by
@@ -33,6 +34,20 @@ public interface SchemaCoder {
     Schema readSchema(InputStream in) throws IOException;
 
     void writeSchema(Schema schema, OutputStream out) throws IOException;
+
+    default void writeSchema(
+            Schema schema,
+            OutputStream out,
+            Map<String, Object> inputProperties,
+            Map<String, Object> outputProperties)
+            throws IOException {
+        throw new RuntimeException("writeSchema passing headers should be overridden.");
+    }
+
+    default Schema readSchemaWithAdditionalParameters(
+            InputStream in, Map<String, Object> inputProperties) throws IOException {
+        return readSchema(in);
+    }
 
     /**
      * Provider for {@link SchemaCoder}. It allows creating multiple instances of client in parallel
