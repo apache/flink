@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.flink.table.planner.plan.nodes.exec.common.ValuesTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Collections;
-import java.util.List;
+/** {@link TableTestProgram} definitions for testing {@link StreamExecValues}. */
+public class ValuesTestPrograms {
 
-/** Restore tests for {@link StreamExecValues}. */
-public class ValuesRestoreTest extends RestoreTestBase {
-
-    public ValuesRestoreTest() {
-        super(StreamExecValues.class, AfterRestoreSource.NO_RESTORE);
-    }
-
-    @Override
-    public List<TableTestProgram> programs() {
-        return Collections.singletonList(ValuesTestPrograms.VALUES_TEST);
-    }
+    public static final TableTestProgram VALUES_TEST =
+            TableTestProgram.of("values-test", "validates values node")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("b INT", "a INT", "c VARCHAR")
+                                    .consumedValues("+I[1, 2, Hi]", "+I[3, 4, Hello]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT * FROM (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))")
+                    .build();
 }
