@@ -272,4 +272,18 @@ class DeduplicateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
+  @Test
+  def testRankConsumeChangelog(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT a, count(b) as b FROM MyTable GROUP BY a)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

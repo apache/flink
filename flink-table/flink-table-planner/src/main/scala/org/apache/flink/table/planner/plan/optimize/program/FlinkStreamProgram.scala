@@ -297,6 +297,14 @@ object FlinkStreamProgram {
         )
         .addProgram(new FlinkChangelogModeInferenceProgram, "Changelog mode inference")
         .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.PHYSICAL_DEDUPLICATE_REWRITE)
+            .build(),
+          "physical rewrite rank with deduplicate"
+        )
+        .addProgram(
           new FlinkMiniBatchIntervalTraitInitProgram,
           "Initialization for mini-batch interval inference")
         .addProgram(
