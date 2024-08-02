@@ -66,6 +66,14 @@ public class JsonFormatOptions {
                                     + " Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same format."
                                     + " Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same format.");
 
+    public static final ConfigOption<String> ZERO_TIMESTAMP_BEHAVIOR =
+            ConfigOptions.key("zero-timestamp.behavior")
+                    .stringType()
+                    .defaultValue("FAIL")
+                    .withDescription(
+                            "Optional flag to specify behavior when parsing zero timestamp, FAIL by default."
+                                    + " Option CONVERT_TO_NULL will convert zero timestamp to null.");
+
     public static final ConfigOption<Boolean> ENCODE_DECIMAL_AS_PLAIN_NUMBER =
             ConfigOptions.key("encode.decimal-as-plain-number")
                     .booleanType()
@@ -90,6 +98,12 @@ public class JsonFormatOptions {
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------
+
+    /** Behavior mode for zero timestamp. */
+    public enum ZeroTimestampBehavior {
+        FAIL,
+        CONVERT_TO_NULL
+    }
 
     /** Handling mode for map data with null key. */
     public enum MapNullKeyMode {
