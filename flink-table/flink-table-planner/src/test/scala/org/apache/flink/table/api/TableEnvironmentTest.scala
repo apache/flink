@@ -22,11 +22,14 @@ import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_KIND
+import org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_OPTION_PREFIX
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
 import org.apache.flink.table.module.ModuleEntry
@@ -2889,6 +2892,33 @@ class TableEnvironmentTest {
     tableResult = tableEnv.executeSql(sql)
 
     checkData(Collections.emptyList().iterator(), tableResult.collect());
+  }
+
+  @Test
+  def testRegisterCatalogStoreVarStreamExecutionEnvironment(): Unit = {
+    val configuration = new Configuration
+
+    configuration.set(TABLE_CATALOG_STORE_KIND, "file")
+    configuration.setString(TABLE_CATALOG_STORE_OPTION_PREFIX + "file.path", tempFolder.toString)
+    val settings = EnvironmentSettings.newInstance.withConfiguration(configuration).build
+
+    val env1 = TableEnvironment.create(settings)
+    val catalogConfiguration = new Configuration
+    catalogConfiguration.setString("type", "generic_in_memory")
+    env1.createCatalog("test_catalog", CatalogDescriptor.of("test_catalog", catalogConfiguration))
+
+    assertThat(env1.getCatalog("test_catalog").isPresent).isTrue
+
+    val env2 = TableEnvironment.create(settings)
+    assertThat(env2.getCatalog("test_catalog").isPresent).isTrue
+
+    val env3 = TableEnvironment.create(EnvironmentSettings.newInstance.build)
+    assertThat(env3.getCatalog("test_catalog").isPresent).isFalse
+
+    val javaEnv = JavaEnv.getExecutionEnvironment(configuration)
+    val env = new StreamExecutionEnvironment(javaEnv)
+    val env4 = StreamTableEnvironment.create(env)
+    assertThat(env4.getCatalog("test_catalog").isPresent).isTrue
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

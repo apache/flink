@@ -242,22 +242,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         userClassLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         final Executor executor = executorFactory.create(settings.getConfiguration());
 
+        // use configuration to init table config
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        tableConfig.addConfiguration(settings.getConfiguration());
+
         final CatalogStoreFactory catalogStoreFactory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(
-                        settings.getConfiguration(), userClassLoader);
+                TableFactoryUtil.findAndCreateCatalogStoreFactory(tableConfig, userClassLoader);
         final CatalogStoreFactory.Context context =
-                TableFactoryUtil.buildCatalogStoreFactoryContext(
-                        settings.getConfiguration(), userClassLoader);
+                TableFactoryUtil.buildCatalogStoreFactoryContext(tableConfig, userClassLoader);
         catalogStoreFactory.open(context);
         final CatalogStore catalogStore =
                 settings.getCatalogStore() != null
                         ? settings.getCatalogStore()
                         : catalogStoreFactory.createCatalogStore();
-
-        // use configuration to init table config
-        final TableConfig tableConfig = TableConfig.getDefault();
-        tableConfig.setRootConfiguration(executor.getConfiguration());
-        tableConfig.addConfiguration(settings.getConfiguration());
 
         final ResourceManager resourceManager =
                 new ResourceManager(settings.getConfiguration(), userClassLoader);
