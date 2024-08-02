@@ -20,14 +20,17 @@ package org.apache.flink.runtime.checkpoint.metadata;
 import org.apache.flink.annotation.Internal;
 
 /**
- * V4 serializer that adds {@link org.apache.flink.runtime.checkpoint.CheckpointProperties}
+ * V5 serializer that adds {@link org.apache.flink.runtime.checkpoint.CheckpointProperties}
  * serialization.
  */
 @Internal
-public class MetadataV4Serializer extends MetadataWithPropertiesSerializer {
+public class MetadataV5Serializer extends MetadataWithPropertiesSerializer {
 
-    public static final MetadataSerializer INSTANCE = new MetadataV4Serializer();
-    public static final int VERSION = 4;
+    public static final MetadataSerializer INSTANCE = new MetadataV5Serializer();
+    public static final int VERSION = 5;
+
+    private static final MetadataV3Serializer baseSerializer =
+            new MetadataV3Serializer(new ChannelStateHandleSerializerV2());
 
     @Override
     public int getVersion() {
@@ -36,6 +39,6 @@ public class MetadataV4Serializer extends MetadataWithPropertiesSerializer {
 
     @Override
     protected MetadataSerializer basedSerializer() {
-        return MetadataV3Serializer.INSTANCE;
+        return baseSerializer;
     }
 }

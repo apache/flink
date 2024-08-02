@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.ChannelStateHelper;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -363,12 +364,12 @@ public class StateAssignmentOperation {
 
         checkForUnsupportedToplogyChanges(
                 assignment.oldState,
-                OperatorSubtaskState::getResultSubpartitionState,
+                ChannelStateHelper::extractUnmergedOutputHandles,
                 assignment.outputOperatorID);
 
         final OperatorState outputState = assignment.oldState.get(assignment.outputOperatorID);
         final List<List<ResultSubpartitionStateHandle>> outputOperatorState =
-                splitBySubtasks(outputState, OperatorSubtaskState::getResultSubpartitionState);
+                splitBySubtasks(outputState, ChannelStateHelper::extractUnmergedOutputHandles);
 
         final ExecutionJobVertex executionJobVertex = assignment.executionJobVertex;
         final List<IntermediateDataSet> outputs =
@@ -412,7 +413,7 @@ public class StateAssignmentOperation {
 
         checkForUnsupportedToplogyChanges(
                 stateAssignment.oldState,
-                OperatorSubtaskState::getInputChannelState,
+                ChannelStateHelper::extractUnmergedInputHandles,
                 stateAssignment.inputOperatorID);
 
         final ExecutionJobVertex executionJobVertex = stateAssignment.executionJobVertex;
@@ -422,7 +423,7 @@ public class StateAssignmentOperation {
         final OperatorState inputState =
                 stateAssignment.oldState.get(stateAssignment.inputOperatorID);
         final List<List<InputChannelStateHandle>> inputOperatorState =
-                splitBySubtasks(inputState, OperatorSubtaskState::getInputChannelState);
+                splitBySubtasks(inputState, ChannelStateHelper::extractUnmergedInputHandles);
 
         boolean hasAnyFullMapper =
                 executionJobVertex.getJobVertex().getInputs().stream()

@@ -23,9 +23,11 @@ import org.apache.flink.runtime.checkpoint.StateHandleDummyUtil;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
@@ -69,11 +71,11 @@ class OperatorSnapshotFinalizerTest {
                 withLocalState(deepDummyCopy(operatorTemplate), deepDummyCopy(operatorTemplate));
         SnapshotResult<OperatorStateHandle> rawOper =
                 withLocalState(deepDummyCopy(operatorTemplate), deepDummyCopy(operatorTemplate));
-        SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannel =
+        SnapshotResult<StateObjectCollection<InputStateHandle>> inputChannel =
                 withLocalState(
                         singleton(deepDummyCopy(inputChannelTemplate)),
                         singleton(deepDummyCopy(inputChannelTemplate)));
-        SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition =
+        SnapshotResult<StateObjectCollection<OutputStateHandle>> resultSubpartition =
                 withLocalState(
                         singleton(deepDummyCopy(resultSubpartitionTemplate)),
                         singleton(deepDummyCopy(resultSubpartitionTemplate)));
