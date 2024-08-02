@@ -186,28 +186,34 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(rel: Window, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    getUpsertKeysOnOver(rel, mq, rel.groups.map(_.keys): _*)
+    getUpsertKeysOnOver(rel, mq)
   }
 
   def getUpsertKeys(
       rel: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    getUpsertKeysOnOver(rel, mq, ImmutableBitSet.of(rel.partitionKeyIndices: _*))
+    getUpsertKeysOnOver(rel, mq)
   }
 
   def getUpsertKeys(
       rel: StreamPhysicalOverAggregate,
       mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    getUpsertKeysOnOver(rel, mq, rel.logicWindow.groups.map(_.keys): _*)
+    getUpsertKeysOnOver(rel, mq)
   }
 
   private def getUpsertKeysOnOver(
-      rel: SingleRel,
-      mq: RelMetadataQuery,
-      distributionKeys: ImmutableBitSet*): JSet[ImmutableBitSet] = {
-    var inputKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
-    for (distributionKey <- distributionKeys) {
+      window: SingleRel,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    var (groups, aggStartPos) = FlinkRelMdUniqueKeys.INSTANCE.getGroupsAndStartPos(window)
+    var inputKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(window.getInput)
+    for (group <- groups) {
+      val distributionKey = group.keys
       inputKeys = filterKeys(inputKeys, distributionKey)
+      FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfWindowGroup(group, aggStartPos) match {
+        case Some(upsertKeys) => inputKeys.addAll(upsertKeys)
+        case _ =>
+      }
+      aggStartPos = aggStartPos + group.aggCalls.length
     }
     inputKeys
   }
