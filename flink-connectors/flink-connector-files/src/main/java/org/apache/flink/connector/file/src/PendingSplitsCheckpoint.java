@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.Path;
 
 import javax.annotation.Nullable;
 
@@ -40,10 +39,10 @@ public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
     private final Collection<SplitT> splits;
 
     /**
-     * The paths that are no longer in the enumerator checkpoint, but have been processed before and
-     * should this be ignored. Relevant only for sources in continuous monitoring mode.
+     * The splits that are no longer in the enumerator checkpoint, but have been processed before
+     * and should this be ignored. Relevant only for sources in continuous monitoring mode.
      */
-    private final Collection<Path> alreadyProcessedPaths;
+    private final Collection<String> alreadyProcessedSplits;
 
     /**
      * The cached byte representation from the last serialization step. This helps to avoid paying
@@ -53,9 +52,9 @@ public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
     @Nullable byte[] serializedFormCache;
 
     protected PendingSplitsCheckpoint(
-            Collection<SplitT> splits, Collection<Path> alreadyProcessedPaths) {
+            Collection<SplitT> splits, Collection<String> alreadyProcessedSplits) {
         this.splits = Collections.unmodifiableCollection(splits);
-        this.alreadyProcessedPaths = Collections.unmodifiableCollection(alreadyProcessedPaths);
+        this.alreadyProcessedSplits = Collections.unmodifiableCollection(alreadyProcessedSplits);
     }
 
     // ------------------------------------------------------------------------
@@ -64,8 +63,8 @@ public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
         return splits;
     }
 
-    public Collection<Path> getAlreadyProcessedPaths() {
-        return alreadyProcessedPaths;
+    public Collection<String> getAlreadyProcessedSplits() {
+        return alreadyProcessedSplits;
     }
 
     // ------------------------------------------------------------------------
@@ -77,7 +76,7 @@ public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
                 + splits
                 + '\n'
                 + "\t\t Processed Paths: "
-                + alreadyProcessedPaths
+                + alreadyProcessedSplits
                 + '\n';
     }
 
@@ -95,18 +94,18 @@ public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
     }
 
     public static <T extends FileSourceSplit> PendingSplitsCheckpoint<T> fromCollectionSnapshot(
-            final Collection<T> splits, final Collection<Path> alreadyProcessedPaths) {
+            final Collection<T> splits, final Collection<String> alreadyProcessedSplits) {
         checkNotNull(splits);
 
         // create a copy of the collection to make sure this checkpoint is immutable
         final Collection<T> splitsCopy = new ArrayList<>(splits);
-        final Collection<Path> pathsCopy = new ArrayList<>(alreadyProcessedPaths);
+        final Collection<String> processedSplitsCopy = new ArrayList<>(alreadyProcessedSplits);
 
-        return new PendingSplitsCheckpoint<>(splitsCopy, pathsCopy);
+        return new PendingSplitsCheckpoint<>(splitsCopy, processedSplitsCopy);
     }
 
     static <T extends FileSourceSplit> PendingSplitsCheckpoint<T> reusingCollection(
-            final Collection<T> splits, final Collection<Path> alreadyProcessedPaths) {
-        return new PendingSplitsCheckpoint<>(splits, alreadyProcessedPaths);
+            final Collection<T> splits, final Collection<String> alreadyProcessedSplits) {
+        return new PendingSplitsCheckpoint<>(splits, alreadyProcessedSplits);
     }
 }
