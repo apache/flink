@@ -291,6 +291,38 @@ public class HiveCatalogUdfITCase extends AbstractTestBaseJUnit4 {
         }
     }
 
+    @Test
+    public void testRenameUDF() throws Exception {
+
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+        tableEnv.executeSql(
+                String.format("create function myyeartest as '%s'", UDFYear.class.getName()));
+        tableEnv.executeSql("create table src(ts timestamp)");
+
+        // Rename function myyear to myyearrename
+        ObjectPath myYearObjectPath = new ObjectPath(HiveCatalog.DEFAULT_DB, "myyeartest");
+        hiveCatalog.renameFunction(myYearObjectPath, "myyearrename", false);
+
+        try {
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
+                    .addRow(new Object[] {Timestamp.valueOf("2013-07-15 10:00:00")})
+                    .addRow(new Object[] {Timestamp.valueOf("2019-05-23 17:32:55")})
+                    .commit();
+
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.sqlQuery("select myyearrename(ts) as y from src")
+                                    .execute()
+                                    .collect());
+            Assert.assertEquals(2, results.size());
+            Assert.assertEquals("[+I[2013], +I[2019]]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop table src");
+        }
+    }
+
     private static class JavaToScala
             implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {
 
