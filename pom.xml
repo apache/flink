@@ -169,6 +169,7 @@ under the License.
 		<commons.io.version>2.15.1</commons.io.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
+		<maven-javadoc-plugin.version>3.7.0</maven-javadoc-plugin.version>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -2238,7 +2239,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.7.0</version><!--$NO-MVN-MAN-VER$-->
+					<version>${maven-javadoc-plugin.version}</version><!--$NO-MVN-MAN-VER$-->
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>
