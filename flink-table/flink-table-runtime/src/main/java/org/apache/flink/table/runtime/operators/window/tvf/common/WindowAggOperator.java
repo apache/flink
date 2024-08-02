@@ -225,7 +225,8 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         if (mark.getTimestamp() > currentWatermark) {
-            // advance the window processor by timer if this window agg is based on proctime
+            // If this is a proctime window, progress should not be advanced by watermark, or it'll
+            // disturb timer-based processing
             if (isEventTime) {
                 windowProcessor.advanceProgress(mark.getTimestamp());
             }

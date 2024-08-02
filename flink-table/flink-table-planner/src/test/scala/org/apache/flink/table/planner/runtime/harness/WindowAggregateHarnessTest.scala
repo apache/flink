@@ -689,7 +689,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   }
 
   @TestTemplate
-  def testProcessingTimeWindowAggWithLargeWatermarkArrivesFirst(): Unit = {
+  def testProcessingTimeTumbleWindowWithFutureWatermark(): Unit = {
     val (testHarness, outputTypes) =
       createProcessingTimeWindowOperator(TUMBLE, isCDCSource = false)
     val assertor = new RowDataHarnessAssertor(outputTypes)
