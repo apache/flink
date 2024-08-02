@@ -191,4 +191,78 @@ Calc(select=[a, c], where=[(CAST(c AS BIGINT) > 10)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalShouldNotMerge1">
+		<Resource name="sql">
+			<![CDATA[SELECT a + 1 AS a, a + 2 AS b FROM (SELECT a + 3 AS a FROM MyTable)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[+($0, 1)], b=[+($0, 2)])
++- LogicalProject(a=[+($0, 3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[(a + 1) AS a, (a + 2) AS b])
++- Calc(select=[(a + 3) AS a])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+]]>
+		</Resource>
+ </TestCase>
+ <TestCase name="testCalShouldNotMerge2">
+		<Resource name="sql">
+			<![CDATA[SELECT c || 'c' AS a, c || 'b' AS b FROM (SELECT REGEXP_REPLACE(c, 'aaa', 'bbb') AS c FROM MyTable)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[||($0, _UTF-16LE'c')], b=[||($0, _UTF-16LE'b')])
++- LogicalProject(c=[REGEXP_REPLACE($2, _UTF-16LE'aaa', _UTF-16LE'bbb')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[||(c, 'c') AS a, ||(c, 'b') AS b])
++- Calc(select=[REGEXP_REPLACE(c, 'aaa', 'bbb') AS c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c], metadata=[]]], fields=[c])
+]]>
+		</Resource>
+ </TestCase>
+ <TestCase name="testCalShouldMerge1">
+		<Resource name="sql">
+			<![CDATA[SELECT a + 1 AS a, a + 2 AS b FROM (SELECT a AS a FROM MyTable)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[+($0, 1)], b=[+($0, 2)])
++- LogicalProject(a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[(a + 1) AS a, (a + 2) AS b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+]]>
+		</Resource>
+ </TestCase>
+ <TestCase name="testCalShouldMerge2">
+		<Resource name="sql">
+			<![CDATA[SELECT c || 'c' AS a, c || 'b' AS b FROM (SELECT c FROM MyTable)]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[||($0, _UTF-16LE'c')], b=[||($0, _UTF-16LE'b')])
++- LogicalProject(c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[||(c, 'c') AS a, ||(c, 'b') AS b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c], metadata=[]]], fields=[c])
+]]>
+		</Resource>
+ </TestCase>
 </Root>
