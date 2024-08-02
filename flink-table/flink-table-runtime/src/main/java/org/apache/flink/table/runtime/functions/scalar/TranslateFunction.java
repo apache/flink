@@ -69,13 +69,13 @@ public class TranslateFunction extends BuiltInScalarFunction {
 
     private String translate(String expr, Map<Integer, String> dict) {
         StringBuilder res = new StringBuilder();
-        for (int i = 0; i < expr.length(); ) {
+        int charCount;
+        for (int i = 0; i < expr.length(); i += charCount) {
             int codePoint = expr.codePointAt(i);
-            int charCount = Character.charCount(codePoint);
-            i += charCount;
+            charCount = Character.charCount(codePoint);
             String ch = dict.get(codePoint);
             if (ch == null) {
-                res.append(expr, i - charCount, i);
+                res.append(expr, i, i + charCount);
             } else {
                 res.append(ch);
             }

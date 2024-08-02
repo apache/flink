@@ -32,7 +32,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(regexpExtractTestCases(), translateTestCases()).flatMap(s -> s);
+        return Stream.concat(regexpExtractTestCases(), translateTestCases());
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {
