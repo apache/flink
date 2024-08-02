@@ -36,6 +36,14 @@ public abstract class RecordCounter implements Serializable {
     public abstract boolean recordCountIsZero(RowData acc);
 
     /**
+     * We store the counter in the accumulator. If the counter is less than zero, which means the
+     * accumulator has only retract data.
+     *
+     * @return true if input record count is less than zero, false if not.
+     */
+    public abstract boolean recordCountLessZero(RowData acc);
+
+    /**
      * Creates a {@link RecordCounter} depends on the index of count(*). If index is less than zero,
      * returns {@link AccumulationRecordCounter}, otherwise, {@link RetractionRecordCounter}.
      *
@@ -64,6 +72,11 @@ public abstract class RecordCounter implements Serializable {
             // when all the inputs are accumulations, the count will never be zero
             return acc == null;
         }
+
+        @Override
+        public boolean recordCountLessZero(RowData acc) {
+            return false;
+        }
     }
 
     /**
@@ -84,6 +97,11 @@ public abstract class RecordCounter implements Serializable {
         public boolean recordCountIsZero(RowData acc) {
             // We store the counter in the accumulator and the counter is never be null
             return acc == null || acc.getLong(indexOfCountStar) == 0;
+        }
+
+        @Override
+        public boolean recordCountLessZero(RowData acc) {
+            return acc != null && acc.getLong(indexOfCountStar) < 0;
         }
     }
 }

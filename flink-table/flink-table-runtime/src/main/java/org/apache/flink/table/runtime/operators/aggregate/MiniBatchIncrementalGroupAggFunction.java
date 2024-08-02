@@ -91,7 +91,12 @@ public class MiniBatchIncrementalGroupAggFunction
     }
 
     @Override
-    public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+    public RowData addInput(
+            RowData currentKey,
+            @Nullable RowData previousAcc,
+            RowData input,
+            Collector<RowData> out)
+            throws Exception {
         RowData currentAcc;
         if (previousAcc == null) {
             currentAcc = partialAgg.createAccumulators();

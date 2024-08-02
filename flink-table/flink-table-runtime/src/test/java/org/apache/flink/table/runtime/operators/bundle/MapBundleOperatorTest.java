@@ -89,7 +89,11 @@ public class MapBundleOperatorTest {
         private List<String> outputs = new ArrayList<>();
 
         @Override
-        public String addInput(@Nullable String value, Tuple2<String, String> input)
+        public String addInput(
+                String key,
+                @Nullable String value,
+                Tuple2<String, String> input,
+                Collector<String> out)
                 throws Exception {
             if (value == null) {
                 return input.f1;
