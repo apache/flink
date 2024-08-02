@@ -115,7 +115,7 @@ public interface AllocatedSlotPool {
      *
      * @return free slot information
      */
-    FreeSlotInfoTracker getFreeSlotInfoTracker();
+    FreeSlotTracker getFreeSlotTracker();
 
     /**
      * Returns information about all slots in this pool.

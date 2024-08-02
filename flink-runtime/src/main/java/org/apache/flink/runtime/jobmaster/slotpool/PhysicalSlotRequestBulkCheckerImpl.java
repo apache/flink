@@ -200,7 +200,7 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
 
     private static Set<SlotInfo> getAllSlotInfos(SlotPool slotPool) {
         return Stream.concat(
-                        slotPool.getFreeSlotInfoTracker().getFreeSlotsInformation().stream(),
+                        slotPool.getFreeSlotTracker().getFreeSlotsInformation().stream(),
                         slotPool.getAllocatedSlotsInformation().stream())
                 .collect(Collectors.toSet());
     }

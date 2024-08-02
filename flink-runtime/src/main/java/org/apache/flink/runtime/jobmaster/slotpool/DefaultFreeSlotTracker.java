@@ -30,20 +30,20 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Default implements of {@link FreeSlotInfoTracker}. */
-public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
+/** Default implements of {@link FreeSlotTracker}. */
+public class DefaultFreeSlotTracker implements FreeSlotTracker {
     private final Set<AllocationID> freeSlots;
-    private final Function<AllocationID, SlotInfo> slotInfoLookup;
+    private final Function<AllocationID, PhysicalSlot> physicalSlotLookup;
     private final Function<AllocationID, AllocatedSlotPool.FreeSlotInfo> freeSlotInfoLookup;
     private final Function<ResourceID, Double> taskExecutorUtilizationLookup;
 
-    public DefaultFreeSlotInfoTracker(
+    public DefaultFreeSlotTracker(
             Set<AllocationID> freeSlots,
-            Function<AllocationID, SlotInfo> slotInfoLookup,
+            Function<AllocationID, PhysicalSlot> physicalSlotLookup,
             Function<AllocationID, AllocatedSlotPool.FreeSlotInfo> freeSlotInfoLookup,
             Function<ResourceID, Double> taskExecutorUtilizationLookup) {
         this.freeSlots = new HashSet<>(freeSlots);
-        this.slotInfoLookup = slotInfoLookup;
+        this.physicalSlotLookup = physicalSlotLookup;
         this.freeSlotInfoLookup = freeSlotInfoLookup;
         this.taskExecutorUtilizationLookup = taskExecutorUtilizationLookup;
     }
@@ -55,7 +55,7 @@ public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
 
     @Override
     public SlotInfo getSlotInfo(AllocationID allocationId) {
-        return Preconditions.checkNotNull(slotInfoLookup.apply(allocationId));
+        return Preconditions.checkNotNull(physicalSlotLookup.apply(allocationId));
     }
 
     @Override
@@ -64,8 +64,8 @@ public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
     }
 
     @Override
-    public Collection<SlotInfo> getFreeSlotsInformation() {
-        return freeSlots.stream().map(slotInfoLookup).collect(Collectors.toList());
+    public Collection<PhysicalSlot> getFreeSlotsInformation() {
+        return freeSlots.stream().map(physicalSlotLookup).collect(Collectors.toList());
     }
 
     @Override
@@ -83,17 +83,17 @@ public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
     }
 
     @Override
-    public DefaultFreeSlotInfoTracker createNewFreeSlotInfoTrackerWithoutBlockedSlots(
+    public DefaultFreeSlotTracker createNewFreeSlotTrackerWithoutBlockedSlots(
             Set<AllocationID> blockedSlots) {
 
-        Set<AllocationID> freeSlotInfoTrackerWithoutBlockedSlots =
+        Set<AllocationID> freeSlotTrackerWithoutBlockedSlots =
                 freeSlots.stream()
                         .filter(slot -> !blockedSlots.contains(slot))
                         .collect(Collectors.toSet());
 
-        return new DefaultFreeSlotInfoTracker(
-                freeSlotInfoTrackerWithoutBlockedSlots,
-                slotInfoLookup,
+        return new DefaultFreeSlotTracker(
+                freeSlotTrackerWithoutBlockedSlots,
+                physicalSlotLookup,
                 freeSlotInfoLookup,
                 taskExecutorUtilizationLookup);
     }

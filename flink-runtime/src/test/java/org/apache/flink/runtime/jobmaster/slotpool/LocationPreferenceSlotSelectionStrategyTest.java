@@ -130,21 +130,21 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
                         biggerResourceProfile, Collections.singletonList(tml2));
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo2);
+        assertMatchingSlotEqualsToSlotInfo(match, slot2);
 
         slotProfile =
                 SlotProfileTestingUtils.preferredLocality(
                         resourceProfile, Arrays.asList(tmlX, tml4));
         match = runMatching(slotProfile);
 
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo4);
+        assertMatchingSlotEqualsToSlotInfo(match, slot4);
 
         slotProfile =
                 SlotProfileTestingUtils.preferredLocality(
                         resourceProfile, Arrays.asList(tml3, tml1, tml3, tmlX));
         match = runMatching(slotProfile);
 
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo3);
+        assertMatchingSlotEqualsToSlotInfo(match, slot3);
     }
 
     @Test
@@ -164,7 +164,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // available previous allocation should override blacklisting
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo3);
+        assertMatchingSlotEqualsToSlotInfo(match, slot3);
     }
 
     protected static void assertMatchingSlotEqualsToSlotInfo(
@@ -178,7 +178,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
     protected static void assertMatchingSlotLocalityAndInCandidates(
             Optional<SlotSelectionStrategy.SlotInfoAndLocality> matchingSlot,
             Locality locality,
-            FreeSlotInfoTracker candidates) {
+            FreeSlotTracker candidates) {
         assertThat(matchingSlot)
                 .hasValueSatisfying(
                         slotInfoAndLocality -> {

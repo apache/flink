@@ -78,7 +78,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingDeclarativeSlotPoolBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.TestingFreeSlotInfoTracker;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingFreeSlotTracker;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -97,7 +97,7 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
-import org.apache.flink.runtime.scheduler.adaptive.allocator.TestSlotInfo;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
@@ -302,19 +302,19 @@ public class AdaptiveSchedulerTest {
     void testHasEnoughResourcesReturnsTrueIfSatisfied() {
         final ResourceCounter resourceRequirement =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
-        final Collection<TestSlotInfo> freeSlots =
-                createSlotInfosForResourceRequirements(resourceRequirement);
+        final Collection<TestingSlot> freeSlots =
+                createSlotsForResourceRequirements(resourceRequirement);
         assertThat(AdaptiveScheduler.hasDesiredResources(resourceRequirement, freeSlots)).isTrue();
     }
 
-    private Collection<TestSlotInfo> createSlotInfosForResourceRequirements(
+    private Collection<TestingSlot> createSlotsForResourceRequirements(
             ResourceCounter resourceRequirements) {
-        final Collection<TestSlotInfo> slotInfos = new ArrayList<>();
+        final Collection<TestingSlot> slotInfos = new ArrayList<>();
 
         for (Map.Entry<ResourceProfile, Integer> resourceProfileCount :
                 resourceRequirements.getResourcesWithCount()) {
             for (int i = 0; i < resourceProfileCount.getValue(); i++) {
-                slotInfos.add(new TestSlotInfo(resourceProfileCount.getKey()));
+                slotInfos.add(new TestingSlot(resourceProfileCount.getKey()));
             }
         }
 
@@ -330,8 +330,8 @@ public class AdaptiveSchedulerTest {
                 ResourceCounter.withResource(
                         ResourceProfile.newBuilder().setCpuCores(1).build(), numRequiredSlots);
 
-        final Collection<TestSlotInfo> freeSlots =
-                createSlotInfosForResourceRequirements(providedResources);
+        final Collection<TestingSlot> freeSlots =
+                createSlotsForResourceRequirements(providedResources);
 
         assertThat(AdaptiveScheduler.hasDesiredResources(requiredResources, freeSlots)).isTrue();
     }
@@ -2243,15 +2243,15 @@ public class AdaptiveSchedulerTest {
                                         TestingPhysicalSlot.builder()
                                                 .withAllocationID(allocationId)
                                                 .build())
-                        .setGetFreeSlotInfoTrackerSupplier(
+                        .setGetFreeSlotTrackerSupplier(
                                 () ->
-                                        TestingFreeSlotInfoTracker.newBuilder()
+                                        TestingFreeSlotTracker.newBuilder()
                                                 .setGetFreeSlotsInformationSupplier(
                                                         () ->
                                                                 IntStream.range(0, parallelism)
                                                                         .mapToObj(
                                                                                 v ->
-                                                                                        new TestSlotInfo())
+                                                                                        new TestingSlot())
                                                                         .collect(
                                                                                 Collectors.toSet()))
                                                 .build())

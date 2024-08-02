@@ -66,7 +66,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
@@ -83,8 +82,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
-import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTrackerTestUtils;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTracker;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
@@ -103,6 +102,7 @@ import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.DefaultPartitionWithMetrics;
@@ -498,7 +498,7 @@ class JobMasterTest {
 
         private final OneShotLatch hasReceivedSlotOffers;
 
-        private final Map<ResourceID, Collection<SlotInfo>> registeredSlots;
+        private final Map<ResourceID, Collection<PhysicalSlot>> registeredSlots;
 
         private TestingSlotPool(JobID jobId, OneShotLatch hasReceivedSlotOffers) {
             this.jobId = jobId;
@@ -554,7 +554,7 @@ class JobMasterTest {
                 TaskManagerGateway taskManagerGateway,
                 Collection<SlotOffer> offers) {
             hasReceivedSlotOffers.trigger();
-            final Collection<SlotInfo> slotInfos =
+            final Collection<PhysicalSlot> slotInfos =
                     Optional.ofNullable(registeredSlots.get(taskManagerLocation.getResourceID()))
                             .orElseThrow(
                                     () -> new FlinkRuntimeException("TaskManager not registered."));
@@ -563,11 +563,12 @@ class JobMasterTest {
 
             for (SlotOffer offer : offers) {
                 slotInfos.add(
-                        new SimpleSlotContext(
-                                offer.getAllocationId(),
-                                taskManagerLocation,
-                                slotIndex,
-                                taskManagerGateway));
+                        TestingPhysicalSlot.builder()
+                                .withAllocationID(offer.getAllocationId())
+                                .withTaskManagerLocation(taskManagerLocation)
+                                .withTaskManagerGateway(taskManagerGateway)
+                                .withPhysicalSlotNumber(slotIndex)
+                                .build());
                 slotIndex++;
             }
 
@@ -582,12 +583,12 @@ class JobMasterTest {
         }
 
         @Override
-        public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-            Map<AllocationID, SlotInfo> freeSlots =
+        public FreeSlotTracker getFreeSlotTracker() {
+            Map<AllocationID, PhysicalSlot> freeSlots =
                     registeredSlots.values().stream()
                             .flatMap(Collection::stream)
                             .collect(Collectors.toMap(SlotInfo::getAllocationId, s -> s));
-            return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(freeSlots);
+            return FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(freeSlots);
         }
 
         @Override
@@ -630,7 +631,7 @@ class JobMasterTest {
 
         @Override
         public AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId) {
-            final Collection<SlotInfo> slotInfos =
+            final Collection<PhysicalSlot> slotInfos =
                     registeredSlots.getOrDefault(taskManagerId, Collections.emptyList());
 
             final List<AllocatedSlotInfo> allocatedSlotInfos =

@@ -110,18 +110,18 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 
     private Map<SlotRequestId, Optional<PhysicalSlot>> tryAllocateFromAvailable(
             Collection<PhysicalSlotRequest> slotRequests) {
-        FreeSlotInfoTracker freeSlotInfoTracker = slotPool.getFreeSlotInfoTracker();
+        FreeSlotTracker freeSlotTracker = slotPool.getFreeSlotTracker();
 
         Map<SlotRequestId, Optional<PhysicalSlot>> allocateResult = new HashMap<>();
         for (PhysicalSlotRequest request : slotRequests) {
             Optional<SlotSelectionStrategy.SlotInfoAndLocality> slot =
                     slotSelectionStrategy.selectBestSlotForProfile(
-                            freeSlotInfoTracker, request.getSlotProfile());
+                            freeSlotTracker, request.getSlotProfile());
             allocateResult.put(
                     request.getSlotRequestId(),
                     slot.flatMap(
                             slotInfoAndLocality -> {
-                                freeSlotInfoTracker.reserveSlot(
+                                freeSlotTracker.reserveSlot(
                                         slotInfoAndLocality.getSlotInfo().getAllocationId());
                                 return slotPool.allocateAvailableSlot(
                                         request.getSlotRequestId(),

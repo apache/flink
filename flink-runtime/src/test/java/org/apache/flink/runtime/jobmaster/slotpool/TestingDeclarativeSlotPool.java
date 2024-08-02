@@ -64,9 +64,9 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                     Collection<SlotOffer>>
             registerSlotsFunction;
 
-    private final Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier;
+    private final Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier;
 
-    private final Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier;
+    private final Supplier<FreeSlotTracker> getFreeSlotTrackerSupplier;
 
     private final Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier;
 
@@ -105,8 +105,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
                             Long,
                             Collection<SlotOffer>>
                     registerSlotsFunction,
-            Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier,
-            Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier,
+            Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier,
+            Supplier<FreeSlotTracker> getFreeSlotTrackerSupplier,
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
             BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction,
             BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction,
@@ -122,7 +122,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.offerSlotsFunction = offerSlotsFunction;
         this.registerSlotsFunction = registerSlotsFunction;
         this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
-        this.getFreeSlotInfoTrackerSupplier = getFreeSlotInfoTrackerSupplier;
+        this.getFreeSlotTrackerSupplier = getFreeSlotTrackerSupplier;
         this.getAllSlotsInformationSupplier = getAllSlotsInformationSupplier;
         this.releaseSlotsFunction = releaseSlotsFunction;
         this.releaseSlotFunction = releaseSlotFunction;
@@ -175,8 +175,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-        return getFreeSlotInfoTrackerSupplier.get();
+    public FreeSlotTracker getFreeSlotTracker() {
+        return getFreeSlotTrackerSupplier.get();
     }
 
     @Override

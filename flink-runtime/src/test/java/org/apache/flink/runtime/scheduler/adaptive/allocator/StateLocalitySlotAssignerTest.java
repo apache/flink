@@ -175,7 +175,7 @@ class StateLocalitySlotAssignerTest {
         return new StateLocalitySlotAssigner()
                 .assignSlots(
                         new TestJobInformation(singletonList(vertexInformation)),
-                        allocationIDs.stream().map(TestSlotInfo::new).collect(Collectors.toList()),
+                        allocationIDs.stream().map(TestingSlot::new).collect(Collectors.toList()),
                         new VertexParallelism(
                                 singletonMap(
                                         vertexInformation.getJobVertexID(),

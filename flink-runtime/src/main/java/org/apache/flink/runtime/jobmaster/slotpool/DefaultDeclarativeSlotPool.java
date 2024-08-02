@@ -519,7 +519,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void releaseIdleSlots(long currentTimeMillis) {
         final Collection<AllocatedSlotPool.FreeSlotInfo> freeSlotsInformation =
-                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
+                slotPool.getFreeSlotTracker().getFreeSlotsWithIdleSinceInformation();
 
         ResourceCounter excessResources =
                 fulfilledResourceRequirements.subtract(totalResourceRequirements);
@@ -599,8 +599,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-        return slotPool.getFreeSlotInfoTracker();
+    public FreeSlotTracker getFreeSlotTracker() {
+        return slotPool.getFreeSlotTracker();
     }
 
     @Override

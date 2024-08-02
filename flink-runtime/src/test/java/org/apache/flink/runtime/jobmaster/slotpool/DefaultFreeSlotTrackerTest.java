@@ -37,53 +37,52 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link FreeSlotInfoTracker}. */
-class DefaultFreeSlotInfoTrackerTest {
+/** Tests for {@link DefaultFreeSlotTracker}. */
+class DefaultFreeSlotTrackerTest {
 
     @Test
     void testReserveSlot() {
         final ResourceID resourceId = ResourceID.generate();
-        final SlotInfo slotInfo1 = createAllocatedSlot(resourceId);
-        final SlotInfo slotInfo2 = createAllocatedSlot(resourceId);
-        final Map<AllocationID, SlotInfo> slots = new HashMap<>();
+        final PhysicalSlot slot1 = createAllocatedSlot(resourceId);
+        final PhysicalSlot slot2 = createAllocatedSlot(resourceId);
+        final Map<AllocationID, PhysicalSlot> slots = new HashMap<>();
 
-        slots.put(slotInfo1.getAllocationId(), slotInfo1);
-        slots.put(slotInfo2.getAllocationId(), slotInfo2);
+        slots.put(slot1.getAllocationId(), slot1);
+        slots.put(slot2.getAllocationId(), slot2);
 
-        final FreeSlotInfoTracker freeSlotInfoTracker =
-                FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(slots);
-        for (AllocationID candidate : freeSlotInfoTracker.getAvailableSlots()) {
-            SlotInfo selectSlot = freeSlotInfoTracker.getSlotInfo(candidate);
+        final FreeSlotTracker freeSlotTracker =
+                FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(slots);
+        for (AllocationID candidate : freeSlotTracker.getAvailableSlots()) {
+            SlotInfo selectSlot = freeSlotTracker.getSlotInfo(candidate);
             assertThat(slots.get(selectSlot.getAllocationId())).isEqualTo(selectSlot);
-            freeSlotInfoTracker.reserveSlot(selectSlot.getAllocationId());
+            freeSlotTracker.reserveSlot(selectSlot.getAllocationId());
             break;
         }
 
-        assertThat(freeSlotInfoTracker.getAvailableSlots())
+        assertThat(freeSlotTracker.getAvailableSlots())
                 .hasSize(1)
-                .containsAnyOf(slotInfo1.getAllocationId(), slotInfo2.getAllocationId());
+                .containsAnyOf(slot1.getAllocationId(), slot2.getAllocationId());
     }
 
     @Test
-    void testCreatedFreeSlotInfoTrackerWithoutBlockedSlots() {
+    void testCreatedFreeSlotTrackerWithoutBlockedSlots() {
         final ResourceID resourceId = ResourceID.generate();
-        final SlotInfo slotInfo1 = createAllocatedSlot(resourceId);
-        final SlotInfo slotInfo2 = createAllocatedSlot(resourceId);
-        final Map<AllocationID, SlotInfo> slots = new HashMap<>();
+        final PhysicalSlot slot1 = createAllocatedSlot(resourceId);
+        final PhysicalSlot slot2 = createAllocatedSlot(resourceId);
+        final Map<AllocationID, PhysicalSlot> slots = new HashMap<>();
 
-        slots.put(slotInfo1.getAllocationId(), slotInfo1);
-        slots.put(slotInfo2.getAllocationId(), slotInfo2);
+        slots.put(slot1.getAllocationId(), slot1);
+        slots.put(slot2.getAllocationId(), slot2);
 
-        final FreeSlotInfoTracker freeSlotInfoTracker =
-                FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(slots);
-        assertThat(freeSlotInfoTracker.getAvailableSlots()).hasSize(2);
+        final FreeSlotTracker freeSlotTracker =
+                FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(slots);
+        assertThat(freeSlotTracker.getAvailableSlots()).hasSize(2);
 
-        final FreeSlotInfoTracker freeSlotInfoTrackerWithoutBlockedSlots =
-                freeSlotInfoTracker.createNewFreeSlotInfoTrackerWithoutBlockedSlots(
+        final FreeSlotTracker freeSlotTrackerWithoutBlockedSlots =
+                freeSlotTracker.createNewFreeSlotTrackerWithoutBlockedSlots(
                         new HashSet<>(
-                                Arrays.asList(
-                                        slotInfo1.getAllocationId(), slotInfo2.getAllocationId())));
-        assertThat(freeSlotInfoTrackerWithoutBlockedSlots.getAvailableSlots()).isEmpty();
+                                Arrays.asList(slot1.getAllocationId(), slot2.getAllocationId())));
+        assertThat(freeSlotTrackerWithoutBlockedSlots.getAvailableSlots()).isEmpty();
     }
 
     private AllocatedSlot createAllocatedSlot(ResourceID owner) {

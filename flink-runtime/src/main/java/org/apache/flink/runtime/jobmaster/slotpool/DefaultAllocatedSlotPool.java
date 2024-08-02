@@ -188,8 +188,8 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
-    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-        return new DefaultFreeSlotInfoTracker(
+    public FreeSlotTracker getFreeSlotTracker() {
+        return new DefaultFreeSlotTracker(
                 freeSlots.getFreeSlotsSince().keySet(),
                 registeredSlots::get,
                 this::getFreeSlotInfo,

@@ -19,29 +19,30 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-/** Test {@link SlotInfo} implementation. */
-public class TestSlotInfo implements SlotInfo {
+/** An implementation of {@link PhysicalSlot}for testing. */
+public class TestingSlot implements PhysicalSlot {
 
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
 
-    public TestSlotInfo() {
+    public TestingSlot() {
         this(new AllocationID(), ResourceProfile.ANY);
     }
 
-    public TestSlotInfo(AllocationID allocationId) {
+    public TestingSlot(AllocationID allocationId) {
         this(allocationId, ResourceProfile.ANY);
     }
 
-    public TestSlotInfo(ResourceProfile resourceProfile) {
+    public TestingSlot(ResourceProfile resourceProfile) {
         this(new AllocationID(), resourceProfile);
     }
 
-    public TestSlotInfo(AllocationID allocationId, ResourceProfile resourceProfile) {
+    public TestingSlot(AllocationID allocationId, ResourceProfile resourceProfile) {
         this.allocationId = allocationId;
         this.resourceProfile = resourceProfile;
     }
@@ -69,5 +70,15 @@ public class TestSlotInfo implements SlotInfo {
     @Override
     public boolean willBeOccupiedIndefinitely() {
         return false;
+    }
+
+    @Override
+    public TaskManagerGateway getTaskManagerGateway() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean tryAssignPayload(Payload payload) {
+        throw new UnsupportedOperationException();
     }
 }

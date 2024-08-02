@@ -413,9 +413,9 @@ class SlotSharingSlotAllocatorTest {
                                 1)));
 
         List<SlotInfo> freeSlots = new ArrayList<>();
-        IntStream.range(0, 10).forEach(i -> freeSlots.add(new TestSlotInfo(new AllocationID())));
-        freeSlots.add(new TestSlotInfo(allocation1));
-        freeSlots.add(new TestSlotInfo(allocation2));
+        IntStream.range(0, 10).forEach(i -> freeSlots.add(new TestingSlot(new AllocationID())));
+        freeSlots.add(new TestingSlot(allocation1));
+        freeSlots.add(new TestingSlot(allocation2));
 
         JobSchedulingPlan schedulingPlan =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
@@ -448,7 +448,7 @@ class SlotSharingSlotAllocatorTest {
     private static Collection<SlotInfo> getSlots(int count) {
         final Collection<SlotInfo> slotInfo = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            slotInfo.add(new TestSlotInfo());
+            slotInfo.add(new TestingSlot());
         }
         return slotInfo;
     }
