@@ -79,6 +79,9 @@ import os
 import shutil
 import tempfile
 
+from pyflink.table.expressions import *
+from pyflink.table.schema import Schema
+
 sink_path = tempfile.gettempdir() + '/streaming.csv'
 if os.path.exists(sink_path):
     if os.path.isfile(sink_path):
@@ -101,8 +104,10 @@ st_env.create_temporary_table("stream_sink", TableDescriptor.for_connector("file
                                       .build())
                               .build())
 
-t.select(col('a') + 1, col('b'), col('c')).insert_into("stream_sink")
-st_env.execute("stream_job")
+t.select(col('a') + 1, col('b'), col('c')).execute_insert("stream_sink")
+
+# Execute an sample job via StreamExecutionEnvironment
+s_env.execute("stream_job")
 
 # show the results
 with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:
