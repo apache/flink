@@ -1862,7 +1862,7 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>numSplitsProcessed</td>
       <td>The total number of InputSplits this data source has processed (if the operator is a data source).</td>
-      <td>Gauge</td>
+      <td>Counter</td>
     </tr>
   </tbody>
 </table>
