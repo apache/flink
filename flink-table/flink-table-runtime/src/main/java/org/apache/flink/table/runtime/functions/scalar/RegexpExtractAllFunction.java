@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -77,8 +76,7 @@ public class RegexpExtractAllFunction extends BuiltInScalarFunction {
 
         List<StringData> list = new ArrayList<>();
         while (matcher.find()) {
-            MatchResult matchResult = matcher.toMatchResult();
-            list.add(BinaryStringData.fromString(matchResult.group(extractIndex)));
+            list.add(BinaryStringData.fromString(matcher.group(extractIndex)));
         }
 
         return new GenericArrayData(list.toArray());
