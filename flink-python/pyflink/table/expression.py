@@ -1205,6 +1205,13 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
 
+    def regexp_substr(self, regex) -> 'Expression':
+        """
+        Returns the first substring in str that matches regex, null if pattern is not found.
+        In case of a malformed regex the function returns an error.
+        """
+        return _binary_op("regexpSubstr")(self, regex)
+
     @property
     def from_base64(self) -> 'Expression[str]':
         """

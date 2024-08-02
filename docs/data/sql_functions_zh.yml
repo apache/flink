@@ -375,6 +375,13 @@ string:
       将字符串 STRING1 按照 STRING2 正则表达式的规则拆分，返回指定 INTEGER1 处位置的字符串。正则表达式匹配组索引从 1 开始，
       0 表示匹配整个正则表达式。此外，正则表达式匹配组索引不应超过定义的组数。
       例如 `REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)` 返回 `"bar"`。
+  - sql: REGEXP_INSTR(str, regex)
+    table: str.regexpInStr(regex)
+    description: |
+      返回 str 中第一个匹配 regex 的子字符串。
+      如果正则表达式格式错误，则函数返回错误。
+      str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>
+      返回一个 STRING 表示匹配成功的子串。如果任何参数为 `NULL` 或匹配失败，则返回 `NULL`。
   - sql: INITCAP(string)
     table: STRING.initCap()
     description: |
