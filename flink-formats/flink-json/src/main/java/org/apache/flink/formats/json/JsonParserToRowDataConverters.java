@@ -266,7 +266,8 @@ public class JsonParserToRowDataConverters implements Serializable {
         LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
 
         // get number of milliseconds of the day
-        return localTime.toSecondOfDay() * 1000;
+        // currently only millis of day are supported for TIME type
+        return (int) (localTime.toNanoOfDay() / 1000_000);
     }
 
     private TimestampData convertToTimestamp(JsonParser jp) throws IOException {
