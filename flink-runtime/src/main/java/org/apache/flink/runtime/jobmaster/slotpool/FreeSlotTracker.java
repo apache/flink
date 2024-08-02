@@ -24,8 +24,8 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import java.util.Collection;
 import java.util.Set;
 
-/** Track all free slots, support bookkeeping slot for {@link SlotSelectionStrategy}. */
-public interface FreeSlotInfoTracker {
+/** Track all free slots. */
+public interface FreeSlotTracker {
 
     /**
      * Get allocation id of all available slots.
@@ -52,13 +52,13 @@ public interface FreeSlotInfoTracker {
     Collection<AllocatedSlotPool.FreeSlotInfo> getFreeSlotsWithIdleSinceInformation();
 
     /**
-     * Returns a list of {@link SlotInfo} objects about all slots that are currently available in
-     * the slot pool.
+     * Returns a list of {@link PhysicalSlot} objects about all slots that are currently available
+     * in the slot pool.
      *
-     * @return a list of {@link SlotInfo} objects about all slots that are currently available in
-     *     the slot pool.
+     * @return a list of {@link PhysicalSlot} objects about all slots that are currently available
+     *     in the slot pool.
      */
-    Collection<SlotInfo> getFreeSlotsInformation();
+    Collection<PhysicalSlot> getFreeSlotsInformation();
 
     /**
      * Get task executor utilization of this slot.
@@ -81,6 +81,5 @@ public interface FreeSlotInfoTracker {
      * @param blockedSlots slots that should not be used
      * @return the new free slot tracker
      */
-    FreeSlotInfoTracker createNewFreeSlotInfoTrackerWithoutBlockedSlots(
-            Set<AllocationID> blockedSlots);
+    FreeSlotTracker createNewFreeSlotTrackerWithoutBlockedSlots(Set<AllocationID> blockedSlots);
 }

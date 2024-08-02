@@ -34,10 +34,9 @@ class DefaultLocationPreferenceSlotSelectionStrategy
     @Nonnull
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
-            @Nonnull ResourceProfile resourceProfile) {
-        for (AllocationID allocationId : freeSlotInfoTracker.getAvailableSlots()) {
-            SlotInfo candidate = freeSlotInfoTracker.getSlotInfo(allocationId);
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull ResourceProfile resourceProfile) {
+        for (AllocationID allocationId : freeSlotTracker.getAvailableSlots()) {
+            SlotInfo candidate = freeSlotTracker.getSlotInfo(allocationId);
             if (candidate.getResourceProfile().isMatching(resourceProfile)) {
                 return Optional.of(SlotInfoAndLocality.of(candidate, Locality.UNCONSTRAINED));
             }

@@ -28,28 +28,28 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/** Testing implements of {@link FreeSlotInfoTracker}. */
-public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
+/** Testing implements of {@link FreeSlotTracker}. */
+public class TestingFreeSlotTracker implements FreeSlotTracker {
     private final Supplier<Set<AllocationID>> getAvailableSlotsSupplier;
     private final Function<AllocationID, SlotInfo> getSlotInfoFunction;
     private final Supplier<Collection<AllocatedSlotPool.FreeSlotInfo>>
             getFreeSlotsWithIdleSinceInformationSupplier;
-    private final Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier;
+    private final Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier;
     private final Function<SlotInfo, Double> getTaskExecutorUtilizationFunction;
     private final Consumer<AllocationID> reserveSlotConsumer;
-    private final Function<Set<AllocationID>, FreeSlotInfoTracker>
-            createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction;
+    private final Function<Set<AllocationID>, FreeSlotTracker>
+            createNewFreeSlotTrackerWithoutBlockedSlotsFunction;
 
-    public TestingFreeSlotInfoTracker(
+    public TestingFreeSlotTracker(
             Supplier<Set<AllocationID>> getAvailableSlotsSupplier,
             Function<AllocationID, SlotInfo> getSlotInfoFunction,
             Supplier<Collection<AllocatedSlotPool.FreeSlotInfo>>
                     getFreeSlotsWithIdleSinceInformationSupplier,
-            Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier,
+            Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier,
             Function<SlotInfo, Double> getTaskExecutorUtilizationFunction,
             Consumer<AllocationID> reserveSlotConsumer,
-            Function<Set<AllocationID>, FreeSlotInfoTracker>
-                    createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction) {
+            Function<Set<AllocationID>, FreeSlotTracker>
+                    createNewFreeSlotTrackerWithoutBlockedSlotsFunction) {
         this.getAvailableSlotsSupplier = getAvailableSlotsSupplier;
         this.getSlotInfoFunction = getSlotInfoFunction;
         this.getFreeSlotsWithIdleSinceInformationSupplier =
@@ -57,8 +57,8 @@ public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
         this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
         this.getTaskExecutorUtilizationFunction = getTaskExecutorUtilizationFunction;
         this.reserveSlotConsumer = reserveSlotConsumer;
-        this.createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction =
-                createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction;
+        this.createNewFreeSlotTrackerWithoutBlockedSlotsFunction =
+                createNewFreeSlotTrackerWithoutBlockedSlotsFunction;
     }
 
     @Override
@@ -77,7 +77,7 @@ public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
     }
 
     @Override
-    public Collection<SlotInfo> getFreeSlotsInformation() {
+    public Collection<PhysicalSlot> getFreeSlotsInformation() {
         return getFreeSlotsInformationSupplier.get();
     }
 
@@ -92,27 +92,27 @@ public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
     }
 
     @Override
-    public FreeSlotInfoTracker createNewFreeSlotInfoTrackerWithoutBlockedSlots(
+    public FreeSlotTracker createNewFreeSlotTrackerWithoutBlockedSlots(
             Set<AllocationID> blockedSlots) {
-        return createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction.apply(blockedSlots);
+        return createNewFreeSlotTrackerWithoutBlockedSlotsFunction.apply(blockedSlots);
     }
 
     public static Builder newBuilder() {
         return new Builder();
     }
 
-    /** Builder of {@link TestingFreeSlotInfoTracker}. * */
+    /** Builder of {@link TestingFreeSlotTracker}. * */
     public static class Builder {
         private Supplier<Set<AllocationID>> getAvailableSlotsSupplier = Collections::emptySet;
         private Function<AllocationID, SlotInfo> getSlotInfoFunction = ignored -> null;
         private Supplier<Collection<AllocatedSlotPool.FreeSlotInfo>>
                 getFreeSlotsWithIdleSinceInformationSupplier = Collections::emptyList;
-        private Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier =
+        private Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier =
                 Collections::emptyList;
         private Function<SlotInfo, Double> getTaskExecutorUtilizationFunction = ignored -> 0d;
         private Consumer<AllocationID> reserveSlotConsumer = ignore -> {};
-        private Function<Set<AllocationID>, FreeSlotInfoTracker>
-                createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction = ignored -> null;
+        private Function<Set<AllocationID>, FreeSlotTracker>
+                createNewFreeSlotTrackerWithoutBlockedSlotsFunction = ignored -> null;
 
         public Builder setGetAvailableSlotsSupplier(
                 Supplier<Set<AllocationID>> getAvailableSlotsSupplier) {
@@ -135,7 +135,7 @@ public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
         }
 
         public Builder setGetFreeSlotsInformationSupplier(
-                Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier) {
+                Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier) {
             this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
             return this;
         }
@@ -151,23 +151,15 @@ public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
             return this;
         }
 
-        public Builder setCreateNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction(
-                Function<Set<AllocationID>, FreeSlotInfoTracker>
-                        createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction) {
-            this.createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction =
-                    createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction;
-            return this;
-        }
-
-        public TestingFreeSlotInfoTracker build() {
-            return new TestingFreeSlotInfoTracker(
+        public TestingFreeSlotTracker build() {
+            return new TestingFreeSlotTracker(
                     getAvailableSlotsSupplier,
                     getSlotInfoFunction,
                     getFreeSlotsWithIdleSinceInformationSupplier,
                     getFreeSlotsInformationSupplier,
                     getTaskExecutorUtilizationFunction,
                     reserveSlotConsumer,
-                    createNewFreeSlotInfoTrackerWithoutBlockedSlotsFunction);
+                    createNewFreeSlotTrackerWithoutBlockedSlotsFunction);
         }
     }
 

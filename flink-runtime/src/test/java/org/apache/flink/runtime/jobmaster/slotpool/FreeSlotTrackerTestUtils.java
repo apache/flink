@@ -19,24 +19,23 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
 
 import java.util.Map;
 
-/** Utils to create testing {@link FreeSlotInfoTracker}. */
-public class FreeSlotInfoTrackerTestUtils {
+/** Utils to create testing {@link FreeSlotTracker}. */
+public class FreeSlotTrackerTestUtils {
     /**
-     * Create default free slot info tracker for provided slots.
+     * Create default free slot tracker for provided slots.
      *
      * @param freeSlots slots to track
-     * @return default free slot info tracker
+     * @return default free slot tracker
      */
-    public static DefaultFreeSlotInfoTracker createDefaultFreeSlotInfoTracker(
-            Map<AllocationID, SlotInfo> freeSlots) {
-        return new DefaultFreeSlotInfoTracker(
+    public static DefaultFreeSlotTracker createDefaultFreeSlotTracker(
+            Map<AllocationID, PhysicalSlot> freeSlots) {
+        return new DefaultFreeSlotTracker(
                 freeSlots.keySet(),
                 freeSlots::get,
-                id -> new TestingFreeSlotInfoTracker.TestingFreeSlotInfo(freeSlots.get(id)),
+                id -> new TestingFreeSlotTracker.TestingFreeSlotInfo(freeSlots.get(id)),
                 ignored -> 0d);
     }
 }

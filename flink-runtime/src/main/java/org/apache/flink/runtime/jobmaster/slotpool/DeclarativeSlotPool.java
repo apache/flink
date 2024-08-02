@@ -112,7 +112,7 @@ public interface DeclarativeSlotPool {
      *
      * @return free slot tracker
      */
-    FreeSlotInfoTracker getFreeSlotInfoTracker();
+    FreeSlotTracker getFreeSlotTracker();
 
     /**
      * Returns the slot information for all slots (free and allocated slots).

@@ -52,7 +52,7 @@ class PreviousAllocationSlotSelectionStrategyTest
                         Collections.singleton(aid3),
                         Collections.emptySet());
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo3);
+        assertMatchingSlotEqualsToSlotInfo(match, slot3);
 
         slotProfile =
                 SlotProfile.priorAllocation(
@@ -62,7 +62,7 @@ class PreviousAllocationSlotSelectionStrategyTest
                         new HashSet<>(Arrays.asList(aidX, aid2)),
                         Collections.emptySet());
         match = runMatching(slotProfile);
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo2);
+        assertMatchingSlotEqualsToSlotInfo(match, slot2);
     }
 
     @Test
@@ -76,7 +76,7 @@ class PreviousAllocationSlotSelectionStrategyTest
                         Collections.singleton(aidX),
                         Collections.emptySet());
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo4);
+        assertMatchingSlotEqualsToSlotInfo(match, slot4);
     }
 
     @Test
@@ -115,6 +115,6 @@ class PreviousAllocationSlotSelectionStrategyTest
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // we expect that the candidate that is not blacklisted is returned
-        assertMatchingSlotEqualsToSlotInfo(match, slotInfo1);
+        assertMatchingSlotEqualsToSlotInfo(match, slot1);
     }
 }
