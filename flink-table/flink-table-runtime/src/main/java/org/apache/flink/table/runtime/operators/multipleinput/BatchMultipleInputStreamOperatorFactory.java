@@ -21,14 +21,15 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 
 import java.util.List;
 
 /** The factory to create {@link BatchMultipleInputStreamOperator}. */
-public class BatchMultipleInputStreamOperatorFactory
-        extends AbstractStreamOperatorFactory<RowData> {
+public class BatchMultipleInputStreamOperatorFactory extends AbstractStreamOperatorFactory<RowData>
+        implements YieldingOperatorFactory<RowData> {
     private static final long serialVersionUID = 1L;
 
     private final List<InputSpec> inputSpecs;
