@@ -2366,13 +2366,13 @@ JOIN (
   GROUP BY a, window_start, window_end, window_time
 ) R
 ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a AND
- CAST(L.window_start AS BIGINT) > R.uv
+ L.window_start > TO_TIMESTAMP(FROM_UNIXTIME(R.uv))
       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
-+- LogicalJoin(condition=[AND(=($1, $7), =($2, $8), =($0, $6), >(CAST($1):BIGINT NOT NULL, $11))], joinType=[inner])
++- LogicalJoin(condition=[AND(=($1, $7), =($2, $8), =($0, $6), >($1, TO_TIMESTAMP(FROM_UNIXTIME($11))))], joinType=[inner])
    :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
    :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
    :     +- LogicalTableFunctionScan(invocation=[CUMULATE(DESCRIPTOR($4), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *PROCTIME* window_time)])
@@ -2392,7 +2392,7 @@ LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, cnt, uv, a0, window_start0, window_end0, PROCTIME_MATERIALIZE(window_time0) AS window_time0, cnt0, uv0])
-+- WindowJoin(leftWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rightWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], joinType=[InnerJoin], where=[AND(=(a, a0), >(CAST(window_start AS BIGINT), uv0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0])
++- WindowJoin(leftWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rightWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], joinType=[InnerJoin], where=[AND(=(a, a0), >(window_start, TO_TIMESTAMP(FROM_UNIXTIME(uv0))))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
    :     +- WindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[proctime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
