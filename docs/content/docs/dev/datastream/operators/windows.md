@@ -1403,7 +1403,7 @@ Two things to notice about the above methods are:
 
 * `CONTINUE`: do nothing,
 * `FIRE`: trigger the computation,
-* `PURGE`: clear the elements in the window, and
+* `PURGE`: clear the elements in the window, and discard the window bypassing any computations or emissions
 * `FIRE_AND_PURGE`: trigger the computation and clear the elements in the window afterwards.
 
 2) Any of these methods can be used to register processing- or event-time timers for future actions.
