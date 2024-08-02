@@ -16,6 +16,213 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+	<TestCase name="testJoinPartitionPushdown3[sourceFetchPartitions=false, useCatalogFilter=true]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t1.part2 = t2.part2 and t1.part1 = t2.part1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($3, $7), =($2, $6))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($3, $7), =($2, $6))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown3[sourceFetchPartitions=true, useCatalogFilter=false]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t1.part2 = t2.part2 and t1.part1 = t2.part1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($3, $7), =($2, $6))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($3, $7), =($2, $6))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, partitions=[{part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}, {part1=C, part2=1}]]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, partitions=[{part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}, {part1=C, part2=1}]]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown3[sourceFetchPartitions=false, useCatalogFilter=false]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t1.part2 = t2.part2 and t1.part1 = t2.part1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($3, $7), =($2, $6))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($3, $7), =($2, $6))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown2[sourceFetchPartitions=false, useCatalogFilter=false]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t2.part1 = t1.part1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[=($6, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[=($6, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown2[sourceFetchPartitions=true, useCatalogFilter=false]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t2.part1 = t1.part1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[=($6, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[=($6, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, partitions=[{part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}, {part1=C, part2=1}]]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, partitions=[{part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}, {part1=C, part2=1}]]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown2[sourceFetchPartitions=false, useCatalogFilter=true]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t2.part1 = t1.part1]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[=($6, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[=($6, $2)], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown1[sourceFetchPartitions=false, useCatalogFilter=true]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t1.part1 = t2.part1 and t1.part2 = t2.part2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($2, $6), =($3, $7))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($2, $6), =($3, $7))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown1[sourceFetchPartitions=true, useCatalogFilter=false]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t1.part1 = t2.part1 and t1.part2 = t2.part2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($2, $6), =($3, $7))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($2, $6), =($3, $7))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, partitions=[{part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}, {part1=C, part2=1}]]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, partitions=[{part1=A, part2=1}, {part1=A, part2=2}, {part1=B, part2=3}, {part1=C, part2=1}]]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinPartitionPushdown1[sourceFetchPartitions=false, useCatalogFilter=false]">
+		<Resource name="sql">
+			<![CDATA[select * from MyTable t1 inner join VirtualTable t2 on t1.part1 = t2.part1 and t1.part2 = t2.part2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($2, $6), =($3, $7))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], id0=[$4], name0=[$5], part10=[$6], part20=[$7], virtualField=[$8])
++- LogicalJoin(condition=[AND(=($2, $6), =($3, $7))], joinType=[inner])
+   :- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, VirtualTable]])
+]]>
+		</Resource>
+  </TestCase>
   <TestCase name="testNoPartitionFieldPredicate[sourceFetchPartitions=false, useCatalogFilter=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2]]>
