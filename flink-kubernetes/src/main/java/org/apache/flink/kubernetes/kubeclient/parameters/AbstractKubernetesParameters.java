@@ -205,4 +205,10 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public boolean isHostNetworkEnabled() {
         return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
+
+    public List<String> getAdditionalLocalFiles() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.FLINK_CONFIGMAP_ADDITIONAL_RESOURCES)
+                .orElse(Collections.emptyList());
+    }
 }
