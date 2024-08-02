@@ -276,6 +276,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return configuration.get(MetricOptions.LATENCY_INTERVAL).toMillis();
     }
 
+    @PublicEvolving
+    public <T> Optional<T> get(ConfigOption<T> option) {
+        return this.configuration.getOptional(option);
+    }
+
     @Internal
     public boolean isLatencyTrackingConfigured() {
         return configuration.getOptional(MetricOptions.LATENCY_INTERVAL).isPresent();
@@ -1271,6 +1276,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param classLoader a class loader to use when loading classes
      */
     public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+        configuration.toMap().forEach(this.configuration::setString);
+
         configuration
                 .getOptional(PipelineOptions.AUTO_TYPE_REGISTRATION)
                 .ifPresent(this::setAutoTypeRegistration);
