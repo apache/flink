@@ -78,6 +78,7 @@ run_resume_savepoint_test() {
     --environment.parallelism $ORIGINAL_DOP \
     --state_backend $STATE_BACKEND_TYPE \
     --state_backend.checkpoint_directory $CHECKPOINT_DIR \
+    --state_backend.rocks.incremental true \
     --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
     --sequence_generator_source.sleep_time 30 \
     --sequence_generator_source.sleep_after_elements 1 \
@@ -114,6 +115,7 @@ run_resume_savepoint_test() {
     --environment.parallelism $NEW_DOP \
     --state_backend $STATE_BACKEND_TYPE \
     --state_backend.checkpoint_directory $CHECKPOINT_DIR \
+    --state_backend.rocks.incremental true \
     --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
     --sequence_generator_source.sleep_time 15 \
     --sequence_generator_source.sleep_after_elements 1 \
