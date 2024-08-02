@@ -304,7 +304,14 @@ string:
       not exceed the number of the defined groups.
 
       E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)" returns "bar".
-
+  - sql: REGEXP_INSTR(str, regex)
+    table: str.regexpInStr(regex)
+    description: |
+      Returns the position of the first substring in str that matches regex.
+      Result indexes begin at 1, 0 if there is no match.
+      In case of a malformed regex the function returns an error.
+      str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>
+      Returns an INTEGER representation of matched substring index. `NULL` if any of the arguments are `NULL`.
   - sql: INITCAP(string)
     table: STRING.initCap()
     description: Returns a new form of STRING with the first character of each word converted to uppercase and the rest characters to lowercase. Here a word means a sequences of alphanumeric characters.
