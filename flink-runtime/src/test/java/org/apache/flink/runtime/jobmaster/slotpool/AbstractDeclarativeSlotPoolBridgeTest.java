@@ -24,6 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
@@ -68,18 +70,26 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                     SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), true
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
+                    Duration.ZERO,
+                    false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, true
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
+                    Duration.ZERO,
+                    true
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
                     Duration.ofMillis(20),
                     false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
                     Duration.ofMillis(20),
                     true
                 });
@@ -110,6 +120,11 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
     }
 
     static PhysicalSlot createAllocatedSlot(AllocationID allocationID) {
+        return createAllocatedSlot(allocationID, DefaultLoadingWeight.EMPTY);
+    }
+
+    static PhysicalSlot createAllocatedSlot(
+            AllocationID allocationID, LoadingWeight loadingWeight) {
         return new AllocatedSlot(
                 allocationID,
                 new LocalTaskManagerLocation(),
@@ -117,6 +132,7 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                 ResourceProfile.ANY,
                 new RpcTaskManagerGateway(
                         new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
-                        JobMasterId.generate()));
+                        JobMasterId.generate()),
+                loadingWeight);
     }
 }
