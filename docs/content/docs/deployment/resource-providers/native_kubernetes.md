@@ -607,6 +607,7 @@ spec:
   containers:
     # Do not change the main container name
     - name: flink-main-container
+      image: apache/flink:latest
       resources:
         requests:
           ephemeral-storage: 2048Mi
