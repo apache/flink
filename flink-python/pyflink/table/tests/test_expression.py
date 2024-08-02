@@ -113,6 +113,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('stddevSamp(a)', str(expr1.stddev_samp))
         self.assertEqual('varPop(a)', str(expr1.var_pop))
         self.assertEqual('varSamp(a)', str(expr1.var_samp))
+        self.assertEqual('mode(a)', str(expr1.mode))
         self.assertEqual('collect(a)', str(expr1.collect))
         self.assertEqual('ARRAY_AGG(a)', str(expr1.array_agg))
         self.assertEqual("as(a, 'a', 'b', 'c')", str(expr1.alias('a', 'b', 'c')))
