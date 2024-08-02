@@ -369,6 +369,12 @@ string:
       返回一个新字符串，它用 STRING3（非重叠）替换 STRING1 中所有出现的 STRING2。
       例如 `'hello world'.replace('world', 'flink')` 返回 `'hello flink'`；
       `'ababab'.replace('abab', 'z')` 返回 `'zab'`。
+  - sql: REGEXP_COUNT(str, regex)
+    table: str.regexpCount(regex)
+    description: |
+      返回字符串 str 匹配正则表达式模式 regex 的次数。regex 必须是一个 Java 正则表达式。
+      str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>
+      返回一个 INTEGER 表示匹配成功的次数。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
