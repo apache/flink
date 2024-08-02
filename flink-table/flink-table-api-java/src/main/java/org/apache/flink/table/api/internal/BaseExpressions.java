@@ -1132,10 +1132,11 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Extracts all the strings in {@code str} that match the {@code regex} expression and
-     * correspond to the regex group {@code extractIndex}. {@code regex} may contain multiple
-     * groups. {@code extractIndex} indicates which regex group to extract and starts from 1. 0
-     * means matching the entire regular expression, also the default value if not specified.
+     * Extracts all the substrings in {@code str} that match the {@code regex} expression and
+     * correspond to the regex group {@code extractIndex}. <br>
+     * {@code regex} may contain multiple groups. {@code extractIndex} indicates which regex group
+     * to extract and starts from 1, also the default value if not specified. And 0 means matching
+     * the entire regular expression.
      */
     public OutType regexpExtractAll(InType regex, InType extractIndex) {
         return toApiSpecificExpression(

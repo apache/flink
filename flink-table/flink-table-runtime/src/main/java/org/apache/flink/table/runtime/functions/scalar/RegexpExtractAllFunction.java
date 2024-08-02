@@ -53,16 +53,13 @@ public class RegexpExtractAllFunction extends BuiltInScalarFunction {
     }
 
     public @Nullable ArrayData eval(@Nullable StringData str, @Nullable StringData regex) {
-        return eval(str, regex, 0);
+        return eval(str, regex, 1);
     }
 
     public @Nullable ArrayData eval(
             @Nullable StringData str, @Nullable StringData regex, @Nullable Integer extractIndex) {
-        if (str == null || regex == null) {
+        if (str == null || regex == null || extractIndex == null) {
             return null;
-        }
-        if (extractIndex == null) {
-            extractIndex = 0;
         }
 
         Matcher matcher;

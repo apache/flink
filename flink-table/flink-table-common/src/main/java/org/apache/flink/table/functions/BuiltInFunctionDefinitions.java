@@ -1123,9 +1123,7 @@ public final class BuiltInFunctionDefinitions {
                                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                                     logical(LogicalTypeRoot.INTEGER)))))
                     .outputTypeStrategy(
-                            nullableIfArgs(
-                                    ConstantArgumentCount.to(1),
-                                    explicit(DataTypes.ARRAY(DataTypes.STRING()))))
+                            nullableIfArgs(explicit(DataTypes.ARRAY(DataTypes.STRING()))))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.RegexpExtractAllFunction")
                     .build();

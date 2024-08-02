@@ -54,7 +54,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").regexpExtractAll($("f1"), null),
                                 "REGEXP_EXTRACT_ALL(f1, f1, NULL)",
-                                new String[] {"abcdeabde"},
+                                null,
                                 DataTypes.ARRAY(DataTypes.STRING()))
                         // invalid regexp
                         .testTableApiRuntimeError(
@@ -62,6 +62,14 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "REGEXP_EXTRACT_ALL(f1, '(')", FlinkRuntimeException.class)
                         // invalid extractIndex
+                        .testTableApiRuntimeError(
+                                $("f1").regexpExtractAll("abcdeabde"),
+                                IndexOutOfBoundsException.class,
+                                "Extract group index 1 is out of range [0, 0].")
+                        .testSqlRuntimeError(
+                                "REGEXP_EXTRACT_ALL(f1, 'abcdeabde')",
+                                IndexOutOfBoundsException.class,
+                                "Extract group index 1 is out of range [0, 0].")
                         .testTableApiRuntimeError(
                                 $("f1").regexpExtractAll("(abcdeabde)", -1),
                                 IndexOutOfBoundsException.class,
@@ -108,8 +116,8 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 new String[] {"cdeabd"},
                                 DataTypes.ARRAY(DataTypes.STRING()))
                         .testResult(
-                                $("f1").regexpExtractAll(""),
-                                "REGEXP_EXTRACT_ALL(f1, '')",
+                                $("f1").regexpExtractAll("", 0),
+                                "REGEXP_EXTRACT_ALL(f1, '', 0)",
                                 new String[] {"", "", "", "", "", "", "", "", "", ""},
                                 DataTypes.ARRAY(DataTypes.STRING()))
                         .testResult(
