@@ -602,13 +602,51 @@ class GroupingSetsITCase extends BatchTestBase {
     )
 
     checkResult(
-      "select count(*) as c from emp group by cube(1)",
+      "select mod(deptno, 20) as d, count(*) as c, gender as g " +
+        "from emp group by rollup(1, gender)",
+      Seq(
+        row(0, 1, "F"),
+        row(0, 1, "M"),
+        row(0, 2, null),
+        row(10, 2, "M"),
+        row(10, 4, "F"),
+        row(10, 6, null),
+        row(null, 1, "F"),
+        row(null, 1, null),
+        row(null, 9, null))
+    )
+
+    checkResult(
+      "select count(*) as c from emp group by cube('1')",
       Seq(row(9), row(9))
     )
 
     checkResult(
-      "select count(*) as c from emp group by cube(1)",
+      "select count(*) as c from emp group by cube('1')",
       Seq(row(9), row(9))
+    )
+
+    checkResult(
+      "select deptno + 1, count(*) as c from emp group by cube(1, gender)",
+      Seq(
+        row(11, 1),
+        row(11, 1),
+        row(11, 2),
+        row(21, 1),
+        row(21, 1),
+        row(31, 2),
+        row(31, 2),
+        row(51, 1),
+        row(51, 1),
+        row(51, 2),
+        row(61, 1),
+        row(61, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 3),
+        row(null, 6),
+        row(null, 9)
+      )
     )
   }
 
