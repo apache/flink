@@ -92,6 +92,22 @@ public class SharedBuffer<V> {
 
     private final Timer cacheStatisticsTimer;
 
+    /**
+     * @Description: 用于清理以前的状态
+     *
+     * @param: []
+     * @return: void
+     * @auther: zhangyf
+     * @date: 2023/7/17 10:42
+     */
+    public void clean() {
+        eventsBuffer.clear();
+        eventsBufferCache.cleanUp();
+        entryCache.cleanUp();
+        eventsCount.clear();
+        entries.clear();
+    }
+
     @VisibleForTesting
     public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
         this(stateStore, valueSerializer, new SharedBufferCacheConfig());
