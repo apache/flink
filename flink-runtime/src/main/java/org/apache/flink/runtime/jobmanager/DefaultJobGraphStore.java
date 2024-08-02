@@ -26,6 +26,8 @@ import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
@@ -197,14 +199,15 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void putJobGraph(JobGraph jobGraph) throws Exception {
+    public CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor executor)
+            throws Exception {
         checkNotNull(jobGraph, "Job graph");
 
         final JobID jobID = jobGraph.getJobID();
         final String name = jobGraphStoreUtil.jobIDToName(jobID);
 
         LOG.debug("Adding job graph {} to {}.", jobID, jobGraphStateHandleStore);
-
+        CompletableFuture<Void> completableFuture = null;
         boolean success = false;
 
         while (!success) {
@@ -214,15 +217,12 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                 final R currentVersion = jobGraphStateHandleStore.exists(name);
 
                 if (!currentVersion.isExisting()) {
-                    try {
-                        jobGraphStateHandleStore.addAndLock(name, jobGraph);
-
-                        addedJobGraphs.add(jobID);
-
-                        success = true;
-                    } catch (StateHandleStore.AlreadyExistException ignored) {
-                        LOG.warn("{} already exists in {}.", jobGraph, jobGraphStateHandleStore);
-                    }
+                    completableFuture =
+                            FutureUtils.runAsync(
+                                    () -> jobGraphStateHandleStore.addAndLock(name, jobGraph),
+                                    executor);
+                    addedJobGraphs.add(jobID);
+                    success = true;
                 } else if (addedJobGraphs.contains(jobID)) {
                     try {
                         jobGraphStateHandleStore.replace(name, currentVersion, jobGraph);
@@ -241,10 +241,10 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         }
 
         LOG.info("Added {} to {}.", jobGraph, jobGraphStateHandleStore);
+        return completableFuture;
     }
 
-    @Override
-    public void putJobResourceRequirements(
+    private void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         synchronized (lock) {
             @Nullable final JobGraph jobGraph = recoverJobGraph(jobId);
@@ -255,8 +255,15 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                                 jobId));
             }
             JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
-            putJobGraph(jobGraph);
+            putJobGraph(jobGraph, Executors.directExecutor());
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor executor) {
+        return FutureUtils.runAsync(
+                () -> putJobResourceRequirements(jobId, jobResourceRequirements), executor);
     }
 
     @Override

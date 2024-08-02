@@ -115,6 +115,11 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
+    public CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor ioExecutor)
+            throws Exception {
+        return FutureUtils.runAsync(() -> putJobGraph(jobGraph), ioExecutor);
+    }
+
     public synchronized void putJobGraph(JobGraph jobGraph) throws Exception {
         verifyIsStarted();
         putJobGraphConsumer.accept(jobGraph);
@@ -122,6 +127,13 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
+    public CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor ioExecutor)
+            throws Exception {
+        return FutureUtils.runAsync(
+                () -> putJobResourceRequirements(jobId, jobResourceRequirements), ioExecutor);
+    }
+
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         verifyIsStarted();

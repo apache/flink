@@ -569,7 +569,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         null,
                         System.currentTimeMillis());
         ExecutionGraphInfo executionGraphInfo = new ExecutionGraphInfo(archivedExecutionGraph);
-        writeToExecutionGraphInfoStore(executionGraphInfo);
+        FutureUtils.runAsync(
+                () -> {
+                    writeToExecutionGraphInfoStore(executionGraphInfo);
+                },
+                ioExecutor);
         return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
@@ -649,9 +653,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
-        jobGraphWriter.putJobGraph(jobGraph);
+        CompletableFuture<Void> completableFuture =
+                jobGraphWriter.putJobGraph(jobGraph, ioExecutor);
         initJobClientExpiredTime(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
+        if (completableFuture != null) {
+            completableFuture.exceptionally(
+                    throwable -> {
+                        throw new CompletionException(throwable);
+                    });
+            completableFuture.join();
+        }
     }
 
     private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {
@@ -1176,14 +1188,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             return maxParallelismPerJobVertex;
                         })
                 .thenAccept(
-                        maxParallelismPerJobVertex ->
-                                validateMaxParallelism(
-                                        jobResourceRequirements, maxParallelismPerJobVertex))
+                        (maxParallelismPerJobVertex) -> {
+                            validateMaxParallelism(
+                                    jobResourceRequirements, maxParallelismPerJobVertex);
+                        })
                 .thenRunAsync(
                         () -> {
                             try {
-                                jobGraphWriter.putJobResourceRequirements(
-                                        jobId, jobResourceRequirements);
+                                jobGraphWriter
+                                        .putJobResourceRequirements(
+                                                jobId, jobResourceRequirements, ioExecutor)
+                                        .get();
                             } catch (Exception e) {
                                 throw new CompletionException(
                                         new RestHandlerException(
@@ -1359,7 +1374,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     terminalJobStatus);
         }
 
-        writeToExecutionGraphInfoStore(executionGraphInfo);
+        CompletableFuture<Acknowledge> writeFuture =
+                FutureUtils.runAsync(
+                                () -> {
+                                    writeToExecutionGraphInfoStore(executionGraphInfo);
+                                },
+                                ioExecutor)
+                        .thenApply(ignored -> Acknowledge.get());
 
         if (!terminalJobStatus.isGloballyTerminalState()) {
             return CompletableFuture.completedFuture(
@@ -1370,7 +1391,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         // multiple archive attempts which we currently do not support
         CompletableFuture<Acknowledge> archiveFuture =
                 archiveExecutionGraphToHistoryServer(executionGraphInfo);
-
+        writeFuture.join();
         return archiveFuture.thenCompose(
                 ignored -> registerGloballyTerminatedJobInJobResultStore(executionGraphInfo));
     }
