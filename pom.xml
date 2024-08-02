@@ -21,7 +21,7 @@ under the License.
 	<parent>
 		<groupId>org.apache</groupId>
 		<artifactId>apache</artifactId>
-		<version>20</version>
+		<version>24</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -219,6 +219,9 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+
+		<!-- reproduceable builds: https://maven.apache.org/guides/mini/guide-reproducible-builds.html -->
+		<project.build.outputTimestamp>1</project.build.outputTimestamp>
 	</properties>
 
 	<dependencies>
