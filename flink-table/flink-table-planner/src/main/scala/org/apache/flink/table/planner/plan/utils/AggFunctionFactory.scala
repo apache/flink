@@ -396,35 +396,10 @@ class AggFunctionFactory(
       }
     } else {
       valueType.getTypeRoot match {
-        case TINYINT =>
-          new MaxAggFunction.ByteMaxAggFunction
-        case SMALLINT =>
-          new MaxAggFunction.ShortMaxAggFunction
-        case INTEGER =>
-          new MaxAggFunction.IntMaxAggFunction
-        case BIGINT =>
-          new MaxAggFunction.LongMaxAggFunction
-        case FLOAT =>
-          new MaxAggFunction.FloatMaxAggFunction
-        case DOUBLE =>
-          new MaxAggFunction.DoubleMaxAggFunction
-        case BOOLEAN =>
-          new MaxAggFunction.BooleanMaxAggFunction
-        case VARCHAR | CHAR =>
-          new MaxAggFunction.StringMaxAggFunction
-        case DATE =>
-          new MaxAggFunction.DateMaxAggFunction
-        case TIME_WITHOUT_TIME_ZONE =>
-          new MaxAggFunction.TimeMaxAggFunction
-        case TIMESTAMP_WITHOUT_TIME_ZONE =>
-          val d = argTypes(0).asInstanceOf[TimestampType]
-          new MaxAggFunction.TimestampMaxAggFunction(d)
-        case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-          val ltzType = argTypes(0).asInstanceOf[LocalZonedTimestampType]
-          new MaxAggFunction.TimestampLtzMaxAggFunction(ltzType)
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new MaxAggFunction.DecimalMaxAggFunction(d)
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+            TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+            TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+          new MaxAggFunction(argTypes(0))
         case t =>
           throw new TableException(
             s"Max aggregate function does not support type: ''$t''.\n" +
