@@ -531,6 +531,22 @@ class CalcITCase extends StreamingTestBase {
   }
 
   @Test
+  def testCastMapValueInsideArray(): Unit = {
+    val sqlQuery = "select ARRAY[" +
+      "MAP['A', 'AA']," +
+      "MAP['B', 'BB']," +
+      "MAP['C', CAST(NULL AS STRING)]]"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("[{A=AA}, {B=BB}, {C=null}]")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testCurrentWatermark(): Unit = {
     val rows = Seq(
       row(1, Instant.ofEpochSecond(644326662L)),

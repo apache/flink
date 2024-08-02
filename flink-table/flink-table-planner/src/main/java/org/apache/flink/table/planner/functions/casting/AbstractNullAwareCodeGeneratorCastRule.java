@@ -20,9 +20,11 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.isPrimitiveNullable;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveDefaultValue;
-import static org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType;
 
 /**
  * Base class for cast rules supporting code generation. This class inherits from {@link
@@ -52,21 +54,22 @@ abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
             String inputTerm,
             String inputIsNullTerm,
             LogicalType inputType,
-            LogicalType targetType) {
+            LogicalType targetType,
+            Function<CodeGeneratorCastRule.Context, String> nullTermDeclaration,
+            BiFunction<CodeGeneratorCastRule.Context, LogicalType, String> resultTermDeclaration) {
         final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
         final boolean isResultNullable = inputType.isNullable() || isPrimitiveNullable(targetType);
         String nullTerm;
         if (isResultNullable) {
-            nullTerm = context.declareVariable("boolean", "isNull");
+            nullTerm = nullTermDeclaration.apply(context);
             writer.assignStmt(nullTerm, inputIsNullTerm);
         } else {
             nullTerm = "false";
         }
 
         // Create the result value variable
-        final String returnTerm =
-                context.declareVariable(primitiveTypeTermForType(targetType), "result");
+        final String returnTerm = resultTermDeclaration.apply(context, targetType);
 
         // Generate the code block
         final String castCodeBlock =
