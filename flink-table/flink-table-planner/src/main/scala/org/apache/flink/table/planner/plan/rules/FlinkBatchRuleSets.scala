@@ -36,6 +36,7 @@ object FlinkBatchRuleSets {
     FlinkRewriteSubQueryRule.FILTER,
     FlinkSubQueryRemoveRule.FILTER,
     JoinConditionTypeCoerceRule.INSTANCE,
+    JoinConditionCommuteRule.INSTANCE,
     FlinkJoinPushExpressionsRule.INSTANCE
   )
 
@@ -87,6 +88,7 @@ object FlinkBatchRuleSets {
     SimplifyFilterConditionRule.INSTANCE,
     SimplifyJoinConditionRule.INSTANCE,
     JoinConditionTypeCoerceRule.INSTANCE,
+    JoinConditionCommuteRule.INSTANCE,
     CoreRules.JOIN_PUSH_EXPRESSIONS
   )
 
@@ -218,6 +220,8 @@ object FlinkBatchRuleSets {
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
     FlinkJoinToMultiJoinRule.INSTANCE,
+    // merge into to Optimize multiJoin
+    FlinkMultiJoinOptimizeBushyRule.INSTANCE,
     // merge project to MultiJoin
     CoreRules.PROJECT_MULTI_JOIN_MERGE,
     // merge filter to MultiJoin
