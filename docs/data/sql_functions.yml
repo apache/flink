@@ -305,7 +305,7 @@ string:
 
       E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)" returns "bar".
   - sql: REGEXP_INSTR(str, regex)
-    table: str.regexpInStr(regex)
+    table: str.regexpInstr(regex)
     description: |
       Returns the position of the first substring in str that matches regex.
       Result indexes begin at 1, 0 if there is no match.

@@ -33,7 +33,7 @@ import java.util.regex.PatternSyntaxException;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#REGEXP_INSTR}. */
 @Internal
-public class RegexpInStrFunction extends BuiltInScalarFunction {
+public class RegexpInstrFunction extends BuiltInScalarFunction {
 
     private static final ThreadLocalCache<String, Pattern> REGEXP_PATTERN_CACHE =
             new ThreadLocalCache<String, Pattern>() {
@@ -43,7 +43,7 @@ public class RegexpInStrFunction extends BuiltInScalarFunction {
                 }
             };
 
-    public RegexpInStrFunction(SpecializedContext context) {
+    public RegexpInstrFunction(SpecializedContext context) {
         super(BuiltInFunctionDefinitions.REGEXP_INSTR, context);
     }
 

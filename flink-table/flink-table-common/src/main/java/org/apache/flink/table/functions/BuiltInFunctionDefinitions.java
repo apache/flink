@@ -1117,7 +1117,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
                     .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.RegexpInStrFunction")
+                            "org.apache.flink.table.runtime.functions.scalar.RegexpInstrFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition FROM_BASE64 =

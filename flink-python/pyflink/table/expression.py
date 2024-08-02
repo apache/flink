@@ -1211,7 +1211,7 @@ class Expression(Generic[T]):
         Result indexes begin at 1, 0 if there is no match.
         In case of a malformed regex the function returns an error.
         """
-        return _binary_op("regexpInStr")(self, regex)
+        return _binary_op("regexpInstr")(self, regex)
 
     @property
     def from_base64(self) -> 'Expression[str]':

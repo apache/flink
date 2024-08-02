@@ -376,7 +376,7 @@ string:
       0 表示匹配整个正则表达式。此外，正则表达式匹配组索引不应超过定义的组数。
       例如 `REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)` 返回 `"bar"`。
   - sql: REGEXP_INSTR(str, regex)
-    table: str.regexpInStr(regex)
+    table: str.regexpInstr(regex)
     description: |
       返回 str 中第一个匹配 regex 的子字符串的索引。
       结果索引从 1 开始，如果匹配失败则返回 0。

@@ -1136,7 +1136,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * Result indexes begin at 1, 0 if there is no match. <br>
      * In case of a malformed {@code regex} the function returns an error.
      */
-    public OutType regexpInStr(InType regex) {
+    public OutType regexpInstr(InType regex) {
         return toApiSpecificExpression(
                 unresolvedCall(REGEXP_INSTR, toExpr(), objectToExpression(regex)));
     }
