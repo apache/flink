@@ -14,6 +14,8 @@
 # limitations under the License.
 
 name: "Build documentation"
+
+# Apache policy: never use 'pull_request_target' as a trigger
 on:
   schedule:
     - cron: '0 0 * * *' # Deploy every day
@@ -33,7 +35,7 @@ jobs:
           - release-1.18
           - release-1.17
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
       - name: Set branch environment variable
@@ -51,7 +53,7 @@ jobs:
         run: |
           docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_21_maven_386 bash -c "cd /root/flink && ./.github/workflows/docs.sh"
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@796cf0d5e4b535745ce49d7429f77cf39e25ef39 # v7.0.1
         with:
           switches: --archive --compress --delete
           path: docs/target/
@@ -62,7 +64,7 @@ jobs:
           remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
       - name: Upload documentation alias
         if: env.flink_alias != ''
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@796cf0d5e4b535745ce49d7429f77cf39e25ef39 # v7.0.1
         with:
           switches: --archive --compress --delete
           path: docs/target/
