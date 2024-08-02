@@ -74,20 +74,20 @@ public class AbstractStreamOperatorTest {
     }
 
     protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
-            createTestHarness(int maxParalelism, int numSubtasks, int subtaskIndex)
+            createTestHarness(int maxParallelism, int numSubtasks, int subtaskIndex)
                     throws Exception {
         TestOperator testOperator = new TestOperator();
         return new KeyedOneInputStreamOperatorTestHarness<>(
                 testOperator,
                 new TestKeySelector(),
                 BasicTypeInfo.INT_TYPE_INFO,
-                maxParalelism,
+                maxParallelism,
                 numSubtasks,
                 subtaskIndex);
     }
 
     protected <K, IN, OUT> KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> createTestHarness(
-            int maxParalelism,
+            int maxParallelism,
             int numSubtasks,
             int subtaskIndex,
             OneInputStreamOperator<IN, OUT> testOperator,
@@ -95,7 +95,7 @@ public class AbstractStreamOperatorTest {
             TypeInformation<K> keyTypeInfo)
             throws Exception {
         return new KeyedOneInputStreamOperatorTestHarness<>(
-                testOperator, keySelector, keyTypeInfo, maxParalelism, numSubtasks, subtaskIndex);
+                testOperator, keySelector, keyTypeInfo, maxParallelism, numSubtasks, subtaskIndex);
     }
 
     @Test

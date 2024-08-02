@@ -47,13 +47,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     @Override
     protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
-            createTestHarness(int maxParalelism, int numSubtasks, int subtaskIndex)
+            createTestHarness(int maxParallelism, int numSubtasks, int subtaskIndex)
                     throws Exception {
         return new KeyedOneInputStreamOperatorTestHarness<>(
                 new TestOperatorFactory(),
                 new TestKeySelector(),
                 BasicTypeInfo.INT_TYPE_INFO,
-                maxParalelism,
+                maxParallelism,
                 numSubtasks,
                 subtaskIndex);
     }
