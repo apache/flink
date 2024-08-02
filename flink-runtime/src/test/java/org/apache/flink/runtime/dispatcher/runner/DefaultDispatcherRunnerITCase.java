@@ -54,6 +54,7 @@ import org.apache.flink.runtime.util.BlobServerExtension;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -183,7 +184,7 @@ class DefaultDispatcherRunnerITCase {
                         new TestingDispatcherFactory(
                                 jobManagerRunnerFactory, cleanupRunnerFactory));
         jobGraphStore.start(null);
-        jobGraphStore.putJobGraph(jobGraph);
+        jobGraphStore.putJobGraph(jobGraph, Executors.directExecutor());
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 

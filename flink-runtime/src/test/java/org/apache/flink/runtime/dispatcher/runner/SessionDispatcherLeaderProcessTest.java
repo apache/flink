@@ -562,7 +562,8 @@ class SessionDispatcherLeaderProcessTest {
             // wait first for the dispatcher service to be created
             dispatcherLeaderProcess.getDispatcherGateway().get();
 
-            jobGraphStore.putJobGraph(JOB_GRAPH);
+            jobGraphStore.putJobGraph(
+                    JOB_GRAPH, org.apache.flink.util.concurrent.Executors.directExecutor());
             dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
 
             final JobGraph submittedJobGraph = submittedJobFuture.get();
@@ -591,7 +592,8 @@ class SessionDispatcherLeaderProcessTest {
             dispatcherLeaderProcess.getDispatcherGateway().get();
 
             // now add the job graph
-            jobGraphStore.putJobGraph(JOB_GRAPH);
+            jobGraphStore.putJobGraph(
+                    JOB_GRAPH, org.apache.flink.util.concurrent.Executors.directExecutor());
 
             dispatcherLeaderProcess.closeAsync();
 
@@ -622,7 +624,8 @@ class SessionDispatcherLeaderProcessTest {
             // wait first for the dispatcher service to be created
             dispatcherLeaderProcess.getDispatcherGateway().get();
 
-            jobGraphStore.putJobGraph(JOB_GRAPH);
+            jobGraphStore.putJobGraph(
+                    JOB_GRAPH, org.apache.flink.util.concurrent.Executors.directExecutor());
             dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
 
             assertThatFuture(fatalErrorHandler.getErrorFuture())
