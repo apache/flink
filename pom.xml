@@ -178,7 +178,7 @@ under the License.
 		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.10</hive.version>
 		<orc.version>1.5.6</orc.version>
-		<japicmp.referenceVersion>1.19.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>9.3</checkstyle.version>
 		<!-- can be removed with maven-spotless-plugin:2.38+ -->
@@ -2365,35 +2365,10 @@ under the License.
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
-								<exclude>org.apache.flink.api.common.state.AggregatingState</exclude>
-								<exclude>org.apache.flink.api.common.state.AppendingState</exclude>
-								<exclude>org.apache.flink.api.common.state.BroadcastState</exclude>
-								<exclude>org.apache.flink.api.common.state.ListState</exclude>
-								<exclude>org.apache.flink.api.common.state.MapState</exclude>
-								<exclude>org.apache.flink.api.common.state.MergingState</exclude>
-								<exclude>org.apache.flink.api.common.state.ReadOnlyBroadcastState</exclude>
-								<exclude>org.apache.flink.api.common.state.ReducingState</exclude>
-								<exclude>org.apache.flink.api.common.state.State</exclude>
-								<exclude>org.apache.flink.api.common.state.ValueState</exclude>
-								<exclude>org.apache.flink.api.common.functions.AggregateFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.ReduceFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.Function</exclude>
-								<exclude>org.apache.flink.api.java.functions.KeySelector</exclude>
-								<exclude>org.apache.flink.util.function.FunctionWithException</exclude>
-								<exclude>org.apache.flink.util.function.LongFunctionWithException</exclude>
-								<exclude>org.apache.flink.util.function.RunnableWithException</exclude>
-								<exclude>org.apache.flink.util.function.SerializableFunction</exclude>
-								<exclude>org.apache.flink.util.function.SupplierWithException</exclude>
-								<exclude>org.apache.flink.util.function.ThrowingConsumer</exclude>
-								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130 -->
+								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130, should be removed in 2.0 -->
 								<exclude>org.apache.flink.configuration.Configuration#getBytes(java.lang.String,byte[])</exclude>
 								<exclude>org.apache.flink.configuration.Configuration#setBytes(java.lang.String,byte[])</exclude>
-								<!-- Disable check for two sink methods. -->
-								<!-- TypeSerializer needs to be considered upgraded to Public. Tracked under FLINK-35566 -->
-								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#createInputSerializer()</exclude>
-								<!-- SinkV1 is deprecated but relies on an Experimental interface. Keeping this for legacy purposes  -->
-								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#metadataConsumer()</exclude>
-								<!-- FLINK-35812 move tuple interfaces into flink-core-api -->
+								<!-- FLINK-35812 move tuple interfaces into flink-core-api, should be removed in 2.0 -->
 								<exclude>org.apache.flink.api.java.tuple.*</exclude>
 								<exclude>org.apache.flink.types.NullFieldException</exclude>
 								<!-- MARKER: end exclusions -->
