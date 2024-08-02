@@ -224,15 +224,9 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         } catch (Exception e) {
             throw new RuntimeException("Failed tp create reader", e);
         }
-        reader.start();
         currentSourceIndex = index;
         currentReader = reader;
         availabilityFuture.complete(null);
-        LOG.debug(
-                "Reader started: subtask={} sourceIndex={} {}",
-                readerContext.getIndexOfSubtask(),
-                currentSourceIndex,
-                reader);
         // add restored splits
         if (!restoredSplits.isEmpty()) {
             List<HybridSourceSplit> splits = new ArrayList<>(restoredSplits.size());
@@ -246,5 +240,11 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
             }
             addSplits(splits);
         }
+        reader.start();
+        LOG.debug(
+                "Reader started: subtask={} sourceIndex={} {}",
+                readerContext.getIndexOfSubtask(),
+                currentSourceIndex,
+                reader);
     }
 }

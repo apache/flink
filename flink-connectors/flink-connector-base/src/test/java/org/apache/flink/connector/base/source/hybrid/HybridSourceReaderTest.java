@@ -36,6 +36,7 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.mock.Whitebox;
 
 import org.junit.Test;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.util.Collections;
@@ -278,6 +279,37 @@ public class HybridSourceReaderTest {
         assertThat(currentReader(reader)).isNotNull();
         assertThat(reader.snapshotState(1)).contains(hybridSplit);
 
+        reader.close();
+    }
+
+    @Test
+    public void testReaderInitializationSequence() throws Exception {
+        TestingReaderContext readerContext = new TestingReaderContext();
+        MockBaseSource source =
+                new MockBaseSource(1, 1, Boundedness.BOUNDED) {
+                    @Override
+                    public SourceReader<Integer, MockSourceSplit> createReader(
+                            SourceReaderContext readerContext) {
+                        return Mockito.spy(super.createReader(readerContext));
+                    }
+                };
+
+        HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
+        MockSourceSplit mockSplit = new MockSourceSplit(0, 0, 2147483647);
+        SwitchedSources switchedSources = new SwitchedSources();
+        switchedSources.put(0, source);
+        HybridSourceSplit hybridSplit = HybridSourceSplit.wrapSplit(mockSplit, 0, switchedSources);
+
+        reader.addSplits(Collections.singletonList(hybridSplit));
+        reader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
+        SourceReader<Integer, MockSourceSplit> underlyingReader = currentReader(reader);
+
+        InOrder orderVerifier = Mockito.inOrder(underlyingReader);
+        // splits should be added before the start of the underlying reader
+        orderVerifier.verify(underlyingReader).addSplits(Mockito.any());
+        orderVerifier.verify(underlyingReader).start();
         reader.close();
     }
 
