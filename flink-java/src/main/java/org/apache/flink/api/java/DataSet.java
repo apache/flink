@@ -415,6 +415,17 @@ public abstract class DataSet<T> {
      * @return A List containing the elements of the DataSet
      */
     public List<T> collect() throws Exception {
+        return collect("DataSet Collect");
+    }
+
+    /**
+     * Convenience method to get the elements of a DataSet as a List. As DataSet can contain a lot
+     * of data, this method should be used with caution.
+     *
+     * @param jobExecutionName Job name for this execution
+     * @return A List containing the elements of the DataSet
+     */
+    public List<T> collect(String jobExecutionName) throws Exception {
         final String id = new AbstractID().toString();
         final TypeSerializer<T> serializer =
                 getType()
@@ -422,7 +433,7 @@ public abstract class DataSet<T> {
                                 getExecutionEnvironment().getConfig().getSerializerConfig());
 
         this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
-        JobExecutionResult res = getExecutionEnvironment().execute();
+        JobExecutionResult res = getExecutionEnvironment().execute(jobExecutionName);
 
         ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
         if (accResult != null) {
