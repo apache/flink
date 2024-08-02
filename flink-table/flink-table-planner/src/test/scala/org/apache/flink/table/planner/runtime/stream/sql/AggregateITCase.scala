@@ -1995,4 +1995,132 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
       )
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @TestTemplate
+  def testGroupJsonObjectAggWithRetract(): Unit = {
+    val data = new mutable.MutableList[(Long, String, Long)]
+    for (_ <- 1 to 15) {
+      data += ((2L, "Hallo", 2L))
+    }
+    val sql =
+      s"""
+         |select
+         |   JSON_OBJECTAGG(key k value v)
+         |from (select
+         |             cast(SUM(a) as string) as k,t as v
+         |       from
+         |             Table6
+         |       group by t)
+         |""".stripMargin
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'c, 't)
+    tEnv.createTemporaryView("Table6", t)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected =
+      List(
+        "{\"30\":2}"
+      )
+    assertThat(sink.getRetractResults).isEqualTo(expected)
+  }
+
+  @TestTemplate
+  def testNestedGroupJsonObjectAggSimple(): Unit = {
+    val data = new mutable.MutableList[(Long, String, Long)]
+    for (_ <- 1 to 15) {
+      data += ((2L, "Hallo", 2L))
+    }
+
+    val sql =
+      s"""
+         |select
+         |   JSON_OBJECTAGG(key k value v)
+         |from (
+         |  select k, v from (
+         |    select
+         |             cast(SUM(a1) as string) as k,t1 as v
+         |       from
+         |             (select sum(a) as a1, sum(t) as t1 from Table6 group by c)
+         |       group by t1)
+         |  )
+         |""".stripMargin
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'c, 't)
+    tEnv.createTemporaryView("Table6", t)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected =
+      List(
+        "{\"30\":30}"
+      )
+    assertThat(sink.getRetractResults).isEqualTo(expected)
+  }
+
+  @TestTemplate
+  def testNestedGroupByJsonObjectAggWithSum(): Unit = {
+    val sink = new TestingRetractSink
+    val sql =
+      s"""
+         |SELECT
+         |    d, JSON_OBJECTAGG(key k value v)
+         |FROM (
+         |    SELECT
+         |        d, CAST(SUM(a1) AS STRING) AS k, t1 AS v
+         |    FROM (
+         |        SELECT d, SUM(e) AS a1, SUM(h) AS t1 FROM Table5 GROUP BY d
+         |    )
+         |    GROUP BY d, t1
+         |) GROUP BY d
+         |""".stripMargin
+
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    tEnv.createTemporaryView("Table5", t)
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "1,{\"1\":1}",
+      "2,{\"5\":3}",
+      "3,{\"15\":7}",
+      "4,{\"34\":6}",
+      "5,{\"65\":11}"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
+  }
+
+  @TestTemplate
+  def testNestedGroupByJsonObjectAggWithSumMax(): Unit = {
+    val sink = new TestingRetractSink
+    val sql =
+      s"""
+         |select
+         |    JSON_OBJECTAGG(key cast(max_e as string) value max_f)
+         |from (
+         |    SELECT
+         |    d,
+         |    MAX(sum_e) AS max_e,
+         |    MAX(sum_f) AS max_f
+         |FROM (
+         |    SELECT
+         |        d,
+         |        h,
+         |        SUM(e) AS sum_e,
+         |        SUM(f) As sum_f
+         |    FROM
+         |        Table5
+         |    GROUP BY
+         |        d, h
+         |  ) AS sub
+         |  GROUP BY d
+         |)
+         |""".stripMargin
+
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    tEnv.createTemporaryView("Table5", t)
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "{\"1\":0,\"17\":15,\"29\":27,\"3\":2,\"9\":7}"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
+  }
 }
