@@ -393,6 +393,7 @@ public class BinaryStringDataUtil {
      * <p>This code is mostly copied from LazyLong.parseLong in Hive.
      */
     public static long toLong(BinaryStringData str) throws NumberFormatException {
+        str = transformer(str);
         int sizeInBytes = str.getSizeInBytes();
         byte[] tmpBytes = getTmpBytes(str, sizeInBytes);
         if (sizeInBytes == 0) {
@@ -481,6 +482,8 @@ public class BinaryStringDataUtil {
      * performance reasons, like Hive does.
      */
     public static int toInt(BinaryStringData str) throws NumberFormatException {
+        str = transformer(str);
+
         int sizeInBytes = str.getSizeInBytes();
         byte[] tmpBytes = getTmpBytes(str, sizeInBytes);
         if (sizeInBytes == 0) {
@@ -574,10 +577,12 @@ public class BinaryStringDataUtil {
     }
 
     public static double toDouble(BinaryStringData str) throws NumberFormatException {
+        str = transformer(str);
         return Double.parseDouble(str.toString());
     }
 
     public static float toFloat(BinaryStringData str) throws NumberFormatException {
+        str = transformer(str);
         return Float.parseFloat(str.toString());
     }
 
@@ -1191,5 +1196,17 @@ public class BinaryStringDataUtil {
         } else {
             return str.toString();
         }
+    }
+
+    public static BinaryStringData transformer(BinaryStringData str) {
+        StringBuilder std = new StringBuilder();
+        for (int i = 0; i < (str.toString()).length(); i++) {
+            if (Character.isIdentifierIgnorable((str.toString()).charAt(i))) {
+                std.append((int) ((str.toString()).charAt(i)) + "");
+            } else {
+                std.append(str.toString().charAt(i) + "");
+            }
+        }
+        return new BinaryStringData(std.toString());
     }
 }
