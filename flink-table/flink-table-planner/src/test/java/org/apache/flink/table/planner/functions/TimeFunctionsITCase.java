@@ -22,6 +22,7 @@ import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,6 +38,7 @@ import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.SECOND;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
@@ -53,7 +55,8 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         extractTestCases(),
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
-                        floorTestCases())
+                        floorTestCases(),
+                        dateAddTestCases())
                 .flatMap(s -> s);
     }
 
@@ -733,5 +736,104 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
+    }
+
+    private Stream<TestSetSpec> dateAddTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATE_ADD)
+                        .onFieldsWithData(
+                                null,
+                                LocalDate.of(2024, 6, 26),
+                                LocalDateTime.of(2024, 6, 26, 1, 1, 1),
+                                Instant.parse("2024-06-26T01:01:01Z"),
+                                "2024-06-26 01:01:01")
+                        .andDataTypes(DATE(), DATE(), TIMESTAMP(), TIMESTAMP_LTZ(), STRING())
+                        // null
+                        .testResult($("f0").dateAdd(1), "DATE_ADD(f0, 1)", null, DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(null),
+                                "DATE_ADD(f1, NULL)",
+                                null,
+                                DATE().nullable())
+                        // overflow
+                        .testTableApiRuntimeError(
+                                $("f1").dateAdd(-9999999),
+                                DateTimeException.class,
+                                "Date result overflows, the valid range is from '0000-01-01' to '9999-12-31'.")
+                        .testSqlRuntimeError(
+                                "DATE_ADD(f1, -9999999)",
+                                DateTimeException.class,
+                                "Date result overflows, the valid range is from '0000-01-01' to '9999-12-31'.")
+                        .testTableApiRuntimeError(
+                                $("f1").dateAdd(9999999),
+                                DateTimeException.class,
+                                "Date result overflows, the valid range is from '0000-01-01' to '9999-12-31'.")
+                        .testSqlRuntimeError(
+                                "DATE_ADD(f1, 9999999)",
+                                DateTimeException.class,
+                                "Date result overflows, the valid range is from '0000-01-01' to '9999-12-31'.")
+                        // input cast
+                        .testResult(
+                                $("f2").dateAdd(2),
+                                "DATE_ADD(f2, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").dateAdd(2),
+                                "DATE_ADD(f3, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
+                        .testResult(
+                                $("f4").dateAdd(2),
+                                "DATE_ADD(f4, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
+                        // normal
+                        .testResult(
+                                $("f1").dateAdd(2),
+                                "DATE_ADD(f1, 2)",
+                                LocalDate.of(2024, 6, 28),
+                                DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(-2),
+                                "DATE_ADD(f1, -2)",
+                                LocalDate.of(2024, 6, 24),
+                                DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(6),
+                                "DATE_ADD(f1, 6)",
+                                LocalDate.of(2024, 7, 2),
+                                DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(-26),
+                                "DATE_ADD(f1, -26)",
+                                LocalDate.of(2024, 5, 31),
+                                DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(-1579),
+                                "DATE_ADD(f1, -1579)",
+                                LocalDate.of(2020, 2, 29),
+                                DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(612),
+                                "DATE_ADD(f1, 612)",
+                                LocalDate.of(2026, 2, 28),
+                                DATE().nullable())
+                        .testResult(
+                                $("f1").dateAdd(-23553),
+                                "DATE_ADD(f1, -23553)",
+                                LocalDate.of(1960, 1, 1),
+                                DATE().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATE_ADD, "Validation Error")
+                        .onFieldsWithData(LocalDate.of(2024, 6, 26))
+                        .andDataTypes(DATE())
+                        .testTableApiValidationError(
+                                $("f0").dateAdd(21474836470L),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "DATE_ADD(startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], numDays [<TINYINT> | <SMALLINT> | <INTEGER>])")
+                        .testSqlValidationError(
+                                "DATE_ADD(f0, 21474836470)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "DATE_ADD(startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], numDays [<TINYINT> | <SMALLINT> | <INTEGER>])"));
     }
 }

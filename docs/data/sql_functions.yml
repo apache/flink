@@ -548,6 +548,14 @@ temporal:
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
       ```
+  - sql: DATE_ADD(startDate, numDays)
+    table: startDate.dateAdd(numDays)
+    description: |
+      startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], numDays [<TINYINT> | <SMALLINT> | <INTEGER>]
+      Returns a DATE, null if any of arguments are null.
+      Returns the date numDays after startDate.
+      If numDays is negative, -numDays are subtracted from startDate.
+      If the result date overflows, the function raises an error.
 
 conditional:
   - sql: |

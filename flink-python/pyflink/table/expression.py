@@ -1439,6 +1439,14 @@ class Expression(Generic[T]):
             return _binary_op("ceil")(
                 self, time_interval_unit._to_j_time_interval_unit())
 
+    def date_add(self, num_days) -> 'Expression':
+        """
+        Returns the date numDays after startDate.
+        If numDays is negative, -numDays are subtracted from startDate.
+        If the result date overflows, the function raises an error.
+        """
+        return _binary_op("dateAdd")(self, num_days)
+
     # ---------------------------- advanced type helper functions -----------------------------
 
     def get(self, name_or_index: Union[str, int]) -> 'Expression':
