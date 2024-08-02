@@ -222,7 +222,7 @@ class RestClusterClientCheckpointTriggerTest {
         return new RestClusterClient<>(
                 clientConfig,
                 new RestClient(REST_CONFIG, executor),
-                StandaloneClusterId.getInstance(),
+                StandaloneClusterId.fromConfiguration(clientConfig),
                 (attempt) -> 0);
     }
 }
