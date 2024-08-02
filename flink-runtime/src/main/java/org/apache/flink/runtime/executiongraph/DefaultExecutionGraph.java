@@ -1156,13 +1156,23 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         // now do the actual state transition
         if (state == current) {
             state = newState;
-            LOG.info(
-                    "Job {} ({}) switched from state {} to {}.",
-                    getJobName(),
-                    getJobID(),
-                    current,
-                    newState,
-                    error);
+            if (newState == JobStatus.FAILED) {
+                LOG.warn(
+                        "Job {} ({}) switched from state {} to {}.",
+                        getJobName(),
+                        getJobID(),
+                        current,
+                        newState,
+                        error);
+            } else {
+                LOG.info(
+                        "Job {} ({}) switched from state {} to {}.",
+                        getJobName(),
+                        getJobID(),
+                        current,
+                        newState,
+                        error);
+            }
 
             stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
             notifyJobStatusChange(current, newState, error);
