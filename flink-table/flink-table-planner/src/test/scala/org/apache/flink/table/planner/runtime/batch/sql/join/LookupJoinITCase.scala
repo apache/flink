@@ -23,6 +23,7 @@ import org.apache.flink.table.connector.source.lookup.LookupOptions.{LookupCache
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.plan.utils.CustomShuffleTableFunction
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
@@ -84,8 +85,9 @@ class LookupJoinITCase extends BatchTestBase {
     createScanTable("T", data)
     createScanTable("nullableT", dataWithNull)
 
-    createLookupTable("userTable", userData)
-    createLookupTable("userTableWithNull", userDataWithNull)
+    createLookupTable("userTable", userData, enableCustomShuffle = false)
+    createLookupTable("user_table_custom_shuffle", userData, enableCustomShuffle = true)
+    createLookupTable("userTableWithNull", userDataWithNull, enableCustomShuffle = false)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
 
     // TODO: enable object reuse until [FLINK-12351] is fixed.
@@ -102,7 +104,10 @@ class LookupJoinITCase extends BatchTestBase {
     }
   }
 
-  private def createLookupTable(tableName: String, data: List[Row]): Unit = {
+  private def createLookupTable(
+      tableName: String,
+      data: List[Row],
+      enableCustomShuffle: Boolean): Unit = {
     if (legacyTableSource) {
       val userSchema = TableSchema
         .builder()
@@ -132,20 +137,37 @@ class LookupJoinITCase extends BatchTestBase {
              |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
              |""".stripMargin
         else ""
+      if (!enableCustomShuffle) {
+        tEnv.executeSql(s"""
+                           |CREATE TABLE $tableName (
+                           |  `age` INT,
+                           |  `id` BIGINT,
+                           |  `name` STRING
+                           |) WITH (
+                           |  $cacheOptions
+                           |  'connector' = 'values',
+                           |  'data-id' = '$dataId',
+                           |  'async' = '$isAsyncMode',
+                           |  'bounded' = 'true'
+                           |)
+                           |""".stripMargin)
+      } else {
+        tEnv.executeSql(
+          s"""
+             |CREATE TABLE $tableName (
+             |  `age` INT,
+             |  `id` BIGINT,
+             |  `name` STRING
+             |) WITH (
+             |  'connector' = 'values',
+             |  'enable-custom-shuffle' = 'true',
+             |  'data-id' = '$dataId',
+             |  'bounded' = 'true',
+             |  'lookup-function-class' = '${new CustomShuffleTableFunction().getClass.getName}'
+             |)
+             |""".stripMargin)
+      }
 
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING
-                         |) WITH (
-                         |  $cacheOptions
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId',
-                         |  'async' = '$isAsyncMode',
-                         |  'bounded' = 'true'
-                         |)
-                         |""".stripMargin)
     }
   }
 
@@ -223,6 +245,21 @@ class LookupJoinITCase extends BatchTestBase {
       BatchTestBase.row(1, 12, "Julian", "Julian"),
       BatchTestBase.row(2, 15, "Hello", "Jark"),
       BatchTestBase.row(3, 15, "Fabian", "Fabian"))
+    checkResult(sql, expected)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithCustomShuffle(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT T.id, D.name FROM T JOIN user_table_custom_shuffle " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Hello' AND D.age = 33"
+    val expected =
+      Seq(
+        BatchTestBase.row(1, "Hello"),
+        BatchTestBase.row(2, "Hello"),
+        BatchTestBase.row(3, "Hello"),
+        BatchTestBase.row(8, "Hello"),
+        BatchTestBase.row(9, "Hello"))
     checkResult(sql, expected)
   }
 

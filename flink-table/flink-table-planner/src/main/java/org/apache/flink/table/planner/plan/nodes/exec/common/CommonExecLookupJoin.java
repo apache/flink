@@ -32,7 +32,9 @@ import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
@@ -97,6 +99,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ENABLE_LOOKUP_CUSTOM_SHUFFLE;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -252,23 +255,31 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         ResultRetryStrategy retryStrategy =
                 retryOptions != null ? retryOptions.toRetryStrategy() : null;
 
+        // Try to apply the custom shuffle.
+        boolean tryApplyCustomShuffle =
+                shouldApplyCustomShuffle(config, temporalTable, upsertMaterialize);
         UserDefinedFunction lookupFunction =
                 LookupJoinUtil.getLookupFunction(
                         temporalTable,
                         lookupKeys.keySet(),
                         planner.getFlinkContext().getClassLoader(),
                         isAsyncEnabled,
-                        retryStrategy);
+                        retryStrategy,
+                        tryApplyCustomShuffle);
+        Transformation<RowData> inputTransformation =
+                (Transformation<RowData>) inputEdge.translateToPlan(planner);
+        if (tryApplyCustomShuffle) {
+            inputTransformation =
+                    LookupJoinUtil.tryApplyCustomShufflePartitioner(
+                            planner, temporalTable, inputRowType, lookupKeys, inputTransformation);
+        }
+
         UserDefinedFunctionHelper.prepareInstance(config, lookupFunction);
 
         boolean isLeftOuterJoin = joinType == FlinkJoinType.LEFT;
         if (isAsyncEnabled) {
             assert lookupFunction instanceof AsyncTableFunction;
         }
-
-        Transformation<RowData> inputTransformation =
-                (Transformation<RowData>) inputEdge.translateToPlan(planner);
-
         if (upsertMaterialize) {
             // upsertMaterialize only works on sync lookup mode, async lookup is unsupported.
             assert !isAsyncEnabled && !inputChangelogMode.containsOnly(RowKind.INSERT);
@@ -680,5 +691,17 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             "table [%s] is neither TableSourceTable not LegacyTableSourceTable.",
                             StringUtils.join(temporalTable.getQualifiedName(), ".")));
         }
+    }
+
+    private boolean shouldApplyCustomShuffle(
+            ExecNodeConfig config, RelOptTable table, boolean upsertMaterialize) {
+        if (config.get(TABLE_EXEC_ENABLE_LOOKUP_CUSTOM_SHUFFLE)) {
+            if (table instanceof TableSourceTable && !upsertMaterialize) {
+                DynamicTableSource dynamicTableSource = ((TableSourceTable) table).tableSource();
+                return dynamicTableSource instanceof LookupTableSource
+                        && dynamicTableSource instanceof SupportsLookupCustomShuffle;
+            }
+        }
+        return false;
     }
 }

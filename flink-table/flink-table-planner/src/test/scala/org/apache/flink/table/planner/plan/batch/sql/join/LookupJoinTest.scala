@@ -75,6 +75,18 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
                           |  'bounded' = 'true'
                           |)
                           |""".stripMargin)
+      testUtil.addTable("""
+                          |CREATE TABLE LookupTableWithCustomShuffle (
+                          |  `id` INT,
+                          |  `name` STRING,
+                          |  `age` INT,
+                          |  PRIMARY KEY(id) NOT ENFORCED
+                          |) WITH (
+                          |  'connector' = 'values',
+                          |  'bounded' = 'true',
+                          |  'enable-custom-shuffle' = 'true'
+                          |)
+                          |""".stripMargin)
     }
   }
 
@@ -244,6 +256,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |WHERE T.c > 1000
       """.stripMargin
     testUtil.verifyExecPlan(sql)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithCustomShuffle(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = "SELECT * FROM MyTable AS T JOIN LookupTableWithCustomShuffle " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    testUtil.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
   @TestTemplate
