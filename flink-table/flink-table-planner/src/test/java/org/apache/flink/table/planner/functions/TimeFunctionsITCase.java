@@ -42,6 +42,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.dateDiff;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
 
 /** Test time-related built-in functions. */
@@ -53,7 +54,8 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         extractTestCases(),
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
-                        floorTestCases())
+                        floorTestCases(),
+                        dateDiffTestCases())
                 .flatMap(s -> s);
     }
 
@@ -733,5 +735,47 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
+    }
+
+    private Stream<TestSetSpec> dateDiffTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATEDIFF)
+                        .onFieldsWithData(
+                                LocalDateTime.of(2007, 12, 31, 23, 59, 59),
+                                LocalDate.of(2007, 12, 30),
+                                LocalDateTime.of(2010, 11, 30, 23, 59, 59),
+                                LocalDate.of(2010, 12, 31),
+                                null)
+                        .andDataTypes(
+                                TIMESTAMP().notNull(),
+                                DATE().notNull(),
+                                TIMESTAMP().notNull(),
+                                DATE().notNull(),
+                                TIMESTAMP().nullable())
+                        .testResult(
+                                dateDiff($("f0"), $("f1")), "DATEDIFF (f0, f1)", 1, INT().notNull())
+                        .testResult(
+                                dateDiff($("f2"), $("f3")),
+                                "DATEDIFF (f2, f3)",
+                                -31,
+                                INT().notNull())
+                        .testResult(
+                                dateDiff($("f0"), $("f0")), "DATEDIFF (f0, f0)", 0, INT().notNull())
+                        .testResult(
+                                dateDiff($("f0"), $("f2")),
+                                "DATEDIFF (f0, f2)",
+                                -1065,
+                                INT().notNull())
+                        .testResult(
+                                dateDiff($("f3"), $("f1")),
+                                "DATEDIFF (f3, f1)",
+                                1097,
+                                INT().notNull())
+                        // arg is null.
+                        .testResult(
+                                dateDiff($("f0"), $("f4")),
+                                "DATEDIFF (f0, f4)",
+                                null,
+                                INT().nullable()));
     }
 }
