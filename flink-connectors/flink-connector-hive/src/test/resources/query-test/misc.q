@@ -39,3 +39,7 @@ select coalesce('abc',1);
 select default.hiveudf(y) from foo;
 
 [+I[1], +I[2], +I[3], +I[4], +I[5]]
+
+select count(key) from (select null as key from src)src;
+
+[+I[0]]
