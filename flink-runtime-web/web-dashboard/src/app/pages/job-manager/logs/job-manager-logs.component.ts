@@ -40,7 +40,10 @@ import {
   styleUrls: ['./job-manager-logs.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  standalone: true,
+  host: {
+    '[class.full-screen]': 'isFullScreen'
+  },
 })
 export class JobManagerLogsComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_log`;
@@ -48,6 +51,7 @@ export class JobManagerLogsComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions = flinkEditorOptions;
   public logs = '';
   public loading = true;
+  public isFullScreen = false;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -84,5 +88,9 @@ export class JobManagerLogsComponent implements OnInit, OnDestroy {
         this.logs = data;
         this.cdr.markForCheck();
       });
+  }
+
+  public toggleFullScreen(fullScreen: boolean): void {
+    this.isFullScreen = fullScreen;
   }
 }
