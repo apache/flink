@@ -29,7 +29,8 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nonnull;
 
@@ -45,8 +46,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DeclarativeSlotPoolBridgePreferredAllocationsTest {
 
-    @Test
-    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount() throws Exception {
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest(name = "slotBatchAllocatable: {0}")
+    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount(boolean slotBatchAllocatable)
+            throws Exception {
         final DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 new DeclarativeSlotPoolBridge(
                         new JobID(),
@@ -57,6 +60,7 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
                         TestingUtils.infiniteDuration(),
                         PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
                         Duration.ZERO,
+                        slotBatchAllocatable,
                         forMainThread());
 
         declarativeSlotPoolBridge.start(JobMasterId.generate(), "localhost");

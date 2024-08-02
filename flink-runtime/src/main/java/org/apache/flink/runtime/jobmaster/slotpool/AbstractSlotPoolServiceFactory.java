@@ -37,16 +37,20 @@ public abstract class AbstractSlotPoolServiceFactory implements SlotPoolServiceF
 
     @Nonnull protected final Duration slotRequestMaxInterval;
 
+    protected final boolean slotBatchAllocatable;
+
     protected AbstractSlotPoolServiceFactory(
             @Nonnull Clock clock,
             @Nonnull Duration rpcTimeout,
             @Nonnull Duration slotIdleTimeout,
             @Nonnull Duration batchSlotTimeout,
-            @Nonnull Duration slotRequestMaxInterval) {
+            @Nonnull Duration slotRequestMaxInterval,
+            boolean slotBatchAllocatable) {
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
         this.slotIdleTimeout = slotIdleTimeout;
         this.batchSlotTimeout = batchSlotTimeout;
         this.slotRequestMaxInterval = slotRequestMaxInterval;
+        this.slotBatchAllocatable = slotBatchAllocatable;
     }
 }

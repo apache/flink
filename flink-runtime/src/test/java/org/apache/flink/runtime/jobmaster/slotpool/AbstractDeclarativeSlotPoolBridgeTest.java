@@ -51,37 +51,51 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
     @Parameter(1)
     protected Duration slotRequestMaxInterval;
 
-    @Parameters(name = "requestSlotMatchingStrategy: {0}, slotRequestMaxInterval: {1}")
+    @Parameter(2)
+    boolean slotBatchAllocatable;
+
+    @Parameters(
+            name =
+                    "requestSlotMatchingStrategy: {0}, slotRequestMaxInterval: {1}, slotBatchAllocatable: {2}")
     private static Collection<Object[]> data() {
         return Arrays.asList(
-                new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO},
-                new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(50)},
+                new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false},
+                new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, true},
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO
+                    SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(50)
+                    SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), true
+                },
+                new Object[] {
+                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false
+                },
+                new Object[] {
+                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, true
+                },
+                new Object[] {
+                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    Duration.ofMillis(20),
+                    false
+                },
+                new Object[] {
+                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    Duration.ofMillis(20),
+                    true
                 });
     }
 
     @Nonnull
     DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge(
-            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
-            RequestSlotMatchingStrategy requestSlotMatchingStrategy,
-            Duration slotRequestMaxInterval) {
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
         return createDeclarativeSlotPoolBridge(
-                declarativeSlotPoolFactory,
-                requestSlotMatchingStrategy,
-                slotRequestMaxInterval,
-                componentMainThreadExecutor);
+                declarativeSlotPoolFactory, componentMainThreadExecutor);
     }
 
     @Nonnull
     DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge(
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
-            RequestSlotMatchingStrategy requestSlotMatchingStrategy,
-            Duration slotRequestMaxInterval,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new DeclarativeSlotPoolBridge(
                 JOB_ID,
                 declarativeSlotPoolFactory,
@@ -91,7 +105,8 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                 Duration.ofSeconds(20),
                 requestSlotMatchingStrategy,
                 slotRequestMaxInterval,
-                mainThreadExecutor);
+                slotBatchAllocatable,
+                componentMainThreadExecutor);
     }
 
     static PhysicalSlot createAllocatedSlot(AllocationID allocationID) {
