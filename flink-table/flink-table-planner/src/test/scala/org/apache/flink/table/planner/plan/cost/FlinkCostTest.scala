@@ -87,6 +87,12 @@ class FlinkCostTest {
     val cost4 = FlinkCost.FACTORY.makeCost(100.0, 1000.0, 50.0, 300.0, 200.0)
     assertFalse(cost1.isLe(cost4))
     assertTrue(cost4.isLe(cost1))
+
+    val cost5 =
+      FlinkCost.FACTORY.makeCost(100.0, 1000.0, 0.0, 3.394292742113678e9, 4.944093593596532e9)
+    val cost6 =
+      FlinkCost.FACTORY.makeCost(100.0, 1000.0, 0.0, 3.3942927421136775e9, 4.944093593596532e9)
+    assertFalse(cost5.isLt(cost6))
   }
 
   @Test
