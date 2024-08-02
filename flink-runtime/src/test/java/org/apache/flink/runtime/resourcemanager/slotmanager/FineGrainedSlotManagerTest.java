@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.DirectComponentMainThreadExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
@@ -88,7 +90,21 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
     void testCloseAfterSuspendDoesNotThrowException() throws Exception {
         new Context() {
             {
-                runTest(() -> getSlotManager().suspend());
+                runTest(() -> runInMainThreadAndWait(getSlotManager()::suspend));
+            }
+        };
+    }
+
+    @Test
+    void testRestartAfterSuspend() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            runInMainThreadAndWait(() -> getSlotManager().suspend());
+
+                            startSlotManagerInMainThread();
+                        });
             }
         };
     }
@@ -526,6 +542,84 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                         });
             }
         };
+    }
+
+    @Test
+    void testScheduledRequirementCheckBeingCancelled() throws Exception {
+        testScheduledTaskIsCancelledAfterClose(
+                // no side-effects are monitored for now
+                (context, callCounter) -> {},
+                context -> context.getSlotManager().triggerResourceRequirementsCheck(),
+                // no side-effects are monitored
+                0,
+                // the reconciliation check is scheduled in the start method aside from the logic
+                // tested in here
+                2);
+    }
+
+    @Test
+    void testScheduledResourceDeclarationCheckBeingCancelled() throws Exception {
+        testScheduledTaskIsCancelledAfterClose(
+                (context, callCounter) ->
+                        context.resourceAllocatorBuilder
+                                .setDeclareResourceNeededConsumer(
+                                        ignoredDeclarations -> callCounter.incrementAndGet())
+                                .setIsSupportedSupplier(() -> true),
+                context -> context.getSlotManager().declareNeededResourcesWithDelay(),
+                // the task should be triggered but never called before the close call
+                0,
+                // the reconciliation check is scheduled in the start method aside from the logic
+                // tested in here
+                2);
+    }
+
+    @Test
+    void testScheduledClusterReconciliationCheckBeingCancelled() throws Exception {
+        testScheduledTaskIsCancelledAfterClose(
+                (context, callCounter) ->
+                        context.resourceAllocationStrategyBuilder
+                                .setTryReleaseUnusedResourcesFunction(
+                                        taskManagerTracker -> {
+                                            callCounter.incrementAndGet();
+                                            return ResourceReconcileResult.builder().build();
+                                        }),
+                // nothing to do here because the reconciliation is triggered during start
+                context -> {},
+                1,
+                1);
+    }
+
+    private void testScheduledTaskIsCancelledAfterClose(
+            BiConsumer<Context, AtomicInteger> sideEffectMonitoring,
+            Consumer<Context> triggerScheduledTask,
+            int expectedCallCount,
+            int expectedScheduledTaskCount)
+            throws Exception {
+        final DirectComponentMainThreadExecutor testSpecificMainThreadExecutor =
+                new DirectComponentMainThreadExecutor();
+        final AtomicInteger callCount = new AtomicInteger();
+        new Context() {
+            {
+                mainThreadExecutor = testSpecificMainThreadExecutor;
+                sideEffectMonitoring.accept(this, callCount);
+                runTest(() -> triggerScheduledTask.accept(this));
+            }
+        };
+
+        assertThat(testSpecificMainThreadExecutor.getScheduledTasks())
+                .hasSize(expectedScheduledTaskCount);
+        assertThat(testSpecificMainThreadExecutor.getScheduledTasks())
+                .as("Any scheduled task should be cancelled.")
+                .satisfies(
+                        scheduledTasks ->
+                                scheduledTasks.forEach(
+                                        ft -> assertThat(ft.isCancelled()).isTrue()));
+        testSpecificMainThreadExecutor.triggerAllScheduledTasks();
+
+        assertThat(callCount.get())
+                .as(
+                        "No side effects should appear due to hanging scheduled tasks after the SlotManager instance is closed.")
+                .isEqualTo(expectedCallCount);
     }
 
     @Test

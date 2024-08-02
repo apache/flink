@@ -44,14 +44,18 @@ public class TestingUtils {
     public static final Time TIMEOUT = Time.minutes(1L);
     public static final Duration DEFAULT_ASK_TIMEOUT = Duration.ofSeconds(200);
 
+    /**
+     * {@code Duration} that can be used for mimicking an "infinite" amount of time. It translates
+     * to ~24 days.
+     *
+     * <p>{@code Integer.MAX_VALUE} is used here because Apache Pekko saves its tickCount in integer
+     * which results in a hard limit for Pekko-related scenarios. But the maximum of 24 days is
+     * still a reasonable enough boundary to simulate infinity.
+     */
+    public static final Duration INFINITE = Duration.ofMillis(Integer.MAX_VALUE);
+
     public static Time infiniteTime() {
         return Time.milliseconds(Integer.MAX_VALUE);
-    }
-
-    public static Duration infiniteDuration() {
-        // we cannot use Long.MAX_VALUE because the Duration stores it in nanosecond resolution and
-        // calculations will easily cause overflows --> 1 year should be long enough for "infinity"
-        return Duration.ofDays(365L);
     }
 
     public static TestExecutorExtension<ScheduledExecutorService> defaultExecutorExtension() {

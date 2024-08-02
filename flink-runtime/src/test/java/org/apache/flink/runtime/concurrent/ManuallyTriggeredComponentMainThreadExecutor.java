@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import java.time.Duration;
+
 /** Testing ComponentMainThreadExecutor which can be manually triggered. */
 public class ManuallyTriggeredComponentMainThreadExecutor
         extends ManuallyTriggeredScheduledExecutorService implements ComponentMainThreadExecutor {
@@ -34,8 +36,8 @@ public class ManuallyTriggeredComponentMainThreadExecutor
     }
 
     @Override
-    public void trigger() {
+    public void trigger(Duration timeout) {
         assertRunningInMainThread();
-        super.trigger();
+        super.trigger(timeout);
     }
 }
