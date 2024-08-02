@@ -1069,17 +1069,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // can directly add positions into corDefOutputs since join
         // does not change the output ordering from the inputs.
-        RelNode valueGen =
-                requireNonNull(
-                        createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs),
-                        "createValueGenerator(...) is null");
+        final RelNode valueGen =
+                createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs);
+        requireNonNull(valueGen, "valueGen");
 
-        RelNode join =
-                relBuilder
-                        .push(frame.r)
-                        .push(valueGen)
-                        .join(JoinRelType.INNER, relBuilder.literal(true), ImmutableSet.of())
-                        .build();
+        RelNode join = relBuilder.push(frame.r).push(valueGen).join(JoinRelType.INNER).build();
 
         // Join or Filter does not change the old input ordering. All
         // input fields from newLeftInput (i.e. the original input to the old
@@ -1822,10 +1816,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
         @Override
         public RexNode visitLiteral(RexLiteral literal) {
             // Use nullIndicator to decide whether to project null.
-            // Do nothing if the literal is null.
+            // Do nothing if the literal is null or symbol.
             if (!RexUtil.isNull(literal)
                     && projectPulledAboveLeftCorrelator
-                    && (nullIndicator != null)) {
+                    && (nullIndicator != null)
+                    && !RexUtil.isSymbolLiteral(literal)) {
                 return createCaseExpression(nullIndicator, null, literal);
             }
             return literal;

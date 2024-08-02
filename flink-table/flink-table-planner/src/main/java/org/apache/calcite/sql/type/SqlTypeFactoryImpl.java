@@ -122,6 +122,12 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
     }
 
     @Override
+    public RelDataType createMeasureType(RelDataType valueType) {
+        MeasureSqlType newType = MeasureSqlType.create(valueType);
+        return canonize(newType);
+    }
+
+    @Override
     public RelDataType createSqlIntervalType(SqlIntervalQualifier intervalQualifier) {
         RelDataType newType = new IntervalSqlType(typeSystem, intervalQualifier, false);
         return canonize(newType);
@@ -473,9 +479,7 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
                 }
 
                 // FLINK MODIFICATION BEGIN
-                // in case we compare TIME(STAMP) and TIME(STAMP)_LTZ we should adjust the precision
-                // as well
-                if (type.getSqlTypeName().getFamily() == resultType.getSqlTypeName().getFamily()
+                if (type.getSqlTypeName() == resultType.getSqlTypeName()
                         && type.getSqlTypeName().allowsPrec()
                         && type.getPrecision() != resultType.getPrecision()) {
                     final int precision =
