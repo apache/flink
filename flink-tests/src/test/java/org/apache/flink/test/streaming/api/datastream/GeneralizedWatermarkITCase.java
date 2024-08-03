@@ -105,8 +105,6 @@ class GeneralizedWatermarkITCase {
             for (LongWatermarkDeclaration watermarkDeclaration : watermarkDeclarations) {
                 ctx.getWatermarkManager().emitWatermark(watermarkDeclaration.createWatermark(999));
             }
-
-            //            ctx.getWatermarkManager().emitWatermark(watermark);
         }
 
         @Override

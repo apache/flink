@@ -18,16 +18,19 @@
 
 package org.apache.flink.streaming.api.watermark;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.watermark.DefaultLongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.Watermarks;
 
+@Experimental
 public class WatermarkBuilder {
 
     public static LongWatermarkBuilder withLongWatermark() {
         return new LongWatermarkBuilder();
     }
 
+    @Experimental
     public static class LongWatermarkBuilder {
         private Watermarks.NumericWatermarkComparison watermarkComparison =
                 Watermarks.NumericWatermarkComparison.MAX;

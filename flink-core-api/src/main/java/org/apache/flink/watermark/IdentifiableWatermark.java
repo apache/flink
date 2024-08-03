@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.watermark;
+package org.apache.flink.watermark;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 
 import java.io.Serializable;
 
@@ -26,7 +28,7 @@ import java.io.Serializable;
  * This class defines watermark handling policy for ProcessOperator. Note that implementations of
  * this interface must ensure to provide the default constructor.
  */
-@Experimental
+@Internal
 public interface IdentifiableWatermark extends Serializable {
     String getWatermarkIdentifier();
 
