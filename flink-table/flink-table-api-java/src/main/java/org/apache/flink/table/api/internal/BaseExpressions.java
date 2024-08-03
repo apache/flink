@@ -76,6 +76,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ATAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AVG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
@@ -1254,6 +1255,17 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns a string that removes the right whitespaces from the given string. */
     public OutType rtrim() {
         return toApiSpecificExpression(unresolvedCall(RTRIM, toExpr()));
+    }
+
+    /** Returns a string that removes the left and right whitespaces from the given string. */
+    public OutType btrim() {
+        return toApiSpecificExpression(unresolvedCall(BTRIM, toExpr()));
+    }
+
+    /** Returns a string that removes the left and right chars in trimStr from the given string. */
+    public OutType btrim(InType trimStr) {
+        return toApiSpecificExpression(
+                unresolvedCall(BTRIM, toExpr(), objectToExpression(trimStr)));
     }
 
     /** Returns a string that repeats the base string n times. */

@@ -274,6 +274,12 @@ string:
   - sql: RTRIM(string)
     table: STRING.rtrim()
     description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+  - sql: BTRIM(str[, trimStr])
+    table: str.btrim([trimStr])
+    description: |
+      Removes any leading and trailing characters within trimStr from str. trimStr is set to a space character by default.
+      str <CHAR | VARCHAR>[, trimStr <CHAR | VARCHAR>]
+      Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".

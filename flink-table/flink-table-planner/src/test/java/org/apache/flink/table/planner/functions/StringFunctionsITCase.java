@@ -32,7 +32,8 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.concat(regexpExtractTestCases(), translateTestCases());
+        return Stream.of(regexpExtractTestCases(), translateTestCases(), bTrimTestCases())
+                .flatMap(s -> s);
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {
@@ -191,5 +192,71 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TRANSLATE(f0, '3', '5')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "TRANSLATE3(expr <CHARACTER_STRING>, fromStr <CHARACTER_STRING>, toStr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> bTrimTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BTRIM)
+                        .onFieldsWithData(null, "  \uD83D\uDE00www.apache.org  \f   ")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        // null input
+                        .testResult($("f0").btrim(), "BTRIM(f0)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f0").btrim($("f1")), "BTRIM(f0, f1)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f1").btrim($("f0")), "BTRIM(f1, f0)", null, DataTypes.STRING())
+                        // special chars
+                        .testResult(
+                                $("f1").btrim(" \f\uD83D\uDE00"),
+                                "BTRIM(f1, ' \f\uD83D\uDE00')",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").btrim("\uD83D\uDE00 "),
+                                "BTRIM(f1, '\uD83D\uDE00 ')",
+                                "www.apache.org  \f",
+                                DataTypes.STRING())
+                        // return type
+                        .testResult(
+                                lit("  www.apache.org  ").btrim(),
+                                "BTRIM('  www.apache.org  ')",
+                                "www.apache.org",
+                                DataTypes.STRING().notNull())
+                        // normal cases
+                        .testResult(
+                                $("f1").btrim(),
+                                "BTRIM(f1)",
+                                "\uD83D\uDE00www.apache.org  \f",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").btrim("\f"),
+                                "BTRIM(f1, '\f')",
+                                "  \uD83D\uDE00www.apache.org  \f   ",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").btrim($("f1")), "BTRIM(f1, f1)", "", DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BTRIM, "Validation Error")
+                        .onFieldsWithData(100, "123")
+                        .andDataTypes(DataTypes.INT(), DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").btrim(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BTRIM(str <CHARACTER_STRING>)\n"
+                                        + "BTRIM(str <CHARACTER_STRING>, trimStr <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "BTRIM(f0)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BTRIM(str <CHARACTER_STRING>)\n"
+                                        + "BTRIM(str <CHARACTER_STRING>, trimStr <CHARACTER_STRING>)")
+                        .testTableApiValidationError(
+                                $("f1").btrim($("f0")),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BTRIM(str <CHARACTER_STRING>)\n"
+                                        + "BTRIM(str <CHARACTER_STRING>, trimStr <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "BTRIM(f1, f0)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BTRIM(str <CHARACTER_STRING>)\n"
+                                        + "BTRIM(str <CHARACTER_STRING>, trimStr <CHARACTER_STRING>)"));
     }
 }

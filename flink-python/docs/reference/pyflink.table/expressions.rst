@@ -194,6 +194,7 @@ string functions
     Expression.parse_url
     Expression.ltrim
     Expression.rtrim
+    Expression.btrim
     Expression.repeat
     Expression.over
     Expression.reverse

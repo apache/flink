@@ -1322,6 +1322,16 @@ class Expression(Generic[T]):
         """
         return _unary_op("rtrim")(self)
 
+    def btrim(self, trim_str=None) -> 'Expression':
+        """
+        Removes any leading and trailing characters within trim_str from str.
+        trim_str is set to a space character by default.
+        """
+        if trim_str is None:
+            return _unary_op("btrim")(self)
+        else:
+            return _binary_op("btrim")(self, trim_str)
+
     def repeat(self, n: Union[int, 'Expression[int]']) -> 'Expression[str]':
         """
         Returns a string that repeats the base string n times.

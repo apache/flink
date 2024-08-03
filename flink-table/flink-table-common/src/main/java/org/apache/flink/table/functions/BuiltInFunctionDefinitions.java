@@ -1279,6 +1279,25 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(varyingString(argument(0))))
                     .build();
 
+    public static final BuiltInFunctionDefinition BTRIM =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BTRIM")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            Arrays.asList("str"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING))),
+                                    sequence(
+                                            Arrays.asList("str", "trimStr"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.BTrimFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition REPEAT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("repeat")
