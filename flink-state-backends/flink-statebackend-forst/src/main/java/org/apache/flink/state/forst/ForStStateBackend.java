@@ -335,8 +335,11 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 stateName -> resourceContainer.getColumnOptions(),
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
+                                parameters.getKeyGroupRange(),
                                 parameters.getMetricGroup(),
                                 parameters.getStateHandles())
+                        // TODO: remove after support more snapshot strategy
+                        .setEnableIncrementalCheckpointing(true)
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(nativeMetricOptions));
         return builder.build();

@@ -18,8 +18,11 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.ResourceGuard;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -32,7 +35,6 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
-import org.rocksdb.Statistics;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,11 +74,11 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
     /** The ForSt instance object. */
     private RocksDB db;
 
+    private ResourceGuard resourceGuard;
+    private ForStResourceContainer resourceContainer;
+
     /** List of all column families that have been created with the ForSt instance. */
     private List<ColumnFamilyHandle> columnFamilyHandles;
-
-    /** Resources to close. */
-    private final ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
 
     public ForStExtension() {
         this(false);
@@ -90,14 +92,7 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
                     @Override
                     public DBOptions createDBOptions(
                             DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-                        // close it before reuse the reference.
-                        try {
-                            currentOptions.close();
-                        } catch (Exception e) {
-                            LOG.error("Close previous DBOptions's instance failed.", e);
-                        }
-
-                        return new DBOptions()
+                        return currentOptions
                                 .setMaxBackgroundJobs(4)
                                 .setUseFsync(false)
                                 .setMaxOpenFiles(-1)
@@ -139,6 +134,14 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
         return dbOptions;
     }
 
+    public ResourceGuard getResourceGuard() {
+        return resourceGuard;
+    }
+
+    public ForStResourceContainer getResourceContainer() {
+        return resourceContainer;
+    }
+
     /** Creates and returns a new column family with the given name. */
     public ColumnFamilyHandle createNewColumnFamily(String name) {
         try {
@@ -155,31 +158,44 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
     public void before() throws Exception {
         this.temporaryFolder = new TemporaryFolder();
         this.temporaryFolder.create();
+
         final File rocksFolder = temporaryFolder.newFolder();
-        this.dbOptions =
-                optionsFactory
-                        .createDBOptions(
-                                new DBOptions()
-                                        .setUseFsync(false)
-                                        .setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-                                        .setStatsDumpPeriodSec(0),
-                                handlesToClose)
-                        .setCreateIfMissing(true);
-        if (enableStatistics) {
-            Statistics statistics = new Statistics();
-            dbOptions.setStatistics(statistics);
-            handlesToClose.add(statistics);
-        }
-        this.columnFamilyOptions =
-                optionsFactory.createColumnOptions(new ColumnFamilyOptions(), handlesToClose);
-        this.writeOptions = new WriteOptions();
-        this.writeOptions.disableWAL();
-        this.readOptions = new ReadOptions();
+
+        resourceGuard = new ResourceGuard();
+        File localWorkingDir = TempDirUtils.newFolder(rocksFolder.toPath(), "local-working-dir");
+        this.resourceContainer =
+                new ForStResourceContainer(
+                        new Configuration(),
+                        optionsFactory,
+                        null,
+                        localWorkingDir,
+                        null,
+                        enableStatistics);
+        resourceContainer.prepareDirectories();
+
+        this.dbOptions = resourceContainer.getDbOptions();
+
+        this.columnFamilyOptions = resourceContainer.getColumnOptions();
+
+        this.writeOptions = resourceContainer.getWriteOptions();
+        this.readOptions = resourceContainer.getReadOptions();
+
+        // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
+        // concatenates the dfs directory with the local directory as working dir when using flink
+        // env. We expect to directly use the dfs directory in flink env or local directory as
+        // working dir. We will implement this in ForStDB later, but before that, we achieved this
+        // by setting the dbPath to "/" when the dfs directory existed.
+        // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
+        File instanceForStPath =
+                resourceContainer.getRemoteForStPath() == null
+                        ? resourceContainer.getLocalForStPath()
+                        : new File("/");
+
         this.columnFamilyHandles = new ArrayList<>(1);
         this.db =
                 RocksDB.open(
                         dbOptions,
-                        rocksFolder.getAbsolutePath(),
+                        instanceForStPath.getAbsolutePath(),
                         Collections.singletonList(
                                 new ColumnFamilyDescriptor(
                                         "default".getBytes(), columnFamilyOptions)),
@@ -192,11 +208,8 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
             IOUtils.closeQuietly(columnFamilyHandle);
         }
         IOUtils.closeQuietly(this.db);
-        IOUtils.closeQuietly(this.readOptions);
-        IOUtils.closeQuietly(this.writeOptions);
-        IOUtils.closeQuietly(this.columnFamilyOptions);
-        IOUtils.closeQuietly(this.dbOptions);
-        handlesToClose.forEach(IOUtils::closeQuietly);
+        IOUtils.closeQuietly(this.resourceContainer);
+        IOUtils.closeQuietly(this.resourceGuard);
         temporaryFolder.delete();
     }
 

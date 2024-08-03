@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
@@ -35,7 +36,11 @@ import java.io.Closeable;
  * in batch.
  */
 @Internal
-public interface AsyncKeyedStateBackend extends Disposable, Closeable {
+public interface AsyncKeyedStateBackend
+        extends Snapshotable<SnapshotResult<KeyedStateHandle>>,
+                InternalCheckpointListener,
+                Disposable,
+                Closeable {
 
     /**
      * Initializes with some contexts.
