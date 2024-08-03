@@ -165,6 +165,7 @@ string functions
     Expression.trim_trailing
     Expression.trim
     Expression.replace
+    Expression.translate
     Expression.char_length
     Expression.upper_case
     Expression.lower_case

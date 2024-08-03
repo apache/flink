@@ -189,6 +189,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TANH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TO_BASE64;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRANSLATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
@@ -876,6 +877,24 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType substr(InType beginIndex) {
         return toApiSpecificExpression(
                 unresolvedCall(SUBSTR, toExpr(), objectToExpression(beginIndex)));
+    }
+
+    /**
+     * Translate an {@code expr} where all characters in {@code fromStr} have been replaced with
+     * those in {@code toStr}. <br>
+     * NOTE: If {@code toStr} has a shorter length than {@code fromStr}, unmatched characters are
+     * removed.
+     *
+     * @param fromStr a STRING expression
+     * @param toStr a STRING expression
+     */
+    public OutType translate(InType fromStr, InType toStr) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        TRANSLATE,
+                        toExpr(),
+                        objectToExpression(fromStr),
+                        objectToExpression(toStr)));
     }
 
     /** Removes leading space characters from the given string. */
