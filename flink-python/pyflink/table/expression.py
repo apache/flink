@@ -1325,7 +1325,7 @@ class Expression(Generic[T]):
     def btrim(self, trim_str=None) -> 'Expression':
         """
         Removes any leading and trailing characters within trim_str from str.
-        trim_str is set to a space character by default.
+        trim_str is set to whitespace by default.
         """
         if trim_str is None:
             return _unary_op("btrim")(self)
