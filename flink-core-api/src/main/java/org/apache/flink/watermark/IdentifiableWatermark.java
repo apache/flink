@@ -20,7 +20,9 @@ package org.apache.flink.watermark;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
+import org.apache.flink.api.common.watermark.TimestampWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.WatermarkDeclaration;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.Serializable;
 
@@ -40,8 +42,24 @@ public interface IdentifiableWatermark extends Serializable {
             LongWatermarkDeclaration longWatermarkDeclaration =
                     (LongWatermarkDeclaration) declaration;
             return "LongWatermark(" + longWatermarkDeclaration.getComparisonSemantics() + ")";
+        } else if (declaration instanceof TimestampWatermarkDeclaration) {
+            return TIMESTAMP_WATERMARK_IDENTIFIER;
         } else {
-            return "GeneralizedWatermark";
+            throw new FlinkRuntimeException("Unknown watermark declaration: " + declaration);
+        }
+    }
+
+    static String generateIdentifier(InternalWatermarkDeclaration declaration) {
+        if (declaration instanceof InternalLongWatermarkDeclaration) {
+            LongWatermarkDeclaration longWatermarkDeclaration =
+                    (LongWatermarkDeclaration) declaration;
+            return "LongWatermark(" + longWatermarkDeclaration.getComparisonSemantics() + ")";
+        } else if (declaration instanceof InternalTimestampWatermarkDeclaration) {
+            return TIMESTAMP_WATERMARK_IDENTIFIER;
+        } else if (declaration instanceof InternalTimestampInternalWatermarkDeclaration) {
+            return INTERNAL_TIMESTAMP_WATERMARK_IDENTIFIER;
+        } else {
+            throw new FlinkRuntimeException("Unknown watermark declaration: " + declaration);
         }
     }
 }

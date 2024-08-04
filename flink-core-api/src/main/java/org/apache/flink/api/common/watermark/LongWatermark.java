@@ -20,6 +20,7 @@ package org.apache.flink.api.common.watermark;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.watermark.IdentifiableWatermark;
 
 @Internal
 public class LongWatermark implements Watermark, IdentifiableWatermark {

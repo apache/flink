@@ -21,7 +21,6 @@ package org.apache.flink.watermark;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.watermark.IdentifiableWatermark;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 

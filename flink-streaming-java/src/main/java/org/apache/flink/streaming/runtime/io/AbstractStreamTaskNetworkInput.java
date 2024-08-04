@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.watermark.IdentifiableWatermark;
 import org.apache.flink.api.common.watermark.TimestampWatermark;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -38,6 +37,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.watermark.IdentifiableWatermark;
 import org.apache.flink.watermark.InternalWatermarkDeclaration;
 import org.apache.flink.watermark.ReusableWatermarkContext;
 

@@ -19,20 +19,15 @@
 package org.apache.flink.watermark;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.watermark.IdentifiableWatermark;
 import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 
 import java.util.Optional;
 
 /** This class defines predefined {@link WatermarkDeclaration}s. */
 @Internal
-public class InternalTimestampInternalWatermarkDeclaration extends DefaultIdentifiableWatermark
-        implements InternalWatermarkDeclaration {
+public class InternalTimestampInternalWatermarkDeclaration
+        implements InternalWatermarkDeclaration, IdentifiableWatermark {
     private static final long serialVersionUID = 1L;
-
-    public InternalTimestampInternalWatermarkDeclaration() {
-        super(IdentifiableWatermark.INTERNAL_TIMESTAMP_WATERMARK_IDENTIFIER);
-    }
 
     @Override
     public WatermarkSerde declaredWatermark() {
@@ -42,5 +37,10 @@ public class InternalTimestampInternalWatermarkDeclaration extends DefaultIdenti
     @Override
     public Optional<WatermarkCombiner> watermarkCombiner() {
         return Optional.empty();
+    }
+
+    @Override
+    public String getWatermarkIdentifier() {
+        return IdentifiableWatermark.generateIdentifier(this);
     }
 }

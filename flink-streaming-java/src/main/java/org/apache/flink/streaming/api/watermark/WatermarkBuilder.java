@@ -21,8 +21,10 @@ package org.apache.flink.streaming.api.watermark;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.watermark.DefaultLongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.common.watermark.Watermarks;
 
+/** Builder class for {@link WatermarkDeclaration}s. */
 @Experimental
 public class WatermarkBuilder {
 

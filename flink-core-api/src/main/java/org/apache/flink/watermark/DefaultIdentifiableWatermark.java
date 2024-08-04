@@ -18,8 +18,6 @@
 
 package org.apache.flink.watermark;
 
-import org.apache.flink.api.common.watermark.IdentifiableWatermark;
-
 public class DefaultIdentifiableWatermark implements IdentifiableWatermark {
     protected final String watermarkIdentifier;
 
