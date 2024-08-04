@@ -16,19 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.watermark;
+package org.apache.flink.watermark;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.watermark.IdentifiableWatermark;
 
-@Internal
+@Experimental
 public class LongWatermark implements Watermark, IdentifiableWatermark {
     private static final long serialVersionUID = 1L;
     private final long value;
     private final String identifier;
 
-    public LongWatermark(long value, String identifier) {
+    LongWatermark(long value, String identifier) {
         this.value = value;
         this.identifier = identifier;
     }

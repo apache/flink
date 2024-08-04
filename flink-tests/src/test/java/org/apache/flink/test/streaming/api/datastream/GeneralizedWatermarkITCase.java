@@ -20,7 +20,6 @@ package org.apache.flink.test.streaming.api.datastream;
 
 import org.apache.flink.api.common.WatermarkPolicy;
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.watermark.LongWatermark;
 import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.common.watermark.Watermarks;
@@ -33,6 +32,7 @@ import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.streaming.api.watermark.WatermarkBuilder;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.watermark.LongWatermark;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

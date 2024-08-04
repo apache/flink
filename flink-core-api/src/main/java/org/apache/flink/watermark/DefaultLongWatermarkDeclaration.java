@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.watermark;
+package org.apache.flink.watermark;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
+import org.apache.flink.api.common.watermark.Watermarks;
 
 /**
  * This class defines watermark handling policy for ProcessOperator. Note that implementations of

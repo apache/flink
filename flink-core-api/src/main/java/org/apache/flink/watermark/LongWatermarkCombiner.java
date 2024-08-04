@@ -20,7 +20,6 @@ package org.apache.flink.watermark;
 
 import org.apache.flink.api.common.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.watermark.LongWatermark;
 
 import java.util.HashMap;
 import java.util.Map;

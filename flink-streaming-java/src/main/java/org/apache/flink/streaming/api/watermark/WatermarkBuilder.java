@@ -19,10 +19,10 @@
 package org.apache.flink.streaming.api.watermark;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.watermark.DefaultLongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.LongWatermarkDeclaration;
 import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.common.watermark.Watermarks;
+import org.apache.flink.watermark.DefaultLongWatermarkDeclaration;
 
 /** Builder class for {@link WatermarkDeclaration}s. */
 @Experimental
@@ -47,4 +47,49 @@ public class WatermarkBuilder {
             return new DefaultLongWatermarkDeclaration(watermarkComparison);
         }
     }
+
+    //
+    //
+    //
+    //    public static BoolWatermarkBuilder withBoolWatermark() {
+    //        return new BoolWatermarkBuilder();
+    //    }
+    //
+    //    @Experimental
+    //    public static class BoolWatermarkBuilder {
+    //        private Watermarks.BoolWatermarkComparison watermarkComparison =
+    //                Watermarks.BoolWatermarkComparison.AND;
+    //
+    //        public BoolWatermarkBuilder withCompareSemantics(
+    //                Watermarks.BoolWatermarkComparison watermarkComparison) {
+    //            this.watermarkComparison = watermarkComparison;
+    //            return this;
+    //        }
+    //
+    //        public BoolWatermarkDeclaration build() {
+    //            return new DefaultBoolWatermarkDeclaration(watermarkComparison);
+    //        }
+    //    }
+    //
+    //
+    //
+    //    public static RecordAtrributesWatermarkBuilder withRecordAttributesWatermark() {
+    //        return new RecordAtrributesWatermarkBuilder();
+    //    }
+    //
+    //    @Experimental
+    //    public static class RecordAtrributesWatermarkBuilder {
+    //        private Watermarks.BoolWatermarkComparison watermarkComparison =
+    //                Watermarks.BoolWatermarkComparison.AND;
+    //
+    //        public RecordAtrributesWatermarkBuilder withCompareSemantics(
+    //                Watermarks.BoolWatermarkComparison watermarkComparison) {
+    //            this.watermarkComparison = watermarkComparison;
+    //            return this;
+    //        }
+    //
+    //        public RecordAtrributesWatermarkDeclaration build() {
+    //            return new DefaultRecordAtrributesWatermarkDeclaration(watermarkComparison);
+    //        }
+    //    }
 }

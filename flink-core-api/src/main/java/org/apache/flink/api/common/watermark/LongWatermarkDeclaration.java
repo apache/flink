@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.watermark;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.watermark.LongWatermark;
 
 /**
  * This class defines watermark handling policy for ProcessOperator. Note that implementations of

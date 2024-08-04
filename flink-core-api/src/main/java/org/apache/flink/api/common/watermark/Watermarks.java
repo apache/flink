@@ -21,7 +21,7 @@ package org.apache.flink.api.common.watermark;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.eventtime.Watermark;
 
-/** Defines the comparison semantics among {@link Watermark} */
+/** Defines the comparison semantics among {@link Watermark}. */
 @Experimental
 public class Watermarks {
 
