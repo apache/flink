@@ -153,6 +153,54 @@ class AbstractAsyncStateStreamOperatorTest {
     }
 
     @Test
+    void testAsyncProcessWithKey() throws Exception {
+        TestOperatorWithDirectAsyncProcess testOperator =
+                new TestOperatorWithDirectAsyncProcess(ElementOrder.RECORD_ORDER);
+        KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        new KeyedOneInputStreamOperatorTestHarness<>(
+                                testOperator,
+                                new TestKeySelector(),
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                128,
+                                1,
+                                0);
+        testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
+        try {
+            testHarness.open();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator);
+            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
+            // Trigger the processor
+            anotherThread.execute(
+                    () -> {
+                        try {
+                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+                        } catch (Exception e) {
+                        }
+                    });
+
+            Thread.sleep(1000);
+            assertThat(testOperator.getProcessed()).isEqualTo(0);
+            // Why greater than 1:  +1 when handle the SYNC_POINT; then accept +1
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount())
+                    .isGreaterThan(1);
+
+            // Proceed processing
+            testOperator.proceed();
+            anotherThread.shutdown();
+            Thread.sleep(1000);
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+
+            // We don't have the mailbox executor actually running, so the new context is blocked
+            // and never triggered.
+            assertThat(testOperator.getProcessed()).isEqualTo(1);
+        } finally {
+            testHarness.close();
+        }
+    }
+
+    @Test
     void testCheckpointDrain() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
@@ -257,6 +305,26 @@ class AbstractAsyncStateStreamOperatorTest {
             synchronized (objectToWait) {
                 objectToWait.notify();
             }
+        }
+    }
+
+    private static class TestOperatorWithDirectAsyncProcess extends TestOperator {
+
+        TestOperatorWithDirectAsyncProcess(ElementOrder elementOrder) {
+            super(elementOrder);
+        }
+
+        @Override
+        public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
+            asyncProcessWithKey(
+                    element.getValue().f0,
+                    () -> {
+                        processed.incrementAndGet();
+                    });
+            synchronized (objectToWait) {
+                objectToWait.wait();
+            }
+            processed.incrementAndGet();
         }
     }
 

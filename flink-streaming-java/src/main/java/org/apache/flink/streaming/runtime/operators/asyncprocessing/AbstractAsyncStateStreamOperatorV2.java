@@ -147,6 +147,25 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public <K> void asyncProcessWithKey(K key, ThrowingRunnable<Exception> processing) {
+        RecordContext<K> previousContext = currentProcessingContext;
+
+        // build a context and switch to the new context
+        currentProcessingContext = asyncExecutionController.buildContext(null, key);
+        currentProcessingContext.retain();
+        asyncExecutionController.setCurrentContext(currentProcessingContext);
+        // Same logic as RECORD_ORDER, since FIRST_STATE_ORDER is problematic when the call's key
+        // pass the same key in.
+        preserveRecordOrderAndProcess(processing);
+        postProcessElement();
+
+        // switch to original context
+        asyncExecutionController.setCurrentContext(previousContext);
+        currentProcessingContext = previousContext;
+    }
+
+    @Override
     public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
         // The real logic should be in First/SecondInputOfTwoInput#getRecordProcessor.
         throw new UnsupportedOperationException(

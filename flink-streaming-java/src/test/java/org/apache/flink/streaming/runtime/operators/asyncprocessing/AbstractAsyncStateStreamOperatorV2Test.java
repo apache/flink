@@ -164,6 +164,55 @@ class AbstractAsyncStateStreamOperatorV2Test {
     }
 
     @Test
+    void testAsyncProcessWithKey() throws Exception {
+        KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        new KeyedOneInputStreamOperatorV2TestHarness<>(
+                                new TestDirectAsyncProcessOperatorFactory(
+                                        ElementOrder.RECORD_ORDER),
+                                new TestKeySelector(),
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                128,
+                                1,
+                                0);
+        testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
+        try {
+            testHarness.open();
+            SingleInputTestOperatorDirectAsyncProcess testOperator =
+                    (SingleInputTestOperatorDirectAsyncProcess) testHarness.getBaseOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator.getInputs().get(0));
+            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
+            // Trigger the processor
+            anotherThread.execute(
+                    () -> {
+                        try {
+                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+                        } catch (Exception e) {
+                        }
+                    });
+
+            Thread.sleep(1000);
+            assertThat(testOperator.getProcessed()).isEqualTo(0);
+            // Why greater than 1:  +1 when handle the SYNC_POINT; then accept +1
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount())
+                    .isGreaterThan(1);
+
+            // Proceed processing
+            testOperator.proceed();
+            anotherThread.shutdown();
+            Thread.sleep(1000);
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+
+            // We don't have the mailbox executor actually running, so the new context is blocked
+            // and never triggered.
+            assertThat(testOperator.getProcessed()).isEqualTo(1);
+        } finally {
+            testHarness.close();
+        }
+    }
+
+    @Test
     void testCheckpointDrain() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
@@ -267,7 +316,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
         final Object objectToWait = new Object();
 
-        final Input input;
+        Input input;
 
         public SingleInputTestOperator(
                 StreamOperatorParameters<String> parameters, ElementOrder elementOrder) {
@@ -316,6 +365,51 @@ class AbstractAsyncStateStreamOperatorV2Test {
             synchronized (objectToWait) {
                 objectToWait.notify();
             }
+        }
+    }
+
+    private static class TestDirectAsyncProcessOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+
+        private final ElementOrder elementOrder;
+
+        TestDirectAsyncProcessOperatorFactory(ElementOrder elementOrder) {
+            this.elementOrder = elementOrder;
+        }
+
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new SingleInputTestOperatorDirectAsyncProcess(parameters, elementOrder);
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return SingleInputTestOperatorDirectAsyncProcess.class;
+        }
+    }
+
+    private static class SingleInputTestOperatorDirectAsyncProcess extends SingleInputTestOperator {
+
+        SingleInputTestOperatorDirectAsyncProcess(
+                StreamOperatorParameters<String> parameters, ElementOrder elementOrder) {
+            super(parameters, elementOrder);
+            input =
+                    new AbstractInput<Tuple2<Integer, String>, String>(this, 1) {
+                        @Override
+                        public void processElement(StreamRecord<Tuple2<Integer, String>> element)
+                                throws Exception {
+                            asyncProcessWithKey(
+                                    element.getValue().f0,
+                                    () -> {
+                                        processed.incrementAndGet();
+                                    });
+                            synchronized (objectToWait) {
+                                objectToWait.wait();
+                            }
+                            processed.incrementAndGet();
+                        }
+                    };
         }
     }
 }
