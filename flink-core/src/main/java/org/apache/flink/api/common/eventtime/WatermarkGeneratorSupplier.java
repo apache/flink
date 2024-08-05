@@ -20,6 +20,7 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.clock.RelativeClock;
 
 import java.io.Serializable;
 
@@ -39,7 +40,7 @@ public interface WatermarkGeneratorSupplier<T> extends Serializable {
 
     /**
      * Additional information available to {@link #createWatermarkGenerator(Context)}. This can be
-     * access to {@link org.apache.flink.metrics.MetricGroup MetricGroups}, for example.
+     * access to {@link MetricGroup MetricGroups}, for example.
      */
     interface Context {
 
@@ -54,5 +55,14 @@ public interface WatermarkGeneratorSupplier<T> extends Serializable {
          * @see MetricGroup
          */
         MetricGroup getMetricGroup();
+
+        /**
+         * Returns a {@link RelativeClock} that hides periods when input was not active and {@link
+         * WatermarkGenerator} could not have been executed due to execution being blocked by the
+         * runtime. For example a backpressure or watermark alignment blocking the progress.
+         *
+         * @see RelativeClock
+         */
+        RelativeClock getInputActivityClock();
     }
 }
