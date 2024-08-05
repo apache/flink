@@ -367,4 +367,32 @@ class OverAggregateTest extends TableTestBase {
         () =>
           util.verifyExecPlan("SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"))
   }
+
+  @Test
+  def testNestedOverAgg(): Unit = {
+    util.addTable(s"""
+                     |CREATE TEMPORARY TABLE src (
+                     |  a STRING,
+                     |  b STRING,
+                     |  ts TIMESTAMP_LTZ(3),
+                     |  watermark FOR ts as ts
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |  ,'bounded' = 'true'
+                     |)
+                     |""".stripMargin)
+
+    util.verifyExecPlan(s"""
+                           |SELECT *
+                           |FROM (
+                           | SELECT
+                           |    *, count(*) OVER (PARTITION BY a ORDER BY ts) AS c2
+                           |  FROM (
+                           |    SELECT
+                           |      *, count(*) OVER (PARTITION BY a,b ORDER BY ts) AS c1
+                           |    FROM src
+                           |  )
+                           |)
+                           |""".stripMargin)
+  }
 }
