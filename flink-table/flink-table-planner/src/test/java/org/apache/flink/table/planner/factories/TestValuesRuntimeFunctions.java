@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -31,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -60,6 +62,8 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -266,7 +270,18 @@ final class TestValuesRuntimeFunctions {
             ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
             final DataInputView input = new DataInputViewStreamWrapper(bais);
             WatermarkGenerator<RowData> generator =
-                    watermarkStrategy.createWatermarkGenerator(() -> null);
+                    watermarkStrategy.createWatermarkGenerator(
+                            new WatermarkGeneratorSupplier.Context() {
+                                @Override
+                                public MetricGroup getMetricGroup() {
+                                    return null;
+                                }
+
+                                @Override
+                                public RelativeClock getInputActivityClock() {
+                                    return SystemClock.getInstance();
+                                }
+                            });
             WatermarkOutput output = new TestValuesWatermarkOutput(ctx);
             final Object lock = ctx.getCheckpointLock();
 

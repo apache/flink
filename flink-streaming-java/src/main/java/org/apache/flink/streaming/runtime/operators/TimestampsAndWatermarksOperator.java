@@ -21,14 +21,18 @@ import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import static org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -80,7 +84,18 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
         timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
         watermarkGenerator =
                 emitProgressiveWatermarks
-                        ? watermarkStrategy.createWatermarkGenerator(this::getMetricGroup)
+                        ? watermarkStrategy.createWatermarkGenerator(
+                                new WatermarkGeneratorSupplier.Context() {
+                                    @Override
+                                    public MetricGroup getMetricGroup() {
+                                        return this.getMetricGroup();
+                                    }
+
+                                    @Override
+                                    public RelativeClock getInputActivityClock() {
+                                        return SystemClock.getInstance();
+                                    }
+                                })
                         : new NoWatermarksGenerator<>();
 
         wmOutput = new WatermarkEmitter(output);
