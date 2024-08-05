@@ -77,10 +77,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * processing-time windows operator of previous Flink versions.
  */
 @ExtendWith(ParameterizedTestExtension.class)
-class WindowOperatorMigrationTest implements MigrationTest {
+public class WindowOperatorMigrationTest implements MigrationTest {
 
     @Parameters(name = "Migration Savepoint: {0}")
-    private static Collection<FlinkVersion> parameters() {
+    public static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
                 FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }

@@ -20,6 +20,7 @@ package org.apache.flink.test.migration;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -155,10 +156,13 @@ class SnapshotGeneratorUtils {
         Constructor<?> constructor = constructors[0];
         constructor.setAccessible(true);
 
-        // Check if we could find method labeled with @Parameterized.Parameters
+        System.out.println("create test!!!");
+        // Check if we could find method labeled with @Parameterized.Parameters or @Parameters
         for (Method method : migrationTestClass.getMethods()) {
             if (Modifier.isStatic(method.getModifiers())
-                    && method.isAnnotationPresent(Parameterized.Parameters.class)) {
+                    && (method.isAnnotationPresent(Parameterized.Parameters.class)
+                            || method.isAnnotationPresent(Parameters.class))) {
+                System.out.println("ffffffff!!!!");
                 Object argumentLists = method.invoke(null);
                 if (argumentLists instanceof Collection) {
                     return constructor.newInstance(
@@ -176,6 +180,6 @@ class SnapshotGeneratorUtils {
         throw new RuntimeException(
                 "Could not create the object for "
                         + migrationTestClass
-                        + ": No default constructor or @Parameterized.Parameters method found.");
+                        + ": No default constructor or @Parameterized.Parameters or @Parameters method found.");
     }
 }
