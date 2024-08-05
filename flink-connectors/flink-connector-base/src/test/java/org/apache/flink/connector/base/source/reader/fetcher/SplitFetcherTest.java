@@ -31,6 +31,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +41,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.lang.Thread.State.WAITING;
+import static org.apache.flink.test.util.TestUtils.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link SplitFetcher}. */
@@ -273,6 +276,39 @@ public class SplitFetcherTest {
         fetcherThread.join();
 
         assertThat(fetcher.runOnce()).isFalse();
+    }
+
+    @Test
+    public void testShutdownWaitingForRecordsProcessing() throws Exception {
+        TestingSplitReader<Object, TestingSourceSplit> splitReader = new TestingSplitReader<>();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
+                new FutureCompletingBlockingQueue<>();
+        final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader, queue);
+        fetcher.shutdown(true);
+
+        // Spawn a new fetcher thread to go through the shutdown sequence.
+        CheckedThread fetcherThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        fetcher.run();
+                        assertThat(splitReader.isClosed()).isTrue();
+                    }
+                };
+        fetcherThread.start();
+
+        // Wait until the fetcher thread to block on the shutdown latch.
+        waitUntil(
+                () -> fetcherThread.getState() == WAITING,
+                Duration.ofSeconds(1),
+                "The fetcher thread should be waiting for the shutdown latch");
+        assertThat(splitReader.isClosed())
+                .as("The split reader should have not been closed.")
+                .isFalse();
+
+        queue.getAvailabilityFuture().thenRun(() -> queue.poll().recycle());
+        // Now pull the latch.
+        fetcherThread.sync();
     }
 
     // ------------------------------------------------------------------------
