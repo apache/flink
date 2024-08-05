@@ -175,6 +175,8 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetUpsertKeysOnRank(): Unit = {
+    assertEquals(toBitSet(Array(7), Array(0)), mq.getUpsertKeys(logicalWindow).toSet)
+
     Array(logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank).foreach {
       rank => assertEquals(toBitSet(), mq.getUpsertKeys(rank).toSet)
     }

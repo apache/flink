@@ -105,8 +105,6 @@ object FlinkBatchRuleSets {
         WindowGroupReorderRule.INSTANCE,
         WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
         WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
-        // let project transpose window operator.
-        CoreRules.PROJECT_WINDOW_TRANSPOSE,
         // ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         // ensure intersect set operator have the same row type
@@ -205,7 +203,9 @@ object FlinkBatchRuleSets {
     // push project through a Union
     CoreRules.PROJECT_SET_OP_TRANSPOSE,
     // push a projection to the child of a WindowTableFunctionScan
-    ProjectWindowTableFunctionTransposeRule.INSTANCE
+    ProjectWindowTableFunctionTransposeRule.INSTANCE,
+    // push a projection to the children of a window
+    CoreRules.PROJECT_WINDOW_TRANSPOSE
   )
 
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList(

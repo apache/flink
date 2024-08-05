@@ -2079,10 +2079,10 @@ GroupAggregate(groupBy=[a, ws, we], select=[a, ws, we, COUNT(*) AS EXPR$3])
          +- Exchange(distribution=[single])
             +- Calc(select=[a, proctime, window_start, window_end])
                +- WindowTableFunction(window=[TUMBLE(time_col=[proctime], size=[5 min])])
-                  +- Calc(select=[a, b, proctime])
+                  +- Calc(select=[a, proctime])
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                        +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+                        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -2176,10 +2176,10 @@ GroupAggregate(groupBy=[a, ws, we], select=[a, ws, we, COUNT(*) AS EXPR$3])
          +- Exchange(distribution=[single])
             +- Calc(select=[a, proctime, window_start, window_end])
                +- WindowTableFunction(window=[TUMBLE(time_col=[proctime], size=[5 min])])
-                  +- Calc(select=[a, b, proctime])
+                  +- Calc(select=[a, proctime])
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                        +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+                        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -3548,10 +3548,10 @@ Calc(select=[a, window_start, window_end, EXPR$3])
             +- Exchange(distribution=[single])
                +- Calc(select=[a, proctime, window_start, window_end, PROCTIME() AS $6])
                   +- WindowTableFunction(window=[TUMBLE(time_col=[proctime], size=[5 min])])
-                     +- Calc(select=[a, b, proctime])
+                     +- Calc(select=[a, proctime])
                         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                           +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+                           +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -3651,10 +3651,10 @@ Calc(select=[a, window_start, window_end, EXPR$3])
             +- Exchange(distribution=[single])
                +- Calc(select=[a, proctime, window_start, window_end, PROCTIME() AS $6])
                   +- WindowTableFunction(window=[TUMBLE(time_col=[proctime], size=[5 min])])
-                     +- Calc(select=[a, b, proctime])
+                     +- Calc(select=[a, proctime])
                         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                           +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+                           +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>

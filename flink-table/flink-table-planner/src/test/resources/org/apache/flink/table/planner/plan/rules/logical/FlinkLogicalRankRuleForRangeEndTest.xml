@@ -38,7 +38,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2], rn=[$3])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
 +- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])], window#1=[window(partition {1} order by [0 ASC-nulls-first] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])
-   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- FlinkLogicalCalc(select=[a, b])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -324,8 +325,8 @@ LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULL
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, w0$o0 AS $2])
-+- FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])])
+FlinkLogicalOverAggregate(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])])
++- FlinkLogicalCalc(select=[a, b])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

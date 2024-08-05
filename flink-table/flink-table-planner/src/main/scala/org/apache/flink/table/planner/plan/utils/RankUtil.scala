@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, Constan
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelCollation
+import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.SqlKind
 
@@ -326,6 +327,11 @@ object RankUtil {
       require(rank.getRowType.getFieldCount == rank.getInput.getRowType.getFieldCount)
       None
     }
+  }
+
+  def getRankNumberColumnIndex(window: Window): Int = {
+    require(window.getRowType.getFieldCount == window.getInput.getRowType.getFieldCount + 1)
+    window.getRowType.getFieldCount - 1
   }
 
   /**

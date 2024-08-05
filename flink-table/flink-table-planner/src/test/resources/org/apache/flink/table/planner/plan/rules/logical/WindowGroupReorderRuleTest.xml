@@ -217,9 +217,10 @@ LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST)
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject($0=[$4], $1=[$3])
+LogicalProject($0=[$3], $1=[$2])
 +- LogicalWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] aggs [RANK()])], window#1=[window(partition {1} order by [0 DESC-nulls-last] aggs [RANK()])])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
   </TestCase>

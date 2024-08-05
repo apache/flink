@@ -261,9 +261,9 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5])
             +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d])
                +- Exchange(distribution=[hash[a]])
                   +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d])
-                     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, SUM(sum$1) AS sum_d, MAX(max$2) AS max_d, weightedAvg(weightedavg$3) AS wAvg, COUNT(distinct$0 count$4) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
+                     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, SUM(sum$1) AS sum_d, MAX(max$2) AS max_d, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
                         +- Exchange(distribution=[hash[a]])
-                           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f5 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
+                           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f5 AS max$2, slice_end('w$) AS $slice_end])
                               +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
@@ -303,8 +303,7 @@ Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-               +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -341,8 +340,7 @@ Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-               +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -414,8 +412,7 @@ Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
       +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
          +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-               +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -463,8 +460,7 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, wAvg, uv])
                   +- Calc(select=[a, b, c, d, e, window_start, window_end, window_time])
                      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
                         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                           +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>

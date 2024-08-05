@@ -438,7 +438,34 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       rel: Window,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    if (rel.groups.length == 1) {
+      val group = rel.groups.get(0)
+      getUniqueKeysOfWindowGroup(group, rel) match {
+        case Some(uniqueKeys) =>
+          val retSet = new JHashSet[ImmutableBitSet]
+          retSet.add(uniqueKeys)
+          val inputKeys = mq.getUniqueKeys(rel.getInput, ignoreNulls)
+          if (inputKeys != null && inputKeys.nonEmpty) {
+            inputKeys.foreach(uniqueKey => retSet.add(uniqueKey))
+          }
+          return retSet
+        case _ =>
+      }
+    }
     getUniqueKeysOfOverAgg(rel, mq, ignoreNulls)
+  }
+
+  def getUniqueKeysOfWindowGroup(group: Window.Group, rel: Window): Option[ImmutableBitSet] = {
+    // If it's a ROW_NUMBER window, then the unique keys are partition by key and row number.
+    val aggCalls = group.aggCalls
+    if (
+      aggCalls.length == 1 && aggCalls.get(0).getOperator.equals(SqlStdOperatorTable.ROW_NUMBER)
+    ) {
+      val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel)
+      Some(group.keys.union(ImmutableBitSet.of(rankFunColumnIndex)))
+    } else {
+      None
+    }
   }
 
   def getUniqueKeys(
