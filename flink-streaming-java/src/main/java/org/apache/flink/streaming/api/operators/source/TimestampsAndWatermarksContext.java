@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,5 +44,10 @@ public final class TimestampsAndWatermarksContext
     @Override
     public MetricGroup getMetricGroup() {
         return metricGroup;
+    }
+
+    @Override
+    public RelativeClock getInputActivityClock() {
+        return SystemClock.getInstance();
     }
 }

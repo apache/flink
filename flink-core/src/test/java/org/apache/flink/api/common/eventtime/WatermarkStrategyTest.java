@@ -20,7 +20,10 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.jupiter.api.Test;
 
@@ -171,6 +174,16 @@ public class WatermarkStrategyTest {
     }
 
     static WatermarkGeneratorSupplier.Context generatorContext() {
-        return UnregisteredMetricsGroup::new;
+        return new WatermarkGeneratorSupplier.Context() {
+            @Override
+            public MetricGroup getMetricGroup() {
+                return new UnregisteredMetricsGroup();
+            }
+
+            @Override
+            public RelativeClock getInputActivityClock() {
+                return SystemClock.getInstance();
+            }
+        };
     }
 }
