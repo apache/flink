@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
+import org.apache.flink.api.connector.source.mocks.MockSourceReader.WaitingForSplits;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -42,46 +43,28 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for split alignment in {@link SourceOperator}. */
-class SourceOperatorSplitWatermarkAlignmentTest {
-    private static final WatermarkGenerator<Integer> WATERMARK_GENERATOR =
-            new WatermarkGenerator<Integer>() {
-
-                private long maxWatermark = Long.MIN_VALUE;
-
-                @Override
-                public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
-                    if (eventTimestamp > maxWatermark) {
-                        this.maxWatermark = eventTimestamp;
-                        output.emitWatermark(new Watermark(maxWatermark));
-                    }
-                }
-
-                @Override
-                public void onPeriodicEmit(WatermarkOutput output) {
-                    output.emitWatermark(new Watermark(maxWatermark));
-                }
-            };
+class  SourceOperatorSplitWatermarkAlignmentTest {
 
     @Test
     void testSplitWatermarkAlignment() throws Exception {
 
-        final SplitAligningSourceReader sourceReader = new SplitAligningSourceReader();
+        MockSourceReader sourceReader = new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
         SourceOperator<Integer, MockSourceSplit> operator =
                 new TestingSourceOperator<>(
                         sourceReader,
-                        WatermarkStrategy.forGenerator(ctx -> WATERMARK_GENERATOR)
+                        WatermarkStrategy.forGenerator(ctx -> new TestWatermarkGenerator())
                                 .withTimestampAssigner((r, l) -> r)
                                 .withWatermarkAlignment("group-1", Duration.ofMillis(1)),
                         new TestProcessingTimeService(),
@@ -97,8 +80,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
 
         operator.open();
-        final MockSourceSplit split1 = new MockSourceSplit(0, 0, 10);
-        final MockSourceSplit split2 = new MockSourceSplit(1, 10, 20);
+        MockSourceSplit split1 = new MockSourceSplit(0, 0, 10);
+        MockSourceSplit split2 = new MockSourceSplit(1, 10, 20);
         split1.addRecord(5);
         split1.addRecord(11);
         split2.addRecord(3);
@@ -107,25 +90,25 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         operator.handleOperatorEvent(
                 new AddSplitEvent<>(
                         Arrays.asList(split1, split2), new MockSourceSplitSerializer()));
-        final CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
 
         operator.emitNext(dataOutput); // split 1 emits 5
 
         operator.handleOperatorEvent(
                 new WatermarkAlignmentEvent(4)); // pause by coordinator message
-        assertThat(sourceReader.pausedSplits).containsExactly("0");
+        assertThat(sourceReader.getPausedSplits()).containsExactly("0");
 
         operator.handleOperatorEvent(new WatermarkAlignmentEvent(5));
-        assertThat(sourceReader.pausedSplits).isEmpty();
+        assertThat(sourceReader.getPausedSplits()).isEmpty();
 
         operator.emitNext(dataOutput); // split 1 emits 11
         operator.emitNext(dataOutput); // split 2 emits 3
 
-        assertThat(sourceReader.pausedSplits).containsExactly("0");
+        assertThat(sourceReader.getPausedSplits()).containsExactly("0");
 
         operator.emitNext(dataOutput); // split 2 emits 6
 
-        assertThat(sourceReader.pausedSplits).containsExactly("0", "1");
+        assertThat(sourceReader.getPausedSplits()).containsExactly("0", "1");
     }
 
     private Environment getTestingEnvironment() {
@@ -139,17 +122,21 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                 new TestTaskStateManager());
     }
 
-    private static class SplitAligningSourceReader extends MockSourceReader {
-        Set<String> pausedSplits = new HashSet<>();
+    private static class TestWatermarkGenerator implements WatermarkGenerator<Integer> {
 
-        public SplitAligningSourceReader() {
-            super(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        private long maxWatermark = Long.MIN_VALUE;
+
+        @Override
+        public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
+            if (eventTimestamp > maxWatermark) {
+                this.maxWatermark = eventTimestamp;
+                output.emitWatermark(new Watermark(maxWatermark));
+            }
         }
 
-        public void pauseOrResumeSplits(
-                Collection<String> splitsToPause, Collection<String> splitsToResume) {
-            pausedSplits.removeAll(splitsToResume);
-            pausedSplits.addAll(splitsToPause);
+        @Override
+        public void onPeriodicEmit(WatermarkOutput output) {
+            output.emitWatermark(new Watermark(maxWatermark));
         }
     }
 }
