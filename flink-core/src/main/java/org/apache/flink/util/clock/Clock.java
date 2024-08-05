@@ -37,7 +37,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * the system clock, so it never jumps. Relative time behaves similar to {@link System#nanoTime()}.
  */
 @PublicEvolving
-public abstract class Clock {
+public abstract class Clock implements RelativeClock {
 
     /** Gets the current absolute time, in milliseconds. */
     public abstract long absoluteTimeMillis();
