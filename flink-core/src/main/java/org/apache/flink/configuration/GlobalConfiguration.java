@@ -72,6 +72,8 @@ public final class GlobalConfiguration {
 
     private static boolean standardYaml = true;
 
+    private static final String FLINK_DISABLE_LEGACY_YAML_COMMENTS = "FLINK_DISABLE_LEGACY_YAML_COMMENTS";
+
     // --------------------------------------------------------------------------------------------
 
     private GlobalConfiguration() {}
@@ -223,8 +225,16 @@ public final class GlobalConfiguration {
             while ((line = reader.readLine()) != null) {
                 lineNo++;
                 // 1. check for comments
-                String[] comments = line.split("#", 2);
-                String conf = comments[0].trim();
+                String conf;
+                // handle valid secret contain # char
+                if ("true".equalsIgnoreCase(System.getenv(FLINK_DISABLE_LEGACY_YAML_COMMENTS)) ||
+                        "true".equalsIgnoreCase(System.getProperty(
+                                FLINK_DISABLE_LEGACY_YAML_COMMENTS))) {
+                    conf = line;
+                } else {
+                    String[] comments = line.split("#", 2);
+                    conf = comments[0].trim();
+                }
 
                 // 2. get key and value
                 if (conf.length() > 0) {
