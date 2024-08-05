@@ -20,13 +20,17 @@ package org.apache.flink.table.toolbox;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,7 +64,18 @@ public class TestSourceFunction implements SourceFunction<RowData> {
     @Override
     public void run(SourceContext<RowData> ctx) {
         WatermarkGenerator<RowData> generator =
-                watermarkStrategy.createWatermarkGenerator(() -> null);
+                watermarkStrategy.createWatermarkGenerator(
+                        new WatermarkGeneratorSupplier.Context() {
+                            @Override
+                            public MetricGroup getMetricGroup() {
+                                return null;
+                            }
+
+                            @Override
+                            public RelativeClock getInputActivityClock() {
+                                return SystemClock.getInstance();
+                            }
+                        });
         WatermarkOutput output = new TestWatermarkOutput(ctx);
 
         int rowDataSize = DATA.get(0).size();

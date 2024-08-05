@@ -21,6 +21,7 @@ package org.apache.flink.api.common.eventtime;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.RelativeClock;
 import org.apache.flink.util.clock.SystemClock;
 
 import java.time.Duration;
@@ -43,18 +44,26 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     private boolean isIdleNow = false;
 
     /**
+     * This is not used anymore, but it's technically part of the {@link Public} API. Please use
+     * {@link #WatermarksWithIdleness(WatermarkGenerator, Duration, RelativeClock)} instead.
+     */
+    @Deprecated
+    public WatermarksWithIdleness(WatermarkGenerator<T> watermarks, Duration idleTimeout) {
+        this(watermarks, idleTimeout, SystemClock.getInstance());
+    }
+
+    /**
      * Creates a new WatermarksWithIdleness generator to the given generator idleness detection with
      * the given timeout.
      *
      * @param watermarks The original watermark generator.
      * @param idleTimeout The timeout for the idleness detection.
+     * @param clock The clock that will be used to measure idleness period. It is expected that this
+     *     clock will hide periods when this {@link WatermarkGenerator} has been blocked from making
+     *     any progress despite availability of records on the input.
      */
-    public WatermarksWithIdleness(WatermarkGenerator<T> watermarks, Duration idleTimeout) {
-        this(watermarks, idleTimeout, SystemClock.getInstance());
-    }
-
-    @VisibleForTesting
-    WatermarksWithIdleness(WatermarkGenerator<T> watermarks, Duration idleTimeout, Clock clock) {
+    public WatermarksWithIdleness(
+            WatermarkGenerator<T> watermarks, Duration idleTimeout, RelativeClock clock) {
         checkNotNull(idleTimeout, "idleTimeout");
         checkArgument(
                 !(idleTimeout.isZero() || idleTimeout.isNegative()),
@@ -88,7 +97,7 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     static final class IdlenessTimer {
 
         /** The clock used to measure elapsed time. */
-        private final Clock clock;
+        private final RelativeClock clock;
 
         /** Counter to detect change. No problem if it overflows. */
         private long counter;
@@ -105,7 +114,7 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
         /** The duration before the output is marked as idle. */
         private final long maxIdleTimeNanos;
 
-        IdlenessTimer(Clock clock, Duration idleTimeout) {
+        IdlenessTimer(RelativeClock clock, Duration idleTimeout) {
             this.clock = clock;
 
             long idleNanos;

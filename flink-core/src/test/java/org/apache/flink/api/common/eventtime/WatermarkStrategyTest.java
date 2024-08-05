@@ -20,18 +20,15 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.time.Duration;
-import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -188,82 +185,20 @@ public class WatermarkStrategyTest {
     }
 
     static TimestampAssignerSupplier.Context assignerContext() {
-        return new TimestampAssignerSupplier.Context() {
-            @Override
-            public MetricGroup getMetricGroup() {
-                return new DummyMetricGroup();
-            }
-        };
+        return UnregisteredMetricsGroup::new;
     }
 
     static WatermarkGeneratorSupplier.Context generatorContext() {
         return new WatermarkGeneratorSupplier.Context() {
             @Override
             public MetricGroup getMetricGroup() {
-                return new DummyMetricGroup();
+                return new UnregisteredMetricsGroup();
+            }
+
+            @Override
+            public RelativeClock getInputActivityClock() {
+                return SystemClock.getInstance();
             }
         };
-    }
-
-    /**
-     * A dummy {@link MetricGroup} to be used when a group is required as an argument but not
-     * actually used.
-     */
-    public static class DummyMetricGroup implements MetricGroup {
-
-        @Override
-        public Counter counter(String name) {
-            return null;
-        }
-
-        @Override
-        public <C extends Counter> C counter(String name, C counter) {
-            return null;
-        }
-
-        @Override
-        public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-            return null;
-        }
-
-        @Override
-        public <H extends Histogram> H histogram(String name, H histogram) {
-            return null;
-        }
-
-        @Override
-        public <M extends Meter> M meter(String name, M meter) {
-            return null;
-        }
-
-        @Override
-        public MetricGroup addGroup(String name) {
-            return null;
-        }
-
-        @Override
-        public MetricGroup addGroup(String key, String value) {
-            return null;
-        }
-
-        @Override
-        public String[] getScopeComponents() {
-            return new String[0];
-        }
-
-        @Override
-        public Map<String, String> getAllVariables() {
-            return null;
-        }
-
-        @Override
-        public String getMetricIdentifier(String metricName) {
-            return null;
-        }
-
-        @Override
-        public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-            return null;
-        }
     }
 }
