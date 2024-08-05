@@ -97,7 +97,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KeyedStream<T, KEY> extends DataStream<T> {
 
     /**
-     * The key selector that can get the key by which the stream if partitioned from the elements.
+     * The key selector that can get the key by which the stream is partitioned from the elements.
      */
     private final KeySelector<T, KEY> keySelector;
 
@@ -251,7 +251,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     // ------------------------------------------------------------------------
 
     /**
-     * Gets the key selector that can get the key by which the stream if partitioned from the
+     * Gets the key selector that can get the key by which the stream is partitioned from the
      * elements.
      *
      * @return The key selector for the key.
