@@ -37,6 +37,7 @@ import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
+import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
@@ -197,6 +199,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
 
+    /**
+     * {@link PausableRelativeClock} tracking activity of the operator's main input. It's paused on
+     * backpressure. Note, each split output has its own independent {@link PausableRelativeClock}.
+     */
+    private transient PausableRelativeClock mainInputActivityClock;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -322,6 +330,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void open() throws Exception {
+        mainInputActivityClock = new PausableRelativeClock(getProcessingTimeService().getClock());
+        TaskIOMetricGroup taskIOMetricGroup =
+                getContainingTask().getEnvironment().getMetricGroup().getIOMetricGroup();
+        taskIOMetricGroup.registerBackPressureListener(mainInputActivityClock);
+
         initReader();
 
         // in the future when we this one is migrated to the "eager initialization" operator
@@ -332,11 +345,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             watermarkStrategy,
                             sourceMetricGroup,
                             getProcessingTimeService(),
-                            getExecutionConfig().getAutoWatermarkInterval());
+                            getExecutionConfig().getAutoWatermarkInterval(),
+                            mainInputActivityClock,
+                            getProcessingTimeService().getClock(),
+                            taskIOMetricGroup);
         } else {
             eventTimeLogic =
                     TimestampsAndWatermarks.createNoOpEventTimeLogic(
-                            watermarkStrategy, sourceMetricGroup);
+                            watermarkStrategy, sourceMetricGroup, mainInputActivityClock);
         }
 
         // restore the state if necessary.
@@ -396,6 +412,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void close() throws Exception {
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .unregisterBackPressureListener(mainInputActivityClock);
+
         if (sourceReader != null) {
             sourceReader.close();
         }
@@ -675,6 +697,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Collection<String> splitsToPause, Collection<String> splitsToResume) {
         try {
             sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            eventTimeLogic.pauseOrResumeSplits(splitsToPause, splitsToResume);
         } catch (UnsupportedOperationException e) {
             if (!allowUnalignedSourceSplits) {
                 throw e;
