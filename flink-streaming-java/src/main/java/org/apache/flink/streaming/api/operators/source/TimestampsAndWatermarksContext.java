@@ -23,7 +23,6 @@ import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.clock.RelativeClock;
-import org.apache.flink.util.clock.SystemClock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,9 +35,12 @@ public final class TimestampsAndWatermarksContext
         implements TimestampAssignerSupplier.Context, WatermarkGeneratorSupplier.Context {
 
     private final MetricGroup metricGroup;
+    private final RelativeClock inputActivityClock;
 
-    public TimestampsAndWatermarksContext(MetricGroup metricGroup) {
+    public TimestampsAndWatermarksContext(
+            MetricGroup metricGroup, RelativeClock inputActivityClock) {
         this.metricGroup = checkNotNull(metricGroup);
+        this.inputActivityClock = inputActivityClock;
     }
 
     @Override
@@ -48,6 +50,6 @@ public final class TimestampsAndWatermarksContext
 
     @Override
     public RelativeClock getInputActivityClock() {
-        return SystemClock.getInstance();
+        return inputActivityClock;
     }
 }
