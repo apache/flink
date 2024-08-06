@@ -24,6 +24,9 @@ import org.apache.flink.metrics.View;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 /**
  * {@link TimerGauge} measures how much time is spent in a given state, with entry into that state
  * being signaled by {@link #markStart()}. Measuring is stopped by {@link #markEnd()}. This class in
@@ -36,6 +39,8 @@ public class TimerGauge implements Gauge<Long>, View {
     private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
 
     private final Clock clock;
+
+    private final Collection<StartStopListener> startStopListeners = new ArrayList<>();
 
     /** The time-span over which the average is calculated. */
     private final int timeSpanInSeconds;
@@ -82,21 +87,43 @@ public class TimerGauge implements Gauge<Long>, View {
         this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS];
     }
 
+    public synchronized void registerListener(StartStopListener listener) {
+        if (currentMeasurementStartTS != 0) {
+            listener.markStart();
+        }
+        startStopListeners.add(listener);
+    }
+
+    public synchronized void unregisterListener(StartStopListener listener) {
+        if (currentMeasurementStartTS != 0) {
+            listener.markEnd();
+        }
+        startStopListeners.remove(listener);
+    }
+
     public synchronized void markStart() {
-        if (currentMeasurementStartTS == 0) {
-            currentUpdateTS = clock.absoluteTimeMillis();
-            currentMeasurementStartTS = currentUpdateTS;
+        if (currentMeasurementStartTS != 0) {
+            return;
+        }
+        currentUpdateTS = clock.absoluteTimeMillis();
+        currentMeasurementStartTS = currentUpdateTS;
+        for (StartStopListener startStopListener : startStopListeners) {
+            startStopListener.markStart();
         }
     }
 
     public synchronized void markEnd() {
-        if (currentMeasurementStartTS != 0) {
-            long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
-            currentCount += currentMeasurement;
-            accumulatedCount += currentMeasurement;
-            currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
-            currentUpdateTS = 0;
-            currentMeasurementStartTS = 0;
+        if (currentMeasurementStartTS == 0) {
+            return;
+        }
+        long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
+        currentCount += currentMeasurement;
+        accumulatedCount += currentMeasurement;
+        currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
+        currentUpdateTS = 0;
+        currentMeasurementStartTS = 0;
+        for (StartStopListener startStopListener : startStopListeners) {
+            startStopListener.markEnd();
         }
     }
 
@@ -163,5 +190,18 @@ public class TimerGauge implements Gauge<Long>, View {
     @VisibleForTesting
     public synchronized boolean isMeasuring() {
         return currentMeasurementStartTS != 0;
+    }
+
+    /**
+     * Listens for {@link TimerGauge#markStart()} and {@link TimerGauge#markEnd()} events.
+     *
+     * <p>Beware! As it is right now, {@link StartStopListener} is notified under the {@link
+     * TimerGauge}'s lock, so those callbacks should be very short, without long call stacks that
+     * acquire more locks. Otherwise, a potential for deadlocks can be introduced.
+     */
+    public interface StartStopListener {
+        void markStart();
+
+        void markEnd();
     }
 }
