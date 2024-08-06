@@ -151,7 +151,7 @@ public class WindowRankOperatorTest {
                         .rankStart(1)
                         .rankEnd(2)
                         .windowEndIndex(WINDOW_END_INDEX)
-                        .isEventTime(true)
+                        .withEventTime(true)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -258,7 +258,7 @@ public class WindowRankOperatorTest {
                         .rankStart(2)
                         .rankEnd(2)
                         .windowEndIndex(WINDOW_END_INDEX)
-                        .isEventTime(true)
+                        .withEventTime(true)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -348,7 +348,7 @@ public class WindowRankOperatorTest {
                         .rankStart(1)
                         .rankEnd(2)
                         .windowEndIndex(WINDOW_END_INDEX)
-                        .isEventTime(true)
+                        .withEventTime(true)
                         .build();
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =

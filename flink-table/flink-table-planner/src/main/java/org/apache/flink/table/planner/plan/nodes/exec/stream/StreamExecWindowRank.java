@@ -252,7 +252,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
                         .rankStart(constantRankRange.getRankStart())
                         .rankEnd(constantRankRange.getRankEnd())
                         .windowEndIndex(windowEndIndex)
-                        .isEventTime(windowing.isRowtime())
+                        .withEventTime(windowing.isRowtime())
                         .build();
 
         OneInputTransformation<RowData, RowData> transform =

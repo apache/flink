@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   .rankStart(0)
  *   .rankEnd(100)
  *   .windowEndIndex(windowEndIndex)
- *   .isEventTime(true)
+ *   .withEventTime(true)
  *   .build();
  * </pre>
  */
@@ -118,7 +118,7 @@ public class WindowRankOperatorBuilder {
         return this;
     }
 
-    public WindowRankOperatorBuilder isEventTime(Boolean isEventTime) {
+    public WindowRankOperatorBuilder withEventTime(Boolean isEventTime) {
         this.isEventTime = isEventTime;
         return this;
     }
