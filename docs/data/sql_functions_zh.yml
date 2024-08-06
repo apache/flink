@@ -359,7 +359,7 @@ string:
       例如 `'xxxxxtest'.overlay('xxxx', 6)` 返回 `"xxxxxxxxx"`；
       `'xxxxxtest'.overlay('xxxx', 6, 2)` 返回 `"xxxxxxxxxst"`。
   - sql: ENDSWITH(expr, endExpr)
-    table: expr.endswith(endExpr)
+    table: expr.endsWith(endExpr)
     description: |
       判断 expr 是否以 endExpr 结尾。如果 endExpr 为空，则结果为 true。
       expr 和 endExpr 应具有相同的类型。

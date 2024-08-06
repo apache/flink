@@ -27,12 +27,12 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 
 import javax.annotation.Nullable;
 
-/** Implementation of {@link BuiltInFunctionDefinitions#ENDSWITH}. */
+/** Implementation of {@link BuiltInFunctionDefinitions#ENDS_WITH}. */
 @Internal
-public class EndswithFunction extends BuiltInScalarFunction {
+public class EndsWithFunction extends BuiltInScalarFunction {
 
-    public EndswithFunction(SpecializedContext context) {
-        super(BuiltInFunctionDefinitions.ENDSWITH, context);
+    public EndsWithFunction(SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.ENDS_WITH, context);
     }
 
     public @Nullable Boolean eval(@Nullable StringData expr, @Nullable StringData endExpr) {

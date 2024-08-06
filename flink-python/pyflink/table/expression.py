@@ -1015,14 +1015,14 @@ class Expression(Generic[T]):
 
     # ---------------------------- string functions ----------------------------------
 
-    def endswith(self, end_expr) -> 'Expression':
+    def ends_with(self, end_expr) -> 'Expression':
         """
         Returns if expr ends with end_expr. If end_expr is empty, the result is true.
         expr and end_expr should have same type.
 
         :param end_expr: a STRING or BINARY expression
         """
-        return _binary_op("endswith")(self, end_expr)
+        return _binary_op("endsWith")(self, end_expr)
 
     def substring(self,
                   begin_index: Union[int, 'Expression[int]'],

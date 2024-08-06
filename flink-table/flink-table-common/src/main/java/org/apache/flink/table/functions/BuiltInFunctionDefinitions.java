@@ -924,7 +924,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
                     .build();
 
-    public static final BuiltInFunctionDefinition ENDSWITH =
+    public static final BuiltInFunctionDefinition ENDS_WITH =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ENDSWITH")
                     .kind(SCALAR)
@@ -942,7 +942,7 @@ public final class BuiltInFunctionDefinitions {
                                                     logical(LogicalTypeFamily.BINARY_STRING)))))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
                     .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.EndswithFunction")
+                            "org.apache.flink.table.runtime.functions.scalar.EndsWithFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition SUBSTRING =

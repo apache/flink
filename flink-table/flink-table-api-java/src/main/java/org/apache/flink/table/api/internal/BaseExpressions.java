@@ -91,7 +91,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENDSWITH;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENDS_WITH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
@@ -838,9 +838,9 @@ public abstract class BaseExpressions<InType, OutType> {
      * @param endExpr a STRING or BINARY expression
      * @return a BOOLEAN
      */
-    public OutType endswith(InType endExpr) {
+    public OutType endsWith(InType endExpr) {
         return toApiSpecificExpression(
-                unresolvedCall(ENDSWITH, toExpr(), objectToExpression(endExpr)));
+                unresolvedCall(ENDS_WITH, toExpr(), objectToExpression(endExpr)));
     }
 
     /**
