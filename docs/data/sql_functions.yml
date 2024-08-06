@@ -341,6 +341,18 @@ string:
       `expr <BINARY | VARBINARY>, startExpr <BINARY | VARBINARY>`
       
       Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
+  - sql: ENDSWITH(expr, endExpr)
+    table: expr.endsWith(endExpr)
+    description: |
+      Returns whether expr ends with endExpr. If endExpr is empty, the result is true.
+      
+      expr and endExpr should have same type. 
+      
+      `expr <CHAR | VARCHAR>, endExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, endExpr <BINARY | VARBINARY>`
+      
+      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)

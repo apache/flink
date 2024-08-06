@@ -410,6 +410,18 @@ string:
       `expr <BINARY | VARBINARY>, startExpr <BINARY | VARBINARY>`
       
       返回一个 `BOOLEAN`。如果任意参数为 `NULL`，则返回 `NULL`。
+  - sql: ENDSWITH(expr, endExpr)
+    table: expr.endsWith(endExpr)
+    description: |
+      判断 expr 是否以 endExpr 结尾。如果 endExpr 为空，则结果为 true。
+      
+      expr 和 endExpr 应具有相同的类型。
+      
+      `expr <CHAR | VARCHAR>, endExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, endExpr <BINARY | VARBINARY>`
+      
+      返回一个 `BOOLEAN`。如果任意参数为 `NULL`，则返回 `NULL`。
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)

@@ -161,6 +161,7 @@ string functions
     :toctree: api/
 
     Expression.starts_with
+    Expression.ends_with
     Expression.substring
     Expression.substr
     Expression.trim_leading

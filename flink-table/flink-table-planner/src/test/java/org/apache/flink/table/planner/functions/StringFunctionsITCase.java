@@ -41,6 +41,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                         bTrimTestCases(),
                         eltTestCases(),
+                        endsWithTestCases(),
                         printfTestCases(),
                         startsWithTestCases(),
                         translateTestCases())
@@ -194,6 +195,142 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "ELT(-1, 'a')",
                                 "Index must be an integer starting from '0', but was '-1'."));
+    }
+
+    private Stream<TestSetSpec> endsWithTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ENDS_WITH, "StringData")
+                        .onFieldsWithData(null, "www.apache.org", "", "in中文", "\uD83D\uDE00")
+                        .andDataTypes(
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f0").endsWith("abc"),
+                                "ENDSWITH(f0, 'abc')",
+                                null,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").endsWith($("f0")),
+                                "ENDSWITH(f1, f0)",
+                                null,
+                                DataTypes.BOOLEAN())
+                        // empty input
+                        .testResult(
+                                $("f2").endsWith("abc"),
+                                "ENDSWITH(f2, 'abc')",
+                                Boolean.FALSE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").endsWith($("f2")),
+                                "ENDSWITH(f1, f2)",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                lit("").endsWith(""),
+                                "ENDSWITH('', '')",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN().notNull())
+                        // normal cases
+                        .testResult(
+                                $("f1").endsWith("org"),
+                                "ENDSWITH(f1, 'org')",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").endsWith("."),
+                                "ENDSWITH(f1, '.')",
+                                Boolean.FALSE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f3").endsWith("n中文"),
+                                "ENDSWITH(f3, 'n中文')",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f3").endsWith("中"),
+                                "ENDSWITH(f3, '中')",
+                                Boolean.FALSE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f4").endsWith($("f4")),
+                                "ENDSWITH(f4, f4)",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f4").endsWith("\uDE00"),
+                                "ENDSWITH(f4, '\uDE00')",
+                                Boolean.FALSE,
+                                DataTypes.BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ENDS_WITH, "byte[]")
+                        .onFieldsWithData(
+                                null,
+                                new byte[] {1, 2, 3},
+                                new byte[0],
+                                new byte[0],
+                                new byte[] {2, 3},
+                                new byte[] {1})
+                        .andDataTypes(
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES().notNull(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES())
+                        // null input
+                        .testResult(
+                                $("f0").endsWith($("f1")),
+                                "ENDSWITH(f0, f1)",
+                                null,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").endsWith($("f0")),
+                                "ENDSWITH(f1, f0)",
+                                null,
+                                DataTypes.BOOLEAN())
+                        // empty input
+                        .testResult(
+                                $("f2").endsWith($("f1")),
+                                "ENDSWITH(f2, f1)",
+                                Boolean.FALSE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").endsWith($("f2")),
+                                "ENDSWITH(f1, f2)",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f3").endsWith($("f3")),
+                                "ENDSWITH(f3, f3)",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN().notNull())
+                        // normal cases
+                        .testResult(
+                                $("f1").endsWith($("f4")),
+                                "ENDSWITH(f1, f4)",
+                                Boolean.TRUE,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f1").endsWith($("f5")),
+                                "ENDSWITH(f1, f5)",
+                                Boolean.FALSE,
+                                DataTypes.BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ENDS_WITH, "Validation Error")
+                        .onFieldsWithData("12345", "123".getBytes())
+                        .andDataTypes(DataTypes.STRING(), DataTypes.BYTES())
+                        .testTableApiValidationError(
+                                $("f0").endsWith($("f1")),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ENDSWITH(expr <CHARACTER_STRING>, endExpr <CHARACTER_STRING>)\n"
+                                        + "ENDSWITH(expr <BINARY_STRING>, endExpr <BINARY_STRING>)")
+                        .testSqlValidationError(
+                                "ENDSWITH(f0, f1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ENDSWITH(expr <CHARACTER_STRING>, endExpr <CHARACTER_STRING>)\n"
+                                        + "ENDSWITH(expr <BINARY_STRING>, endExpr <BINARY_STRING>)"));
     }
 
     private Stream<TestSetSpec> printfTestCases() {
