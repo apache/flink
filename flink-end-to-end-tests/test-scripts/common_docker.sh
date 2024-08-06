@@ -21,7 +21,6 @@ set -o pipefail
 source "$(dirname "$0")"/common.sh
 
 docker --version
-docker-compose --version
 
 function containers_health_check() {
   local container_names=${@:1}
