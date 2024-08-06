@@ -24,6 +24,10 @@ import org.apache.flink.metrics.View;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  * {@link TimerGauge} measures how much time is spent in a given state, with entry into that state
  * being signaled by {@link #markStart()}. Measuring is stopped by {@link #markEnd()}. This class in
@@ -36,6 +40,8 @@ public class TimerGauge implements Gauge<Long>, View {
     private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
 
     private final Clock clock;
+
+    private final Collection<StartStopListener> startStopListeners = new ArrayList<>();
 
     /** The time-span over which the average is calculated. */
     private final int timeSpanInSeconds;
@@ -82,14 +88,42 @@ public class TimerGauge implements Gauge<Long>, View {
         this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS];
     }
 
-    public synchronized void markStart() {
-        if (currentMeasurementStartTS == 0) {
-            currentUpdateTS = clock.absoluteTimeMillis();
-            currentMeasurementStartTS = currentUpdateTS;
+    public synchronized void registerListener(StartStopListener listener) {
+        if (currentMeasurementStartTS != 0) {
+            listener.markStart();
+        }
+        startStopListeners.add(listener);
+    }
+
+    public synchronized void unregisterListener(StartStopListener listener) {
+        if (currentMeasurementStartTS != 0) {
+            listener.markEnd();
+        }
+        startStopListeners.remove(listener);
+    }
+
+    public void markStart() {
+        for (StartStopListener startStopListener : markStartInternal()) {
+            startStopListener.markStart();
         }
     }
 
-    public synchronized void markEnd() {
+    private synchronized Collection<StartStopListener> markStartInternal() {
+        if (currentMeasurementStartTS == 0) {
+            currentUpdateTS = clock.absoluteTimeMillis();
+            currentMeasurementStartTS = currentUpdateTS;
+            return new ArrayList<>(startStopListeners);
+        }
+        return Collections.EMPTY_LIST;
+    }
+
+    public void markEnd() {
+        for (StartStopListener startStopListener : markEndInternal()) {
+            startStopListener.markEnd();
+        }
+    }
+
+    private synchronized Collection<StartStopListener> markEndInternal() {
         if (currentMeasurementStartTS != 0) {
             long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
             currentCount += currentMeasurement;
@@ -97,7 +131,9 @@ public class TimerGauge implements Gauge<Long>, View {
             currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
             currentUpdateTS = 0;
             currentMeasurementStartTS = 0;
+            return new ArrayList<>(startStopListeners);
         }
+        return Collections.EMPTY_LIST;
     }
 
     @Override
@@ -163,5 +199,12 @@ public class TimerGauge implements Gauge<Long>, View {
     @VisibleForTesting
     public synchronized boolean isMeasuring() {
         return currentMeasurementStartTS != 0;
+    }
+
+    /** Listens for {@link TimerGauge#markStart()} and {@link TimerGauge#markEnd()} events. */
+    public interface StartStopListener {
+        void markStart();
+
+        void markEnd();
     }
 }
