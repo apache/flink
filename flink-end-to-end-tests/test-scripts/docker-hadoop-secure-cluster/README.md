@@ -25,8 +25,8 @@ Run image
 ```
 cd flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster
 wget -O hadoop/hadoop.tar.gz https://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz
-docker-compose build
-docker-compose up
+docker compose build
+docker compose up
 ```
 
 Usage
@@ -56,7 +56,7 @@ Known issues
 ### Unable to obtain Kerberos password
 
 #### Error
-docker-compose up fails for the first time with the error
+docker compose up fails for the first time with the error
 
 ```
 Login failure for nn/hadoop.docker.com@EXAMPLE.COM from keytab /etc/security/keytabs/nn.service.keytab: javax.security.auth.login.LoginException: Unable to obtain password from user
@@ -64,7 +64,7 @@ Login failure for nn/hadoop.docker.com@EXAMPLE.COM from keytab /etc/security/key
 
 #### Solution
 
-Stop the containers with `docker-compose down` and start again with `docker-compose up -d`.
+Stop the containers with `docker compose down` and start again with `docker compose up -d`.
 
 ### Java Keystore
 
