@@ -302,6 +302,16 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return mailboxSize;
     }
 
+    public void registerBackPressureListener(TimerGauge.StartStopListener backPressureListener) {
+        hardBackPressuredTimePerSecond.registerListener(backPressureListener);
+        softBackPressuredTimePerSecond.registerListener(backPressureListener);
+    }
+
+    public void unregisterBackPressureListener(TimerGauge.StartStopListener backPressureListener) {
+        hardBackPressuredTimePerSecond.unregisterListener(backPressureListener);
+        softBackPressuredTimePerSecond.unregisterListener(backPressureListener);
+    }
+
     // ============================================================================================
     // Metric Reuse
     // ============================================================================================
