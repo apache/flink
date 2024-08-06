@@ -28,6 +28,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.metrics.View;
 import org.apache.flink.util.clock.ManualClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.jupiter.api.Test;
 
@@ -147,5 +148,62 @@ class TimerGaugeTest {
 
         assertThat(gauge.getMaxSingleMeasurement()).isEqualTo(SLEEP / 2);
         assertThat(gauge.getAccumulatedCount()).isEqualTo(3 * SLEEP + SLEEP / 2);
+    }
+
+    @Test
+    void testListeners() {
+        TimerGauge gauge = new TimerGauge(SystemClock.getInstance(), View.UPDATE_INTERVAL_SECONDS);
+        TestStartStopListener listener1 = new TestStartStopListener();
+        TestStartStopListener listener2 = new TestStartStopListener();
+
+        gauge.registerListener(listener1);
+
+        gauge.markStart();
+        listener1.assertCounts(1, 0);
+        gauge.markEnd();
+        listener1.assertCounts(1, 1);
+
+        gauge.markStart();
+        gauge.registerListener(listener2);
+        listener1.assertCounts(2, 1);
+        listener2.assertCounts(1, 0);
+        gauge.markEnd();
+        listener1.assertCounts(2, 2);
+        listener2.assertCounts(1, 1);
+
+        gauge.markStart();
+        gauge.unregisterListener(listener1);
+        listener1.assertCounts(3, 3);
+        listener2.assertCounts(2, 1);
+
+        gauge.markEnd();
+        listener2.assertCounts(2, 2);
+
+        gauge.unregisterListener(listener2);
+
+        gauge.markStart();
+        gauge.markEnd();
+        listener1.assertCounts(3, 3);
+        listener2.assertCounts(2, 2);
+    }
+
+    static class TestStartStopListener implements TimerGauge.StartStopListener {
+        long startCount;
+        long endCount;
+
+        @Override
+        public void markStart() {
+            startCount++;
+        }
+
+        @Override
+        public void markEnd() {
+            endCount++;
+        }
+
+        public void assertCounts(long expectedStart, long expectedEnd) {
+            assertThat(startCount).isEqualTo(expectedStart);
+            assertThat(endCount).isEqualTo(expectedEnd);
+        }
     }
 }
