@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.CorrelateTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecCorrelate}. */
-public class CorrelateRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecCorrelate}. */
+public class CorrelateBatchRestoreTest extends BatchRestoreTestBase {
 
-    public CorrelateRestoreTest() {
-        super(StreamExecCorrelate.class);
+    public CorrelateBatchRestoreTest() {
+        super(BatchExecCorrelate.class);
     }
 
     @Override
