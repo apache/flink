@@ -1038,6 +1038,16 @@ class Expression(Generic[T]):
         """
         return _binary_op("startsWith")(self, start_expr)
 
+    def ends_with(self, end_expr) -> 'Expression':
+        """
+        Returns whether expr ends with end_expr. If end_expr is empty, the result is true.
+        expr and end_expr should have same type.
+
+        :param end_expr: A STRING or BINARY expression.
+        :return: A BOOLEAN.
+        """
+        return _binary_op("endsWith")(self, end_expr)
+
     def substring(self,
                   begin_index: Union[int, 'Expression[int]'],
                   length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
