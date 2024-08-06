@@ -231,7 +231,7 @@ object OverAggregateUtil {
       aggCalls: Seq[AggregateCall]): RelDataType = {
 
     val inputNameList = inputType.getFieldNames
-    val inputTypeList = inputType.getFieldList.asScala.map(field => field.getType)
+    val inputTypeList = inputType.getFieldList.asScala.map(_.getType)
 
     // we should avoid duplicated names with input column names
     val aggNames = RowTypeUtils.getUniqueName(aggCalls.map(_.getName), inputNameList)
