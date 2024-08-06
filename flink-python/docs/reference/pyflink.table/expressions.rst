@@ -159,6 +159,7 @@ string functions
 .. autosummary::
     :toctree: api/
 
+    Expression.startswith
     Expression.substring
     Expression.substr
     Expression.trim_leading
