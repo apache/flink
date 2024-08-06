@@ -398,6 +398,18 @@ string:
       将字符串 STRING1 从位置 INT1 开始替换 INT2（默认为 STRING2 的长度）个来自字符串 STRING2 的字符并返回。
       例如 `'xxxxxtest'.overlay('xxxx', 6)` 返回 `"xxxxxxxxx"`；
       `'xxxxxtest'.overlay('xxxx', 6, 2)` 返回 `"xxxxxxxxxst"`。
+  - sql: STARTSWITH(expr, startExpr)
+    table: expr.startsWith(startExpr)
+    description: |
+      判断 expr 是否以 startExpr 开头。如果 startExpr 为空，则结果为 true。
+      
+      expr 和 startExpr 应具有相同的类型。
+      
+      `expr <CHAR | VARCHAR>, startExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, startExpr <BINARY | VARBINARY>`
+      
+      返回一个 `BOOLEAN`。如果任意参数为 `NULL`，则返回 `NULL`。
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)

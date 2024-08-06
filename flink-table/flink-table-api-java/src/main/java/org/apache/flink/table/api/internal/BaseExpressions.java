@@ -187,6 +187,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SINH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT_INDEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SQRT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STARTS_WITH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_SAMP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STR_TO_MAP;
@@ -849,6 +850,19 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     // String operations
+
+    /**
+     * Returns whether {@code expr} starts with {@code startExpr}. If {@code startExpr} is empty,
+     * the result is true. <br>
+     * {@code expr} and {@code startExpr} should have same type.
+     *
+     * @param startExpr A STRING or BINARY expression.
+     * @return A BOOLEAN.
+     */
+    public OutType startsWith(InType startExpr) {
+        return toApiSpecificExpression(
+                unresolvedCall(STARTS_WITH, toExpr(), objectToExpression(startExpr)));
+    }
 
     /**
      * Creates a substring of the given string at given index for a given length.

@@ -931,6 +931,27 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
                     .build();
 
+    public static final BuiltInFunctionDefinition STARTS_WITH =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("STARTSWITH")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            Arrays.asList("expr", "startExpr"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING))),
+                                    sequence(
+                                            Arrays.asList("expr", "startExpr"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.BINARY_STRING),
+                                                    logical(LogicalTypeFamily.BINARY_STRING)))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.StartsWithFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition SUBSTRING =
             BuiltInFunctionDefinition.newBuilder()
                     .name("substring")
