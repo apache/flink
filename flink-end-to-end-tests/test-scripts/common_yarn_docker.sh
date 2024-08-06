@@ -42,14 +42,14 @@ function cluster_shutdown {
   if [ ${TRAPPED_EXIT_CODE} != 0 ];then
       debug_copy_and_show_logs
   fi
-  docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" down
+  docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" down
   rm "${FLINK_TARBALL_DIR}/${FLINK_TARBALL}"
 }
 on_exit cluster_shutdown
 
 function start_hadoop_cluster() {
     echo "Starting Hadoop cluster"
-    docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" up -d
+    docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" up -d
 
     # Wait for kerberos to be set up
     local start_time
@@ -103,7 +103,7 @@ function build_image() {
     ln "${cache_path}" "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
 
     echo "Building Hadoop Docker container"
-    docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" build
+    docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" build
 }
 
 function start_hadoop_cluster_and_prepare_flink() {
