@@ -171,6 +171,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("strToMap(a, ';', ':')", str(expr1.str_to_map(';', ':')))
         self.assertEqual("ELT(1, a)", str(lit(1).elt(expr1)))
         self.assertEqual('ELT(3, a, b, c)', str(lit(3).elt(expr1, expr2, expr3)))
+        self.assertEqual("ENDSWITH(a, b)", str(expr1.ends_with(expr2)))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))

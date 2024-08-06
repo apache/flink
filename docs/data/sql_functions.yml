@@ -291,6 +291,18 @@ string:
       STRING1.overlay(STRING2, INT1)
       STRING1.overlay(STRING2, INT1, INT2)
     description: Returns a string that replaces INT2 (STRING2's length by default) characters of STRING1 with STRING2 from position INT1. E.g., 'xxxxxtest'.overlay('xxxx', 6) returns "xxxxxxxxx"; 'xxxxxtest'.overlay('xxxx', 6, 2) returns "xxxxxxxxxst".
+  - sql: ENDSWITH(expr, endExpr)
+    table: expr.endsWith(endExpr)
+    description: |
+      Returns if expr ends with endExpr. If endExpr is empty, the result is true.
+      
+      expr and endExpr should have same type. 
+      
+      expr <CHAR | VARCHAR>, endExpr <CHAR | VARCHAR>
+      
+      expr <BINARY | VARBINARY>, endExpr <BINARY | VARBINARY>
+      
+      Returns a BOOLEAN. `NULL` if any of the arguments are `NULL`.
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)

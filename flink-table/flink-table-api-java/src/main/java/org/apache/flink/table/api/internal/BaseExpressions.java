@@ -93,6 +93,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTIN
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ELT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENDS_WITH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
@@ -832,6 +833,19 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     // String operations
+
+    /**
+     * Returns if {@code expr} ends with {@code endExpr}. If {@code endExpr} is empty, the result is
+     * true. <br>
+     * {@code expr} and {@code endExpr} should have same type.
+     *
+     * @param endExpr a STRING or BINARY expression
+     * @return a BOOLEAN
+     */
+    public OutType endsWith(InType endExpr) {
+        return toApiSpecificExpression(
+                unresolvedCall(ENDS_WITH, toExpr(), objectToExpression(endExpr)));
+    }
 
     /**
      * Creates a substring of the given string at given index for a given length.
