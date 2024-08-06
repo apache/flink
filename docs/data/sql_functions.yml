@@ -286,7 +286,7 @@ string:
       STRING1.overlay(STRING2, INT1, INT2)
     description: Returns a string that replaces INT2 (STRING2's length by default) characters of STRING1 with STRING2 from position INT1. E.g., 'xxxxxtest'.overlay('xxxx', 6) returns "xxxxxxxxx"; 'xxxxxtest'.overlay('xxxx', 6, 2) returns "xxxxxxxxxst".
   - sql: STARTSWITH(expr, startExpr)
-    table: expr.startswith(startExpr)
+    table: expr.startsWith(startExpr)
     description: |
       Returns if expr begins with startExpr. If startExpr is empty, the result is true.
       expr and startExpr should have same type. 

@@ -32,7 +32,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(regexpExtractTestCases(), startswithTestCases(), translateTestCases())
+        return Stream.of(regexpExtractTestCases(), startsWithTestCases(), translateTestCases())
                 .flatMap(s -> s);
     }
 
@@ -53,9 +53,9 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().nullable()));
     }
 
-    private Stream<TestSetSpec> startswithTestCases() {
+    private Stream<TestSetSpec> startsWithTestCases() {
         return Stream.of(
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.STARTSWITH, "StringData")
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.STARTS_WITH, "StringData")
                         .onFieldsWithData(null, "www.apache.org", "", "in中文", "\uD83D\uDE00")
                         .andDataTypes(
                                 DataTypes.STRING(),
@@ -65,63 +65,63 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING())
                         // null input
                         .testResult(
-                                $("f0").startswith("abc"),
+                                $("f0").startsWith("abc"),
                                 "STARTSWITH(f0, 'abc')",
                                 null,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f1").startswith($("f0")),
+                                $("f1").startsWith($("f0")),
                                 "STARTSWITH(f1, f0)",
                                 null,
                                 DataTypes.BOOLEAN())
                         // empty input
                         .testResult(
-                                $("f2").startswith("abc"),
+                                $("f2").startsWith("abc"),
                                 "STARTSWITH(f2, 'abc')",
                                 Boolean.FALSE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f1").startswith($("f2")),
+                                $("f1").startsWith($("f2")),
                                 "STARTSWITH(f1, f2)",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                lit("").startswith(""),
+                                lit("").startsWith(""),
                                 "STARTSWITH('', '')",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN().notNull())
                         // normal cases
                         .testResult(
-                                $("f1").startswith("ww"),
+                                $("f1").startsWith("ww"),
                                 "STARTSWITH(f1, 'ww')",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f1").startswith("."),
+                                $("f1").startsWith("."),
                                 "STARTSWITH(f1, '.')",
                                 Boolean.FALSE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f3").startswith("in中"),
+                                $("f3").startsWith("in中"),
                                 "STARTSWITH(f3, 'in中')",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f3").startswith("中"),
+                                $("f3").startsWith("中"),
                                 "STARTSWITH(f3, '中')",
                                 Boolean.FALSE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f4").startswith($("f4")),
+                                $("f4").startsWith($("f4")),
                                 "STARTSWITH(f4, f4)",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f4").startswith("\uD83D"),
+                                $("f4").startsWith("\uD83D"),
                                 "STARTSWITH(f4, '\uD83D')",
                                 Boolean.FALSE,
                                 DataTypes.BOOLEAN()),
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.STARTSWITH, "byte[]")
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.STARTS_WITH, "byte[]")
                         .onFieldsWithData(
                                 null,
                                 new byte[] {1, 2, 3},
@@ -138,47 +138,47 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.BYTES())
                         // null input
                         .testResult(
-                                $("f0").startswith($("f1")),
+                                $("f0").startsWith($("f1")),
                                 "STARTSWITH(f0, f1)",
                                 null,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f1").startswith($("f0")),
+                                $("f1").startsWith($("f0")),
                                 "STARTSWITH(f1, f0)",
                                 null,
                                 DataTypes.BOOLEAN())
                         // empty input
                         .testResult(
-                                $("f2").startswith($("f1")),
+                                $("f2").startsWith($("f1")),
                                 "STARTSWITH(f2, f1)",
                                 Boolean.FALSE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f1").startswith($("f2")),
+                                $("f1").startsWith($("f2")),
                                 "STARTSWITH(f1, f2)",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f3").startswith($("f3")),
+                                $("f3").startsWith($("f3")),
                                 "STARTSWITH(f3, f3)",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN().notNull())
                         // normal cases
                         .testResult(
-                                $("f1").startswith($("f4")),
+                                $("f1").startsWith($("f4")),
                                 "STARTSWITH(f1, f4)",
                                 Boolean.TRUE,
                                 DataTypes.BOOLEAN())
                         .testResult(
-                                $("f1").startswith($("f5")),
+                                $("f1").startsWith($("f5")),
                                 "STARTSWITH(f1, f5)",
                                 Boolean.FALSE,
                                 DataTypes.BOOLEAN()),
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.STARTSWITH, "Validation Error")
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.STARTS_WITH, "Validation Error")
                         .onFieldsWithData("12345", "123".getBytes())
                         .andDataTypes(DataTypes.STRING(), DataTypes.BYTES())
                         .testTableApiValidationError(
-                                $("f0").startswith($("f1")),
+                                $("f0").startsWith($("f1")),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "STARTSWITH(expr <CHARACTER_STRING>, startExpr <CHARACTER_STRING>)\n"
                                         + "STARTSWITH(expr <BINARY_STRING>, startExpr <BINARY_STRING>)")

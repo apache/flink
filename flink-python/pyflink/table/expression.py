@@ -1015,14 +1015,14 @@ class Expression(Generic[T]):
 
     # ---------------------------- string functions ----------------------------------
 
-    def startswith(self, start_expr) -> 'Expression':
+    def starts_with(self, start_expr) -> 'Expression':
         """
         Returns if expr begins with start_expr. If start_expr is empty, the result is true.
         expr and start_expr should have same type.
 
         :param start_expr: a STRING or BINARY expression
         """
-        return _binary_op("startswith")(self, start_expr)
+        return _binary_op("startsWith")(self, start_expr)
 
     def substring(self,
                   begin_index: Union[int, 'Expression[int]'],

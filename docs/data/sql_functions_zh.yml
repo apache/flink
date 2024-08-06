@@ -359,7 +359,7 @@ string:
       例如 `'xxxxxtest'.overlay('xxxx', 6)` 返回 `"xxxxxxxxx"`；
       `'xxxxxtest'.overlay('xxxx', 6, 2)` 返回 `"xxxxxxxxxst"`。
   - sql: STARTSWITH(expr, startExpr)
-    table: expr.startswith(startExpr)
+    table: expr.startsWith(startExpr)
     description: |
       判断 expr 是否以 startExpr 开头。如果 startExpr 为空，则结果为 true。
       expr 和 startExpr 应具有相同的类型。

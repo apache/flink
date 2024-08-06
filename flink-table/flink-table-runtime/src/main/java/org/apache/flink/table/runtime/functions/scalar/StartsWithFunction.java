@@ -27,12 +27,12 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 
 import javax.annotation.Nullable;
 
-/** Implementation of {@link BuiltInFunctionDefinitions#STARTSWITH}. */
+/** Implementation of {@link BuiltInFunctionDefinitions#STARTS_WITH}. */
 @Internal
-public class StartswithFunction extends BuiltInScalarFunction {
+public class StartsWithFunction extends BuiltInScalarFunction {
 
-    public StartswithFunction(SpecializedContext context) {
-        super(BuiltInFunctionDefinitions.STARTSWITH, context);
+    public StartsWithFunction(SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.STARTS_WITH, context);
     }
 
     public @Nullable Boolean eval(@Nullable StringData expr, @Nullable StringData startExpr) {

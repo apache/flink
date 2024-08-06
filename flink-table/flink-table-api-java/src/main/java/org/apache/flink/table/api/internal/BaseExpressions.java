@@ -178,7 +178,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SINH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT_INDEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SQRT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STARTSWITH;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STARTS_WITH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_SAMP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STR_TO_MAP;
@@ -838,9 +838,9 @@ public abstract class BaseExpressions<InType, OutType> {
      * @param startExpr a STRING or BINARY expression
      * @return a BOOLEAN
      */
-    public OutType startswith(InType startExpr) {
+    public OutType startsWith(InType startExpr) {
         return toApiSpecificExpression(
-                unresolvedCall(STARTSWITH, toExpr(), objectToExpression(startExpr)));
+                unresolvedCall(STARTS_WITH, toExpr(), objectToExpression(startExpr)));
     }
 
     /**
