@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.planner.utils.InternalConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -40,7 +40,7 @@ public class SortTestPrograms {
         Row.of(5, "c", 9)
     };
 
-    static final TableTestProgram SORT_LIMIT_ASC =
+    public static final TableTestProgram SORT_LIMIT_ASC =
             TableTestProgram.of(
                             "sort-limit-asc",
                             "validates sort limit node by sorting integers in asc mode")
@@ -88,7 +88,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a LIMIT 3")
                     .build();
 
-    static final TableTestProgram SORT_LIMIT_DESC =
+    public static final TableTestProgram SORT_LIMIT_DESC =
             TableTestProgram.of(
                             "sort-limit-desc",
                             "validates sort limit node by sorting integers in desc mode")
@@ -126,7 +126,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a DESC LIMIT 3")
                     .build();
 
-    static final TableTestProgram SORT_ASC =
+    public static final TableTestProgram SORT_ASC =
             TableTestProgram.of("sort-asc", "validates sort node by sorting integers in asc mode")
                     .setupConfig(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
                     .setupTableSource(
@@ -148,7 +148,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a")
                     .build();
 
-    static final TableTestProgram SORT_DESC =
+    public static final TableTestProgram SORT_DESC =
             TableTestProgram.of("sort-desc", "validates sort node by sorting integers in desc mode")
                     .setupConfig(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
                     .setupTableSource(

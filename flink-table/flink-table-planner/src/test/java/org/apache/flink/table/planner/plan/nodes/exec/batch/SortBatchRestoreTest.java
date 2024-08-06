@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.SortTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecSortLimit}. */
-public class SortLimitRestoreTest extends RestoreTestBase {
+/** Restore tests for {@link BatchExecSort}. */
+public class SortBatchRestoreTest extends BatchRestoreTestBase {
 
-    public SortLimitRestoreTest() {
-        super(StreamExecSortLimit.class);
+    public SortBatchRestoreTest() {
+        super(BatchExecSort.class, Collections.singletonList(BatchExecExchange.class));
     }
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(SortTestPrograms.SORT_LIMIT_ASC, SortTestPrograms.SORT_LIMIT_DESC);
+        return Arrays.asList(SortTestPrograms.SORT_ASC, SortTestPrograms.SORT_DESC);
     }
 }
