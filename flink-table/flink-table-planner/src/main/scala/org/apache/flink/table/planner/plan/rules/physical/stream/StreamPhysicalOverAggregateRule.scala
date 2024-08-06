@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalOverAggregate
+import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -66,13 +67,20 @@ class StreamPhysicalOverAggregateRule(config: Config) extends ConverterRule(conf
       .replace(FlinkConventions.STREAM_PHYSICAL)
       .replace(requiredDistribution)
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput = RelOptRule.convert(logicWindow.getInput, requiredTraitSet)
+    val input = logicWindow.getInput
+    val newInput = RelOptRule.convert(input, requiredTraitSet)
+
+    val outputRowType = OverAggregateUtil.inferOutputRowType(
+      logicWindow.getCluster,
+      input.getRowType,
+      // only supports one group now
+      logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala)
 
     new StreamPhysicalOverAggregate(
       rel.getCluster,
       providedTraitSet,
       newInput,
-      rel.getRowType,
+      outputRowType,
       logicWindow)
   }
 }

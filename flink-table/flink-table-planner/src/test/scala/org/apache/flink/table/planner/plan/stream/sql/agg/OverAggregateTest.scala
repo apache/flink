@@ -441,4 +441,31 @@ class OverAggregateTest extends TableTestBase {
 
     util.verifyExecPlan(sqlQuery)
   }
+
+  @Test
+  def testNestedOverAgg(): Unit = {
+    util.addTable(s"""
+                     |CREATE TEMPORARY TABLE src (
+                     |  a STRING,
+                     |  b STRING,
+                     |  ts TIMESTAMP_LTZ(3),
+                     |  watermark FOR ts as ts
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+
+    util.verifyExecPlan(s"""
+                           |SELECT *
+                           |FROM (
+                           | SELECT
+                           |    *, count(*) OVER (PARTITION BY a ORDER BY ts) AS c2
+                           |  FROM (
+                           |    SELECT
+                           |      *, count(*) OVER (PARTITION BY a,b ORDER BY ts) AS c1
+                           |    FROM src
+                           |  )
+                           |)
+                           |""".stripMargin)
+  }
 }

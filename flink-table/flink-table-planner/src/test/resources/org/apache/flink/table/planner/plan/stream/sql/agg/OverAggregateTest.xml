@@ -16,6 +16,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testNestedOverAgg">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+ SELECT
+    *, count(*) OVER (PARTITION BY a ORDER BY ts) AS c2
+  FROM (
+    SELECT
+      *, count(*) OVER (PARTITION BY a,b ORDER BY ts) AS c1
+    FROM src
+  )
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[$4])
++- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[COUNT() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[COUNT() OVER (PARTITION BY $0, $1 ORDER BY $2 NULLS FIRST)])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+OverAggregate(partitionBy=[a], orderBy=[ts ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0, COUNT(*) AS w0$o0_0])
++- Exchange(distribution=[hash[a]])
+   +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, COUNT(*) AS w0$o0])
+      +- Exchange(distribution=[hash[a, b]])
+         +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProctimeBoundedDistinctPartitionedRowOver">
     <Resource name="sql">
       <![CDATA[
