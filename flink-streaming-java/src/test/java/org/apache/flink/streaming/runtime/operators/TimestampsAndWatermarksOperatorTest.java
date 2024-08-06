@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -31,10 +32,13 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 
 import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
 import static org.apache.flink.streaming.util.WatermarkMatchers.legacyWatermark;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -233,6 +237,46 @@ public class TimestampsAndWatermarksOperatorTest {
         for (long value : values) {
             assertThat(pollNextStreamRecord(testHarness).getTimestamp(), is(value));
         }
+    }
+
+    @Test
+    public void watermarksWithIdlenessUnderBackpressure() throws Exception {
+        long idleTimeout = 100;
+
+        TimestampsAndWatermarksOperator<Tuple2<Boolean, Long>> operator =
+                new TimestampsAndWatermarksOperator<>(
+                        WatermarkStrategy.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
+                                .withTimestampAssigner((ctx) -> new TupleExtractor())
+                                .withIdleness(Duration.ofMillis(idleTimeout)),
+                        true);
+
+        OneInputStreamOperatorTestHarness<Tuple2<Boolean, Long>, Tuple2<Boolean, Long>>
+                testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+        testHarness.open();
+
+        TaskIOMetricGroup taskIOMetricGroup =
+                testHarness.getEnvironment().getMetricGroup().getIOMetricGroup();
+        taskIOMetricGroup.getHardBackPressuredTimePerSecond().markStart();
+
+        for (int i = 0; i < 10; i++) {
+            testHarness.advanceTime(idleTimeout);
+        }
+        assertThat(testHarness.getOutput(), hasSize(0));
+
+        taskIOMetricGroup.getHardBackPressuredTimePerSecond().markEnd();
+        taskIOMetricGroup.getSoftBackPressuredTimePerSecond().markStart();
+
+        for (int i = 10; i < 20; i++) {
+            testHarness.advanceTime(idleTimeout);
+        }
+        assertThat(testHarness.getOutput(), hasSize(0));
+
+        taskIOMetricGroup.getSoftBackPressuredTimePerSecond().markEnd();
+
+        for (int i = 20; i < 30; i++) {
+            testHarness.advanceTime(idleTimeout);
+        }
+        assertThat(testHarness.getOutput(), contains(WatermarkStatus.IDLE));
     }
 
     private static <T> OneInputStreamOperatorTestHarness<T, T> createTestHarness(
