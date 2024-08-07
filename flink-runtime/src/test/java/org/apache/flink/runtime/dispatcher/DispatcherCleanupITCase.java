@@ -220,7 +220,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
                 TestingJobManagerRunnerRegistry.newSingleJobBuilder(jobManagerRunnerEntry)
                         .withLocalCleanupAsyncFunction(
-                                (actualJobId, executor) -> jobManagerRunnerCleanupFuture)
+                                (actualJobId, executor, mainThreadExector) ->
+                                        jobManagerRunnerCleanupFuture)
                         .build();
 
         final Dispatcher dispatcher =

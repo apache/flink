@@ -95,7 +95,9 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
             ComponentMainThreadExecutor mainThreadExecutor) {
         return DefaultResourceCleaner.forLocallyCleanableResources(
                         mainThreadExecutor, cleanupExecutor, retryStrategy)
-                .withPrioritizedCleanup(JOB_MANAGER_RUNNER_REGISTRY_LABEL, jobManagerRunnerRegistry)
+                .withPrioritizedCleanup(
+                        JOB_MANAGER_RUNNER_REGISTRY_LABEL,
+                        toLocallyCleanableResource(jobManagerRunnerRegistry, mainThreadExecutor))
                 .withRegularCleanup(JOB_GRAPH_STORE_LABEL, jobGraphWriter)
                 .withRegularCleanup(BLOB_SERVER_LABEL, blobServer)
                 .withRegularCleanup(JOB_MANAGER_METRIC_GROUP_LABEL, jobManagerMetricGroup)
@@ -109,13 +111,30 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
                         mainThreadExecutor, cleanupExecutor, retryStrategy)
                 .withPrioritizedCleanup(
                         JOB_MANAGER_RUNNER_REGISTRY_LABEL,
-                        ofLocalResource(jobManagerRunnerRegistry))
+                        toGloballyCleanableResource(jobManagerRunnerRegistry, mainThreadExecutor))
                 .withRegularCleanup(JOB_GRAPH_STORE_LABEL, jobGraphWriter)
                 .withRegularCleanup(BLOB_SERVER_LABEL, blobServer)
                 .withRegularCleanup(HA_SERVICES_LABEL, highAvailabilityServices)
                 .withRegularCleanup(
-                        JOB_MANAGER_METRIC_GROUP_LABEL, ofLocalResource(jobManagerMetricGroup))
+                        JOB_MANAGER_METRIC_GROUP_LABEL,
+                        toGloballyCleanableResource(jobManagerMetricGroup))
                 .build();
+    }
+
+    /**
+     * A simple wrapper for the resources that don't have any artifacts that can outlive the {@link
+     * org.apache.flink.runtime.dispatcher.Dispatcher}, but we still want to clean up their local
+     * state when we terminate globally.
+     *
+     * @param localResource Local resource that we want to clean during a global cleanup.
+     * @param mainThreadExecutor Main thread executor for cleanup.
+     * @return Globally cleanable resource.
+     */
+    private static GloballyCleanableResource toGloballyCleanableResource(
+            LocallyCleanableInMainThreadResource localResource,
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        return (jobId, cleanupExecutor) ->
+                localResource.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);
     }
 
     /**
@@ -126,8 +145,21 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
      * @param localResource Local resource that we want to clean during a global cleanup.
      * @return Globally cleanable resource.
      */
-    private static GloballyCleanableResource ofLocalResource(
+    private static GloballyCleanableResource toGloballyCleanableResource(
             LocallyCleanableResource localResource) {
         return localResource::localCleanupAsync;
+    }
+
+    /**
+     * Converts a LocallyCleanableInMainThreadResource object to a LocallyCleanableResource object.
+     *
+     * @param localResource LocallyCleanableInMainThreadResource that we want to translate.
+     * @return A LocallyCleanableResource.
+     */
+    public static LocallyCleanableResource toLocallyCleanableResource(
+            LocallyCleanableInMainThreadResource localResource,
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        return (jobId, cleanupExecutor) ->
+                localResource.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);
     }
 }

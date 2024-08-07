@@ -151,6 +151,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     }
 
     private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(
+            JobManagerRunnerRegistry jobManagerRunnerRegistry, int numBlockingJobManagerRunners)
+            throws Exception {
+        return startDispatcherAndSubmitJob(
+                createTestingDispatcherBuilder(jobManagerRunnerRegistry),
+                numBlockingJobManagerRunners);
+    }
+
+    private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob(
             TestingDispatcher.Builder dispatcherBuilder, int numBlockingJobManagerRunners)
             throws Exception {
         final TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactoryNG =
@@ -179,9 +187,18 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
     }
 
+    private TestingJobManagerRunnerRegistry createTestingJobManagerRunnerRegistry() {
+        return TestingJobManagerRunnerRegistry.newDefaultJobManagerRunnerRegistryBuilder(
+                        new DefaultJobManagerRunnerRegistry(2))
+                .build();
+    }
+
     private TestingDispatcher.Builder createTestingDispatcherBuilder() {
-        final JobManagerRunnerRegistry jobManagerRunnerRegistry =
-                new DefaultJobManagerRunnerRegistry(2);
+        return createTestingDispatcherBuilder(createTestingJobManagerRunnerRegistry());
+    }
+
+    private TestingDispatcher.Builder createTestingDispatcherBuilder(
+            JobManagerRunnerRegistry jobManagerRunnerRegistry) {
         return TestingDispatcher.builder()
                 .setBlobServer(blobServer)
                 .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
@@ -191,7 +208,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 // JobManagerRunnerRegistry needs to be added explicitly
                                 // because cleaning it will trigger the closeAsync latch
                                 // provided by TestingJobManagerRunner
-                                .withLocallyCleanableResource(jobManagerRunnerRegistry)
+                                .withLocallyCleanableInMainThreadResource(jobManagerRunnerRegistry)
                                 .withGloballyCleanableResource(
                                         (jobId, ignoredExecutor) -> {
                                             globalCleanupFuture.complete(jobId);
@@ -418,8 +435,11 @@ public class DispatcherResourceCleanupTest extends TestLogger {
      */
     @Test
     public void testJobSubmissionUnderSameJobId() throws Exception {
+        final TestingJobManagerRunnerRegistry testingJobManagerRunnerRegistry =
+                createTestingJobManagerRunnerRegistry();
+
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob(1);
+                startDispatcherAndSubmitJob(testingJobManagerRunnerRegistry, 1);
 
         final TestingJobManagerRunner testingJobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.util.concurrent.Executors;
@@ -134,18 +133,6 @@ class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    void testSuccessfulLocalCleanup() {
-        final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
-
-        assertThat(
-                        testInstance.localCleanupAsync(
-                                jobManagerRunner.getJobID(), Executors.directExecutor()))
-                .isCompleted();
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
-        assertThat(jobManagerRunner.getTerminationFuture()).isCompleted();
-    }
-
-    @Test
     void testFailingLocalCleanup() {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
 
@@ -157,25 +144,33 @@ class DefaultJobManagerRunnerRegistryTest {
 
         assertThatFuture(
                         testInstance.localCleanupAsync(
-                                jobManagerRunner.getJobID(), Executors.directExecutor()))
+                                jobManagerRunner.getJobID(),
+                                Executors.directExecutor(),
+                                Executors.directExecutor()))
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
                 .hasExactlyElementsOfTypes(ExecutionException.class, expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isTrue()
+                .as(
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.");
     }
 
     @Test
-    void testSuccessfulLocalCleanupAsync() {
+    void testSuccessfulLocalCleanupAsync() throws InterruptedException, ExecutionException {
         final TestingJobManagerRunner jobManagerRunner = registerTestingJobManagerRunner();
-
         final CompletableFuture<Void> cleanupResult =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), Executors.directExecutor());
+                        jobManagerRunner.getJobID(),
+                        Executors.directExecutor(),
+                        Executors.directExecutor());
+
+        // Wait for the unregister future to complete
+        cleanupResult.get();
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
-        assertThat(cleanupResult).isCompleted();
     }
 
     @Test
@@ -190,8 +185,13 @@ class DefaultJobManagerRunnerRegistryTest {
 
         final CompletableFuture<Void> cleanupResult =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), Executors.directExecutor());
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+                        jobManagerRunner.getJobID(),
+                        Executors.directExecutor(),
+                        Executors.directExecutor());
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isTrue()
+                .as(
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.");
         assertThatFuture(cleanupResult)
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
@@ -202,7 +202,7 @@ class DefaultJobManagerRunnerRegistryTest {
     }
 
     @Test
-    void testLocalCleanupAsyncNonBlocking() {
+    void testLocalCleanupAsyncNonBlocking() throws ExecutionException, InterruptedException {
         final TestingJobManagerRunner jobManagerRunner =
                 TestingJobManagerRunner.newBuilder().setBlockingTermination(true).build();
         testInstance.register(jobManagerRunner);
@@ -210,15 +210,25 @@ class DefaultJobManagerRunnerRegistryTest {
         // this call shouldn't block
         final CompletableFuture<Void> cleanupFuture =
                 testInstance.localCleanupAsync(
-                        jobManagerRunner.getJobID(), UnsupportedOperationExecutor.INSTANCE);
+                        jobManagerRunner.getJobID(),
+                        Executors.directExecutor(),
+                        Executors.directExecutor());
 
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isTrue()
+                .as(
+                        "Since the cleanup future hasn't completed yet, the JobManagerRunner is expected to not have been unregistered.");
         assertThat(jobManagerRunner.getTerminationFuture()).isNotCompleted();
         assertThat(cleanupFuture).isNotCompleted();
 
+        // Complete the closeAsync() future
         jobManagerRunner.getTerminationFuture().complete(null);
 
-        assertThat(cleanupFuture).isCompleted();
+        // Wait for the unregistration to complete
+        cleanupFuture.get();
+        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
+                .isFalse()
+                .as("The unregister future is complete now.");
     }
 
     private TestingJobManagerRunner registerTestingJobManagerRunner() {
@@ -234,7 +244,11 @@ class DefaultJobManagerRunnerRegistryTest {
 
     @Test
     void testLocalCleanupAsyncOnUnknownJobId() {
-        assertThat(testInstance.localCleanupAsync(new JobID(), Executors.directExecutor()))
+        assertThat(
+                        testInstance.localCleanupAsync(
+                                new JobID(),
+                                Executors.directExecutor(),
+                                Executors.directExecutor()))
                 .isCompleted();
     }
 }

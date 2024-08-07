@@ -96,7 +96,7 @@ public class DispatcherResourceCleanerFactoryTest {
 
         return TestingJobManagerRunnerRegistry.builder()
                 .withLocalCleanupAsyncFunction(
-                        (jobId, executor) -> {
+                        (jobId, executor, mainThreadExecutor) -> {
                             jobManagerRunnerRegistryLocalCleanupFuture.complete(jobId);
                             return jobManagerRunnerRegistryLocalCleanupResultFuture;
                         })
