@@ -17,9 +17,17 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.api.common.typeinfo.TypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -63,5 +71,21 @@ class PojoTestUtilsTest {
 
     public static class PojoRequiringKryo {
         public List<Integer> x;
+    }
+
+    @TypeInfo(FooFactory.class)
+    public interface Foo {}
+
+    public static class FooFactory extends TypeInfoFactory<Foo> {
+        @Override
+        public TypeInformation<Foo> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
+            return Types.POJO(Foo.class, new HashMap<>());
+        }
+    }
+
+    @Test
+    void testPojoTypeInfoOnInterface() {
+        // reported in FLINK-35887
+        PojoTestUtils.assertSerializedAsPojo(Foo.class);
     }
 }
