@@ -90,6 +90,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.varying
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
+import static org.apache.flink.table.types.inference.TypeStrategies.commonRange;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.forceNullable;
@@ -99,6 +100,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAr
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
@@ -1385,6 +1387,37 @@ public final class BuiltInFunctionDefinitions {
                             nullableIfArgs(
                                     explicit(
                                             DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))))
+                    .build();
+
+    public static final BuiltInFunctionDefinition ELT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ELT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            compositeSequence()
+                                    .argument("index", INDEX)
+                                    .finishWithVarying(
+                                            or(
+                                                    varyingSequence(
+                                                            Arrays.asList("expr", "exprs"),
+                                                            Arrays.asList(
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .CHARACTER_STRING),
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .CHARACTER_STRING))),
+                                                    varyingSequence(
+                                                            Arrays.asList("expr", "exprs"),
+                                                            Arrays.asList(
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .BINARY_STRING),
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .BINARY_STRING))))))
+                    .outputTypeStrategy(forceNullable(commonRange(ConstantArgumentCount.from(1))))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

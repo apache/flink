@@ -1384,6 +1384,22 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
 
+    def elt(self, expr, *exprs) -> 'Expression':
+        """
+        Returns the index-th expression. null if index is null or out of range.
+        index must be an integer between 1 and the number of expressions.
+
+        :param expr: a STRING or BINARY expression
+        :param exprs: a STRING or BINARY expression
+
+        :return: result type is the least common type of all expressions.
+        """
+        gateway = get_gateway()
+        ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+        expr_list = [ApiExpressionUtils.objectToExpression(_get_java_expression(e))
+                     for e in exprs]
+        return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
+
     # ---------------------------- temporal functions ----------------------------------
 
     @property

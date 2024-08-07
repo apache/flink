@@ -506,6 +506,13 @@ string:
   - sql: JSON_UNQUOTE(string)
     table: STRING.JsonUnquote()
     description: Unquotes JSON value, unescapes escaped special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+  - sql: ELT(index, expr[, exprs]*)
+    table: index.elt(expr, exprs...)
+    description: |
+      返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
 
 temporal:
   - sql: DATE string

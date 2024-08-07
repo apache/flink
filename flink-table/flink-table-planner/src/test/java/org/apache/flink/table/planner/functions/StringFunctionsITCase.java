@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
+import java.math.BigDecimal;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -32,7 +33,11 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(bTrimTestCases(), regexpExtractTestCases(), translateTestCases())
+        return Stream.of(
+                        bTrimTestCases(),
+                        eltTestCases(),
+                        regexpExtractTestCases(),
+                        translateTestCases())
                 .flatMap(s -> s);
     }
 
@@ -105,6 +110,84 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "BTRIM(str <CHARACTER_STRING>)\n"
                                         + "BTRIM(str <CHARACTER_STRING>, trimStr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> eltTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT)
+                        .onFieldsWithData(null, null, null, new byte[] {1, 2, 3})
+                        .andDataTypes(
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES())
+                        // null input
+                        .testResult(
+                                $("f0").elt("a", "b"), "ELT(f0, 'a', 'b')", null, DataTypes.CHAR(1))
+                        .testResult(lit(1).elt($("f1")), "ELT(1, f1)", null, DataTypes.STRING())
+                        .testResult(
+                                lit(1).elt("a", $("f1")),
+                                "ELT(1, 'a', f1)",
+                                "a",
+                                DataTypes.STRING())
+                        // invalid index
+                        .testResult(
+                                lit(0).elt("a", "b"), "ELT(0, 'a', 'b')", null, DataTypes.CHAR(1))
+                        .testResult(
+                                lit(3).elt("a", "b"), "ELT(3, 'a', 'b')", null, DataTypes.CHAR(1))
+                        .testResult(
+                                lit(9223372036854775807L).elt("ab", "b"),
+                                "ELT(9223372036854775807, 'ab', 'b')",
+                                null,
+                                DataTypes.VARCHAR(2))
+                        // normal cases
+                        .testResult(
+                                lit(1).elt("scala", "java"),
+                                "ELT(1, 'scala', 'java')",
+                                "scala",
+                                DataTypes.VARCHAR(5))
+                        .testResult(
+                                lit(2).elt("a", "b"), "ELT(2, 'a', 'b')", "b", DataTypes.CHAR(1))
+                        .testResult(
+                                lit(2).elt($("f2"), $("f3"), $("f3")),
+                                "ELT(2, f2, f3, f3)",
+                                new byte[] {1, 2, 3},
+                                DataTypes.BYTES())
+                        .testResult(
+                                lit(3).elt($("f2"), $("f3"), $("f2")),
+                                "ELT(3, f2, f3, f2)",
+                                null,
+                                DataTypes.BYTES()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT, "Validation Error")
+                        .onFieldsWithData("1", "1".getBytes(), BigDecimal.valueOf(1))
+                        .andDataTypes(
+                                DataTypes.STRING(), DataTypes.BYTES(), DataTypes.DECIMAL(1, 0))
+                        .testTableApiValidationError(
+                                lit(1).elt($("f0"), $("f1")),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testSqlValidationError(
+                                "ELT(1, f0, f1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testTableApiValidationError(
+                                $("f2").elt("a"),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testSqlValidationError(
+                                "ELT(f2, 'a')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testTableApiValidationError(
+                                lit(-1).elt("a"),
+                                "Index must be an integer starting from '0', but was '-1'.")
+                        .testSqlValidationError(
+                                "ELT(-1, 'a')",
+                                "Index must be an integer starting from '0', but was '-1'."));
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {
