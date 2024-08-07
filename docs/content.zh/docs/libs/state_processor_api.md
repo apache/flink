@@ -81,7 +81,7 @@ Flink 中的 non-keyed state 被称为 [operator state]({{< ref "docs/dev/datast
 
 #### Operator List State
 
-通过 `getListState` 存储在 `CheckpointedFunction` 中的 operator state 可以用 `ExistingSavepoint#readListState` 读取。 
+通过 `getListState` 存储在 `CheckpointedFunction` 中的 operator state 可以用 `SavepointReader#readListState` 读取。 
 状态名称和类型信息应该与定义在 DataStream 应用程序中声明此状态的 `ListStateDescriptor` 相匹配。
 
 ```java
@@ -93,7 +93,7 @@ DataStream<Integer> listState  = savepoint.readListState<>(
 
 #### Operator Union List State
 
-通过 `getUnionListState` 存储在 `CheckpointedFunction` 中的 operator state 可以用 `ExistingSavepoint#readUnionState` 读取。 
+通过 `getUnionListState` 存储在 `CheckpointedFunction` 中的 operator state 可以用 `SavepointReader#readUnionState` 读取。 
 状态名称和类型信息应该与定义在 DataStream 应用程序中声明此状态的 `ListStateDescriptor` 相匹配。 
 State Processor API 将返回一个状态的 _单_ 副本，可以看作并发度为 1 的 DataStream 应用。
 
@@ -106,7 +106,7 @@ DataStream<Integer> listState  = savepoint.readUnionState<>(
 
 #### 广播状态 Broadcast State
 
-可以用 `ExistingSavepoint#readBroadcastState` 读取 [BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}})。
+可以用 `SavepointReader#readBroadcastState` 读取 [BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}})。
 状态名称和类型信息应该与定义在 DataStream 应用程序中声明此状态的 `MapStateDescriptor` 相匹配。
 State Processor API 将返回一个状态的 _单_ 副本，可以看作并发度为 1 的 DataStream 应用。
 
