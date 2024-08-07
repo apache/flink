@@ -20,37 +20,63 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Type strategy that returns a common, least restrictive type of all arguments. */
+/** Type strategy that returns a common, least restrictive type of selected arguments. */
 @Internal
 public final class CommonTypeStrategy implements TypeStrategy {
 
+    private final ArgumentCount argumentRange;
+
+    public CommonTypeStrategy() {
+        this.argumentRange = ConstantArgumentCount.any();
+    }
+
+    public CommonTypeStrategy(ArgumentCount argumentRange) {
+        this.argumentRange = argumentRange;
+    }
+
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
-        final List<LogicalType> actualTypes =
-                callContext.getArgumentDataTypes().stream()
+        int minCount = argumentRange.getMinCount().orElse(0);
+        int maxCount =
+                argumentRange.getMaxCount().orElse(callContext.getArgumentDataTypes().size() - 1);
+        Preconditions.checkArgument(minCount <= maxCount);
+
+        final List<LogicalType> selectedActualTypes =
+                callContext.getArgumentDataTypes().subList(minCount, maxCount + 1).stream()
                         .map(DataType::getLogicalType)
                         .collect(Collectors.toList());
-        return LogicalTypeMerging.findCommonType(actualTypes)
+        return LogicalTypeMerging.findCommonType(selectedActualTypes)
                 .map(TypeConversions::fromLogicalToDataType);
     }
 
     @Override
     public boolean equals(Object o) {
-        return this == o || o instanceof CommonTypeStrategy;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CommonTypeStrategy)) {
+            return false;
+        }
+        CommonTypeStrategy that = (CommonTypeStrategy) o;
+        return argumentRange.equals(that.argumentRange);
     }
 
     @Override
     public int hashCode() {
-        return CommonTypeStrategy.class.hashCode();
+        return Objects.hash(argumentRange);
     }
 }
