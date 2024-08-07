@@ -16,24 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.common.LimitTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.common.TableSourceScanTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecLimit}. */
-public class LimitRestoreTest extends RestoreTestBase {
+/** Restore tests for {@link BatchExecTableSourceScan}. */
+public class TableSourceScanBatchRestoreTest extends BatchRestoreTestBase {
 
-    public LimitRestoreTest() {
-        super(StreamExecLimit.class);
+    public TableSourceScanBatchRestoreTest() {
+        super(BatchExecTableSourceScan.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(LimitTestPrograms.LIMIT);
+        return Arrays.asList(
+                TableSourceScanTestPrograms.PROJECT_PUSHDOWN,
+                TableSourceScanTestPrograms.PROJECT_PUSHDOWN_DISABLED,
+                TableSourceScanTestPrograms.FILTER_PUSHDOWN,
+                TableSourceScanTestPrograms.LIMIT_PUSHDOWN,
+                TableSourceScanTestPrograms.PARTITION_PUSHDOWN,
+                TableSourceScanTestPrograms.READING_METADATA,
+                TableSourceScanTestPrograms.REUSE_SOURCE);
     }
 }

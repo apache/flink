@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -38,7 +38,7 @@ public class TableSourceScanTestPrograms {
         Row.of(5, 2L, "foo bar", DateTimeUtils.toLocalDateTime(1586937615000L)),
     };
 
-    static final TableTestProgram PROJECT_PUSHDOWN =
+    public static final TableTestProgram PROJECT_PUSHDOWN =
             TableTestProgram.of(
                             "table-source-scan-project-pushdown",
                             "validates table source scan with project pushdown")
@@ -58,7 +58,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, c FROM source_t")
                     .build();
 
-    static final TableTestProgram PROJECT_PUSHDOWN_DISABLED =
+    public static final TableTestProgram PROJECT_PUSHDOWN_DISABLED =
             TableTestProgram.of(
                             "table-source-scan-project-push-down-disabled",
                             "validates table source scan with project pushdown disabled")
@@ -84,7 +84,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, c FROM source_t")
                     .build();
 
-    static final TableTestProgram FILTER_PUSHDOWN =
+    public static final TableTestProgram FILTER_PUSHDOWN =
             TableTestProgram.of(
                             "table-source-scan-filter-pushdown",
                             "validates table source scan with filter pushdown")
@@ -105,7 +105,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * FROM source_t WHERE a > 1")
                     .build();
 
-    static final TableTestProgram LIMIT_PUSHDOWN =
+    public static final TableTestProgram LIMIT_PUSHDOWN =
             TableTestProgram.of(
                             "table-source-scan-limit-pushdown",
                             "validates table source scan with limit pushdown")
@@ -124,7 +124,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t LIMIT 2")
                     .build();
 
-    static final TableTestProgram PARTITION_PUSHDOWN =
+    public static final TableTestProgram PARTITION_PUSHDOWN =
             TableTestProgram.of(
                             "table-source-scan-partition-pushdown",
                             "validates table source scan with partition pushdown")
@@ -146,7 +146,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b = 2")
                     .build();
 
-    static final TableTestProgram READING_METADATA =
+    public static final TableTestProgram READING_METADATA =
             TableTestProgram.of(
                             "table-source-scan-reading-metadata",
                             "validates table source scan by reading metadata")
@@ -175,7 +175,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, c, d FROM source_t")
                     .build();
 
-    static final TableTestProgram MULTIPLE_PUSHDOWNS =
+    public static final TableTestProgram MULTIPLE_PUSHDOWNS =
             TableTestProgram.of(
                             "table-source-scan-multiple-pushdowns",
                             "validates table source scan with multiple pushdowns")
@@ -204,7 +204,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a FROM source_t WHERE b = 2 AND a > 2")
                     .build();
 
-    static final TableTestProgram SOURCE_WATERMARK =
+    public static final TableTestProgram SOURCE_WATERMARK =
             TableTestProgram.of(
                             "table-source-scan-source-watermark",
                             "validates table source scan using source watermark")
@@ -232,7 +232,7 @@ public class TableSourceScanTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, c FROM source_t")
                     .build();
 
-    static final TableTestProgram REUSE_SOURCE =
+    public static final TableTestProgram REUSE_SOURCE =
             TableTestProgram.of(
                             "table-source-scan-reuse-source",
                             "validates table source scan by verifying if source is resused")

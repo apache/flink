@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -40,7 +40,7 @@ public class LimitTestPrograms {
             };
 
     static final Row[] DATA2 = new Row[] {Row.of(8, "d", 3), Row.of(7, "e", 2)};
-    static final TableTestProgram LIMIT =
+    public static final TableTestProgram LIMIT =
             TableTestProgram.of("limit", "validates limit node")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
