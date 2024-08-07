@@ -153,7 +153,7 @@ public class WindowAggOperatorBuilder {
         } else {
             windowProcessor = buildUnslicingWindowProcessor();
         }
-        return new WindowAggOperator<>(windowProcessor);
+        return new WindowAggOperator<>(windowProcessor, assigner.isEventTime());
     }
 
     @SuppressWarnings("unchecked")
