@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
@@ -30,23 +30,23 @@ import java.util.Arrays;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecDeduplicate}. */
 public class TableSinkTestPrograms {
 
-    static final Row[] BEFORE_DATA = {
+    public static final Row[] BEFORE_DATA = {
         Row.of(1, 1L, "hi"), Row.of(2, 2L, "hello"), Row.of(3, 2L, "hello world")
     };
 
-    static final Row[] AFTER_DATA = {Row.of(4, 4L, "foo"), Row.of(5, 2L, "foo bar")};
+    public static final Row[] AFTER_DATA = {Row.of(4, 4L, "foo"), Row.of(5, 2L, "foo bar")};
 
-    static final String[] SOURCE_SCHEMA = {"a INT", "b BIGINT", "c VARCHAR"};
+    public static final String[] SOURCE_SCHEMA = {"a INT", "b BIGINT", "c VARCHAR"};
 
-    static final TableTestProgram SINK_BUCKETING_WITH_COUNT =
+    public static final TableTestProgram SINK_BUCKETING_WITH_COUNT =
             buildBucketingTest("with-count", TableDistribution.ofUnknown(3));
-    static final TableTestProgram SINK_BUCKETING_WITH_KEYS_AND_COUNT =
+    public static final TableTestProgram SINK_BUCKETING_WITH_KEYS_AND_COUNT =
             buildBucketingTest(
                     "with-keys-and-count", TableDistribution.ofUnknown(Arrays.asList("a"), 3));
-    static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT =
+    public static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_COUNT =
             buildBucketingTest(
                     "hash-with-keys-with-count", TableDistribution.ofHash(Arrays.asList("a"), 3));
-    static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT =
+    public static final TableTestProgram SINK_BUCKETING_HASH_WITH_KEYS_AND_WITHOUT_COUNT =
             buildBucketingTest(
                     "range_with_keys_without_count",
                     TableDistribution.ofHash(Arrays.asList("a"), null));
@@ -73,7 +73,7 @@ public class TableSinkTestPrograms {
                 .build();
     }
 
-    static final TableTestProgram SINK_PARTITION =
+    public static final TableTestProgram SINK_PARTITION =
             TableTestProgram.of("sink-partition", "validates sink partition")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -97,7 +97,7 @@ public class TableSinkTestPrograms {
                     .runSql("INSERT INTO sink_t PARTITION (b=2) SELECT * FROM source_t")
                     .build();
 
-    static final TableTestProgram SINK_OVERWRITE =
+    public static final TableTestProgram SINK_OVERWRITE =
             TableTestProgram.of("sink-overwrite", "validates sink with overwrite")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -116,7 +116,7 @@ public class TableSinkTestPrograms {
                                     .build())
                     .runSql("INSERT OVERWRITE sink_t SELECT * FROM source_t")
                     .build();
-    static final TableTestProgram SINK_WRITING_METADATA =
+    public static final TableTestProgram SINK_WRITING_METADATA =
             TableTestProgram.of("sink-writing-metadata", "validates writing metadata to sink")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
@@ -137,7 +137,7 @@ public class TableSinkTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * FROM source_t")
                     .build();
 
-    static final TableTestProgram SINK_NDF_PRIMARY_KEY =
+    public static final TableTestProgram SINK_NDF_PRIMARY_KEY =
             TableTestProgram.of(
                             "sink-ndf-primary-key",
                             "validates sink with ndf and different primary key")
@@ -167,7 +167,7 @@ public class TableSinkTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT a, b, ndf(c) FROM source_t")
                     .build();
 
-    static final TableTestProgram SINK_PARTIAL_INSERT =
+    public static final TableTestProgram SINK_PARTIAL_INSERT =
             TableTestProgram.of("sink-partial-insert", "validates sink with partial insert")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
