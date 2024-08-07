@@ -50,6 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   .rankStart(0)
  *   .rankEnd(100)
  *   .windowEndIndex(windowEndIndex)
+ *   .withEventTime(true)
  *   .build();
  * </pre>
  */
@@ -68,6 +69,7 @@ public class WindowRankOperatorBuilder {
     private long rankEnd = -1;
     private int windowEndIndex = -1;
     private ZoneId shiftTimeZone;
+    private Boolean isEventTime;
 
     public WindowRankOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
@@ -116,11 +118,17 @@ public class WindowRankOperatorBuilder {
         return this;
     }
 
+    public WindowRankOperatorBuilder withEventTime(Boolean isEventTime) {
+        this.isEventTime = isEventTime;
+        return this;
+    }
+
     public WindowAggOperator<RowData, ?> build() {
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkNotNull(sortKeySelector);
         checkNotNull(generatedSortKeyComparator);
+        checkNotNull(isEventTime);
         checkArgument(
                 rankStart > 0,
                 String.format("Illegal rank start %s, it should be positive!", rankStart));
@@ -152,6 +160,7 @@ public class WindowRankOperatorBuilder {
                         outputRankNumber,
                         windowEndIndex,
                         shiftTimeZone);
-        return new WindowAggOperator<>(windowProcessor);
+        // Processing time Window TopN is not supported yet.
+        return new WindowAggOperator<>(windowProcessor, isEventTime);
     }
 }
