@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecUnion}. */
 public class UnionTestPrograms {
 
-    static final TableTestProgram UNION_TWO_SOURCES =
+    public static final TableTestProgram UNION_TWO_SOURCES =
             TableTestProgram.of("union-two-sources", "validates union of 2 tables")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t1")
@@ -74,7 +74,7 @@ public class UnionTestPrograms {
                             "INSERT INTO sink_t1_union_t2 SELECT * FROM (SELECT a, b FROM source_t1) UNION (SELECT d, e FROM source_t2)")
                     .build();
 
-    static final TableTestProgram UNION_ALL_TWO_SOURCES =
+    public static final TableTestProgram UNION_ALL_TWO_SOURCES =
             TableTestProgram.of("union-all-two-sources", "validates union all of 2 tables")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t1")
@@ -116,7 +116,7 @@ public class UnionTestPrograms {
                             "INSERT INTO sink_t1_union_all_t2 SELECT * FROM (SELECT a, b FROM source_t1) UNION ALL (SELECT d, e FROM source_t2)")
                     .build();
 
-    static final TableTestProgram UNION_ALL_WITH_FILTER =
+    public static final TableTestProgram UNION_ALL_WITH_FILTER =
             TableTestProgram.of(
                             "union-all-with-filter", "validates union all of 2 tables with filters")
                     .setupTableSource(
