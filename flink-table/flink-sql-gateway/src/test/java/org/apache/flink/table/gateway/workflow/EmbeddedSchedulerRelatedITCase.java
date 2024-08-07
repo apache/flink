@@ -94,7 +94,6 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
                         cronExpression,
                         null,
                         null,
-                        null,
                         gatewayRestEndpointURL);
         createPeriodicWorkflow =
                 new CreatePeriodicRefreshWorkflow(

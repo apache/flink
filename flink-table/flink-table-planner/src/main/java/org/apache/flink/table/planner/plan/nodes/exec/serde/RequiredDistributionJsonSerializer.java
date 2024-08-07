@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.DistributionType;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.KeepInputAsIsDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -58,6 +59,15 @@ final class RequiredDistributionJsonSerializer extends StdSerializer<RequiredDis
             case BROADCAST:
             case UNKNOWN:
                 // do nothing, type name is enough
+                break;
+            case KEEP_INPUT_AS_IS:
+                KeepInputAsIsDistribution asisDistribution =
+                        (KeepInputAsIsDistribution) requiredDistribution;
+                jsonGenerator.writeFieldName("inputDistribution");
+                serialize(
+                        asisDistribution.getInputDistribution(), jsonGenerator, serializerProvider);
+                jsonGenerator.writeFieldName("isStrict");
+                jsonGenerator.writeBoolean(asisDistribution.isStrict());
                 break;
             case HASH:
                 HashDistribution hashDistribution = (HashDistribution) requiredDistribution;

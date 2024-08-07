@@ -30,6 +30,7 @@ Job statements are used for management of Flink jobs.
 
 Flink SQL supports the following JOB statements for now:
 - SHOW JOBS
+- DESCRIBE JOB
 - STOP JOB
 
 ## Run a JOB statement
@@ -46,6 +47,13 @@ The following examples show how to run `JOB` statements in [SQL CLI]({{< ref "do
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> SHOW JOBS;
++----------------------------------+----------+---------+-------------------------+
+|                           job id | job name |  status |              start time |
++----------------------------------+----------+---------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+----------+---------+-------------------------+
+
+Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
 +----------------------------------+----------+---------+-------------------------+
 |                           job id | job name |  status |              start time |
 +----------------------------------+----------+---------+-------------------------+
@@ -74,6 +82,17 @@ SHOW JOBS
 Show the jobs in the Flink cluster.
 
 <span class="label label-danger">Attention</span> SHOW JOBS statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+## DESCRIBE JOB
+
+```sql
+{ DESCRIBE | DESC } JOB '<job_id>'
+```
+
+Show the specified job in the Flink cluster.
+
+<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
 
 ## STOP JOB
 

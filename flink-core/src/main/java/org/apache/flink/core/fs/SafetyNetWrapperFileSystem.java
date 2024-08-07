@@ -24,6 +24,7 @@ import org.apache.flink.util.WrappingProxy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 /**
  * This is a {@link WrappingProxy} around {@link FileSystem} which (i) wraps all opened streams as
@@ -34,7 +35,8 @@ import java.net.URI;
  * prevent resource leaks from unclosed streams.
  */
 @Internal
-public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingProxy<FileSystem> {
+public class SafetyNetWrapperFileSystem extends FileSystem
+        implements WrappingProxy<FileSystem>, PathsCopyingFileSystem {
 
     private final SafetyNetCloseableRegistry registry;
     private final FileSystem unsafeFileSystem;
@@ -43,6 +45,17 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
             FileSystem unsafeFileSystem, SafetyNetCloseableRegistry registry) {
         this.registry = Preconditions.checkNotNull(registry);
         this.unsafeFileSystem = Preconditions.checkNotNull(unsafeFileSystem);
+    }
+
+    @Override
+    public void copyFiles(List<CopyRequest> requests, ICloseableRegistry closeableRegistry)
+            throws IOException {
+        ((PathsCopyingFileSystem) unsafeFileSystem).copyFiles(requests, closeableRegistry);
+    }
+
+    @Override
+    public boolean canCopyPaths(Path source, Path destination) throws IOException {
+        return unsafeFileSystem.canCopyPaths(source, destination);
     }
 
     @Override

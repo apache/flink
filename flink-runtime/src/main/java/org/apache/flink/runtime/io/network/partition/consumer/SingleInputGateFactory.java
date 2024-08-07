@@ -57,6 +57,7 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,8 +105,6 @@ public class SingleInputGateFactory {
 
     private final int networkBufferSize;
 
-    private final boolean memoryDecouplingEnabled;
-
     private final BufferDebloatConfiguration debloatConfiguration;
 
     /** The following attributes will be null if tiered storage shuffle is disabled. */
@@ -134,7 +133,6 @@ public class SingleInputGateFactory {
         this.batchShuffleCompressionEnabled = networkConfig.isBatchShuffleCompressionEnabled();
         this.compressionCodec = networkConfig.getCompressionCodec();
         this.networkBufferSize = networkConfig.networkBufferSize();
-        this.memoryDecouplingEnabled = networkConfig.isMemoryDecouplingEnabled();
         this.connectionManager = connectionManager;
         this.partitionManager = partitionManager;
         this.taskEventPublisher = taskEventPublisher;
@@ -166,15 +164,16 @@ public class SingleInputGateFactory {
                         configuredNetworkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         igdd.getConsumedPartitionType(),
-                        calculateNumNonLocalChannels(igdd, isSharedInputChannelSupported),
-                        tieredStorageConfiguration != null,
-                        memoryDecouplingEnabled);
+                        calculateNumChannels(
+                                igdd.getShuffleDescriptors().length,
+                                igdd.getConsumedSubpartitionIndexRange().size(),
+                                isSharedInputChannelSupported),
+                        tieredStorageConfiguration != null);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
-                        gateBuffersSpec.getExpectedBuffersPerGate(),
-                        gateBuffersSpec.getMinBuffersPerGate(),
-                        gateBuffersSpec.getMaxBuffersPerGate());
+                        gateBuffersSpec.getRequiredFloatingBuffers(),
+                        gateBuffersSpec.getTotalFloatingBuffers());
 
         BufferDecompressor bufferDecompressor = null;
         if (igdd.getConsumedPartitionType().supportCompression()
@@ -384,26 +383,6 @@ public class SingleInputGateFactory {
         }
     }
 
-    private int calculateNumNonLocalChannels(
-            @Nonnull InputGateDeploymentDescriptor igdd, boolean isSharedInputChannelSupported) {
-        int count = 0;
-        for (ShuffleDescriptor shuffleDescriptor : igdd.getShuffleDescriptors()) {
-            boolean isLocal =
-                    applyWithShuffleTypeCheck(
-                            NettyShuffleDescriptor.class,
-                            shuffleDescriptor,
-                            unknownShuffleDescriptor -> false,
-                            nettyShuffleDescriptor -> isLocalInputChannel(nettyShuffleDescriptor));
-            if (!isLocal) {
-                count +=
-                        isSharedInputChannelSupported
-                                ? 1
-                                : igdd.getConsumedSubpartitionIndexRange().size();
-            }
-        }
-        return count;
-    }
-
     @VisibleForTesting
     protected InputChannel createKnownInputChannel(
             SingleInputGate inputGate,
@@ -414,7 +393,7 @@ public class SingleInputGateFactory {
             ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
-        if (isLocalInputChannel(inputChannelDescriptor)) {
+        if (inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
             // Consuming task is deployed to the same TaskManager as the partition => local
             channelStatistics.numLocalChannels++;
             return new LocalRecoveredInputChannel(
@@ -446,10 +425,6 @@ public class SingleInputGateFactory {
         }
     }
 
-    private boolean isLocalInputChannel(NettyShuffleDescriptor inputChannelDescriptor) {
-        return inputChannelDescriptor.isLocalTo(taskExecutorResourceId);
-    }
-
     private void addTierShuffleDescriptors(
             List<List<TierShuffleDescriptor>> tierShuffleDescriptors,
             ShuffleDescriptor descriptor) {
@@ -471,12 +446,10 @@ public class SingleInputGateFactory {
     @VisibleForTesting
     static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             BufferPoolFactory bufferPoolFactory,
-            int expectedBuffersPerGate,
-            int minBuffersPerGate,
-            int maxBuffersPerGate) {
-        return () ->
-                bufferPoolFactory.createBufferPool(
-                        expectedBuffersPerGate, minBuffersPerGate, maxBuffersPerGate);
+            int minFloatingBuffersPerGate,
+            int maxFloatingBuffersPerGate) {
+        Pair<Integer, Integer> pair = Pair.of(minFloatingBuffersPerGate, maxFloatingBuffersPerGate);
+        return () -> bufferPoolFactory.createBufferPool(pair.getLeft(), pair.getRight());
     }
 
     /** Statistics of input channels. */

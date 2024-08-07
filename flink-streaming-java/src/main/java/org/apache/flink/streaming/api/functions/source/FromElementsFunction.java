@@ -25,12 +25,18 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
+import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
@@ -45,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -65,8 +72,11 @@ import java.util.Objects;
 @Deprecated
 @PublicEvolving
 public class FromElementsFunction<T>
-        implements SourceFunction<T>, CheckpointedFunction, OutputTypeConfigurable<T> {
-
+        implements SourceFunction<T>,
+                CheckpointedFunction,
+                OutputTypeConfigurable<T>,
+                LineageVertexProvider {
+    private static final String LINEAGE_NAMESPACE = "values://FromElementsFunction";
     private static final long serialVersionUID = 1L;
 
     /** The (de)serializer to be used for the data elements. */
@@ -304,5 +314,21 @@ public class FromElementsFunction<T>
                                 + viewedAs.getCanonicalName());
             }
         }
+    }
+
+    @Override
+    public LineageVertex getLineageVertex() {
+        return new SourceLineageVertex() {
+            @Override
+            public Boundedness boundedness() {
+                return Boundedness.BOUNDED;
+            }
+
+            @Override
+            public List<LineageDataset> datasets() {
+                return Arrays.asList(
+                        new DefaultLineageDataset("", LINEAGE_NAMESPACE, new HashMap<>()));
+            }
+        };
     }
 }

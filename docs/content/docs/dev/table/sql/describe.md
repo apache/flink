@@ -26,25 +26,25 @@ under the License.
 
 # DESCRIBE Statements
 
-DESCRIBE statements are used to describe the schema of a table or a view, or the metadata of a catalog.
+DESCRIBE statements are used to describe the schema of a table or a view, or the metadata of a catalog, or the specified job in the Flink cluster.
 
 
 ## Run a DESCRIBE statement
 
 {{< tabs "describe" >}}
 {{< tab "Java" >}}
-DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
+DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns objects for a successful DESCRIBE operation, otherwise will throw an exception.
 
 The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "Scala" >}}
-DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
+DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns objects for a successful DESCRIBE operation, otherwise will throw an exception.
 
 The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "Python" >}}
 
-DESCRIBE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
+DESCRIBE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns objects for a successful DESCRIBE operation, otherwise will throw an exception.
 
 The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
 
@@ -180,6 +180,10 @@ Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-databa
 Flink SQL> DESCRIBE CATALOG cat2;
 
 Flink SQL> DESC CATALOG EXTENDED cat2;
+      
+Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
+      
+Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -329,6 +333,14 @@ The result of the above example is:
 +-------------------------+-------------------+
 4 rows in set
 
+# DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c'
++----------------------------------+----------+---------+-------------------------+
+|                           job id | job name |  status |              start time |
++----------------------------------+----------+---------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+----------+---------+-------------------------+
+1 row in set
+
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -338,11 +350,21 @@ The result of the above example is:
 
 ## Syntax
 
-- DESCRIBE TABLE
+### DESCRIBE TABLE
+
 ```sql
 { DESCRIBE | DESC } [catalog_name.][db_name.]table_name
 ```
-- DESCRIBE CATALOG
+
+### DESCRIBE CATALOG
+
 ```sql
 { DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name
 ```
+
+### DESCRIBE JOB
+```sql
+{ DESCRIBE | DESC } JOB '<job_id>'
+```
+
+<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).

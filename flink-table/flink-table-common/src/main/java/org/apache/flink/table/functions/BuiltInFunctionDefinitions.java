@@ -431,6 +431,26 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.SplitFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition URL_DECODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("URL_DECODE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition URL_ENCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("URL_ENCODE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.UrlEncodeFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
@@ -948,6 +968,26 @@ public final class BuiltInFunctionDefinitions {
                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                     logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .build();
+
+    // By default, Calcite parse TRANSLATE as TRANSLATE3, hence it is necessary to modify the
+    // name field to ensure it is called correctly.
+    public static final BuiltInFunctionDefinition TRANSLATE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TRANSLATE3")
+                    .sqlName("TRANSLATE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("expr", "fromStr", "toStr"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(
+                            nullableIfArgs(ConstantArgumentCount.to(0), explicit(STRING())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.TranslateFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition TRIM =

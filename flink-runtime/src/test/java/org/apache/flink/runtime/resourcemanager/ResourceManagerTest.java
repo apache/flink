@@ -313,7 +313,7 @@ class ResourceManagerTest {
                                 jobMasterGateway.getAddress(),
                                 Collections.singleton(
                                         ResourceRequirement.create(ResourceProfile.UNKNOWN, 1))),
-                        TIMEOUT)
+                        TIMEOUT.toDuration())
                 .get();
 
         resourceManagerGateway.disconnectJobManager(
@@ -372,7 +372,7 @@ class ResourceManagerTest {
                         jobMasterGateway.getAddress(),
                         Collections.singleton(
                                 ResourceRequirement.create(ResourceProfile.UNKNOWN, 1))),
-                TIMEOUT);
+                TIMEOUT.toDuration());
         resourceManager
                 .runInMainThread(
                         () -> {

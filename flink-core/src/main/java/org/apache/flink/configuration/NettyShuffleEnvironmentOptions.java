@@ -525,19 +525,6 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is true, the remote storage will be disabled.");
 
-    /** The option to decouple the needed memory of hybrid shuffle and the job topology. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    @Experimental
-    public static final ConfigOption<Boolean> NETWORK_HYBRID_SHUFFLE_ENABLE_MEMORY_DECOUPLING =
-            key("taskmanager.network.hybrid-shuffle.memory-decoupling.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "The option is used to make the memory that is used by hybrid shuffle decoupled from the complexity of the"
-                                    + " job topology and the number of tasks on the task manager. It significantly reduces the chance of "
-                                    + "the \"Insufficient number of network buffers\" exception, while the workloads may suffer performance "
-                                    + "reduction silently.");
-
     /**
      * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
      *     in 2.0.

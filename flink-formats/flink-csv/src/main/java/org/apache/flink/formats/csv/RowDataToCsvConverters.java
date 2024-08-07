@@ -38,6 +38,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -47,6 +48,7 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN;
 
 /** Tool class used to convert from {@link RowData} to CSV-format {@link JsonNode}. * */
 @Internal
@@ -275,7 +277,7 @@ public class RowDataToCsvConverters implements Serializable {
         final int scale = decimalType.getScale();
         return (csvMapper, container, row, pos) -> {
             DecimalData decimal = row.getDecimal(pos, precision, scale);
-            return convertDecimal(decimal, container);
+            return convertDecimal(csvMapper, decimal, container);
         };
     }
 
@@ -285,12 +287,17 @@ public class RowDataToCsvConverters implements Serializable {
         final int scale = decimalType.getScale();
         return (csvMapper, container, array, pos) -> {
             DecimalData decimal = array.getDecimal(pos, precision, scale);
-            return convertDecimal(decimal, container);
+            return convertDecimal(csvMapper, decimal, container);
         };
     }
 
-    private static JsonNode convertDecimal(DecimalData decimal, ContainerNode<?> container) {
-        return container.numberNode(decimal.toBigDecimal());
+    private static JsonNode convertDecimal(
+            CsvMapper csvMapper, DecimalData decimal, ContainerNode<?> container) {
+        BigDecimal bigDecimal = decimal.toBigDecimal();
+        return container.numberNode(
+                csvMapper.isEnabled(WRITE_BIGDECIMAL_AS_PLAIN)
+                        ? bigDecimal
+                        : bigDecimal.stripTrailingZeros());
     }
 
     private static JsonNode convertDate(int days, ContainerNode<?> container) {

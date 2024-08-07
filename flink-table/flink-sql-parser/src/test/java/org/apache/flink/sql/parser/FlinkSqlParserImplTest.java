@@ -2853,23 +2853,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableAsSelectWithExplicitColumns() {
         sql("CREATE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithWatermark() {
-        sql("CREATE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+        sql("CREATE TABLE t (watermark FOR col1 AS col1 - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithConstraints() {
+        sql("CREATE TABLE t (PRIMARY KEY (col1) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
         sql("CREATE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
@@ -2888,19 +2885,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableAsSelectWithDistribution() {
         sql("CREATE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithPartitionKey() {
         sql("CREATE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
@@ -3275,10 +3266,77 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "CREATE MODEL AS SELECT syntax does not support to specify explicit output columns."));
     }
 
+    /*
+     * This test was backported from Calcite 1.38 (CALCITE-6266).
+     * Remove it together with upgrade to Calcite 1.38.
+     */
+    @Test
+    void testFromValuesWithoutParens() {
+        sql("select 1 from ^values^('x')")
+                .fails(
+                        "(?s)Encountered \"values\" at line 1, column 15\\.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"LATERAL\" \\.\\.\\.\n"
+                                + "    \"TABLE\" \\.\\.\\.\n"
+                                + "    <IDENTIFIER> \\.\\.\\.\n"
+                                + "    <HYPHENATED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <BACK_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <BRACKET_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <UNICODE_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    \"\\(\" \\.\\.\\.\n.*"
+                                + "    \"UNNEST\" \\.\\.\\.\n.*");
+    }
+
+    /*
+     * This test was backported from Calcite 1.38 (CALCITE-6266).
+     * Remove it together with upgrade to Calcite 1.38.
+     */
+    @Test
+    void testUnnest() {
+        sql("select*from unnest(x)").ok("SELECT *\n" + "FROM UNNEST(`X`)");
+        sql("select*from unnest(x) AS T").ok("SELECT *\n" + "FROM UNNEST(`X`) AS `T`");
+        // UNNEST cannot be first word in query
+        sql("^unnest^(x)").fails("(?s)Encountered \"unnest\" at.*");
+        // UNNEST with more than one argument
+        final String sql = "select * from dept,\n" + "unnest(dept.employees, dept.managers)";
+        final String expected =
+                "SELECT *\n" + "FROM `DEPT`,\n" + "UNNEST(`DEPT`.`EMPLOYEES`, `DEPT`.`MANAGERS`)";
+        sql(sql).ok(expected);
+
+        // LATERAL UNNEST is the same as UNNEST
+        // (LATERAL is implicit for UNNEST, so the parser just ignores it)
+        sql("select * from dept, lateral unnest(dept.employees)")
+                .ok("SELECT *\n" + "FROM `DEPT`,\n" + "UNNEST(`DEPT`.`EMPLOYEES`)");
+        sql("select * from dept, unnest(dept.employees)")
+                .ok("SELECT *\n" + "FROM `DEPT`,\n" + "UNNEST(`DEPT`.`EMPLOYEES`)");
+
+        // Does not generate extra parentheses around UNNEST because UNNEST is
+        // a table expression.
+        final String sql1 =
+                ""
+                        + "SELECT\n"
+                        + "  item.name,\n"
+                        + "  relations.*\n"
+                        + "FROM dfs.tmp item\n"
+                        + "JOIN (\n"
+                        + "  SELECT * FROM UNNEST(item.related) i(rels)\n"
+                        + ") relations\n"
+                        + "ON TRUE";
+        final String expected1 =
+                "SELECT `ITEM`.`NAME`, `RELATIONS`.*\n"
+                        + "FROM `DFS`.`TMP` AS `ITEM`\n"
+                        + "INNER JOIN (SELECT *\n"
+                        + "FROM UNNEST(`ITEM`.`RELATED`) AS `I` (`RELS`)) AS `RELATIONS` ON TRUE";
+        sql(sql1).ok(expected1);
+    }
+
     /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */
     private static class ValidationMatcher extends BaseMatcher<SqlNode> {
         private String expectedColumnSql;
         private String failMsg;
+        private boolean ok;
 
         public ValidationMatcher expectColumnSql(String s) {
             this.expectedColumnSql = s;
@@ -3287,6 +3345,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         public ValidationMatcher fails(String failMsg) {
             this.failMsg = failMsg;
+            this.ok = false;
+            return this;
+        }
+
+        public ValidationMatcher ok() {
+            this.failMsg = null;
+            this.ok = true;
             return this;
         }
 
@@ -3299,7 +3364,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         public boolean matches(Object item) {
             if (item instanceof ExtendedSqlNode) {
                 ExtendedSqlNode createTable = (ExtendedSqlNode) item;
-                if (failMsg != null) {
+
+                if (ok) {
+                    try {
+                        createTable.validate();
+                    } catch (SqlValidateException e) {
+                        fail("unexpected exception", e);
+                    }
+                } else if (failMsg != null) {
                     try {
                         createTable.validate();
                         fail("expected exception");
@@ -3307,6 +3379,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         assertThat(e).hasMessage(failMsg);
                     }
                 }
+
                 if (expectedColumnSql != null && item instanceof SqlCreateTable) {
                     assertThat(((SqlCreateTable) createTable).getColumnSqlString())
                             .isEqualTo(expectedColumnSql);

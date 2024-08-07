@@ -18,20 +18,25 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalIncreaseRescalingController;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceParallelismChangeRescalingController;
+import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.util.Preconditions;
@@ -45,18 +50,24 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
-class Executing extends StateWithExecutionGraph implements ResourceListener {
+class Executing extends StateWithExecutionGraph
+        implements ResourceListener, RescaleManager.Context, CheckpointStatsListener {
 
     private final Context context;
-    private final Instant lastRescale;
-    // only one schedule at the time
-    private boolean rescaleScheduled = false;
-    @VisibleForTesting final Duration scalingIntervalMin;
-    @VisibleForTesting @Nullable final Duration scalingIntervalMax;
+
+    private final RescalingController sufficientResourcesController;
+    private final RescalingController desiredResourcesController;
+    private final RescaleManager rescaleManager;
+    private final int rescaleOnFailedCheckpointCount;
+    // null indicates that there was no change event observed, yet
+    @Nullable private AtomicInteger failedCheckpointCountdown;
 
     Executing(
             ExecutionGraph executionGraph,
@@ -66,8 +77,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
             Context context,
             ClassLoader userCodeClassLoader,
             List<ExceptionHistoryEntry> failureCollection,
-            Duration scalingIntervalMin,
-            @Nullable Duration scalingIntervalMax,
+            RescaleManager.Factory rescaleManagerFactory,
+            int minParallelismChangeForRescale,
+            int rescaleOnFailedCheckpointCount,
             Instant lastRescale) {
         super(
                 context,
@@ -80,16 +92,73 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         this.context = context;
         Preconditions.checkState(
                 executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
-        this.scalingIntervalMin = scalingIntervalMin;
-        this.scalingIntervalMax = scalingIntervalMax;
-        // Executing is recreated with each restart (when we rescale)
-        // we consider the first execution of the pipeline as a rescale event
-        this.lastRescale = lastRescale;
+
+        this.sufficientResourcesController = new EnforceParallelismChangeRescalingController();
+        this.desiredResourcesController =
+                new EnforceMinimalIncreaseRescalingController(minParallelismChangeForRescale);
+        this.rescaleManager = rescaleManagerFactory.create(this, lastRescale);
+
+        Preconditions.checkArgument(
+                rescaleOnFailedCheckpointCount > 0,
+                "The rescaleOnFailedCheckpointCount should be larger than 0.");
+        this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
+        this.failedCheckpointCountdown = null;
 
         deploy();
 
         // check if new resources have come available in the meantime
-        context.runIfState(this, this::rescaleWhenCooldownPeriodIsOver, Duration.ZERO);
+        context.runIfState(
+                this,
+                () -> {
+                    rescaleManager.onChange();
+                    rescaleManager.onTrigger();
+                },
+                Duration.ZERO);
+    }
+
+    @Override
+    public boolean hasSufficientResources() {
+        return shouldRescale(sufficientResourcesController);
+    }
+
+    @Override
+    public boolean hasDesiredResources() {
+        return shouldRescale(desiredResourcesController);
+    }
+
+    private boolean shouldRescale(RescalingController rescalingController) {
+        return context.getAvailableVertexParallelism()
+                .filter(
+                        availableVertexParallelism ->
+                                rescalingController.shouldRescale(
+                                        extractCurrentVertexParallelism(getExecutionGraph()),
+                                        availableVertexParallelism))
+                .isPresent();
+    }
+
+    private static VertexParallelism extractCurrentVertexParallelism(
+            AccessExecutionGraph executionGraph) {
+        return new VertexParallelism(
+                executionGraph.getAllVertices().values().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AccessExecutionJobVertex::getJobVertexId,
+                                        AccessExecutionJobVertex::getParallelism)));
+    }
+
+    @Override
+    public void scheduleOperation(Runnable callback, Duration delay) {
+        context.runIfState(this, callback, delay);
+    }
+
+    @Override
+    public void rescale() {
+        context.goToRestarting(
+                getExecutionGraph(),
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                Duration.ofMillis(0L),
+                getFailures());
     }
 
     @Override
@@ -143,74 +212,37 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
 
     @Override
     public void onNewResourcesAvailable() {
-        rescaleWhenCooldownPeriodIsOver();
+        rescaleManager.onChange();
+        initializeFailedCheckpointCountdownIfUnset();
     }
 
     @Override
     public void onNewResourceRequirements() {
-        rescaleWhenCooldownPeriodIsOver();
+        rescaleManager.onChange();
+        initializeFailedCheckpointCountdownIfUnset();
     }
 
-    /** Force rescaling as long as the target parallelism is different from the current one. */
-    private void forceRescale() {
-        if (context.shouldRescale(getExecutionGraph(), true)) {
-            getLogger()
-                    .info(
-                            "Added resources are still there after {} time({}), force a rescale.",
-                            JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
-                            scalingIntervalMax);
-            context.goToRestarting(
-                    getExecutionGraph(),
-                    getExecutionGraphHandler(),
-                    getOperatorCoordinatorHandler(),
-                    Duration.ofMillis(0L),
-                    getFailures());
+    @Override
+    public void onCompletedCheckpoint() {
+        triggerPotentialRescale();
+    }
+
+    @Override
+    public void onFailedCheckpoint() {
+        if (this.failedCheckpointCountdown != null
+                && this.failedCheckpointCountdown.decrementAndGet() <= 0) {
+            triggerPotentialRescale();
         }
     }
 
-    /**
-     * Rescale the job if {@link Context#shouldRescale} is true. Otherwise, force a rescale using
-     * {@link Executing#forceRescale()} after {@link
-     * JobManagerOptions#SCHEDULER_SCALING_INTERVAL_MAX}.
-     */
-    private void maybeRescale() {
-        rescaleScheduled = false;
-        if (context.shouldRescale(getExecutionGraph(), false)) {
-            getLogger().info("Can change the parallelism of the job. Restarting the job.");
-            context.goToRestarting(
-                    getExecutionGraph(),
-                    getExecutionGraphHandler(),
-                    getOperatorCoordinatorHandler(),
-                    Duration.ofMillis(0L),
-                    getFailures());
-        } else if (scalingIntervalMax != null) {
-            getLogger()
-                    .info(
-                            "The longer the pipeline runs, the more the (small) resource gain is worth the restarting time. "
-                                    + "Last resource added does not meet {}, force a rescale after {} time({}) if the resource is still there.",
-                            JobManagerOptions.MIN_PARALLELISM_INCREASE,
-                            JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
-                            scalingIntervalMax);
-            if (timeSinceLastRescale().compareTo(scalingIntervalMax) > 0) {
-                forceRescale();
-            } else {
-                // schedule a force rescale in JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX time
-                context.runIfState(this, this::forceRescale, scalingIntervalMax);
-            }
-        }
+    private void triggerPotentialRescale() {
+        rescaleManager.onTrigger();
+        this.failedCheckpointCountdown = null;
     }
 
-    private Duration timeSinceLastRescale() {
-        return Duration.between(lastRescale, Instant.now());
-    }
-
-    private void rescaleWhenCooldownPeriodIsOver() {
-        if (timeSinceLastRescale().compareTo(scalingIntervalMin) > 0) {
-            maybeRescale();
-        } else if (!rescaleScheduled) {
-            rescaleScheduled = true;
-            // schedule maybeRescale resetting the cooldown period
-            context.runIfState(this, this::maybeRescale, scalingIntervalMin);
+    private void initializeFailedCheckpointCountdownIfUnset() {
+        if (failedCheckpointCountdown == null) {
+            this.failedCheckpointCountdown = new AtomicInteger(this.rescaleOnFailedCheckpointCount);
         }
     }
 
@@ -264,13 +296,10 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                 Throwable failure, CompletableFuture<Map<String, String>> failureLabels);
 
         /**
-         * Asks if we should rescale the currently executing job.
-         *
-         * @param executionGraph executionGraph for making the scaling decision.
-         * @param forceRescale should we force rescaling
-         * @return true, if we should rescale
+         * Returns the {@link VertexParallelism} that can be provided by the currently available
+         * slots.
          */
-        boolean shouldRescale(ExecutionGraph executionGraph, boolean forceRescale);
+        Optional<VertexParallelism> getAvailableVertexParallelism();
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -293,8 +322,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
-        private final Duration scalingIntervalMin;
-        private final Duration scalingIntervalMax;
+        private final RescaleManager.Factory rescaleManagerFactory;
+        private final int minParallelismChangeForRescale;
+        private final int rescaleOnFailedCheckpointCount;
 
         Factory(
                 ExecutionGraph executionGraph,
@@ -304,8 +334,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                 Context context,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection,
-                Duration scalingIntervalMin,
-                Duration scalingIntervalMax) {
+                RescaleManager.Factory rescaleManagerFactory,
+                int minParallelismChangeForRescale,
+                int rescaleOnFailedCheckpointCount) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
@@ -313,8 +344,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
-            this.scalingIntervalMin = scalingIntervalMin;
-            this.scalingIntervalMax = scalingIntervalMax;
+            this.rescaleManagerFactory = rescaleManagerFactory;
+            this.minParallelismChangeForRescale = minParallelismChangeForRescale;
+            this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
 
         public Class<Executing> getStateClass() {
@@ -330,8 +362,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                     context,
                     userCodeClassLoader,
                     failureCollection,
-                    scalingIntervalMin,
-                    scalingIntervalMax,
+                    rescaleManagerFactory,
+                    minParallelismChangeForRescale,
+                    rescaleOnFailedCheckpointCount,
                     Instant.now());
         }
     }

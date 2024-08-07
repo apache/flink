@@ -165,6 +165,7 @@ string functions
     Expression.trim_trailing
     Expression.trim
     Expression.replace
+    Expression.translate
     Expression.char_length
     Expression.upper_case
     Expression.lower_case
@@ -188,6 +189,8 @@ string functions
     Expression.right
     Expression.instr
     Expression.locate
+    Expression.url_decode
+    Expression.url_encode
     Expression.parse_url
     Expression.ltrim
     Expression.rtrim

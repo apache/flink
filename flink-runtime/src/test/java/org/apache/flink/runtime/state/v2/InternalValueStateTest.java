@@ -31,7 +31,8 @@ public class InternalValueStateTest extends InternalKeyedStateTestBase {
     public void testEachOperation() {
         ValueStateDescriptor<Integer> descriptor =
                 new ValueStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
-        InternalValueState<String, Integer> valueState = new InternalValueState<>(aec, descriptor);
+        InternalValueState<String, Void, Integer> valueState =
+                new InternalValueState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         valueState.asyncClear();

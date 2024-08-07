@@ -361,7 +361,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         .createSlotPoolService(
                                 jid,
                                 createDeclarativeSlotPoolFactory(
-                                        jobMasterConfiguration.getConfiguration()));
+                                        jobMasterConfiguration.getConfiguration()),
+                                getMainThreadExecutor());
 
         this.partitionTracker =
                 checkNotNull(partitionTrackerFactory)
@@ -617,8 +618,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
-        schedulerNG.reportInitializationMetrics(jobId, initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        schedulerNG.reportInitializationMetrics(jobId, executionAttemptId, initializationMetrics);
     }
 
     // TODO: This method needs a leader session ID
@@ -1144,7 +1147,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                     createResourceManagerHeartbeatManager(heartbeatServices);
 
             // start the slot pool make sure the slot pool now accepts messages for this leader
-            slotPoolService.start(getFencingToken(), getAddress(), getMainThreadExecutor());
+            slotPoolService.start(getFencingToken(), getAddress());
 
             // job is ready to go, try to establish connection with resource manager
             //   - activate leader retrieval for the resource manager

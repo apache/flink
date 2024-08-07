@@ -36,8 +36,9 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.core.io.InputStatus.MORE_AVAILABLE;
 
 /**
- * A {@link SourceReader} implementation that reads data from a list. If limitedNum is set, the
- * reader will stop reading at the limitedNum position until the checkpoint or savepoint triggered.
+ * A {@link SourceReader} implementation that reads data from a {@link
+ * FromElementsSource.ElementsSupplier}. If limitedNum is set, the reader will stop reading at the
+ * limitedNum position until the checkpoint or savepoint triggered.
  */
 public class FromElementsSourceReader<T> implements SourceReader<T, FromElementsSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(FromElementsSourceReader.class);
@@ -51,17 +52,17 @@ public class FromElementsSourceReader<T> implements SourceReader<T, FromElements
     private Integer limitedNum;
     private Boundedness boundedness;
     private volatile boolean checkpointAtLimitedNum = false;
-    private List<T> elements;
+    private final FromElementsSource.ElementsSupplier<T> elementsSupplier;
     private Counter numRecordInCounter;
 
     public FromElementsSourceReader(
             Integer limitedNum,
-            List<T> elements,
+            FromElementsSource.ElementsSupplier<T> elementsSupplier,
             Boundedness boundedness,
             SourceReaderContext context) {
         this.context = context;
         this.emittedNum = 0;
-        this.elements = elements;
+        this.elementsSupplier = elementsSupplier;
         this.limitedNum = limitedNum;
         this.boundedness = boundedness;
         this.numRecordInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
@@ -72,7 +73,7 @@ public class FromElementsSourceReader<T> implements SourceReader<T, FromElements
 
     @Override
     public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
-        if (isRunning && emittedNum < elements.size()) {
+        if (isRunning && emittedNum < elementsSupplier.numElements()) {
             /*
              * The reader will stop reading when it has emitted `successNum` records.
              * If and only if a checkpoint whose `numElementsEmitted` is equal to `successNum`
@@ -85,7 +86,7 @@ public class FromElementsSourceReader<T> implements SourceReader<T, FromElements
             if (limitedNum == null
                     || (limitedNum != null
                             && (emittedNum < limitedNum || checkpointAtLimitedNum))) {
-                output.collect(elements.get(emittedNum));
+                output.collect(elementsSupplier.get(emittedNum));
                 emittedNum++;
                 numRecordInCounter.inc();
             }

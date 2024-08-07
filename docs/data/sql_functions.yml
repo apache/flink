@@ -293,6 +293,13 @@ string:
   - sql: REPLACE(string1, string2, string3)
     table: STRING1.replace(STRING2, STRING3)
     description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., 'hello world'.replace('world', 'flink') returns 'hello flink'; 'ababab'.replace('abab', 'z') returns 'zab'.
+  - sql: TRANSLATE(expr, fromStr, toStr)
+    table: expr.translate(fromStr, toStr)
+    description: |
+      Translate an expr where all characters in fromStr have been replaced with those in toStr.
+      If toStr has a shorter length than fromStr, unmatched characters are removed.
+      expr [<CHAR> | <VARCHAR>], fromStr [<CHAR> | <VARCHAR>], toStr [<CHAR> | <VARCHAR>]
+      Returns a STRING of translated expr.
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
@@ -350,6 +357,16 @@ string:
   - sql: LOCATE(string1, string2[, integer])
     table: STRING1.locate(STRING2[, INTEGER])
     description: Returns the position of the first occurrence of string1 in string2 after position integer. Returns 0 if not found. Returns NULL if any of arguments is NULL.
+  - sql: URL_DECODE(string)
+    table: STRING.urlDecode()
+    description:
+      Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme.
+      If the input is NULL, or there is an issue with the decoding process(such as encountering an illegal escape pattern), or the encoding scheme is not supported, the function returns NULL.
+  - sql: URL_ENCODE(string)
+    table: STRING.urlEncode()
+    description:
+      Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme.
+      If the input is NULL, or there is an issue with the encoding process, or the encoding scheme is not supported, will return NULL.
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |

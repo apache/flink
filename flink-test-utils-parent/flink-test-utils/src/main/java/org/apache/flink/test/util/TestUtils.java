@@ -47,10 +47,13 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
@@ -211,6 +214,41 @@ public class TestUtils {
                                                 allVerticesRunning(
                                                         detailsInfo.getJobVerticesPerState()))
                                 .get());
+    }
+
+    /**
+     * Wait util the give condition is met or timeout is reached, whichever comes first.
+     *
+     * @param condition the condition to meet.
+     * @param message the message to show if the condition is not met before timeout.
+     * @throws InterruptedException when the thread is interrupted when waiting for the condition.
+     * @throws TimeoutException when the condition is not met after the specified timeout has
+     *     elapsed.
+     */
+    public static void waitUntil(Supplier<Boolean> condition, String message)
+            throws InterruptedException, TimeoutException {
+        waitUntil(condition, Duration.ofSeconds(5), message);
+    }
+
+    /**
+     * Wait util the give condition is met or timeout is reached, whichever comes first.
+     *
+     * @param condition the condition to meet.
+     * @param timeout the maximum time to wait for the condition to become true.
+     * @param message the message to show if the condition is not met before timeout.
+     * @throws InterruptedException when the thread is interrupted when waiting for the condition.
+     * @throws TimeoutException when the condition is not met after the specified timeout has
+     *     elapsed.
+     */
+    public static void waitUntil(Supplier<Boolean> condition, Duration timeout, String message)
+            throws InterruptedException, TimeoutException {
+        long startTime = System.currentTimeMillis();
+        while (!condition.get() && System.currentTimeMillis() < startTime + timeout.toMillis()) {
+            Thread.sleep(1);
+        }
+        if (!condition.get()) {
+            throw new TimeoutException(message);
+        }
     }
 
     private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {

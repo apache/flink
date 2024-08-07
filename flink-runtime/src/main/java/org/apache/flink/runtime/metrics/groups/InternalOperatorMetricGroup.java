@@ -64,8 +64,8 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
         return parent.getIOMetricGroup();
     }
 
-    public final MetricGroup getJobMetricGroup() {
-        return parent.parent;
+    public final MetricGroup getTaskMetricGroup() {
+        return parent;
     }
 
     @Override

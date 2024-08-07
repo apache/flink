@@ -1086,6 +1086,13 @@ class Expression(Generic[T]):
         """
         return _ternary_op("replace")(self, search, replacement)
 
+    def translate(self, from_str, to_str) -> 'Expression':
+        """
+        Translate an expr where all characters in from_str have been replaced with those in to_str.
+        If to_str has a shorter length than from_str, unmatched characters are removed.
+        """
+        return _ternary_op("translate")(self, from_str, to_str)
+
     @property
     def char_length(self) -> 'Expression[int]':
         """
@@ -1274,6 +1281,23 @@ class Expression(Generic[T]):
             return _binary_op("locate")(self, s)
         else:
             return _ternary_op("locate")(self, s, pos)
+
+    def url_decode(self) -> 'Expression[str]':
+        """
+        Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8
+        encoding scheme. If the input is null, or there is an issue with the decoding process
+        (such as encountering an illegal escape pattern), or the encoding scheme is not supported,
+        the function returns null.
+        """
+        return _unary_op("urlDecode")(self)
+
+    def url_encode(self) -> 'Expression[str]':
+        """
+        Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8
+        encoding scheme. If the input is null, or there is an issue with the encoding process, or
+        the encoding scheme is not supported, will return null.
+        """
+        return _unary_op("urlEncode")(self)
 
     def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
                   key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':

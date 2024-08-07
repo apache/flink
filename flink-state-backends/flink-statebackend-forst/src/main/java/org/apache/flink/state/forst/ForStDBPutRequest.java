@@ -32,15 +32,18 @@ import java.io.IOException;
  * @param <K> The type of key in put access request.
  * @param <V> The type of value in put access request.
  */
-public class ForStDBPutRequest<K, V> {
+public class ForStDBPutRequest<K, N, V> {
 
-    private final K key;
+    private final ContextKey<K, N> key;
     @Nullable private final V value;
-    private final ForStInnerTable<K, V> table;
+    private final ForStInnerTable<K, N, V> table;
     private final InternalStateFuture<Void> future;
 
     private ForStDBPutRequest(
-            K key, V value, ForStInnerTable<K, V> table, InternalStateFuture<Void> future) {
+            ContextKey<K, N> key,
+            V value,
+            ForStInnerTable<K, N, V> table,
+            InternalStateFuture<Void> future) {
         this.key = key;
         this.value = value;
         this.table = table;
@@ -76,10 +79,10 @@ public class ForStDBPutRequest<K, V> {
      * If the value of the ForStDBPutRequest is null, then the request will signify the deletion of
      * the data associated with that key.
      */
-    static <K, V> ForStDBPutRequest<K, V> of(
-            K key,
+    static <K, N, V> ForStDBPutRequest<K, N, V> of(
+            ContextKey<K, N> key,
             @Nullable V value,
-            ForStInnerTable<K, V> table,
+            ForStInnerTable<K, N, V> table,
             InternalStateFuture<Void> future) {
         return new ForStDBPutRequest<>(key, value, table, future);
     }

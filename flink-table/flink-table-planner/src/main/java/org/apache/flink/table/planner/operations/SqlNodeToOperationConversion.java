@@ -122,6 +122,7 @@ import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.ModifyType;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -1353,7 +1354,7 @@ public class SqlNodeToOperationConversion {
                 contextResolvedTable,
                 queryOperation,
                 null, // targetColumns
-                SinkModifyOperation.ModifyType.DELETE);
+                ModifyType.DELETE);
     }
 
     private Operation convertUpdate(SqlUpdate sqlUpdate) {
@@ -1382,10 +1383,7 @@ public class SqlNodeToOperationConversion {
                 getTargetColumnIndices(contextResolvedTable, sqlUpdate.getTargetColumnList());
 
         return new SinkModifyOperation(
-                contextResolvedTable,
-                queryOperation,
-                columnIndices,
-                SinkModifyOperation.ModifyType.UPDATE);
+                contextResolvedTable, queryOperation, columnIndices, ModifyType.UPDATE);
     }
 
     private int[][] getTargetColumnIndices(

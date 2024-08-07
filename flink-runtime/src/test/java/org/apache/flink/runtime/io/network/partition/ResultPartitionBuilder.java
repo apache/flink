@@ -58,7 +58,7 @@ public class ResultPartitionBuilder {
 
     private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-    private NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1);
+    private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
 
     private BatchShuffleReadBufferPool batchShuffleReadBufferPool =
             new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024);
@@ -93,8 +93,6 @@ public class ResultPartitionBuilder {
     private int hybridShuffleSpilledIndexRegionGroupSize = 256;
 
     private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
-
-    private boolean isMemoryDecouplingEnabled = false;
 
     public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
         this.partitionIndex = partitionIndex;
@@ -236,11 +234,6 @@ public class ResultPartitionBuilder {
         return this;
     }
 
-    public ResultPartitionBuilder setIsMemoryDecouplingEnabled(boolean isMemoryDecouplingEnabled) {
-        this.isMemoryDecouplingEnabled = isMemoryDecouplingEnabled;
-        return this;
-    }
-
     public ResultPartitionBuilder setHybridShuffleSpilledIndexRegionGroupSize(
             int hybridShuffleSpilledIndexRegionGroupSize) {
         this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
@@ -268,7 +261,6 @@ public class ResultPartitionBuilder {
                         maxOverdraftBuffersPerGate,
                         hybridShuffleSpilledIndexRegionGroupSize,
                         hybridShuffleNumRetainedInMemoryRegionsMax,
-                        isMemoryDecouplingEnabled,
                         Optional.empty());
 
         SupplierWithException<BufferPool, IOException> factory =

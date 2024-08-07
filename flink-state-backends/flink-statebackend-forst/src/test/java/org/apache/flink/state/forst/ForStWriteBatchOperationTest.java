@@ -34,9 +34,11 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
     public void testValueStateWriteBatch() throws Exception {
-        ForStValueState<Integer, String> valueState1 = buildForStValueState("test-write-batch-1");
-        ForStValueState<Integer, String> valueState2 = buildForStValueState("test-write-batch-2");
-        List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
+        ForStValueState<Integer, Void, String> valueState1 =
+                buildForStValueState("test-write-batch-1");
+        ForStValueState<Integer, Void, String> valueState2 =
+                buildForStValueState("test-write-batch-2");
+        List<ForStDBPutRequest<?, ?, ?>> batchPutRequest = new ArrayList<>();
         int keyNum = 100;
         for (int i = 0; i < keyNum; i++) {
             batchPutRequest.add(
@@ -53,7 +55,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
         writeBatchOperation.process().get();
 
         // check data correctness
-        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+        for (ForStDBPutRequest<?, ?, ?> request : batchPutRequest) {
             byte[] keyBytes = request.buildSerializedKey();
             byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
             assertArrayEquals(valueBytes, request.buildSerializedValue());
@@ -62,8 +64,9 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
     public void testWriteBatchWithNullValue() throws Exception {
-        ForStValueState<Integer, String> valueState = buildForStValueState("test-write-batch");
-        List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
+        ForStValueState<Integer, Void, String> valueState =
+                buildForStValueState("test-write-batch");
+        List<ForStDBPutRequest<?, ?, ?>> batchPutRequest = new ArrayList<>();
         // 1. write some data without null value
         int keyNum = 100;
         for (int i = 0; i < keyNum; i++) {
@@ -100,7 +103,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
         writeBatchOperation2.process().get();
 
         // 3.  check data correctness
-        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+        for (ForStDBPutRequest<?, ?, ?> request : batchPutRequest) {
             byte[] keyBytes = request.buildSerializedKey();
             byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
             if (valueBytes == null) {

@@ -315,7 +315,7 @@ class StreamOperatorWrapperTest {
             assertThat((Future<?>) processingTimeService.registerTimer(0, callback)).isNotNull();
             assertThat(timerMailController.getPuttingLatch(callback)).isNull();
 
-            mailboxExecutor.submit(
+            mailboxExecutor.execute(
                     () ->
                             output.add(
                                     "["
