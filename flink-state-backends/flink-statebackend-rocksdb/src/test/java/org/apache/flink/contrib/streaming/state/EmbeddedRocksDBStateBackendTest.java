@@ -680,12 +680,11 @@ public class EmbeddedRocksDBStateBackendTest
                 (EmbeddedRocksDBStateBackend) stateBackend;
         Configuration baseConfig = createBackendConfig();
         Configuration testConfig = new Configuration();
-        testConfig.setBoolean(
-                USE_INGEST_DB_RESTORE_MODE, !USE_INGEST_DB_RESTORE_MODE.defaultValue());
-        testConfig.setBoolean(
+        testConfig.set(USE_INGEST_DB_RESTORE_MODE, !USE_INGEST_DB_RESTORE_MODE.defaultValue());
+        testConfig.set(
                 INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE,
                 !INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE.defaultValue());
-        testConfig.setBoolean(
+        testConfig.set(
                 USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
                 !USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue());
         EmbeddedRocksDBStateBackend configuredBackend =

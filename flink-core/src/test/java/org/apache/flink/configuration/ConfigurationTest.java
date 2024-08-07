@@ -89,7 +89,6 @@ class ConfigurationTest {
         orig.setDouble("E", Math.E);
         orig.setBoolean("shouldbetrue", true);
         orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
-        orig.setClass("myclass", this.getClass());
 
         final Configuration copy = InstantiationUtil.createCopyWritable(orig);
         assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
@@ -99,8 +98,6 @@ class ConfigurationTest {
         assertThat(copy.getDouble("E", 0.0)).isCloseTo(Math.E, Offset.offset(0.0));
         assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
         assertThat(copy.getBytes("bytes sequence", null)).containsExactly(1, 2, 3, 4, 5);
-        assertThat(getClass())
-                .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
 
         assertThat(copy).isEqualTo(orig);
         assertThat(copy.keySet()).isEqualTo(orig.keySet());
@@ -131,10 +128,10 @@ class ConfigurationTest {
         ConfigOption<Integer> presentIntOption =
                 ConfigOptions.key("int-key").intType().defaultValue(87);
 
-        assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
+        assertThat(cfg.get(presentStringOption)).isEqualTo("abc");
         assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
-        assertThat(cfg.getInteger(presentIntOption)).isEqualTo(11);
+        assertThat(cfg.get(presentIntOption)).isEqualTo(11);
         assertThat(cfg.getValue(presentIntOption)).isEqualTo("11");
 
         // test getting default when no value is present
@@ -145,13 +142,13 @@ class ConfigurationTest {
 
         // getting strings with default value should work
         assertThat(cfg.getValue(stringOption)).isEqualTo("my-beautiful-default");
-        assertThat(cfg.getString(stringOption)).isEqualTo("my-beautiful-default");
+        assertThat(cfg.get(stringOption)).isEqualTo("my-beautiful-default");
 
         // overriding the default should work
-        assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
+        assertThat(cfg.get(stringOption, "override")).isEqualTo("override");
 
         // getting a primitive with a default value should work
-        assertThat(cfg.getInteger(intOption)).isEqualTo(87);
+        assertThat(cfg.get(intOption)).isEqualTo(87);
         assertThat(cfg.getValue(intOption)).isEqualTo("87");
     }
 
@@ -164,7 +161,7 @@ class ConfigurationTest {
         ConfigOption<String> presentStringOption =
                 ConfigOptions.key("string-key").stringType().noDefaultValue();
 
-        assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
+        assertThat(cfg.get(presentStringOption)).isEqualTo("abc");
         assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
         // test getting default when no value is present
@@ -173,10 +170,10 @@ class ConfigurationTest {
 
         // getting strings for null should work
         assertThat(cfg.getValue(stringOption)).isNull();
-        assertThat(cfg.getString(stringOption)).isNull();
+        assertThat(cfg.get(stringOption)).isNull();
 
         // overriding the null default should work
-        assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
+        assertThat(cfg.get(stringOption, "override")).isEqualTo("override");
     }
 
     @TestTemplate
@@ -210,10 +207,10 @@ class ConfigurationTest {
                         .defaultValue(-1)
                         .withDeprecatedKeys("not-there", "also-not-there");
 
-        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
-        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
-        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
-        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
+        assertThat(cfg.get(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.get(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.get(matchesThird)).isEqualTo(13);
+        assertThat(cfg.get(notContained)).isEqualTo(-1);
     }
 
     @TestTemplate
@@ -247,10 +244,10 @@ class ConfigurationTest {
                         .defaultValue(-1)
                         .withFallbackKeys("not-there", "also-not-there");
 
-        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
-        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
-        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
-        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
+        assertThat(cfg.get(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.get(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.get(matchesThird)).isEqualTo(13);
+        assertThat(cfg.get(notContained)).isEqualTo(-1);
     }
 
     @TestTemplate
@@ -269,12 +266,12 @@ class ConfigurationTest {
                         .withDeprecatedKeys(deprecated.key());
 
         final Configuration fallbackCfg = new Configuration(standardYaml);
-        fallbackCfg.setInteger(fallback, 1);
-        assertThat(fallbackCfg.getInteger(mainOption)).isOne();
+        fallbackCfg.set(fallback, 1);
+        assertThat(fallbackCfg.get(mainOption)).isOne();
 
         final Configuration deprecatedCfg = new Configuration(standardYaml);
-        deprecatedCfg.setInteger(deprecated, 2);
-        assertThat(deprecatedCfg.getInteger(mainOption)).isEqualTo(2);
+        deprecatedCfg.set(deprecated, 2);
+        assertThat(deprecatedCfg.get(mainOption)).isEqualTo(2);
 
         // reverse declaration of fallback and deprecated keys, fallback keys should always be used
         // first
@@ -286,10 +283,10 @@ class ConfigurationTest {
                         .withFallbackKeys(fallback.key());
 
         final Configuration deprecatedAndFallBackConfig = new Configuration(standardYaml);
-        deprecatedAndFallBackConfig.setInteger(fallback, 1);
-        deprecatedAndFallBackConfig.setInteger(deprecated, 2);
-        assertThat(deprecatedAndFallBackConfig.getInteger(mainOption)).isOne();
-        assertThat(deprecatedAndFallBackConfig.getInteger(reversedMainOption)).isOne();
+        deprecatedAndFallBackConfig.set(fallback, 1);
+        deprecatedAndFallBackConfig.set(deprecated, 2);
+        assertThat(deprecatedAndFallBackConfig.get(mainOption)).isOne();
+        assertThat(deprecatedAndFallBackConfig.get(reversedMainOption)).isOne();
     }
 
     @TestTemplate
