@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -294,7 +295,7 @@ public abstract class StateSerializerProvider<T> {
 
         @Nonnull
         @Override
-        @SuppressWarnings("ConstantConditions")
+        @SuppressWarnings({"ConstantConditions", "unchecked"})
         public TypeSerializerSchemaCompatibility<T> registerNewSerializerForRestoredState(
                 TypeSerializer<T> newSerializer) {
             checkNotNull(newSerializer);
@@ -303,8 +304,26 @@ public abstract class StateSerializerProvider<T> {
                         "A serializer has already been registered for the state; re-registration is not allowed.");
             }
 
+            TypeSerializer<T> originalSerializer = newSerializer;
+            if (previousSerializerSnapshot != null) {
+                TypeSerializer<T> previousSerializer = previousSchemaSerializer();
+                if (TtlStateFactory.TtlSerializer.isMigrateFromDisablingToEnabling(
+                        previousSerializer, newSerializer)) {
+                    originalSerializer =
+                            (TypeSerializer<T>)
+                                    TtlStateFactory.TtlSerializer.extractOriginalTypeSerializer(
+                                            newSerializer);
+                } else if (TtlStateFactory.TtlSerializer.isMigrateFromEnablingToDisabling(
+                        previousSerializer, newSerializer)) {
+                    previousSerializer =
+                            (TypeSerializer<T>)
+                                    TtlStateFactory.TtlSerializer.extractOriginalTypeSerializer(
+                                            previousSerializer);
+                    previousSerializerSnapshot = previousSerializer.snapshotConfiguration();
+                }
+            }
             TypeSerializerSchemaCompatibility<T> result =
-                    newSerializer
+                    originalSerializer
                             .snapshotConfiguration()
                             .resolveSchemaCompatibility(previousSerializerSnapshot);
             if (result.isIncompatible()) {
@@ -324,6 +343,12 @@ public abstract class StateSerializerProvider<T> {
                 TypeSerializerSnapshot<T> previousSerializerSnapshot) {
             throw new UnsupportedOperationException(
                     "The snapshot of the state's previous serializer has already been set; cannot reset.");
+        }
+
+        private boolean isTtlMigration(TypeSerializer<T> newSerializer) {
+            return previousSerializerSnapshot != null
+                    && TtlStateFactory.TtlSerializer.isTtlStateMigration(
+                            previousSchemaSerializer(), newSerializer);
         }
     }
 

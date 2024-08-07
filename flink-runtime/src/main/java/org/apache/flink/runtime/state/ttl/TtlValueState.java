@@ -32,7 +32,7 @@ import java.io.IOException;
  * @param <N> The type of the namespace
  * @param <T> Type of the user value of state with TTL
  */
-class TtlValueState<K, N, T>
+public class TtlValueState<K, N, T>
         extends AbstractTtlState<K, N, T, TtlValue<T>, InternalValueState<K, N, TtlValue<T>>>
         implements InternalValueState<K, N, T> {
     TtlValueState(TtlStateContext<InternalValueState<K, N, TtlValue<T>>, T> tTtlStateContext) {

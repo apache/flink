@@ -242,7 +242,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             TypeSerializer<V> previousStateSerializer = restoredKvMetaInfo.getStateSerializer();
 
             TypeSerializerSchemaCompatibility<V> stateCompatibility =
-                    restoredKvMetaInfo.updateStateSerializer(newStateSerializer);
+                    newStateSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(
+                                    previousStateSerializer.snapshotConfiguration());
 
             if (stateCompatibility.isIncompatible()) {
                 throw new StateMigrationException(
@@ -252,6 +255,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                 + previousStateSerializer
                                 + ").");
             }
+            restoredKvMetaInfo.updateStateSerializer(newStateSerializer);
 
             restoredKvMetaInfo =
                     allowFutureMetadataUpdates

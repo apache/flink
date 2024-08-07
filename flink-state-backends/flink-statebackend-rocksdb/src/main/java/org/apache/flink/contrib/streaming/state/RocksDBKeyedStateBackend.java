@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -62,6 +63,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -770,48 +772,58 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // it anymore to improve the error message
         TypeSerializer<SV> previousStateSerializer = restoredKvStateMetaInfo.getStateSerializer();
 
-        TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
-                restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
-        if (newStateSerializerCompatibility.isCompatibleAfterMigration()) {
-            migrateStateValues(stateDesc, oldStateInfo);
-        } else if (newStateSerializerCompatibility.isIncompatible()) {
-            throw new StateMigrationException(
-                    "The new state serializer ("
-                            + stateSerializer
-                            + ") must not be incompatible with the old state serializer ("
-                            + previousStateSerializer
-                            + ").");
+        // migrate state from non-ttl state to ttl state
+        if (TtlStateFactory.TtlSerializer.isTtlStateMigration(
+                previousStateSerializer, stateSerializer)) {
+            TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
+                    restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
+            if (!newStateSerializerCompatibility.isIncompatible()) {
+                migrateStateValuesWithTtl(stateDesc, oldStateInfo, stateDesc.getTtlConfig());
+
+                ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(
+                        restoredKvStateMetaInfo,
+                        RocksDBOperationUtils.createColumnFamilyOptions(
+                                columnFamilyOptionsFactory, stateDesc.getName()));
+            }
+        } else {
+            TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
+                    restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
+            if (newStateSerializerCompatibility.isCompatibleAfterMigration()) {
+                migrateStateValues(stateDesc, oldStateInfo);
+            } else if (newStateSerializerCompatibility.isIncompatible()) {
+                throw new StateMigrationException(
+                        "The new state serializer ("
+                                + stateSerializer
+                                + ") must not be incompatible with the old state serializer ("
+                                + previousStateSerializer
+                                + ").");
+            }
         }
 
         return restoredKvStateMetaInfo;
     }
 
-    /**
-     * Migrate only the state value, that is the "value" that is stored in RocksDB. We don't migrate
-     * the key here, which is made up of key group, key, namespace and map key (in case of
-     * MapState).
-     */
+    /** Migrate state value from disabling ttl to enabling. */
     @SuppressWarnings("unchecked")
-    private <N, S extends State, SV> void migrateStateValues(
+    private <N, S extends State, SV> void migrateStateValuesWithTtl(
             StateDescriptor<S, SV> stateDesc,
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo)
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> oldStateInfo,
+            StateTtlConfig ttlConfig)
             throws Exception {
-
         if (stateDesc.getType() == StateDescriptor.Type.MAP) {
             TypeSerializerSnapshot<SV> previousSerializerSnapshot =
-                    stateMetaInfo.f1.getPreviousStateSerializerSnapshot();
+                    oldStateInfo.f1.getPreviousStateSerializerSnapshot();
             checkState(
                     previousSerializerSnapshot != null,
                     "the previous serializer snapshot should exist.");
             checkState(
                     previousSerializerSnapshot instanceof MapSerializerSnapshot,
                     "previous serializer snapshot should be a MapSerializerSnapshot.");
+            TypeSerializer<SV> newSerializer = stateDesc.getSerializer();
 
-            TypeSerializer<SV> newSerializer = stateMetaInfo.f1.getStateSerializer();
             checkState(
                     newSerializer instanceof MapSerializer,
                     "new serializer should be a MapSerializer.");
-
             MapSerializer<?, ?> mapSerializer = (MapSerializer<?, ?>) newSerializer;
             MapSerializerSnapshot<?, ?> mapSerializerSnapshot =
                     (MapSerializerSnapshot<?, ?>) previousSerializerSnapshot;
@@ -828,18 +840,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // we need to get an actual state instance because migration is different
         // for different state types. For example, ListState needs to deal with
         // individual elements
-        State state = createState(stateDesc, stateMetaInfo);
+        State state = createState(stateDesc, oldStateInfo);
         if (!(state instanceof AbstractRocksDBState)) {
             throw new FlinkRuntimeException(
                     "State should be an AbstractRocksDBState but is " + state);
         }
 
-        @SuppressWarnings("unchecked")
         AbstractRocksDBState<?, ?, SV> rocksDBState = (AbstractRocksDBState<?, ?, SV>) state;
 
         Snapshot rocksDBSnapshot = db.getSnapshot();
         try (RocksIteratorWrapper iterator =
-                        RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
+                        RocksDBOperationUtils.getRocksIterator(db, oldStateInfo.f0, readOptions);
                 RocksDBWriteBatchWrapper batchWriter =
                         new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())) {
             iterator.seekToFirst();
@@ -849,14 +860,25 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             while (iterator.isValid()) {
                 serializedValueInput.setBuffer(iterator.value());
 
-                rocksDBState.migrateSerializedValue(
-                        serializedValueInput,
-                        migratedSerializedValueOutput,
-                        stateMetaInfo.f1.getPreviousStateSerializer(),
-                        stateMetaInfo.f1.getStateSerializer());
+                if (TtlStateFactory.TtlSerializer.isTtlStateMigration(
+                        oldStateInfo.f1.getPreviousStateSerializer(),
+                        oldStateInfo.f1.getStateSerializer())) {
+                    rocksDBState.migrateSerializedTtlValue(
+                            serializedValueInput,
+                            migratedSerializedValueOutput,
+                            oldStateInfo.f1.getPreviousStateSerializer(),
+                            oldStateInfo.f1.getStateSerializer(),
+                            this.ttlTimeProvider);
+                } else {
+                    rocksDBState.migrateSerializedValue(
+                            serializedValueInput,
+                            migratedSerializedValueOutput,
+                            oldStateInfo.f1.getPreviousStateSerializer(),
+                            oldStateInfo.f1.getStateSerializer());
+                }
 
                 batchWriter.put(
-                        stateMetaInfo.f0,
+                        oldStateInfo.f0,
                         iterator.key(),
                         migratedSerializedValueOutput.getCopyOfBuffer());
 
@@ -867,6 +889,20 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             db.releaseSnapshot(rocksDBSnapshot);
             rocksDBSnapshot.close();
         }
+    }
+
+    /**
+     * Migrate only the state value, that is the "value" that is stored in RocksDB. We don't migrate
+     * the key here, which is made up of key group, key, namespace and map key (in case of
+     * MapState).
+     */
+    @SuppressWarnings("unchecked")
+    private <N, S extends State, SV> void migrateStateValues(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo)
+            throws Exception {
+
+        migrateStateValuesWithTtl(stateDesc, stateMetaInfo, StateTtlConfig.DISABLED);
     }
 
     @SuppressWarnings("unchecked")
@@ -910,6 +946,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         namespaceSerializer,
                         snapshotTransformFactory,
                         allowFutureMetadataUpdates);
+
         if (!allowFutureMetadataUpdates) {
             // Config compact filter only when no future metadata updates
             ttlCompactFiltersManager.configCompactFilter(

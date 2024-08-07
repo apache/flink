@@ -30,6 +30,9 @@ import org.apache.flink.runtime.state.ListDelimitedSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.ttl.TtlStateFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -223,6 +226,72 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
         } catch (Exception e) {
             throw new StateMigrationException(
                     "Error while trying to migrate RocksDB list state.", e);
+        }
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked"})
+    public void migrateSerializedTtlValue(
+            DataInputDeserializer serializedOldValueInput,
+            DataOutputSerializer serializedMigratedValueOutput,
+            TypeSerializer<List<V>> priorSerializer,
+            TypeSerializer<List<V>> newSerializer,
+            TtlTimeProvider ttlTimeProvider)
+            throws StateMigrationException {
+        Preconditions.checkArgument(priorSerializer instanceof ListSerializer);
+        Preconditions.checkArgument(newSerializer instanceof ListSerializer);
+
+        if (TtlStateFactory.TtlSerializer.isMigrateFromDisablingToEnabling(
+                priorSerializer, newSerializer)) {
+            TypeSerializer<V> priorElementSerializer =
+                    ((ListSerializer<V>) priorSerializer).getElementSerializer();
+
+            TtlStateFactory.TtlSerializer<V> ttlElementSerializer =
+                    (TtlStateFactory.TtlSerializer<V>)
+                            ((ListSerializer<V>) newSerializer).getElementSerializer();
+
+            try {
+                while (serializedOldValueInput.available() > 0) {
+                    V element =
+                            ListDelimitedSerializer.deserializeNextElement(
+                                    serializedOldValueInput, priorElementSerializer);
+                    TtlValue<V> ttlElement =
+                            ttlElementSerializer.createInstance(
+                                    ttlTimeProvider.currentTimestamp(), element);
+                    ttlElementSerializer.serialize(ttlElement, serializedMigratedValueOutput);
+                    if (serializedOldValueInput.available() > 0) {
+                        serializedMigratedValueOutput.write(DELIMITER);
+                    }
+                }
+            } catch (Exception e) {
+                throw new StateMigrationException(
+                        "Error while trying to migrate RocksDB state.", e);
+            }
+        } else {
+            TtlStateFactory.TtlSerializer<V> ttlElementSerializer =
+                    (TtlStateFactory.TtlSerializer<V>)
+                            ((ListSerializer<V>) priorSerializer).getElementSerializer();
+
+            TypeSerializer<V> newElementSerializer =
+                    ((ListSerializer<V>) newSerializer).getElementSerializer();
+
+            try {
+                while (serializedOldValueInput.available() > 0) {
+                    TtlValue<V> ttlElement =
+                            ListDelimitedSerializer.deserializeNextElement(
+                                    serializedOldValueInput, ttlElementSerializer);
+                    if (ttlElement != null) {
+                        V element = ttlElement.getUserValue();
+                        newElementSerializer.serialize(element, serializedMigratedValueOutput);
+                        if (serializedOldValueInput.available() > 0) {
+                            serializedMigratedValueOutput.write(DELIMITER);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new StateMigrationException(
+                        "Error while trying to migrate RocksDB state.", e);
+            }
         }
     }
 

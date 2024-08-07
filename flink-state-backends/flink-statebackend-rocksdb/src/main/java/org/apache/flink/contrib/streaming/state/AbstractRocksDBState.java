@@ -26,6 +26,9 @@ import org.apache.flink.queryablestate.client.state.serialization.KvStateSeriali
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.ttl.TtlStateFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -190,6 +193,34 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
         try {
             V value = priorSerializer.deserialize(serializedOldValueInput);
             newSerializer.serialize(value, serializedMigratedValueOutput);
+        } catch (Exception e) {
+            throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void migrateSerializedTtlValue(
+            DataInputDeserializer serializedOldValueInput,
+            DataOutputSerializer serializedMigratedValueOutput,
+            TypeSerializer<V> priorSerializer,
+            TypeSerializer<V> newSerializer,
+            TtlTimeProvider ttlTimeProvider)
+            throws StateMigrationException {
+        try {
+            if (TtlStateFactory.TtlSerializer.isMigrateFromDisablingToEnabling(
+                    priorSerializer, newSerializer)) {
+                V value = priorSerializer.deserialize(serializedOldValueInput);
+                TtlStateFactory.TtlSerializer<V> ttlSerializer =
+                        (TtlStateFactory.TtlSerializer<V>) newSerializer;
+                TtlValue<V> ttlValue =
+                        ttlSerializer.createInstance(ttlTimeProvider.currentTimestamp(), value);
+                ttlSerializer.serialize(ttlValue, serializedMigratedValueOutput);
+            } else {
+                TtlStateFactory.TtlSerializer<V> ttlSerializer =
+                        (TtlStateFactory.TtlSerializer<V>) priorSerializer;
+                TtlValue<V> ttlValue = ttlSerializer.deserialize(serializedOldValueInput);
+                newSerializer.serialize(ttlValue.getUserValue(), serializedMigratedValueOutput);
+            }
         } catch (Exception e) {
             throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
         }

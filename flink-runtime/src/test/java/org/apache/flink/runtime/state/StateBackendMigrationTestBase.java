@@ -161,7 +161,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                         e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
-    private void testKeyedValueStateUpgrade(
+    protected void testKeyedValueStateUpgrade(
             ValueStateDescriptor<TestType> initialAccessDescriptor,
             ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore)
             throws Exception {
@@ -278,7 +278,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                         e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
-    private void testKeyedListStateUpgrade(
+    protected void testKeyedListStateUpgrade(
             ListStateDescriptor<TestType> initialAccessDescriptor,
             ListStateDescriptor<TestType> newAccessDescriptorAfterRestore)
             throws Exception {
@@ -438,7 +438,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
         return set.iterator();
     }
 
-    private void testKeyedMapStateUpgrade(
+    protected void testKeyedMapStateUpgrade(
             MapStateDescriptor<Integer, TestType> initialAccessDescriptor,
             MapStateDescriptor<Integer, TestType> newAccessDescriptorAfterRestore)
             throws Exception {
@@ -1209,7 +1209,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
     }
 
     @TestTemplate
-    void testStateMigrationAfterChangingTTLFromEnablingToDisabling() {
+    protected void testStateMigrationAfterChangingTTLFromEnablingToDisabling() throws Exception {
         final String stateName = "test-ttl";
 
         ValueStateDescriptor<TestType> initialAccessDescriptor =
@@ -1229,12 +1229,11 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
     }
 
     @TestTemplate
-    void testStateMigrationAfterChangingTTLFromDisablingToEnabling() {
+    protected void testStateMigrationAfterChangingTTLFromDisablingToEnabling() throws Exception {
         final String stateName = "test-ttl";
 
         ValueStateDescriptor<TestType> initialAccessDescriptor =
                 new ValueStateDescriptor<>(stateName, new TestType.V1TestTypeSerializer());
-
         ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore =
                 new ValueStateDescriptor<>(stateName, new TestType.V2TestTypeSerializer());
         newAccessDescriptorAfterRestore.enableTimeToLive(

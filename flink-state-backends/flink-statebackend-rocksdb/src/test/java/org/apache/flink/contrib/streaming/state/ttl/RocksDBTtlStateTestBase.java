@@ -23,8 +23,10 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.MockTtlStateTest;
 import org.apache.flink.runtime.state.ttl.StateBackendTestContext;
 import org.apache.flink.runtime.state.ttl.TtlStateTestBase;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -40,6 +42,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Base test suite for rocksdb state TTL. */
 public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
@@ -88,6 +91,22 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
     @TestTemplate
     public void testCompactFilterWithSnapshotAndRescalingAfterRestore() throws Exception {
         testCompactFilter(true, true);
+    }
+
+    @TestTemplate
+    void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
+        assumeThat(this).isNotInstanceOf(MockTtlStateTest.class);
+
+        initTest();
+
+        timeProvider.time = 0;
+        ctx().update(ctx().updateEmpty);
+
+        KeyedStateHandle snapshot = sbetc.takeSnapshot();
+        sbetc.createAndRestoreKeyedStateBackend(snapshot);
+
+        sbetc.setCurrentKey("defaultKey");
+        sbetc.createState(ctx().createStateDescriptor(), "");
     }
 
     @SuppressWarnings("resource")

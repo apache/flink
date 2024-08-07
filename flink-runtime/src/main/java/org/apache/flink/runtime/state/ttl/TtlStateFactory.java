@@ -314,12 +314,12 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         }
 
         @SuppressWarnings("unchecked")
-        TypeSerializer<Long> getTimestampSerializer() {
+        public TypeSerializer<Long> getTimestampSerializer() {
             return (TypeSerializer<Long>) (TypeSerializer<?>) fieldSerializers[0];
         }
 
         @SuppressWarnings("unchecked")
-        TypeSerializer<T> getValueSerializer() {
+        public TypeSerializer<T> getValueSerializer() {
             return (TypeSerializer<T>) fieldSerializers[1];
         }
 
@@ -329,16 +329,63 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         }
 
         public static boolean isTtlStateSerializer(TypeSerializer<?> typeSerializer) {
-            boolean ttlSerializer = typeSerializer instanceof TtlStateFactory.TtlSerializer;
-            boolean ttlListSerializer =
-                    typeSerializer instanceof ListSerializer
-                            && ((ListSerializer) typeSerializer).getElementSerializer()
-                                    instanceof TtlStateFactory.TtlSerializer;
-            boolean ttlMapSerializer =
-                    typeSerializer instanceof MapSerializer
-                            && ((MapSerializer) typeSerializer).getValueSerializer()
-                                    instanceof TtlStateFactory.TtlSerializer;
-            return ttlSerializer || ttlListSerializer || ttlMapSerializer;
+            return isTtlValueStateSerializer(typeSerializer)
+                    || isTtlListStateSerializer(typeSerializer)
+                    || isTtlMapStateSerializer(typeSerializer);
+        }
+
+        public static boolean isTtlValueStateSerializer(TypeSerializer<?> typeSerializer) {
+            return typeSerializer instanceof TtlStateFactory.TtlSerializer;
+        }
+
+        @SuppressWarnings("rawtypes")
+        public static boolean isTtlListStateSerializer(TypeSerializer<?> typeSerializer) {
+            return typeSerializer instanceof ListSerializer
+                    && ((ListSerializer) typeSerializer).getElementSerializer()
+                            instanceof TtlStateFactory.TtlSerializer;
+        }
+
+        @SuppressWarnings("rawtypes")
+        public static boolean isTtlMapStateSerializer(TypeSerializer<?> typeSerializer) {
+            return typeSerializer instanceof MapSerializer
+                    && ((MapSerializer) typeSerializer).getValueSerializer()
+                            instanceof TtlStateFactory.TtlSerializer;
+        }
+
+        public static boolean isTtlStateMigration(
+                TypeSerializer<?> previousSerializer, TypeSerializer<?> newSerializer) {
+            return isMigrateFromDisablingToEnabling(previousSerializer, newSerializer)
+                    || isMigrateFromEnablingToDisabling(previousSerializer, newSerializer);
+        }
+
+        public static boolean isMigrateFromDisablingToEnabling(
+                TypeSerializer<?> previousSerializer, TypeSerializer<?> newSerializer) {
+            return !isTtlStateSerializer(previousSerializer) && isTtlStateSerializer(newSerializer);
+        }
+
+        public static boolean isMigrateFromEnablingToDisabling(
+                TypeSerializer<?> previousSerializer, TypeSerializer<?> newSerializer) {
+            return isTtlStateSerializer(previousSerializer) && !isTtlStateSerializer(newSerializer);
+        }
+
+        public static TypeSerializer<?> extractOriginalTypeSerializer(
+                TypeSerializer<?> newSerializer) {
+            if (isTtlValueStateSerializer(newSerializer)) {
+                return ((TtlStateFactory.TtlSerializer<?>) newSerializer).getValueSerializer();
+            } else if (isTtlListStateSerializer(newSerializer)) {
+                TtlStateFactory.TtlSerializer<?> elementSerializer =
+                        (TtlStateFactory.TtlSerializer<?>)
+                                ((ListSerializer<?>) newSerializer).getElementSerializer();
+                return new ListSerializer<>(elementSerializer.getValueSerializer());
+            } else if (isTtlMapStateSerializer(newSerializer)) {
+                MapSerializer<?, ?> mapSerializer = ((MapSerializer<?, ?>) newSerializer);
+                TypeSerializer<?> keySerializer = mapSerializer.getKeySerializer();
+                TtlStateFactory.TtlSerializer<?> valueSerializer =
+                        (TtlStateFactory.TtlSerializer<?>) mapSerializer.getValueSerializer();
+                return new MapSerializer<>(keySerializer, valueSerializer.getValueSerializer());
+            }
+
+            return newSerializer;
         }
     }
 
