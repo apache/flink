@@ -73,7 +73,7 @@ abstract class Sink(
           .getOrElse(Array.empty[Array[Int]])
           .map(_.mkString("[", ",", "]"))
           .mkString(","),
-        targetColumns != null && targetColumns.length > 0
+        targetColumns != null
       )
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
