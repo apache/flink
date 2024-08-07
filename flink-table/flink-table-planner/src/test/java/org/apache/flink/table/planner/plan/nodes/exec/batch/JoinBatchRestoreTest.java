@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.JoinTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecJoin}. */
-public class JoinRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecHashJoin}. */
+public class JoinBatchRestoreTest extends BatchRestoreTestBase {
 
-    public JoinRestoreTest() {
-        super(StreamExecJoin.class);
+    public JoinBatchRestoreTest() {
+        super(BatchExecHashJoin.class);
     }
 
     @Override
@@ -37,17 +37,22 @@ public class JoinRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 JoinTestPrograms.NON_WINDOW_INNER_JOIN,
                 JoinTestPrograms.NON_WINDOW_INNER_JOIN_WITH_NULL,
-                JoinTestPrograms.CROSS_JOIN,
+                // Requires BatchExecMultipleInputNode
+                // JoinTestPrograms.CROSS_JOIN,
                 JoinTestPrograms.JOIN_WITH_FILTER,
                 JoinTestPrograms.INNER_JOIN_WITH_DUPLICATE_KEY,
                 JoinTestPrograms.INNER_JOIN_WITH_NON_EQUI_JOIN,
-                JoinTestPrograms.INNER_JOIN_WITH_EQUAL_PK,
-                JoinTestPrograms.INNER_JOIN_WITH_PK,
+                // Requires BatchExecMultipleInputNode
+                // JoinTestPrograms.INNER_JOIN_WITH_EQUAL_PK,
+                // Requires another Join operator
+                // JoinTestPrograms.INNER_JOIN_WITH_PK,
                 JoinTestPrograms.FULL_OUTER,
                 JoinTestPrograms.LEFT_JOIN,
                 JoinTestPrograms.RIGHT_JOIN,
-                JoinTestPrograms.SEMI_JOIN,
-                JoinTestPrograms.ANTI_JOIN,
-                JoinTestPrograms.JOIN_WITH_STATE_TTL_HINT);
+                JoinTestPrograms.SEMI_JOIN
+                // Requires BatchExecMultipleInputNode
+                // JoinTestPrograms.ANTI_JOIN,
+                // JoinTestPrograms.JOIN_WITH_STATE_TTL_HINT
+                );
     }
 }
