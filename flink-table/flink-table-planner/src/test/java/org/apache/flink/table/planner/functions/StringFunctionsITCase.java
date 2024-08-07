@@ -32,7 +32,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(bTrimTestCases(), regexpExtractTestCases(), translateTestCases())
+        return Stream.of(bTrimTestCases(), eltTestCases(), regexpExtractTestCases(), translateTestCases())
                 .flatMap(s -> s);
     }
 
@@ -105,6 +105,88 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "BTRIM(str <CHARACTER_STRING>)\n"
                                         + "BTRIM(str <CHARACTER_STRING>, trimStr <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> eltTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT)
+                        .onFieldsWithData(null, null, null, new byte[] {1, 2, 3})
+                        .andDataTypes(
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES())
+                        // null input
+                        .testResult(
+                                $("f0").elt("a", "b"), "ELT(f0, 'a', 'b')", null, DataTypes.CHAR(1))
+                        .testResult(lit(1).elt($("f1")), "ELT(1, f1)", null, DataTypes.STRING())
+                        .testResult(
+                                lit(1).elt("a", $("f1")),
+                                "ELT(1, 'a', f1)",
+                                "a",
+                                DataTypes.STRING())
+                        // invalid index
+                        .testTableApiRuntimeError(
+                                lit(0).elt("a"),
+                                IndexOutOfBoundsException.class,
+                                "Index 0 is out of range [1, 1]")
+                        .testSqlRuntimeError(
+                                "ELT(0, 'a')",
+                                IndexOutOfBoundsException.class,
+                                "Index 0 is out of range [1, 1]")
+                        .testTableApiRuntimeError(
+                                lit(4).elt("a", "b", "c"),
+                                IndexOutOfBoundsException.class,
+                                "Index 4 is out of range [1, 3]")
+                        .testSqlRuntimeError(
+                                "ELT(4, 'a', 'b', 'c')",
+                                IndexOutOfBoundsException.class,
+                                "Index 4 is out of range [1, 3]")
+                        // normal cases
+                        .testResult(
+                                lit(1).elt("scala", "java"),
+                                "ELT(1, 'scala', 'java')",
+                                "scala",
+                                DataTypes.VARCHAR(5).notNull())
+                        .testResult(
+                                lit(2).elt("a", "b"),
+                                "ELT(2, 'a', 'b')",
+                                "b",
+                                DataTypes.CHAR(1).notNull())
+                        .testResult(
+                                lit(2).elt($("f2"), $("f3"), $("f3")),
+                                "ELT(2, f2, f3, f3)",
+                                new byte[] {1, 2, 3},
+                                DataTypes.BYTES())
+                        .testResult(
+                                lit(3).elt($("f2"), $("f3"), $("f2")),
+                                "ELT(3, f2, f3, f2)",
+                                null,
+                                DataTypes.BYTES()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT, "Validation Error")
+                        .onFieldsWithData("1", "1".getBytes())
+                        .andDataTypes(DataTypes.STRING(), DataTypes.BYTES())
+                        .testTableApiValidationError(
+                                lit(1).elt($("f0"), $("f1")),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testSqlValidationError(
+                                "ELT(f0, '3', '5')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testTableApiValidationError(
+                                lit(1).elt(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testSqlValidationError(
+                                "ELT(1)",
+                                "No match found for function signature ELT(<NUMERIC>).\n"
+                                        + "Supported signatures are:\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)"));
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {

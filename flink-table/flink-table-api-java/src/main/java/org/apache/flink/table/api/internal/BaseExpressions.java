@@ -91,6 +91,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ELT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
@@ -1341,6 +1342,23 @@ public abstract class BaseExpressions<InType, OutType> {
                         toExpr(),
                         objectToExpression(listDelimiter),
                         objectToExpression(keyValueDelimiter)));
+    }
+
+    /**
+     * Returns the {@code index}-th expression. one {@code expr} is required at least. <br>
+     * {@code index} must be between 1 and the number of {@code expr}. Otherwise, the function
+     * returns an error.
+     *
+     * @param expr a STRING or BINARY expression
+     * @return result type is the least common type of all expr
+     */
+    public OutType elt(InType... expr) {
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(expr).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(ELT, args));
     }
 
     // Temporal operations

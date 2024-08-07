@@ -90,6 +90,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.varying
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
+import static org.apache.flink.table.types.inference.TypeStrategies.commonRange;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.forceNullable;
@@ -1385,6 +1386,28 @@ public final class BuiltInFunctionDefinitions {
                             nullableIfArgs(
                                     explicit(
                                             DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))))
+                    .build();
+
+    public static final BuiltInFunctionDefinition ELT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ELT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    varyingSequence(
+                                            Arrays.asList("index", "expr", "exprs"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING))),
+                                    varyingSequence(
+                                            Arrays.asList("index", "expr", "exprs"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                                    logical(LogicalTypeFamily.BINARY_STRING),
+                                                    logical(LogicalTypeFamily.BINARY_STRING)))))
+                    .outputTypeStrategy(nullableIfArgs(commonRange(ConstantArgumentCount.from(1))))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
