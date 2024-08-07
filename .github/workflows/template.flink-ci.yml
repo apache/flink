@@ -68,9 +68,14 @@ env:
   DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
 
 jobs:
+  workflow-init:
+    name: "Initialize Workflow"
+    uses: ./.github/workflows/template.workflow-init.yml
+
   compile:
     name: "Compile"
-    runs-on: ubuntu-22.04
+    needs: workflow-init
+    runs-on: ${{ fromJSON( needs.workflow-init.outputs.runner_config ) }}
     container:
       image: mapohl/flink-ci:FLINK-34194
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
@@ -125,8 +130,8 @@ jobs:
 
   packaging:
     name: "Test packaging/licensing"
-    needs: compile
-    runs-on: ubuntu-22.04
+    needs: [compile, workflow-init]
+    runs-on: ${{ fromJSON( needs.workflow-init.outputs.runner_config ) }}
     container:
       image: mapohl/flink-ci:FLINK-34194
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
@@ -165,8 +170,8 @@ jobs:
 
   test:
     name: "Test (module: ${{ matrix.module }})"
-    needs: compile
-    runs-on: ubuntu-22.04
+    needs: [compile, workflow-init]
+    runs-on: ${{ fromJSON( needs.workflow-init.outputs.runner_config ) }}
     container:
       image: mapohl/flink-ci:FLINK-34194
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
@@ -278,9 +283,9 @@ jobs:
 
   e2e:
     name: "E2E (group ${{ matrix.group }})"
-    needs: compile
     # the end to end tests are not executed in Flink's CI Docker container due to problems when running Docker-in-Docker
-    runs-on: ubuntu-22.04
+    needs: [compile, workflow-init]
+    runs-on: ${{ fromJSON( needs.workflow-init.outputs.runner_config ) }}
     timeout-minutes: 310
     env:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
