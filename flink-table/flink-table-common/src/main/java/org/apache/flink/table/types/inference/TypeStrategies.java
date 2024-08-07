@@ -55,6 +55,11 @@ public final class TypeStrategies {
     /** Type strategy that returns a common, least restrictive type of all arguments. */
     public static final TypeStrategy COMMON = new CommonTypeStrategy();
 
+    /** Type strategy that returns a common, least restrictive type of selected arguments. */
+    public static TypeStrategy commonRange(ArgumentCount argumentRange) {
+        return new CommonTypeStrategy(argumentRange);
+    }
+
     /** Type strategy that returns a fixed {@link DataType}. */
     public static TypeStrategy explicit(DataType dataType) {
         return new ExplicitTypeStrategy(dataType);
