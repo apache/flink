@@ -189,6 +189,44 @@ public abstract class EncodingUtils {
 
     /**
      * Converts an array of characters representing hexadecimal values into an array of bytes of
+     * those same values. E.g. {@code unhex("12".getBytes())} returns {@code new byte[]{0x12}}.
+     *
+     * <p>The returned array will be half the length of the passed array, as it takes two characters
+     * to represent any given byte. If the input array has an odd length, the first byte is handled
+     * separately and set to 0.
+     *
+     * <p>Unlike {@link #decodeHex(String)}, this method does not throw an exception for odd-length
+     * inputs or invalid characters. Instead, it returns null if invalid characters are encountered.
+     *
+     * @param bytes An array of characters containing hexadecimal digits.
+     * @return A byte array containing the binary data decoded from the supplied char array, or null
+     *     if the input contains invalid hexadecimal characters.
+     */
+    public static byte[] unhex(final byte[] bytes) {
+        final byte[] out = new byte[(bytes.length + 1) >> 1];
+
+        int i = bytes.length - 2;
+        int j = out.length - 1;
+        while (i >= 0) {
+            int l = Character.digit(bytes[i], 16);
+            int r = Character.digit(bytes[i + 1], 16);
+            if (l == -1 || r == -1) {
+                return null;
+            }
+            i -= 2;
+            out[j--] = (byte) (((l << 4) | r) & 0xFF);
+        }
+
+        // length is odd and first byte is invalid
+        if (i == -1 && Character.digit(bytes[0], 16) == -1) {
+            return null;
+        }
+
+        return out;
+    }
+
+    /**
+     * Converts an array of characters representing hexadecimal values into an array of bytes of
      * those same values. The returned array will be half the length of the passed array, as it
      * takes two characters to represent any given byte. An exception is thrown if the passed char
      * array has an odd number of elements.

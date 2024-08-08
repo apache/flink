@@ -149,6 +149,7 @@ arithmetic functions
     Expression.end
     Expression.bin
     Expression.hex
+    Expression.unhex
     Expression.truncate
 
 string functions
