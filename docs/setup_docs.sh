@@ -35,6 +35,21 @@ function integrate_connector_docs {
   rsync -a flink-connector-${connector}/docs/* "${theme_dir}/"
 }
 
+# Integrate connector docs from a fork repo
+function integrate_connector_fork_docs {
+  local connector fork_owner ref 
+  fork_owner=$1  
+  connector=$2
+  ref=$3
+
+  git clone --single-branch --branch ${ref} https://github.com/${fork_owner}/flink-connector-${connector}
+  theme_dir="../themes/connectors"
+  mkdir -p "${theme_dir}"
+
+  rsync -a flink-connector-${connector}/docs/* "${theme_dir}/"
+}
+
+
 
 SKIP_INTEGRATE_CONNECTOR_DOCS=false
 for arg in "$@"; do

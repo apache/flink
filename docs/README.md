@@ -62,6 +62,23 @@ externally hosted documentation. The reference will look like `integrate_connect
 
 Replace <connector_name> with the name of your connector, e.g., `elasticsearch` for `flink-connector-elasticsearch`.
 
+### Include external documentation hosted on forks
+
+The configuration above works for connectors already merged in `apache/flinl-connector-<connector-name>` repos.
+When contributing to a Flink's connector, the documentation is hosted in a fork of one of these repos.
+
+To preview any connector docs changes not yet merged follow these steps:
+
+1. (If necessary) Push the latest changes to the connector docs to the forked repo, in a branch
+
+2. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your forked repo. The reference will look like `integrate_connector_fork_docs <fork_owner> <connector_name> <branch_or_tag>`. If you are working on an existing connector, replace the  original `integrate_connector_docs <connector_name>...` reference of the same connector with the reference to your fork. If you are working on a new connector not yet released, append the new reference after all other existing connectors.
+
+Replace <fork_owner> with the owner of the fork, <connector_name> with the name of your connector (e.g., `prometheus` for `flink-connector-prometheus`), and <branch_or_tag> with the name of the branch or tag containing your changes.
+
+
+When you run `docs/setup_docs.sh`, the <branch_or_tag> of the `https://github.com/<fork_owner>/flink-connector-<connector_name>` is cloned into the Flink docs.
+
+
 ## Generate configuration tables
 
 Configuration descriptions are auto generated from code. To trigger the generation, you need to run a command in the project root (see [Configuration documentation](https://github.com/apache/flink/blob/master/flink-docs/README.md#configuration-documentation).)
