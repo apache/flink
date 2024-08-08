@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.api.watermark;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 /** A {@link StreamElement} that ships {@link Watermark}s between operators. */
-@PublicEvolving
+@Internal
 public final class WatermarkEvent extends StreamElement {
 
     private final Watermark watermark;
