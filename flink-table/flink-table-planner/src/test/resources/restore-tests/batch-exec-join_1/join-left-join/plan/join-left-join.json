@@ -1,0 +1,249 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 62,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`EMPLOYEE`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "deptno",
+              "dataType" : "INT"
+            }, {
+              "name" : "salary",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 2 ] ],
+        "producedType" : "ROW<`deptno` INT, `name` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`deptno` INT, `name` VARCHAR(2147483647)> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`deptno` INT, `name` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, EMPLOYEE, project=[deptno, name], metadata=[]]], fields=[deptno, name])",
+    "dynamicFilteringDataListenerID" : "b014fc6c-82cd-46a9-be7f-63d5348c7774",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 63,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `name` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[deptno]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 64,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`DEPARTMENT`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "department_num",
+              "dataType" : "INT"
+            }, {
+              "name" : "b2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b3",
+              "dataType" : "INT"
+            }, {
+              "name" : "department_name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 3 ] ],
+        "producedType" : "ROW<`department_num` INT, `department_name` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`department_num` INT, `department_name` VARCHAR(2147483647)> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`department_num` INT, `department_name` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, DEPARTMENT, project=[department_num, department_name], metadata=[]]], fields=[department_num, department_name])",
+    "dynamicFilteringDataListenerID" : "32c21a3e-eda8-4739-af0d-d2747df0dfdf",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 65,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`department_num` INT, `department_name` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[department_num]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 66,
+    "type" : "batch-exec-join_1",
+    "configuration" : {
+      "table.exec.resource.external-buffer-memory" : "10 mb",
+      "table.exec.resource.hash-join.memory" : "128 mb",
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "joinSpec" : {
+      "joinType" : "LEFT",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "estimatedLeftAvgRowSize" : 16,
+    "estimatedRightAvgRowSize" : 16,
+    "estimatedLeftRowCount" : 100000000,
+    "estimatedRightRowCount" : 100000000,
+    "isBroadcast" : false,
+    "leftIsBuild" : true,
+    "tryDistinctBuildRow" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    } ],
+    "outputType" : "ROW<`deptno` INT, `name` VARCHAR(2147483647), `department_num` INT, `department_name` VARCHAR(2147483647)>",
+    "description" : "HashJoin(joinType=[LeftOuterJoin], where=[(deptno = department_num)], select=[deptno, name, department_num, department_name], build=[left])"
+  }, {
+    "id" : 67,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `department_name` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[name, department_name])"
+  }, {
+    "id" : 68,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "department_name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `department_name` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[name, department_name])"
+  } ],
+  "edges" : [ {
+    "source" : 62,
+    "target" : 63,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 64,
+    "target" : 65,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 63,
+    "target" : 66,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 65,
+    "target" : 66,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 66,
+    "target" : 67,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 67,
+    "target" : 68,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

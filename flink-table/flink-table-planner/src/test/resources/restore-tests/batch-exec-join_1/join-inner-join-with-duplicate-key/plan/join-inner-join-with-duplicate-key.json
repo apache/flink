@@ -1,0 +1,292 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 27,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`EMPLOYEE`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "deptno",
+              "dataType" : "INT"
+            }, {
+              "name" : "salary",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ] ],
+        "producedType" : "ROW<`deptno` INT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`deptno` INT> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`deptno` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, EMPLOYEE, project=[deptno], metadata=[]]], fields=[deptno])",
+    "dynamicFilteringDataListenerID" : "a7f20adf-7019-4dd9-bdbe-c409221d57ad",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 28,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT>",
+    "description" : "Exchange(distribution=[hash[deptno]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 29,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`DEPARTMENT`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "department_num",
+              "dataType" : "INT"
+            }, {
+              "name" : "b2",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b3",
+              "dataType" : "INT"
+            }, {
+              "name" : "department_name",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 2 ] ],
+        "producedType" : "ROW<`department_num` INT, `b3` INT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`department_num` INT, `b3` INT> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`department_num` INT, `b3` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, DEPARTMENT, project=[department_num, b3], metadata=[]]], fields=[department_num, b3])",
+    "dynamicFilteringDataListenerID" : "c2902def-9fdc-408a-9a53-51995a016084",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 30,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    } ],
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "INT"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT"
+      } ],
+      "type" : "BOOLEAN"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`department_num` INT, `b3` INT>",
+    "description" : "Calc(select=[department_num, b3], where=[(b3 = department_num)])"
+  }, {
+    "id" : 31,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`department_num` INT, `b3` INT>",
+    "description" : "Exchange(distribution=[hash[b3]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 32,
+    "type" : "batch-exec-join_1",
+    "configuration" : {
+      "table.exec.resource.external-buffer-memory" : "10 mb",
+      "table.exec.resource.hash-join.memory" : "128 mb",
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 1 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "estimatedLeftAvgRowSize" : 4,
+    "estimatedRightAvgRowSize" : 8,
+    "estimatedLeftRowCount" : 100000000,
+    "estimatedRightRowCount" : 15000000,
+    "isBroadcast" : false,
+    "leftIsBuild" : false,
+    "tryDistinctBuildRow" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `department_num` INT, `b3` INT>",
+    "description" : "HashJoin(joinType=[InnerJoin], where=[(deptno = b3)], select=[deptno, department_num, b3], build=[right])"
+  }, {
+    "id" : 33,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `department_num` INT>",
+    "description" : "Calc(select=[deptno, department_num])"
+  }, {
+    "id" : 34,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "deptno",
+              "dataType" : "INT"
+            }, {
+              "name" : "department_num",
+              "dataType" : "INT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`deptno` INT, `department_num` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[deptno, department_num])"
+  } ],
+  "edges" : [ {
+    "source" : 27,
+    "target" : 28,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 29,
+    "target" : 30,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 30,
+    "target" : 31,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 28,
+    "target" : 32,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 31,
+    "target" : 32,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 32,
+    "target" : 33,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 33,
+    "target" : 34,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
