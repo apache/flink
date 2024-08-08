@@ -194,6 +194,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRANSL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_ENCODE;
@@ -812,6 +813,17 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType hex() {
         return toApiSpecificExpression(unresolvedCall(HEX, toExpr()));
+    }
+
+    /**
+     * Converts hexadecimal string {@code expr} to BINARY. If the length of {@code expr} is odd, the
+     * first character is discarded and the result is left padded with a null byte.
+     *
+     * @return a BINARY. <br>
+     *     null if expr is null or expr contains non-hex characters.
+     */
+    public OutType unhex() {
+        return toApiSpecificExpression(unresolvedCall(UNHEX, toExpr()));
     }
 
     /**
