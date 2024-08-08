@@ -1856,6 +1856,19 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition UNHEX =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("UNHEX")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("expr"),
+                                    Collections.singletonList(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(explicit(DataTypes.BYTES()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.UnhexFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition TRUNCATE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("truncate")

@@ -1004,6 +1004,17 @@ class Expression(Generic[T]):
         """
         return _unary_op("hex")(self)
 
+    @property
+    def unhex(self) -> 'Expression':
+        """
+        Converts hexadecimal string expr to BINARY.
+        If the length of expr is odd, the first character is discarded
+        and the result is left padded with a null byte.
+
+        :return: a BINARY. null if expr is null or expr contains non-hex characters.
+        """
+        return _unary_op("unhex")(self)
+
     def truncate(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
         """
         Returns a number of truncated to n decimal places.

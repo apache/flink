@@ -296,6 +296,13 @@ arithmetic:
     description: |
       以十六进制格式返回整数 numeric 或字符串 string 的字符串表示。如果参数为 `NULL`，则返回 `NULL`。
       例如数字 20 返回“14”，数字 100 返回“64”，字符串“hello,world” 返回“68656C6C6F2C776F726C64”。
+  - sql: UNHEX(expr)
+    table: expr.unhex()
+    description: |
+      将十六进制字符串 expr 转换为 BINARY。
+      如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
+      expr <CHAR | VARCHAR>
+      返回一个 BINARY。如果 expr 为 `NULL` 或包含非十六进制字符，则返回 `NULL`。
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: |
