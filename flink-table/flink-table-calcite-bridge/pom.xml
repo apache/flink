@@ -45,22 +45,22 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.32.0:
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.32.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.32.0:compile
+				"mvn dependency:tree" as of Calcite 1.33.0:
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.33.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.33.0:compile
 				[INFO] |  +- org.locationtech.jts:jts-core:jar:1.19.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.14.3:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.15.3:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.14.3:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.14.3:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.15.3:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.15.3:compile
 				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.7.0:runtime
 				[INFO] |  |  \- net.minidev:json-smart:jar:2.4.7:runtime
 				[INFO] |  |     \- net.minidev:accessors-smart:jar:2.4.7:runtime
 				[INFO] |  |        \- org.ow2.asm:asm:jar:9.1:runtime
 				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
+				[INFO] |  +- org.apache.commons:commons-math3:jar:3.6.1:runtime
 				[INFO] |  \- commons-io:commons-io:jar:2.11.0:runtime
-
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
