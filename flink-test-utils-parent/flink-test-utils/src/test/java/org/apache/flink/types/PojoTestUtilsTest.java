@@ -50,6 +50,12 @@ class PojoTestUtilsTest {
     }
 
     @Test
+    void testPojoTypeInfoOnInterface() {
+        // reported in FLINK-35887
+        PojoTestUtils.assertSerializedAsPojo(Foo.class);
+    }
+
+    @Test
     void testWithoutKryoPojoAccepted() {
         PojoTestUtils.assertSerializedAsPojoWithoutKryo(Pojo.class);
     }
@@ -81,11 +87,5 @@ class PojoTestUtilsTest {
         public TypeInformation<Foo> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
             return Types.POJO(Foo.class, new HashMap<>());
         }
-    }
-
-    @Test
-    void testPojoTypeInfoOnInterface() {
-        // reported in FLINK-35887
-        PojoTestUtils.assertSerializedAsPojo(Foo.class);
     }
 }
