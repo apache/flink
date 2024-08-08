@@ -870,4 +870,18 @@ public class BinaryStringDataTest {
         assertThat(isEmpty(BinaryStringData.fromBytes("中文".getBytes()))).isEqualTo(false);
         assertThat(isEmpty(new BinaryStringData())).isEqualTo(true);
     }
+
+    @Test
+    public void testUnhex() {
+        assertThat(fromString("").unhex()).isEqualTo(new byte[0]);
+        assertThat(fromString("1").unhex()).isEqualTo(new byte[] {0});
+        assertThat(fromString("146").unhex()).isEqualTo(new byte[] {0, 0x46});
+        assertThat(fromString("z").unhex()).isEqualTo(null);
+        assertThat(fromString("-1").unhex()).isEqualTo(null);
+        assertThat(fromString("466C696E6B").unhex())
+                .isEqualTo(new byte[] {0x46, 0x6C, 0x69, 0x6E, 0x6B});
+        assertThat(fromString("4D7953514C").unhex())
+                .isEqualTo(new byte[] {0x4D, 0x79, 0x53, 0x51, 0x4C});
+        assertThat(fromString("\uD83D\uDE00").unhex()).isEqualTo(null);
+    }
 }

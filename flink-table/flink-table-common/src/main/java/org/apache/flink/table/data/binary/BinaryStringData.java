@@ -710,6 +710,43 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
         return fromString(toString().toLowerCase());
     }
 
+    /**
+     * Converts a string representing hexadecimal values into an array of bytes of those same
+     * values. The returned array will be half the length of the string, as it takes two characters
+     * to represent any given byte.
+     *
+     * <p>Inspired from <a
+     * href="https://github.com/apache/commons-codec/blob/master/src/main/java/org/apache/commons/codec/binary/Hex.java">...</a>.
+     *
+     * @return A byte array to contain the binary data decoded. <br>
+     *     If original bytes length is odd, the first byte is discarded and the result is left
+     *     padded with a null byte. <br>
+     *     If original bytes contains non-hex bytes the result is null.
+     */
+    public byte[] unhex() {
+        final int len = getSizeInBytes();
+        final byte[] out = new byte[len + 1 >> 1];
+
+        int i = len - 2;
+        int j = out.length - 1;
+        while (i >= 0) {
+            int l = Character.digit(byteAt(i), 16) << 4;
+            int r = Character.digit(byteAt(i + 1), 16);
+            if (l == -16 || r == -1) {
+                return null;
+            }
+            i -= 2;
+            out[j--] = (byte) ((l | r) & 0xFF);
+        }
+
+        // length is odd and first byte is invalid
+        if (i == -1 && Character.digit(byteAt(0), 16) == -1) {
+            return null;
+        }
+
+        return out;
+    }
+
     // ------------------------------------------------------------------------------------------
     // Internal methods on BinaryStringData
     // ------------------------------------------------------------------------------------------
