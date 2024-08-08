@@ -1350,6 +1350,29 @@ public final class BuiltInFunctionDefinitions {
                                             DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))))
                     .build();
 
+    public static final BuiltInFunctionDefinition SUBSTRING_INDEX =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("SUBSTRING_INDEX")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            Arrays.asList("expr", "delim", "count"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    logical(LogicalTypeRoot.INTEGER))),
+                                    sequence(
+                                            Arrays.asList("expr", "delim", "count"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.BINARY_STRING),
+                                                    logical(LogicalTypeFamily.BINARY_STRING),
+                                                    logical(LogicalTypeRoot.INTEGER)))))
+                    .outputTypeStrategy(nullableIfArgs(varyingString(argument(0))))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.SubstringIndexFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Math functions
     // --------------------------------------------------------------------------------------------
