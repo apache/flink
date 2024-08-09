@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
@@ -33,6 +34,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMast
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -91,7 +94,8 @@ public class MemoryTierFactory implements TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             List<TierShuffleDescriptor> shuffleDescriptors,
-            int maxRequestedBuffers) {
+            int maxRequestedBuffers,
+            @Nullable BufferCompressor bufferCompressor) {
         checkState(bufferSizeBytes > 0);
 
         return new MemoryTierProducerAgent(
@@ -103,7 +107,8 @@ public class MemoryTierFactory implements TierFactory {
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,
-                resourceRegistry);
+                resourceRegistry,
+                bufferCompressor);
     }
 
     @Override
