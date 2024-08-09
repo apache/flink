@@ -1,6 +1,6 @@
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.parallelism=2, bounded=true}]]])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 
 == Physical Execution Plan ==
 {
@@ -8,7 +8,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.parallelism=2, bounded=true}]]])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
     "parallelism" : 1
   }, {
     "id" : ,

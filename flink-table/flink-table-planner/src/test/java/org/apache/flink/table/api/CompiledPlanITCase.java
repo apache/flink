@@ -80,25 +80,26 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     @Test
     void testCompilePlanSql() throws IOException {
         CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("INSERT INTO MySink SELECT * FROM MyTable");
+
+        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
+        assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
+                .isEqualTo(getPreparedToCompareCompiledPlan(expected));
+    }
+
+    @Test
+    void testSourceTableWithHints() throws IOException {
+        CompiledPlan compiledPlan =
                 tableEnv.compilePlanSql(
                         "INSERT INTO MySink SELECT * FROM MyTable"
                                 // OPTIONS hints here do not play any significant role
-                                // we just have to be sure that these options are present in compile
-                                // plan
-                                + "/*+ OPTIONS('bounded'='true', 'sca.parallelism'='2') */");
+                                // we just have to be sure that these options are present in
+                                // compiled plan
+                                + " /*+ OPTIONS('bounded'='true', 'scan.parallelism'='2') */");
 
-        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
-        assertThat(
-                        TableTestUtil.getPrettyJson(
-                                TableTestUtil.replaceExecNodeId(
-                                        TableTestUtil.replaceFlinkVersion(
-                                                TableTestUtil.getFormattedJson(
-                                                        compiledPlan.asJsonString())))))
-                .isEqualTo(
-                        TableTestUtil.getPrettyJson(
-                                TableTestUtil.replaceExecNodeId(
-                                        TableTestUtil.replaceFlinkVersion(
-                                                TableTestUtil.getFormattedJson(expected)))));
+        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlanWithHints.out");
+        assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
+                .isEqualTo(getPreparedToCompareCompiledPlan(expected));
     }
 
     @Test
@@ -424,5 +425,12 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     private File createSourceSinkTables() throws IOException {
         createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
         return createTestCsvSinkTable("sink", COLUMNS_DEFINITION);
+    }
+
+    private String getPreparedToCompareCompiledPlan(final String planAsString) throws IOException {
+        return TableTestUtil.getPrettyJson(
+                TableTestUtil.replaceExecNodeId(
+                        TableTestUtil.replaceFlinkVersion(
+                                TableTestUtil.getFormattedJson(planAsString))));
     }
 }
