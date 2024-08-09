@@ -352,20 +352,30 @@ string:
       STRING1.trim(BOTH)
       STRING1.trim()
     description: 删除字符串 STRING1 开头和结尾可能存在的字符串 STRING2 并返回。默认情况下，会删除 STRING1 开头和结尾的空格。
-  - sql: LTRIM(string)
-    table: STRING.ltrim()
+  - sql: LTRIM(str[, trimStr])
+    table: str.ltrim([trimStr])
     description: |
-      返回从 STRING 中删除左边空格的字符串。
+      从 str 的开头删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       例如 `' This is a test String.'.ltrim()` 返回 `'This is a test String.'`。
-  - sql: RTRIM(string)
-    table: STRING.rtrim()
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
+  - sql: RTRIM(str[, trimStr])
+    table: str.rtrim([trimStr])
     description: |
-      返回从 STRING 中删除右边空格的字符串。
+      从 str 的结尾删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       例如 `'This is a test String. '.rtrim()` 返回 `'This is a test String.'`。
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: BTRIM(str[, trimStr])
     table: str.btrim([trimStr])
-    description: |
-      从 str 的左边和右边删除 trimStr 中的字符。trimStr 默认设置为空格。
+    description: |      
+      从 str 的开头和结尾删除 trimStr 中的字符。trimStr 默认设置为空格。      
       
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
       
