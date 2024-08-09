@@ -54,11 +54,22 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
             RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
             boolean failOnMissingField,
+            boolean failOnUnknownField,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
-        super(rowType, resultTypeInfo, failOnMissingField, ignoreParseErrors, timestampFormat);
+        super(
+                rowType,
+                resultTypeInfo,
+                failOnMissingField,
+                failOnUnknownField,
+                ignoreParseErrors,
+                timestampFormat);
         this.runtimeConverter =
-                new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
+                new JsonToRowDataConverters(
+                                failOnMissingField,
+                                failOnUnknownField,
+                                ignoreParseErrors,
+                                timestampFormat)
                         .createConverter(checkNotNull(rowType));
     }
 

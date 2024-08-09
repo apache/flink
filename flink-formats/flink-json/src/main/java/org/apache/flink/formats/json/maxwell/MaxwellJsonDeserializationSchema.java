@@ -96,7 +96,8 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                         // info
                         producedTypeInfo,
                         // ignoreParseErrors already contains the functionality of
-                        // failOnMissingField
+                        // failOnMissingField and failOnUnknownField
+                        false,
                         false,
                         ignoreParseErrors,
                         timestampFormat);

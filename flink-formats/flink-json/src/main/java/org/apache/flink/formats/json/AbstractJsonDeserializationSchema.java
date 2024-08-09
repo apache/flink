@@ -48,6 +48,9 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
     /** Flag indicating whether to fail if a field is missing. */
     protected final boolean failOnMissingField;
 
+    /** Flag indicating whether to fail if a field is unknown. */
+    protected final boolean failOnUnknownField;
+
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     protected final boolean ignoreParseErrors;
 
@@ -66,14 +69,20 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
             RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
             boolean failOnMissingField,
+            boolean failOnUnknownField,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
         if (ignoreParseErrors && failOnMissingField) {
             throw new IllegalArgumentException(
                     "JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.");
         }
+        if (ignoreParseErrors && failOnUnknownField) {
+            throw new IllegalArgumentException(
+                    "JSON format doesn't support failOnUnknownField and ignoreParseErrors are both enabled.");
+        }
         this.resultTypeInfo = checkNotNull(resultTypeInfo);
         this.failOnMissingField = failOnMissingField;
+        this.failOnUnknownField = failOnUnknownField;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
         this.hasDecimalType = LogicalTypeChecks.hasNested(rowType, t -> t instanceof DecimalType);
@@ -111,6 +120,7 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
         }
         AbstractJsonDeserializationSchema that = (AbstractJsonDeserializationSchema) o;
         return failOnMissingField == that.failOnMissingField
+                && failOnUnknownField == that.failOnUnknownField
                 && ignoreParseErrors == that.ignoreParseErrors
                 && resultTypeInfo.equals(that.resultTypeInfo)
                 && timestampFormat.equals(that.timestampFormat);
@@ -118,6 +128,11 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
 
     @Override
     public int hashCode() {
-        return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo, timestampFormat);
+        return Objects.hash(
+                failOnMissingField,
+                failOnUnknownField,
+                ignoreParseErrors,
+                resultTypeInfo,
+                timestampFormat);
     }
 }
