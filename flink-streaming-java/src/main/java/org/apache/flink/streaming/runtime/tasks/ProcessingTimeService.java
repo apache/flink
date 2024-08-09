@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,15 @@ import java.util.concurrent.TimeUnit;
  */
 public interface ProcessingTimeService
         extends org.apache.flink.api.common.operators.ProcessingTimeService {
+
+    @Override
+    default long getCurrentProcessingTime() {
+        return getClock().absoluteTimeMillis();
+    }
+
+    /** Returns {@link Clock} associated with this timer service. */
+    Clock getClock();
+
     /**
      * Registers a task to be executed repeatedly at a fixed rate.
      *

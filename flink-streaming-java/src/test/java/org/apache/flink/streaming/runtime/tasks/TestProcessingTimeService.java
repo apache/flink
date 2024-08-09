@@ -19,7 +19,9 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
 
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.PriorityQueue;
@@ -30,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -38,13 +41,13 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class TestProcessingTimeService implements TimerService {
 
-    private volatile long currentTime = Long.MIN_VALUE;
-
     private volatile boolean isTerminated;
     private volatile boolean isQuiesced;
 
     // sorts the timers by timestamp so that they are processed in the correct order.
     private final PriorityQueue<Tuple2<Long, CallbackTask>> priorityQueue;
+
+    private final ManualMSClock clock = new ManualMSClock(Long.MIN_VALUE);
 
     public TestProcessingTimeService() {
         this.priorityQueue =
@@ -60,14 +63,19 @@ public class TestProcessingTimeService implements TimerService {
     }
 
     public void advance(long delta) throws Exception {
-        setCurrentTime(this.currentTime + delta);
+        clock.advanceTime(Duration.ofMillis(delta));
+        maybeFireTimers();
     }
 
     public void setCurrentTime(long timestamp) throws Exception {
-        this.currentTime = timestamp;
+        clock.setCurrentTime(timestamp, TimeUnit.MILLISECONDS);
+        maybeFireTimers();
+    }
 
+    private void maybeFireTimers() throws Exception {
         if (!isQuiesced) {
-            while (!priorityQueue.isEmpty() && currentTime >= priorityQueue.peek().f0) {
+            while (!priorityQueue.isEmpty()
+                    && getCurrentProcessingTime() >= priorityQueue.peek().f0) {
                 Tuple2<Long, CallbackTask> entry = priorityQueue.poll();
 
                 CallbackTask callbackTask = entry.f1;
@@ -88,8 +96,8 @@ public class TestProcessingTimeService implements TimerService {
     }
 
     @Override
-    public long getCurrentProcessingTime() {
-        return currentTime;
+    public Clock getClock() {
+        return clock;
     }
 
     @Override
@@ -121,7 +129,8 @@ public class TestProcessingTimeService implements TimerService {
         PeriodicCallbackTask periodicCallbackTask = new PeriodicCallbackTask(callback, period);
 
         priorityQueue.offer(
-                Tuple2.<Long, CallbackTask>of(currentTime + initialDelay, periodicCallbackTask));
+                Tuple2.<Long, CallbackTask>of(
+                        getCurrentProcessingTime() + initialDelay, periodicCallbackTask));
 
         return periodicCallbackTask;
     }
@@ -262,6 +271,47 @@ public class TestProcessingTimeService implements TimerService {
 
         public long nextTimestamp(long currentTimestamp) {
             return currentTimestamp + period;
+        }
+    }
+
+    /**
+     * Similar to {@link org.apache.flink.util.clock.ManualClock}, but with ms precision and thus
+     * greater range. This is needed to support registering and firing timers with {@link
+     * Long#MAX_VALUE}.
+     */
+    private static class ManualMSClock extends Clock {
+        private final AtomicLong currentTime;
+
+        public ManualMSClock(long startTime) {
+            this.currentTime = new AtomicLong(startTime);
+        }
+
+        @Override
+        public long absoluteTimeMillis() {
+            return currentTime.get();
+        }
+
+        @Override
+        public long relativeTimeMillis() {
+            return currentTime.get();
+        }
+
+        @Override
+        public long relativeTimeNanos() {
+            return currentTime.get() * 1_000_000;
+        }
+
+        /**
+         * Advances the time by the given duration. Time can also move backwards by supplying a
+         * negative value. This method performs no overflow check.
+         */
+        public void advanceTime(Duration duration) {
+            currentTime.addAndGet(duration.toMillis());
+        }
+
+        /** Sets the time to the given value. */
+        public void setCurrentTime(long time, TimeUnit timeUnit) {
+            currentTime.set(timeUnit.toMillis(time));
         }
     }
 }
