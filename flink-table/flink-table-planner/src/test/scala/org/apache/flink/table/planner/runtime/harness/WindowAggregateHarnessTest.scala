@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
@@ -683,6 +684,51 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
     // simulate a failover after a failed task open, expect no exception happens
     testHarness1.close()
+  }
+
+  @TestTemplate
+  def testProcessingTimeTumbleWindowWithFutureWatermark(): Unit = {
+    val (testHarness, outputTypes) =
+      createProcessingTimeWindowOperator(TUMBLE, isCDCSource = false)
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+
+    testHarness.open()
+
+    // mock a large watermark arrives before proctime
+    testHarness.processWatermark(10000L)
+
+    testHarness.setProcessingTime(1000L)
+    testHarness.processElement(insertRecord("a", 1d, "str1", null))
+    testHarness.setProcessingTime(2000L)
+    testHarness.processElement(insertRecord("a", 2d, "str2", null))
+    testHarness.setProcessingTime(3000L)
+    testHarness.processElement(insertRecord("a", 3d, "str2", null))
+
+    testHarness.setProcessingTime(6000L)
+    testHarness.processElement(insertRecord("a", 4d, "str1", null))
+
+    testHarness.setProcessingTime(50000L)
+
+    val expected = new ConcurrentLinkedQueue[Object]()
+    expected.add(new Watermark(10000L))
+    expected.add(
+      insertRecord(
+        "a",
+        3L,
+        3.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      insertRecord(
+        "a",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:10")))
+    assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
+    testHarness.close()
   }
 
   private def createProcessingTimeWindowOperator(testWindow: String, isCDCSource: Boolean)

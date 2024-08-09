@@ -103,32 +103,35 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     private static final String WATERMARK_LATENCY_METRIC_NAME = "watermarkLatency";
 
     /** The concrete window operator implementation. */
-    protected final WindowProcessor<W> windowProcessor;
+    private final WindowProcessor<W> windowProcessor;
+
+    private final boolean isEventTime;
 
     // ------------------------------------------------------------------------
 
     /** This is used for emitting elements with a given timestamp. */
-    protected transient TimestampedCollector<RowData> collector;
+    private transient TimestampedCollector<RowData> collector;
 
     /** The service to register timers. */
-    protected transient InternalTimerService<W> internalTimerService;
+    private transient InternalTimerService<W> internalTimerService;
 
     /** The tracked processing time triggered last time. */
-    protected transient long lastTriggeredProcessingTime;
+    private transient long lastTriggeredProcessingTime;
 
     /** The operator state to store watermark. */
-    protected transient ListState<Long> watermarkState;
+    private transient ListState<Long> watermarkState;
 
     // ------------------------------------------------------------------------
     // Metrics
     // ------------------------------------------------------------------------
 
-    protected transient Counter numLateRecordsDropped;
-    protected transient Meter lateRecordsDroppedRate;
-    protected transient Gauge<Long> watermarkLatency;
+    private transient Counter numLateRecordsDropped;
+    private transient Meter lateRecordsDroppedRate;
+    private transient Gauge<Long> watermarkLatency;
 
-    public WindowAggOperator(WindowProcessor<W> windowProcessor) {
+    public WindowAggOperator(WindowProcessor<W> windowProcessor, boolean isEventTime) {
         this.windowProcessor = windowProcessor;
+        this.isEventTime = isEventTime;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
@@ -222,7 +225,11 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         if (mark.getTimestamp() > currentWatermark) {
-            windowProcessor.advanceProgress(mark.getTimestamp());
+            // If this is a proctime window, progress should not be advanced by watermark, or it'll
+            // disturb timer-based processing
+            if (isEventTime) {
+                windowProcessor.advanceProgress(mark.getTimestamp());
+            }
             super.processWatermark(mark);
         } else {
             super.processWatermark(new Watermark(currentWatermark));
