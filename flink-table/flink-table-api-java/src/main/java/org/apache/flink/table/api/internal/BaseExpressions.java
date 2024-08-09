@@ -157,6 +157,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PROCTI
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RADIANS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
@@ -1148,6 +1149,16 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType regexpExtract(InType regex) {
         return toApiSpecificExpression(
                 unresolvedCall(REGEXP_EXTRACT, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
+     * Returns the position of the first substring in {@code str} that matches {@code regex}. <br>
+     * Result indexes begin at 1, 0 if there is no match. <br>
+     * In case of a malformed {@code regex} the function returns an error.
+     */
+    public OutType regexpInstr(InType regex) {
+        return toApiSpecificExpression(
+                unresolvedCall(REGEXP_INSTR, toExpr(), objectToExpression(regex)));
     }
 
     /** Returns the base string decoded with base64. */
