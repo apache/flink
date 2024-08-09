@@ -75,7 +75,7 @@ public abstract class AbstractTwoInputTransformationTranslator<
                 secondInputTransformation.getOutputType(),
                 transformation.getOutputType(),
                 transformation.getName());
-
+        streamGraph.setAttribute(transformationId, transformation.getAttribute());
         if (firstKeySelector != null || secondKeySelector != null) {
             checkState(
                     keyTypeInfo != null,

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -97,6 +98,8 @@ public class StreamNode {
     private boolean supportsConcurrentExecutionAttempts = true;
 
     private boolean parallelismConfigured = false;
+
+    private Attribute attribute = new Attribute.Builder().build();
 
     @VisibleForTesting
     public StreamNode(
@@ -187,6 +190,14 @@ public class StreamNode {
 
     public int getId() {
         return id;
+    }
+
+    public void setAttribute(Attribute attribute) {
+        this.attribute = attribute;
+    }
+
+    public Attribute getAttribute() {
+        return attribute;
     }
 
     public int getParallelism() {

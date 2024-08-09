@@ -26,7 +26,7 @@ import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFu
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
-import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.TwoNonKeyedPartitionStreams;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndTwoNonKeyedPartitionStream;
 
 /**
  * This interface represents a kind of partitioned data stream. For this stream, each key is a
@@ -87,9 +87,9 @@ public interface KeyedPartitionStream<K, T> extends DataStream {
      * Apply a two output operation to this {@link KeyedPartitionStream}.
      *
      * @param processFunction to perform two output operation.
-     * @return new {@link TwoNonKeyedPartitionStreams} with this operation.
+     * @return new {@link ProcessConfigurableAndTwoNonKeyedPartitionStream} with this operation.
      */
-    <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<T, OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction);
 
     /**

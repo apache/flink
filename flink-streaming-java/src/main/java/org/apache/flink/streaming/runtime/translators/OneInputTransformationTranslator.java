@@ -67,7 +67,8 @@ public final class OneInputTransformationTranslator<IN, OUT>
                         transformation.getStateKeyType(),
                         context);
 
-        if (transformation.isOutputOnlyAfterEndOfStream()) {
+        if (transformation.isOutputOnlyAfterEndOfStream()
+                || transformation.getAttribute().isNoOutputUntilEndOfInput()) {
             maybeApplyBatchExecutionSettings(transformation, context);
         }
 
