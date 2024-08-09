@@ -31,13 +31,13 @@ import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.util.Utf8;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -56,7 +56,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for interoperability with Avro types. */
-public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
+public class AvroTypesITCase extends AbstractTestBase {
 
     private static final User USER_1 =
             User.newBuilder()
