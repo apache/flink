@@ -169,6 +169,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("splitIndex(a, ',', 3)", str(expr1.split_index(',', 3)))
         self.assertEqual("strToMap(a)", str(expr1.str_to_map()))
         self.assertEqual("strToMap(a, ';', ':')", str(expr1.str_to_map(';', ':')))
+        self.assertEqual("PRINTF('%d %s', a, b)", str(lit("%d %s").printf(expr1, expr2)))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))
