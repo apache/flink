@@ -33,6 +33,7 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendTestUtils;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.InternalValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
@@ -111,7 +112,9 @@ class AsyncExecutionControllerTest {
         try {
             valueState =
                     asyncKeyedStateBackend.createState(
-                            VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            stateDescriptor);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

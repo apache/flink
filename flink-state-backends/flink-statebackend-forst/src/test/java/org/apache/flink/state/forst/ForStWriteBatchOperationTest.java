@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.runtime.state.VoidNamespace;
+
 import org.junit.jupiter.api.Test;
 import org.rocksdb.WriteOptions;
 
@@ -34,9 +36,9 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
     public void testValueStateWriteBatch() throws Exception {
-        ForStValueState<Integer, Void, String> valueState1 =
+        ForStValueState<Integer, VoidNamespace, String> valueState1 =
                 buildForStValueState("test-write-batch-1");
-        ForStValueState<Integer, Void, String> valueState2 =
+        ForStValueState<Integer, VoidNamespace, String> valueState2 =
                 buildForStValueState("test-write-batch-2");
         List<ForStDBPutRequest<?, ?, ?>> batchPutRequest = new ArrayList<>();
         int keyNum = 100;
@@ -64,7 +66,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
     public void testWriteBatchWithNullValue() throws Exception {
-        ForStValueState<Integer, Void, String> valueState =
+        ForStValueState<Integer, VoidNamespace, String> valueState =
                 buildForStValueState("test-write-batch");
         List<ForStDBPutRequest<?, ?, ?>> batchPutRequest = new ArrayList<>();
         // 1. write some data without null value

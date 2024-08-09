@@ -369,12 +369,14 @@ public class StreamOperatorStateHandler {
 
     /** Create new state (v2) based on new state descriptor. */
     public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
+            N defaultNamespace,
             TypeSerializer<N> namespaceSerializer,
             org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
             throws Exception {
 
         if (asyncKeyedStateBackend != null) {
-            return asyncKeyedStateBackend.createState(namespaceSerializer, stateDescriptor);
+            return asyncKeyedStateBackend.createState(
+                    defaultNamespace, namespaceSerializer, stateDescriptor);
         } else {
             throw new IllegalStateException(
                     "Cannot create partitioned state. "

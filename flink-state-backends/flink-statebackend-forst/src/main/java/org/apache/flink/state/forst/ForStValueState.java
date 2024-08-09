@@ -52,6 +52,10 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
     /** The serialized key builder which should be thread-safe. */
     private final ThreadLocal<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder;
 
+    /** The default namespace if not set. * */
+    private final N defaultNamespace;
+
+    /** The serializer for namespace. * */
     private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
 
     /** The data outputStream used for value serializer, which should be thread-safe. */
@@ -65,12 +69,14 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
             ColumnFamilyHandle columnFamily,
             ValueStateDescriptor<V> valueStateDescriptor,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
+            N defaultNamespace,
             Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer) {
         super(stateRequestHandler, valueStateDescriptor);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
+        this.defaultNamespace = defaultNamespace;
         this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
@@ -87,8 +93,10 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
+                    N namespace = contextKey.getNamespace(this);
                     return builder.buildCompositeKeyNamespace(
-                            contextKey.getNamespace(this), namespaceSerializer.get());
+                            namespace == null ? defaultNamespace : namespace,
+                            namespaceSerializer.get());
                 });
     }
 

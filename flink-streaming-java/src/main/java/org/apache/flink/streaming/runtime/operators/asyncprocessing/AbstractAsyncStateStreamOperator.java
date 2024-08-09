@@ -48,6 +48,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import javax.annotation.Nonnull;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -179,9 +181,12 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     /** Create new state (v2) based on new state descriptor. */
     protected <N, S extends State, T> S getOrCreateKeyedState(
-            TypeSerializer<N> namespaceSerializer, StateDescriptor<T> stateDescriptor)
+            @Nonnull N defaultNamespace,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<T> stateDescriptor)
             throws Exception {
-        return stateHandler.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+        return stateHandler.getOrCreateKeyedState(
+                defaultNamespace, namespaceSerializer, stateDescriptor);
     }
 
     @Override
