@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.util.ProgressBlockingRelativeClock;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -70,6 +71,8 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     private transient long lastIdleCheckProcessedElements = -1;
 
+    private transient ProgressBlockingRelativeClock inputActivityClock;
+
     /**
      * Create a watermark assigner operator.
      *
@@ -95,6 +98,13 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     @Override
     public void open() throws Exception {
         super.open();
+        inputActivityClock =
+                new ProgressBlockingRelativeClock(getProcessingTimeService().getClock());
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .registerBackPressureListener(inputActivityClock);
 
         // watermark and timestamp should start from 0
         this.currentWatermark = 0;
@@ -162,13 +172,14 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         }
 
         if (processedElements != lastIdleCheckProcessedElements) {
-            timeSinceLastIdleCheck = now;
+            timeSinceLastIdleCheck = inputActivityClock.relativeTimeMillis();
             lastIdleCheckProcessedElements = processedElements;
         }
 
         if (isIdlenessEnabled()
                 && currentStatus.equals(WatermarkStatus.ACTIVE)
-                && timeSinceLastIdleCheck + idleTimeout <= now) {
+                && timeSinceLastIdleCheck + idleTimeout
+                        <= inputActivityClock.relativeTimeMillis()) {
             // mark the channel as idle to ignore watermarks from this channel
             emitWatermarkStatus(WatermarkStatus.IDLE);
         }
@@ -213,6 +224,11 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void close() throws Exception {
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .unregisterBackPressureListener(inputActivityClock);
         FunctionUtils.closeFunction(watermarkGenerator);
         super.close();
     }

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -137,6 +138,34 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
         // Check if the status ever becomes IDLE (it shouldn't)
         assertThat(extractWatermarkStatuses(output)).doesNotContain(WatermarkStatus.IDLE);
+    }
+
+    @Test
+    public void testIdleTimeoutUnderBackpressure() throws Exception {
+        long idleTimeout = 100;
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, idleTimeout);
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(idleTimeout);
+        testHarness.open();
+
+        TaskIOMetricGroup taskIOMetricGroup =
+                testHarness.getEnvironment().getMetricGroup().getIOMetricGroup();
+        taskIOMetricGroup.getHardBackPressuredTimePerSecond().markStart();
+
+        stepProcessingTime(testHarness, 0, idleTimeout * 10, idleTimeout / 10);
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        taskIOMetricGroup.getHardBackPressuredTimePerSecond().markEnd();
+        taskIOMetricGroup.getSoftBackPressuredTimePerSecond().markStart();
+
+        stepProcessingTime(testHarness, idleTimeout * 10, idleTimeout * 20, idleTimeout / 10);
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        taskIOMetricGroup.getSoftBackPressuredTimePerSecond().markEnd();
+
+        stepProcessingTime(testHarness, idleTimeout * 20, idleTimeout * 30, idleTimeout / 10);
+        assertThat(testHarness.getOutput()).containsExactly(WatermarkStatus.IDLE);
     }
 
     private void stepProcessingTime(
