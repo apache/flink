@@ -1,4 +1,4 @@
-# function.q - CREATE/DROP/ALTER FUNCTION
+# function.q - CREATE/DROP/ALTER/SHOW/DESCRIBE FUNCTION
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -345,4 +345,74 @@ show user functions;
 # Show functions will not affect the session in sql gateway
 SHOW JARS;
 Empty set
+!ok
+
+# ==========================================================================
+# test describe function
+# ==========================================================================
+
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] Execute statement succeeded.
+!info
+
+describe function temp_upperudf;
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|         info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|   system function |                                      $VAR_UDF_JAR_PATH_SPACE FALSE |
+|        class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+| function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|     resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
+|         temporary |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+5 rows in set
+!ok
+
+describe function extended temp_upperudf;
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|         info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|   system function |                                      $VAR_UDF_JAR_PATH_SPACE FALSE |
+|        class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+| function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|     resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
+|         temporary |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
+|              kind |                                     $VAR_UDF_JAR_PATH_SPACE SCALAR |
+|      requirements |                                         $VAR_UDF_JAR_PATH_SPACE [] |
+|     deterministic |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
+|  constant folding |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
+|         signature |                $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(STRING) |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+10 rows in set
+!ok
+
+desc function temp_upperudf;
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|         info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|   system function |                                      $VAR_UDF_JAR_PATH_SPACE FALSE |
+|        class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+| function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|     resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
+|         temporary |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+5 rows in set
+!ok
+
+desc function extended temp_upperudf;
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|         info name |                                 $VAR_UDF_JAR_PATH_SPACE info value |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+|   system function |                                      $VAR_UDF_JAR_PATH_SPACE FALSE |
+|        class name |                                   $VAR_UDF_JAR_PATH_SPACE UpperUDF |
+| function language |                                       $VAR_UDF_JAR_PATH_SPACE JAVA |
+|     resource uris | [ResourceUri{resourceType=JAR, uri='$VAR_UDF_JAR_PATH'}] |
+|         temporary |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
+|              kind |                                     $VAR_UDF_JAR_PATH_SPACE SCALAR |
+|      requirements |                                         $VAR_UDF_JAR_PATH_SPACE [] |
+|     deterministic |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
+|  constant folding |                                       $VAR_UDF_JAR_PATH_SPACE TRUE |
+|         signature |                $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(STRING) |
++-------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
+10 rows in set
 !ok

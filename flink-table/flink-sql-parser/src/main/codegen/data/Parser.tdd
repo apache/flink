@@ -135,6 +135,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowCreateView"
     "org.apache.flink.sql.parser.dql.SqlShowCreateCatalog"
     "org.apache.flink.sql.parser.dql.SqlShowViews"
+    "org.apache.flink.sql.parser.dql.SqlRichDescribeFunction"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeModel"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
     "org.apache.flink.sql.parser.dql.SqlUnloadModule"
@@ -635,6 +636,7 @@
     "SqlShowJobs()"
     "SqlTruncateTable()"
     "SqlDescribeJob()"
+    "SqlRichDescribeFunction()"
     "SqlRichDescribeModel()"
     "SqlRichDescribeTable()"
   ]

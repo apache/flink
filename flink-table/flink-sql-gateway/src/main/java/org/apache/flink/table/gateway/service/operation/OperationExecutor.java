@@ -72,6 +72,7 @@ import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CallProcedureOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
+import org.apache.flink.table.operations.DescribeFunctionOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -510,7 +511,8 @@ public class OperationExecutor {
                 || op instanceof ShowJarsOperation
                 || op instanceof CreateTempSystemFunctionOperation
                 || op instanceof CreateCatalogFunctionOperation
-                || op instanceof ShowFunctionsOperation) {
+                || op instanceof ShowFunctionsOperation
+                || op instanceof DescribeFunctionOperation) {
             return callExecutableOperation(handle, (ExecutableOperation) op);
         } else if (op instanceof MaterializedTableOperation) {
             return sessionContext

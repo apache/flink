@@ -39,7 +39,7 @@ public class SqlRichDescribeTable extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("DESCRIBE TABLE", SqlKind.DESCRIBE_TABLE);
     protected final SqlIdentifier tableNameIdentifier;
-    private boolean isExtended = false;
+    private final boolean isExtended;
 
     public SqlRichDescribeTable(
             SqlParserPos pos, SqlIdentifier tableNameIdentifier, boolean isExtended) {

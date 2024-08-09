@@ -449,6 +449,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testDescribeFunction() {
+        sql("describe function fn").ok("DESCRIBE FUNCTION `FN`");
+        sql("describe function catalog1.db1.fn").ok("DESCRIBE FUNCTION `CATALOG1`.`DB1`.`FN`");
+
+        sql("desc function fn").ok("DESCRIBE FUNCTION `FN`");
+        sql("desc function catalog1.db1.fn").ok("DESCRIBE FUNCTION `CATALOG1`.`DB1`.`FN`");
+    }
+
+    @Test
     void testShowColumns() {
         sql("show columns from tbl").ok("SHOW COLUMNS FROM `TBL`");
         sql("show columns in tbl").ok("SHOW COLUMNS IN `TBL`");
