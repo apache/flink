@@ -1358,8 +1358,11 @@ public class SqlNodeToOperationConversion {
     private int[][] getTargetColumnIndices(
             @Nonnull ContextResolvedTable contextResolvedTable,
             @Nullable SqlNodeList targetColumns) {
+        if (targetColumns == null) {
+            return null;
+        }
         List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
-        return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
+        return targetColumns.stream()
                 .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
                 .mapToObj(idx -> new int[] {idx})
                 .toArray(int[][]::new);
