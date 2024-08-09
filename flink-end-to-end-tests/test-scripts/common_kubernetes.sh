@@ -272,7 +272,7 @@ function get_host_machine_address {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
     else
-        echo $(hostname --ip-address)
+        echo $(hostname -I)
     fi
 }
 
