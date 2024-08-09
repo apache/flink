@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{JavaTableFunc1, StringSplit}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
@@ -38,6 +38,18 @@ class CalcTest extends TableTestBase {
   def setup(): Unit = {
     util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
     util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
+  }
+
+  @Test
+  def test2(): Unit = {
+    util.tableEnv.executeSql(
+      "CREATE or replace TABLE MySink WITH ('connector' = 'values') AS (SELECT * FROM MyTable limit 5)")
+  }
+
+  @Test
+  def test1(): Unit = {
+    util.tableEnv.executeSql(
+      "CREATE TABLE MySink WITH ('connector' = 'values') AS (SELECT * FROM MyTable limit 5)")
   }
 
   @Test

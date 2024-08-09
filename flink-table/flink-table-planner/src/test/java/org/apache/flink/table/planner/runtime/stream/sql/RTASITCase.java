@@ -109,6 +109,27 @@ class RTASITCase extends StreamingTestBase {
     }
 
     @Test
+    void testCreateOrReplaceTableASWithLimit() throws Exception {
+        env().setParallelism(1);
+        tEnv().executeSql(
+                        "CREATE OR REPLACE TABLE target WITH ('connector' = 'values',"
+                                + " 'bounded' = 'true')"
+                                + " AS (SELECT a, c FROM source LIMIT 2)")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[+I[1, Hi], +I[2, Hello]]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
     void testCreateOrReplaceTableASWithTableNotExist() throws Exception {
         tEnv().executeSql(
                         "CREATE OR REPLACE TABLE not_exist_target WITH ('connector' = 'values',"

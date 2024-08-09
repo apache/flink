@@ -67,6 +67,16 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
         testCommonReplaceTableAs(sql, tableName, null);
     }
 
+    @Test
+    public void testCreateOrReplaceTableASWithLimit() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as (SELECT * FROM t1 LIMIT 5)";
+        testCommonReplaceTableAs(sql, tableName, null);
+    }
+
     private void testCommonReplaceTableAs(
             String sql, String tableName, @Nullable String tableComment) {
         ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("builtin", "default", tableName);
