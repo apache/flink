@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import java.util.concurrent.CompletableFuture;
@@ -53,8 +54,8 @@ class ProcessingTimeServiceImpl implements ProcessingTimeService {
     }
 
     @Override
-    public long getCurrentProcessingTime() {
-        return timerService.getCurrentProcessingTime();
+    public Clock getClock() {
+        return timerService.getClock();
     }
 
     @Override
