@@ -38,15 +38,19 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.buildBufferCompressor;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getDiskTierName;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.DATA_FILE_SUFFIX;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.INDEX_FILE_SUFFIX;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The implementation of {@link TierFactory} for disk tier. */
@@ -68,9 +72,12 @@ public class DiskTierFactory implements TierFactory {
 
     private int bufferSizeBytes = -1;
 
+    @Nullable private Configuration conf;
+
     @Override
     public void setup(Configuration configuration) {
         this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
+        this.conf = checkNotNull(configuration);
     }
 
     @Override
@@ -139,7 +146,8 @@ public class DiskTierFactory implements TierFactory {
                 bufferPool,
                 ioExecutor,
                 maxRequestedBuffers,
-                DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT);
+                DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT,
+                buildBufferCompressor(bufferSizeBytes, checkNotNull(conf)));
     }
 
     @Override

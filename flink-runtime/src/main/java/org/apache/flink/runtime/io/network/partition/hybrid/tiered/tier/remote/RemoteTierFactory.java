@@ -37,9 +37,12 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.buildBufferCompressor;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getRemoteTierName;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -57,9 +60,12 @@ public class RemoteTierFactory implements TierFactory {
 
     private String remoteStoragePath = DEFAULT_REMOTE_STORAGE_BASE_PATH;
 
+    @Nullable private Configuration conf;
+
     @Override
     public void setup(Configuration configuration) {
         this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
+        this.conf = checkNotNull(configuration);
         this.remoteStoragePath =
                 checkNotNull(
                         configuration.get(
@@ -115,7 +121,8 @@ public class RemoteTierFactory implements TierFactory {
                 isBroadcastOnly,
                 partitionFileWriter,
                 storageMemoryManager,
-                resourceRegistry);
+                resourceRegistry,
+                buildBufferCompressor(bufferSizeBytes, checkNotNull(conf)));
     }
 
     @Override

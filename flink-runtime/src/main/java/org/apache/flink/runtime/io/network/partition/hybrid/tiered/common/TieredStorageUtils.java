@@ -19,11 +19,16 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.common;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.BufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.HashBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.SortBufferAccumulator;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk.DiskTierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory.MemoryTierFactory;
@@ -31,6 +36,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote.R
 
 import java.nio.ByteBuffer;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utils for reading from or writing to tiered storage. */
 public class TieredStorageUtils {
@@ -127,5 +134,40 @@ public class TieredStorageUtils {
 
         bufferWithHeaders[index] = header;
         bufferWithHeaders[index + 1] = buffer.getNioBufferReadable();
+    }
+
+    /** Try compress buffer if possible. */
+    public static Buffer compressBufferIfPossible(
+            Buffer buffer, BufferCompressor bufferCompressor) {
+        if (!canBeCompressed(buffer, bufferCompressor)) {
+            return buffer;
+        }
+
+        return checkNotNull(bufferCompressor).compressToOriginalBuffer(buffer);
+    }
+
+    /**
+     * Whether the buffer can be compressed or not. Note that event is not compressed because it is
+     * usually small and the size can become even larger after compression.
+     */
+    public static boolean canBeCompressed(Buffer buffer, BufferCompressor bufferCompressor) {
+        return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
+    }
+
+    /**
+     * Construct the {@link BufferCompressor} from configuration.
+     *
+     * <p>Note: This is just a workaround for released version as we can not change the interface of
+     * {@link TierFactory}.
+     */
+    public static BufferCompressor buildBufferCompressor(
+            int bufferSizeBytes, Configuration configuration) {
+        CompressionCodec compressionCodec =
+                configuration.get(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
+        boolean compressionEnabled =
+                configuration.get(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED);
+        return compressionEnabled && compressionCodec != CompressionCodec.NONE
+                ? new BufferCompressor(bufferSizeBytes, compressionCodec)
+                : null;
     }
 }
