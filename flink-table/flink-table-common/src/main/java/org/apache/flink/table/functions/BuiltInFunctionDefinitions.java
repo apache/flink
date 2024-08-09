@@ -1406,7 +1406,7 @@ public final class BuiltInFunctionDefinitions {
                                                     logical(LogicalTypeFamily.INTEGER_NUMERIC),
                                                     logical(LogicalTypeFamily.BINARY_STRING),
                                                     logical(LogicalTypeFamily.BINARY_STRING)))))
-                    .outputTypeStrategy(nullableIfArgs(commonRange(ConstantArgumentCount.from(1))))
+                    .outputTypeStrategy(forceNullable(commonRange(ConstantArgumentCount.from(1))))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 

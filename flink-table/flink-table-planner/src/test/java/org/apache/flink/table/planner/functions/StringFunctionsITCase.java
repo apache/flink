@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
+import java.math.BigDecimal;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -32,7 +33,11 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(bTrimTestCases(), eltTestCases(), regexpExtractTestCases(), translateTestCases())
+        return Stream.of(
+                        bTrimTestCases(),
+                        eltTestCases(),
+                        regexpExtractTestCases(),
+                        translateTestCases())
                 .flatMap(s -> s);
     }
 
@@ -126,33 +131,28 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "a",
                                 DataTypes.STRING())
                         // invalid index
-                        .testTableApiRuntimeError(
-                                lit(0).elt("a"),
-                                IndexOutOfBoundsException.class,
-                                "Index 0 is out of range [1, 1]")
-                        .testSqlRuntimeError(
-                                "ELT(0, 'a')",
-                                IndexOutOfBoundsException.class,
-                                "Index 0 is out of range [1, 1]")
-                        .testTableApiRuntimeError(
-                                lit(4).elt("a", "b", "c"),
-                                IndexOutOfBoundsException.class,
-                                "Index 4 is out of range [1, 3]")
-                        .testSqlRuntimeError(
-                                "ELT(4, 'a', 'b', 'c')",
-                                IndexOutOfBoundsException.class,
-                                "Index 4 is out of range [1, 3]")
+                        .testResult(
+                                lit(0).elt("a", "b"), "ELT(0, 'a', 'b')", null, DataTypes.CHAR(1))
+                        .testResult(
+                                lit(3).elt("a", "b"), "ELT(3, 'a', 'b')", null, DataTypes.CHAR(1))
+                        .testResult(
+                                lit(-1).elt("ab", "b"),
+                                "ELT(-1, 'ab', 'b')",
+                                null,
+                                DataTypes.VARCHAR(2))
+                        .testResult(
+                                lit(9223372036854775807L).elt("ab", "b"),
+                                "ELT(9223372036854775807, 'ab', 'b')",
+                                null,
+                                DataTypes.VARCHAR(2))
                         // normal cases
                         .testResult(
                                 lit(1).elt("scala", "java"),
                                 "ELT(1, 'scala', 'java')",
                                 "scala",
-                                DataTypes.VARCHAR(5).notNull())
+                                DataTypes.VARCHAR(5))
                         .testResult(
-                                lit(2).elt("a", "b"),
-                                "ELT(2, 'a', 'b')",
-                                "b",
-                                DataTypes.CHAR(1).notNull())
+                                lit(2).elt("a", "b"), "ELT(2, 'a', 'b')", "b", DataTypes.CHAR(1))
                         .testResult(
                                 lit(2).elt($("f2"), $("f3"), $("f3")),
                                 "ELT(2, f2, f3, f3)",
@@ -164,27 +164,27 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 null,
                                 DataTypes.BYTES()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT, "Validation Error")
-                        .onFieldsWithData("1", "1".getBytes())
-                        .andDataTypes(DataTypes.STRING(), DataTypes.BYTES())
+                        .onFieldsWithData("1", "1".getBytes(), BigDecimal.valueOf(1))
+                        .andDataTypes(
+                                DataTypes.STRING(), DataTypes.BYTES(), DataTypes.DECIMAL(1, 0))
                         .testTableApiValidationError(
                                 lit(1).elt($("f0"), $("f1")),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
                         .testSqlValidationError(
-                                "ELT(f0, '3', '5')",
+                                "ELT(1, f0, f1)",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
                         .testTableApiValidationError(
-                                lit(1).elt(),
+                                $("f2").elt("a"),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
                         .testSqlValidationError(
-                                "ELT(1)",
-                                "No match found for function signature ELT(<NUMERIC>).\n"
-                                        + "Supported signatures are:\n"
+                                "ELT(f2, 'a')",
+                                "Invalid input arguments. Expected signatures are:\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)"));
     }

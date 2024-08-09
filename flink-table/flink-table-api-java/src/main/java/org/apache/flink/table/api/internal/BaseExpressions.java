@@ -1345,18 +1345,19 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns the {@code index}-th expression. one {@code expr} is required at least. <br>
-     * {@code index} must be between 1 and the number of {@code expr}. Otherwise, the function
-     * returns an error.
+     * Returns the {@code index}-th expression. {@code index} must be an integer between 1 and the
+     * number of expressions.
      *
      * @param expr a STRING or BINARY expression
-     * @return result type is the least common type of all expr
+     * @param exprs a STRING or BINARY expression
+     * @return result type is the least common type of all expressions.<br>
+     *     null if {@code index} is null or out of range.
      */
-    public OutType elt(InType... expr) {
+    public OutType elt(InType expr, InType... exprs) {
         Expression[] args =
                 Stream.concat(
-                                Stream.of(toExpr()),
-                                Arrays.stream(expr).map(ApiExpressionUtils::objectToExpression))
+                                Stream.of(toExpr(), objectToExpression(expr)),
+                                Arrays.stream(exprs).map(ApiExpressionUtils::objectToExpression))
                         .toArray(Expression[]::new);
         return toApiSpecificExpression(unresolvedCall(ELT, args));
     }

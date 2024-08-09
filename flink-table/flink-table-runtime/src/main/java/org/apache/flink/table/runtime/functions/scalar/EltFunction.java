@@ -32,17 +32,14 @@ public class EltFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.ELT, context);
     }
 
-    public @Nullable Object eval(@Nullable Number index, Object... expr) {
+    public @Nullable Object eval(@Nullable Number index, Object... exprs) {
         if (index == null) {
             return null;
         }
-
         long idx = index.longValue();
-        if (idx < 1 || idx > expr.length) {
-            throw new IndexOutOfBoundsException(
-                    String.format(
-                            "Index %d is out of range [1, %d]", index.longValue(), expr.length));
+        if (idx < 1 || idx > exprs.length) {
+            return null;
         }
-        return expr[(int) idx - 1];
+        return exprs[(int) index - 1];
     }
 }

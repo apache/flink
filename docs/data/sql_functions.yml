@@ -406,14 +406,13 @@ string:
   - sql: JSON_UNQUOTE(string)
     table: STRING.JsonUnquote()
     description: Unquotes JSON value, unescapes escaped special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
-  - sql: ELT(index, expr...)
-    table: index.elt(expr...)
+  - sql: ELT(index, expr[, exprs]*)
+    table: index.elt(expr, exprs...)
     description: |
-      Returns the index-th expression. one expr is required at least.
-      index must be between 1 and the number of expr. Otherwise, the function returns an error.
-      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>
-      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>
-      The result has the type of the least common type of all expr. `NULL` if index or the index-th expression is `NULL`.
+      Returns the index-th expression. index must be an integer between 1 and the number of expressions.
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      The result has the type of the least common type of all expressions. `NULL` if index is `NULL` or out of range.
 
 temporal:
   - sql: DATE string
