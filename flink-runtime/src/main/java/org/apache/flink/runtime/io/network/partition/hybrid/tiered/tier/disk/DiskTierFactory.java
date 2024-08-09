@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFileIndex;
@@ -38,12 +39,15 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.buildBufferCompressor;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getDiskTierName;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.DATA_FILE_SUFFIX;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.INDEX_FILE_SUFFIX;
@@ -68,9 +72,12 @@ public class DiskTierFactory implements TierFactory {
 
     private int bufferSizeBytes = -1;
 
+    @Nullable private BufferCompressor bufferCompressor = null;
+
     @Override
     public void setup(Configuration configuration) {
         this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
+        this.bufferCompressor = buildBufferCompressor(bufferSizeBytes, configuration);
     }
 
     @Override
@@ -139,7 +146,8 @@ public class DiskTierFactory implements TierFactory {
                 bufferPool,
                 ioExecutor,
                 maxRequestedBuffers,
-                DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT);
+                DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT,
+                bufferCompressor);
     }
 
     @Override
