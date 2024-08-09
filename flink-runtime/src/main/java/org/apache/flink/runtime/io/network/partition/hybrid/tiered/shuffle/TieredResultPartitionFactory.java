@@ -131,7 +131,8 @@ public class TieredResultPartitionFactory {
                                 tierShuffleDescriptors,
                                 fileChannelManager,
                                 batchShuffleReadBufferPool,
-                                batchShuffleReadIOExecutor);
+                                batchShuffleReadIOExecutor,
+                                bufferCompressor);
 
         // Create producer client.
         TieredStorageProducerClient tieredStorageProducerClient =
@@ -199,7 +200,8 @@ public class TieredResultPartitionFactory {
                     List<TierShuffleDescriptor> tierShuffleDescriptors,
                     FileChannelManager fileChannelManager,
                     BatchShuffleReadBufferPool batchShuffleReadBufferPool,
-                    ScheduledExecutorService batchShuffleReadIOExecutor) {
+                    ScheduledExecutorService batchShuffleReadIOExecutor,
+                    @Nullable BufferCompressor bufferCompressor) {
 
         List<TierProducerAgent> tierProducerAgents = new ArrayList<>();
         List<TieredStorageMemorySpec> tieredStorageMemorySpecs = new ArrayList<>();
@@ -238,7 +240,8 @@ public class TieredResultPartitionFactory {
                             Collections.singletonList(tierShuffleDescriptors.get(index)),
                             Math.max(
                                     2 * batchShuffleReadBufferPool.getNumBuffersPerRequest(),
-                                    numberOfSubpartitions));
+                                    numberOfSubpartitions),
+                            bufferCompressor);
             tierProducerAgents.add(producerAgent);
             tieredStorageMemorySpecs.add(tierFactory.getProducerAgentMemorySpec());
         }
