@@ -34,6 +34,19 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                        plusTestCases(),
+                        minusTestCases(),
+                        divideTestCases(),
+                        timesTestCases(),
+                        modTestCases(),
+                        roundTestCases(),
+                        truncateTestCases(),
+                        convTestCases())
+                .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> plusTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.PLUS)
                         .onFieldsWithData(new BigDecimal("1514356320000"))
                         .andDataTypes(DataTypes.DECIMAL(19, 0).notNull())
@@ -48,7 +61,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").plus($("f0")),
                                 "f0 + f0",
                                 new BigDecimal("3028712640000"),
-                                DataTypes.DECIMAL(20, 0).notNull()),
+                                DataTypes.DECIMAL(20, 0).notNull()));
+    }
+
+    private Stream<TestSetSpec> minusTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MINUS)
                         .onFieldsWithData(new BigDecimal("1514356320000"))
                         .andDataTypes(DataTypes.DECIMAL(19, 0))
@@ -63,7 +80,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").minus($("f0")),
                                 "f0 - f0",
                                 new BigDecimal("0"),
-                                DataTypes.DECIMAL(20, 0)),
+                                DataTypes.DECIMAL(20, 0)));
+    }
+
+    private Stream<TestSetSpec> divideTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.DIVIDE)
                         .onFieldsWithData(new BigDecimal("1514356320000"))
                         .andDataTypes(DataTypes.DECIMAL(19, 0).notNull())
@@ -78,7 +99,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").dividedBy($("f0")),
                                 "f0 / f0",
                                 new BigDecimal("1.0000000000000000000"),
-                                DataTypes.DECIMAL(38, 19).notNull()),
+                                DataTypes.DECIMAL(38, 19).notNull()));
+    }
+
+    private Stream<TestSetSpec> timesTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TIMES)
                         .onFieldsWithData(new BigDecimal("1514356320000"), Duration.ofSeconds(2), 2)
                         .andDataTypes(
@@ -110,7 +135,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                                                         DataTypes.SECOND(3)))),
                                 "f2 * interval '3' second(3)",
                                 Duration.ofSeconds(6),
-                                DataTypes.INTERVAL(DataTypes.SECOND(3))),
+                                DataTypes.INTERVAL(DataTypes.SECOND(3))));
+    }
+
+    private Stream<TestSetSpec> modTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MOD)
                         .onFieldsWithData(new BigDecimal("1514356320000"), 44L, 3)
                         .andDataTypes(DataTypes.DECIMAL(19, 0), DataTypes.BIGINT(), DataTypes.INT())
@@ -123,7 +152,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                         // DECIMAL(19, 0) % INT(10, 0) => INT(10, 0)
                         .testResult($("f0").mod(6), "MOD(f0, 6)", 0, DataTypes.INT())
                         // BIGINT(19, 0) % INT(10, 0) => INT(10, 0)
-                        .testResult($("f1").mod($("f2")), "MOD(f1, f2)", 2, DataTypes.INT()),
+                        .testResult($("f1").mod($("f2")), "MOD(f1, f2)", 2, DataTypes.INT()));
+    }
+
+    private Stream<TestSetSpec> roundTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ROUND)
                         .onFieldsWithData(new BigDecimal("12345.12345"))
                         // ROUND(DECIMAL(10, 5) NOT NULL, 2) => DECIMAL(8, 2) NOT NULL
@@ -131,7 +164,11 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").round(2),
                                 "ROUND(f0, 2)",
                                 new BigDecimal("12345.12"),
-                                DataTypes.DECIMAL(8, 2).notNull()),
+                                DataTypes.DECIMAL(8, 2).notNull()));
+    }
+
+    private Stream<TestSetSpec> truncateTestCases() {
+        return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRUNCATE)
                         .onFieldsWithData(new BigDecimal("123.456"))
                         // TRUNCATE(DECIMAL(6, 3) NOT NULL, 2) => DECIMAL(6, 2) NOT NULL
@@ -140,5 +177,189 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TRUNCATE(f0, 2)",
                                 new BigDecimal("123.45"),
                                 DataTypes.DECIMAL(6, 2).notNull()));
+    }
+
+    private Stream<TestSetSpec> convTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CONV)
+                        .onFieldsWithData(null, null, "100", "", "11abc", "   4521   ")
+                        .andDataTypes(
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        // null input
+                        .testResult($("f0").conv(2, 2), "CONV(f0, 2, 2)", null, DataTypes.STRING())
+                        .testResult($("f1").conv(2, 2), "CONV(f1, 2, 2)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv($("f0"), 2),
+                                "CONV(f2, f0, 2)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(2, $("f0")),
+                                "CONV(f2, 2, f0)",
+                                null,
+                                DataTypes.STRING())
+                        // empty string
+                        .testResult($("f3").conv(2, 4), "CONV(f3, 2, 4)", null, DataTypes.STRING())
+                        // invalid fromBase
+                        .testResult($("f2").conv(1, 2), "CONV(f2, 1, 2)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(40, 2), "CONV(f2, 40, 2)", null, DataTypes.STRING())
+                        // invalid toBase
+                        .testResult(
+                                $("f2").conv(2, -1), "CONV(f2, 2, -1)", null, DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(2, -40), "CONV(f2, 2, -40)", null, DataTypes.STRING())
+                        // invalid num format, ignore suffix
+                        .testResult(
+                                $("f4").conv(10, 16), "CONV(f4, 10, 16)", "B", DataTypes.STRING())
+                        // num overflow
+                        .testTableApiRuntimeError(
+                                lit("FFFFFFFFFFFFFFFF").conv(16, 16),
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFF overflows.")
+                        .testSqlRuntimeError(
+                                "CONV('FFFFFFFFFFFFFFFF', 16, 16)",
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFF overflows.")
+                        .testTableApiRuntimeError(
+                                lit("FFFFFFFFFFFFFFFEE").conv(16, 16),
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFEE overflows.")
+                        .testSqlRuntimeError(
+                                "CONV('FFFFFFFFFFFFFFFEE', 16, 16)",
+                                ArithmeticException.class,
+                                "The number FFFFFFFFFFFFFFFEE overflows.")
+                        .testTableApiRuntimeError(
+                                lit("18446744073709551616").conv(10, 10),
+                                ArithmeticException.class,
+                                "The number 18446744073709551616 overflows.")
+                        .testSqlRuntimeError(
+                                "CONV('18446744073709551616', 10, 10)",
+                                ArithmeticException.class,
+                                "The number 18446744073709551616 overflows.")
+                        // double negative
+                        .testResult(
+                                lit("-FFFFFFFFFFFFFFFE").conv(16, 16),
+                                "CONV('-FFFFFFFFFFFFFFFE', 16, 16)",
+                                "FFFFFFFFFFFFFFFF",
+                                DataTypes.STRING())
+                        // BIGINT base
+                        .testResult(
+                                $("f2").conv(1234567890123L, 16),
+                                "CONV(f2, 1234567890123, 16)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f2").conv(16, 1234567890123L),
+                                "CONV(f2, 16, 1234567890123)",
+                                null,
+                                DataTypes.STRING())
+                        // number positive base
+                        .testResult($("f2").conv(2, 4), "CONV(f2, 2, 4)", "10", DataTypes.STRING())
+                        .testResult(
+                                lit(4521).conv(10, 36),
+                                "CONV(4521, 10, 36)",
+                                "3HL",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(22).conv(10, 10), "CONV(22, 10, 10)", "22", DataTypes.STRING())
+                        .testResult(
+                                lit(110011).conv(2, 16),
+                                "CONV(110011, 2, 16)",
+                                "33",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(-10).conv(11, 7),
+                                "CONV(-10, 11, 7)",
+                                "45012021522523134134555",
+                                DataTypes.STRING())
+                        // number negative base
+                        .testResult(
+                                lit(-641).conv(10, -10),
+                                "CONV(-641, 10, -10)",
+                                "-641",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(1011).conv(2, -16),
+                                "CONV(1011, 2, -16)",
+                                "B",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(-15).conv(10, 16),
+                                "CONV(-15, 10, 16)",
+                                "FFFFFFFFFFFFFFF1",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(Long.MIN_VALUE).conv(10, -2),
+                                "CONV(-9223372036854775808, 10, -2)",
+                                "-" + Long.toBinaryString(Long.MIN_VALUE),
+                                DataTypes.STRING())
+                        // trim string
+                        .testResult(
+                                $("f5").conv(10, 36), "CONV(f5, 10, 36)", "3HL", DataTypes.STRING())
+                        // string positive base
+                        .testResult($("f2").conv(2, 4), "CONV(f2, 2, 4)", "10", DataTypes.STRING())
+                        .testResult(
+                                lit("4521").conv(10, 36),
+                                "CONV('4521', 10, 36)",
+                                "3HL",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("22").conv(10, 10),
+                                "CONV('22', 10, 10)",
+                                "22",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("110011").conv(2, 16),
+                                "CONV('110011', 2, 16)",
+                                "33",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("-10").conv(11, 7),
+                                "CONV('-10', 11, 7)",
+                                "45012021522523134134555",
+                                DataTypes.STRING())
+                        // string negative base
+                        .testResult(
+                                lit("-641").conv(10, -10),
+                                "CONV('-641', 10, -10)",
+                                "-641",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("1011").conv(2, -16),
+                                "CONV('1011', 2, -16)",
+                                "B",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("-15").conv(10, 16),
+                                "CONV('-15', 10, 16)",
+                                "FFFFFFFFFFFFFFF1",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit("FFFFFFFFFFFFFFFE").conv(16, -16),
+                                "CONV('FFFFFFFFFFFFFFFE', 16, -16)",
+                                "-2",
+                                DataTypes.STRING())
+                        .testResult(
+                                lit(String.valueOf(Long.MIN_VALUE)).conv(10, -2),
+                                "CONV('-9223372036854775808', 10, -2)",
+                                "-" + Long.toBinaryString(Long.MIN_VALUE),
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CONV, "Validation Error")
+                        .onFieldsWithData("12345")
+                        .andDataTypes(DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").conv("12", 10),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase <INTEGER_NUMERIC>, toBase <INTEGER_NUMERIC>)")
+                        .testSqlValidationError(
+                                "CONV(f0, '12', 10)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "CONV(num [<INTEGER_NUMERIC> | <CHARACTER_STRING>], fromBase <INTEGER_NUMERIC>, toBase <INTEGER_NUMERIC>)"));
     }
 }

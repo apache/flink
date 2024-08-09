@@ -1856,6 +1856,23 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition CONV =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("CONV")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("num", "fromBase", "toBase"),
+                                    Arrays.asList(
+                                            or(
+                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC))))
+                    .outputTypeStrategy(explicit(STRING()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.ConvFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition TRUNCATE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("truncate")
