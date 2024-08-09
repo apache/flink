@@ -494,14 +494,13 @@ string:
   - sql: SUBSTR(string, integer1[, integer2])
     table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
-  - sql: ELT(index, expr...)
-    table: index.elt(expr...)
+  - sql: ELT(index, expr[, exprs]*)
+    table: index.elt(expr, exprs...)
     description: |
-      返回第 index 个表达式。表达式数量至少为 1。
-      index 必须介于 1 和 表达式数量之间。否则，函数将返回错误。
-      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>
-      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>
-      结果类型为所有 expr 的公共类型。如果 index 或第 index 个表达式为 `NULL`，则返回 `NULL`。
+      返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
 
 temporal:
   - sql: DATE string
