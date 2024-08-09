@@ -152,69 +152,77 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 lit("%d %s").printf($("f0"), $("f0")),
                                 "PRINTF('%d %s', f0, f0)",
                                 "null null",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // empty obj
                         .testResult(
                                 lit("empty").printf(),
                                 "PRINTF('empty')",
                                 "empty",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
+                        // invalid format
+                        .testResult(lit("%s").printf(), "PRINTF('%s')", null, DataTypes.STRING())
+                        // extra args
+                        .testResult(
+                                lit("%s %s").printf(1, 2, 3),
+                                "PRINTF('%s %s', 1, 2, 3)",
+                                "1 2",
+                                DataTypes.STRING())
                         // numeric
                         .testResult(
                                 lit("%08d").printf($("f2")),
                                 "PRINTF('%08d', f2)",
                                 "00001024",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         .testResult(
                                 lit("%.1f").printf($("f3")),
                                 "PRINTF('%.1f', f3)",
                                 "10.2",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // string
                         .testResult(
                                 lit("%s").printf($("f4")),
                                 "PRINTF('%s', f4)",
                                 "1024",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // datetime
                         .testResult(
                                 lit("%s").printf($("f5")),
                                 "PRINTF('%s', f5)",
                                 "19934",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         .testResult(
                                 lit("%s").printf($("f6")),
                                 "PRINTF('%s', f6)",
                                 "37440000",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         .testResult(
                                 lit("%s").printf($("f7")),
                                 "PRINTF('%s', f7)",
                                 "2024-07-30T10:24",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         .testResult(
                                 lit("%s").printf($("f8")),
                                 "PRINTF('%s', f8)",
                                 "2024-07-30T10:24:00.256",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // interval
                         .testResult(
                                 lit("%s").printf($("f9")),
                                 "PRINTF('%s', f9)",
                                 "18000000",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // boolean
                         .testResult(
                                 lit("%b").printf($("f10")),
                                 "PRINTF('%b', f10)",
                                 "true",
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // decimal
                         .testResult(
                                 lit("%s").printf($("f11")),
                                 "PRINTF('%s', f11)",
                                 "10.24",
-                                DataTypes.STRING().notNull()),
+                                DataTypes.STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.PRINTF, "Validation Error")
                         .onFieldsWithData(1024)
                         .andDataTypes(DataTypes.INT())

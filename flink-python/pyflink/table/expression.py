@@ -1312,7 +1312,9 @@ class Expression(Generic[T]):
         """
         Returns a formatted string from printf-style format strings.
         The function exploits the java.util.Formatter class with Locale.US.
-        For details, see java.util.Formatter.
+
+        :param obj: any expression
+        :return: a formatted string. null if strfmt is null or invalid.
         """
         gateway = get_gateway()
         ApiExpressionUtils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils

@@ -23,7 +23,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -48,7 +47,7 @@ public class PrintfFunction extends BuiltInScalarFunction {
         try {
             formatter.format(strfmt.toString(), obj);
         } catch (Throwable t) {
-            throw new FlinkRuntimeException(t);
+            return null;
         }
 
         return BinaryStringData.fromString(strBuf.toString());

@@ -1249,8 +1249,11 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns a formatted string from printf-style format string. The function exploits the
-     * java.util.Formatter class with Locale.US. For details, see java.util.Formatter.
+     * Returns a formatted string from printf-style format string. The function exploits the {@link
+     * java.util.Formatter} with Locale.US.
+     *
+     * @param obj any expression
+     * @return a formatted string. null if {@code strfmt} is null or invalid.
      */
     public final OutType printf(InType... obj) {
         Expression[] args =

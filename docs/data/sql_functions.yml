@@ -264,9 +264,9 @@ string:
     table: strfmt.printf(obj...)
     description: |
       Returns a formatted string from printf-style format string.
-      The function exploits the java.util.Formatter class with Locale.US. For details, see java.util.Formatter.
+      The function exploits the java.util.Formatter class with Locale.US.
       strfmt <CHAR | VARCHAR>, obj <ANY>
-      Returns a STRING representation of the formatted strfmt. `NULL` if strfmt is `NULL`.
+      Returns a STRING representation of the formatted strfmt. `NULL` if strfmt is `NULL` or invalid.
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     table: |
       STRING1.trim(LEADING, STRING2)

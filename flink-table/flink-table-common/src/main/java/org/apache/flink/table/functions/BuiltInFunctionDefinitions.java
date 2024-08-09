@@ -1253,9 +1253,7 @@ public final class BuiltInFunctionDefinitions {
                                     Arrays.asList("strfmt", "obj"),
                                     Arrays.asList(
                                             logical(LogicalTypeFamily.CHARACTER_STRING), ANY)))
-                    .outputTypeStrategy(
-                            nullableIfArgs(
-                                    ConstantArgumentCount.of(0), explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.PrintfFunction")
                     .build();
 
