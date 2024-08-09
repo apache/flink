@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
@@ -34,9 +35,12 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.buildBufferCompressor;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getMemoryTierName;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -51,9 +55,12 @@ public class MemoryTierFactory implements TierFactory {
 
     private int bufferSizeBytes = -1;
 
+    @Nullable private BufferCompressor bufferCompressor = null;
+
     @Override
     public void setup(Configuration configuration) {
         this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
+        this.bufferCompressor = buildBufferCompressor(bufferSizeBytes, configuration);
     }
 
     @Override
@@ -103,7 +110,8 @@ public class MemoryTierFactory implements TierFactory {
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,
-                resourceRegistry);
+                resourceRegistry,
+                bufferCompressor);
     }
 
     @Override
