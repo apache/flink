@@ -34,6 +34,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.InternalPartitionedState;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -75,7 +76,10 @@ public class ForStDBOperationTestBase {
             throws Exception {
         byte[] nameBytes = columnFamilyName.getBytes(ConfigConstants.DEFAULT_CHARSET);
         ColumnFamilyDescriptor columnFamilyDescriptor =
-                new ColumnFamilyDescriptor(nameBytes, new ColumnFamilyOptions());
+                new ColumnFamilyDescriptor(
+                        nameBytes,
+                        ForStOperationUtils.createColumnFamilyOptions(
+                                (e) -> new ColumnFamilyOptions(), columnFamilyName));
         return db.createColumnFamily(columnFamilyDescriptor);
     }
 
@@ -114,6 +118,26 @@ public class ForStDBOperationTestBase {
         Supplier<DataInputDeserializer> valueDeserializerView =
                 () -> new DataInputDeserializer(new byte[128]);
         return new ForStValueState<>(
+                buildMockStateRequestHandler(),
+                cf,
+                valueStateDescriptor,
+                serializedKeyBuilder,
+                () -> VoidSerializer.INSTANCE,
+                valueSerializerView,
+                valueDeserializerView);
+    }
+
+    protected ForStListState<Integer, Void, String> buildForStListState(String stateName)
+            throws Exception {
+        ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
+        ListStateDescriptor<String> valueStateDescriptor =
+                new ListStateDescriptor<>(stateName, BasicTypeInfo.STRING_TYPE_INFO);
+        Supplier<SerializedCompositeKeyBuilder<Integer>> serializedKeyBuilder =
+                () -> new SerializedCompositeKeyBuilder<>(IntSerializer.INSTANCE, 2, 32);
+        Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);
+        Supplier<DataInputDeserializer> valueDeserializerView =
+                () -> new DataInputDeserializer(new byte[128]);
+        return new ForStListState<>(
                 buildMockStateRequestHandler(),
                 cf,
                 valueStateDescriptor,

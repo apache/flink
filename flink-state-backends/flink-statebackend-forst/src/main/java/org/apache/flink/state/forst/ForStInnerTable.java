@@ -73,7 +73,7 @@ public interface ForStInnerTable<K, N, V> {
      * @param stateRequest The given stateRequest.
      * @return The corresponding ForSt GetRequest.
      */
-    ForStDBGetRequest<K, N, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest);
+    ForStDBGetRequest<?, ?, ?, ?> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest);
 
     /**
      * Build a {@link ForStDBPutRequest} that belong to {@code ForStInnerTable} with the given
@@ -82,5 +82,5 @@ public interface ForStInnerTable<K, N, V> {
      * @param stateRequest The given stateRequest.
      * @return The corresponding ForSt PutRequest.
      */
-    ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest);
+    ForStDBPutRequest<?, ?, ?> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest);
 }
