@@ -150,6 +150,8 @@ arithmetic functions
     Expression.bin
     Expression.hex
     Expression.truncate
+    Expression.shiftleft
+    Expression.shiftright
 
 string functions
 ----------------

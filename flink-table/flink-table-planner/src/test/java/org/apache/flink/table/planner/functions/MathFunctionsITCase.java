@@ -139,6 +139,57 @@ class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").truncate(2),
                                 "TRUNCATE(f0, 2)",
                                 new BigDecimal("123.45"),
-                                DataTypes.DECIMAL(6, 2).notNull()));
+                                DataTypes.DECIMAL(6, 2).notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
+                        .onFieldsWithData(Long.valueOf("123456"))
+                        .testResult(
+                                $("f0").shiftleft(2L),
+                                "shiftleft (f0, 2)",
+                                Long.valueOf("493824"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
+                        .onFieldsWithData(Long.valueOf("1234"), Long.valueOf("8"))
+                        .testResult(
+                                $("f0").shiftleft($("f1")),
+                                "shiftleft (f0, f1)",
+                                Long.valueOf("315904"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
+                        .onFieldsWithData(Long.valueOf("1234"), Long.valueOf("-8"))
+                        .testResult(
+                                $("f0").shiftleft($("f1")),
+                                "shiftleft (f0, f1)",
+                                Long.valueOf("0"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTLEFT)
+                        .onFieldsWithData((Integer) null)
+                        .andDataTypes(DataTypes.INT().nullable())
+                        .testResult(
+                                $("f0").shiftleft(10L),
+                                "shiftleft (null, 10)",
+                                null,
+                                DataTypes.BIGINT().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
+                        .onFieldsWithData(Long.valueOf("123456"), Long.valueOf("2"))
+                        .testResult(
+                                $("f0").shiftright($("f1")),
+                                "shiftright (f0,f1)",
+                                Long.valueOf("30864"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
+                        .onFieldsWithData(Long.valueOf("1221312133"))
+                        .testResult(
+                                $("f0").shiftright(-10L),
+                                "shiftright (f0, -10)",
+                                Long.valueOf("0"),
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SHIFTRIGHT)
+                        .onFieldsWithData((Integer) null)
+                        .andDataTypes(DataTypes.INT().nullable())
+                        .testResult(
+                                $("f0").shiftright(10L),
+                                "shiftright (null, 10)",
+                                null,
+                                DataTypes.BIGINT().nullable()));
     }
 }
