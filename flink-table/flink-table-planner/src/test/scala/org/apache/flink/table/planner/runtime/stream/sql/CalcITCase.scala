@@ -55,6 +55,29 @@ class CalcITCase extends StreamingTestBase {
     new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
+  def test1(): Unit = {
+    tEnv.executeSql(s"""
+                       |create temporary table src (
+                       |  a INT,
+                       |  b STRING
+                       |) with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')
+                       |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE or REPLACE TABLE snk WITH (
+                       |  'connector' = 'filesystem',
+                       |  'path' = '/non2',
+                       |  'format' = 'json'
+                       |) AS (SELECT * FROM src LIMIT 10)
+                       |""".stripMargin)
+  }
+
+  @Test
+  def test2(): Unit = {
+    tEnv.executeSql(
+      "CREATE TABLE MySink WITH ('connector' = 'values') AS (SELECT * FROM MyTable limit 5)")
+  }
+
+  @Test
   def testSelectWithLegacyCastIntToDate(): Unit = {
     tEnv.getConfig.getConfiguration
       .set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR, LegacyCastBehaviour.ENABLED)
