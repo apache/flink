@@ -24,8 +24,9 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
@@ -33,6 +34,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 
 import java.time.ZoneId;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
@@ -117,9 +119,10 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        if (mark.getTimestamp() > currentWatermark) {
-            currentWatermark = mark.getTimestamp();
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+        if (maybeTimestamp.isPresent() && maybeTimestamp.get() > currentWatermark) {
+            currentWatermark = maybeTimestamp.get();
             if (currentWatermark >= nextTriggerWatermark) {
                 // we only need to call advanceProgress() when current watermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);

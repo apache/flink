@@ -23,6 +23,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.connector.dsv2.FromDataSource;
 import org.apache.flink.api.connector.dsv2.Source;
 import org.apache.flink.api.connector.dsv2.WrappedSource;
@@ -56,6 +57,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -72,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
     private final List<Transformation<?>> transformations = new ArrayList<>();
 
-    private final ExecutionConfig executionConfig;
+    protected final ExecutionConfig executionConfig;
 
     /** Settings that control the checkpointing behavior. */
     private final CheckpointConfig checkpointCfg;
@@ -86,7 +88,7 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
     /**
      * The environment of the context (local by default, cluster if invoked through command line).
      */
-    private static ExecutionEnvironmentFactory contextEnvironmentFactory = null;
+    protected static ExecutionEnvironmentFactory contextEnvironmentFactory = null;
 
     static {
         try {
@@ -119,7 +121,7 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
         }
     }
 
-    ExecutionEnvironmentImpl(
+    protected ExecutionEnvironmentImpl(
             PipelineExecutorServiceLoader executorServiceLoader,
             Configuration configuration,
             ClassLoader classLoader) {
@@ -162,7 +164,10 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
     }
 
     @Override
-    public <OUT> NonKeyedPartitionStream<OUT> fromSource(Source<OUT> source, String sourceName) {
+    public <OUT> NonKeyedPartitionStream<OUT> fromSource(
+            Source<OUT> source,
+            String sourceName,
+            Set<WatermarkDeclaration> watermarkDeclarations) {
         if (source instanceof WrappedSource) {
             org.apache.flink.api.connector.source.Source<OUT, ?, ?> innerSource =
                     ((WrappedSource<OUT>) source).getWrappedSource();
@@ -223,7 +228,8 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
     //              Internal Methods
     // -----------------------------------------------
 
-    private static <OUT> TypeInformation<OUT> extractTypeInfoFromCollection(Collection<OUT> data) {
+    protected static <OUT> TypeInformation<OUT> extractTypeInfoFromCollection(
+            Collection<OUT> data) {
         Preconditions.checkNotNull(data, "Collection must not be null");
         if (data.isEmpty()) {
             throw new IllegalArgumentException("Collection must not be empty");

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import java.io.IOException;
 
@@ -36,5 +36,5 @@ public interface OnWatermarkCallback<KEY> {
      * @param key The current key.
      * @param watermark The current watermark.
      */
-    void onWatermark(KEY key, Watermark watermark) throws IOException;
+    void onWatermark(KEY key, WatermarkEvent watermark) throws IOException;
 }

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.wikiedits;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 
@@ -139,7 +139,7 @@ class WikipediaEditsSourceTest {
         }
 
         @Override
-        public void emitWatermark(Watermark mark) {
+        public void emitWatermark(WatermarkEvent mark) {
             throw new UnsupportedOperationException();
         }
 

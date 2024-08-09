@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.watermark.TimestampWatermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
@@ -279,14 +280,15 @@ public class TestJobBuilders {
         return WatermarkStrategy.forGenerator(
                         ctx ->
                                 new WatermarkGenerator<TestDataElement>() {
-                                    private Watermark watermark = new Watermark(Long.MIN_VALUE);
+                                    private Watermark watermark =
+                                            new TimestampWatermark(Long.MIN_VALUE);
 
                                     @Override
                                     public void onEvent(
                                             TestDataElement event,
                                             long eventTimestamp,
                                             WatermarkOutput output) {
-                                        this.watermark = new Watermark(eventTimestamp);
+                                        this.watermark = new TimestampWatermark(eventTimestamp);
                                     }
 
                                     @Override

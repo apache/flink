@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
@@ -712,7 +712,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness.setProcessingTime(50000L)
 
     val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(new Watermark(10000L))
+    expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(10000L))
     expected.add(
       insertRecord(
         "a",

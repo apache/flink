@@ -20,8 +20,9 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 /** Base class for broadcast stream operator test harnesses. */
 public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT>
@@ -56,26 +57,26 @@ public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT>
         processBroadcastElement(element);
     }
 
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         getOperator().processWatermark1(mark);
     }
 
-    public void processBroadcastWatermark(Watermark mark) throws Exception {
+    public void processBroadcastWatermark(WatermarkEvent mark) throws Exception {
         getOperator().processWatermark2(mark);
     }
 
     public void processWatermark(long timestamp) throws Exception {
-        Watermark mark = new Watermark(timestamp);
+        WatermarkEvent mark = WatermarkUtils.createWatermarkEventFromTimestamp(timestamp);
         getOperator().processWatermark1(mark);
     }
 
     public void processBroadcastWatermark(long timestamp) throws Exception {
-        Watermark mark = new Watermark(timestamp);
+        WatermarkEvent mark = WatermarkUtils.createWatermarkEventFromTimestamp(timestamp);
         getOperator().processWatermark2(mark);
     }
 
     public void watermark(long timestamp) throws Exception {
-        processWatermark(new Watermark(timestamp));
-        processBroadcastWatermark(new Watermark(timestamp));
+        processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(timestamp));
+        processBroadcastWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(timestamp));
     }
 }

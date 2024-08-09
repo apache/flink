@@ -18,12 +18,14 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.common.watermark.TimestampWatermark;
 import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.Sink.InitContext;
@@ -46,7 +48,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -171,11 +173,16 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        this.currentWatermark = mark.getTimestamp();
-        sinkWriter.writeWatermark(
-                new org.apache.flink.api.common.eventtime.Watermark(mark.getTimestamp()));
+        Watermark genericWatermark = mark.getWatermark();
+        if (genericWatermark instanceof TimestampWatermark) {
+            long ts = ((TimestampWatermark) genericWatermark).getTimestamp();
+            this.currentWatermark = ts;
+            sinkWriter.writeWatermark(new TimestampWatermark(ts));
+        } else {
+            sinkWriter.writeWatermark(genericWatermark);
+        }
     }
 
     @Override

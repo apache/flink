@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -65,12 +65,13 @@ class StreamMapTest {
 
         testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
         testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
-        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
 
         expectedOutput.add(new StreamRecord<String>("+2", initialTime + 1));
         expectedOutput.add(new StreamRecord<String>("+3", initialTime + 2));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         expectedOutput.add(new StreamRecord<String>("+4", initialTime + 3));
 
         TestHarnessUtil.assertOutputEquals(

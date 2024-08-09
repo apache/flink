@@ -111,7 +111,7 @@ class StatefulDataStreamV2ITCase {
         env.execute("dsV2 job");
     }
 
-    private static class DefaultKeySelector implements KeySelector<Long, Long> {
+    static class DefaultKeySelector implements KeySelector<Long, Long> {
         private static final long serialVersionUID = 1L;
 
         @Override

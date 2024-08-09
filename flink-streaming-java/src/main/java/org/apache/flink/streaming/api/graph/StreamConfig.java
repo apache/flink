@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -39,11 +40,15 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.watermark.InternalTimestampInternalWatermarkDeclaration;
+import org.apache.flink.watermark.InternalTimestampWatermarkDeclaration;
+import org.apache.flink.watermark.InternalWatermarkDeclaration;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -118,6 +123,8 @@ public class StreamConfig implements Serializable {
 
     private static final String TIME_CHARACTERISTIC = "timechar";
 
+    private static final String WATERMARK_DECLARATIONS = "watermark-declarations";
+
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
@@ -149,7 +156,6 @@ public class StreamConfig implements Serializable {
             new HashMap<>();
     private final transient CompletableFuture<StreamConfig> serializationFuture =
             new CompletableFuture<>();
-
     /**
      * In order to release memory during processing data, some keys are removed in {@link
      * #clearInitialConfigs()}. Recording these keys here to prevent they are accessed after
@@ -302,6 +308,33 @@ public class StreamConfig implements Serializable {
 
     public void setTypeSerializerOut(TypeSerializer<?> serializer) {
         setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
+    }
+
+    public void setWatermarkDeclarations(Set<WatermarkDeclaration> watermarkDeclarations) {
+        toBeSerializedConfigObjects.put(WATERMARK_DECLARATIONS, watermarkDeclarations);
+    }
+
+    public Set<InternalWatermarkDeclaration> getWatermarkDeclarations(ClassLoader cl) {
+        try {
+            Set<WatermarkDeclaration> watermarkDeclarations =
+                    InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
+            Set<InternalWatermarkDeclaration> result = new HashSet<>();
+
+            // system defined watermark declarations
+            result.add(new InternalTimestampWatermarkDeclaration());
+            result.add(new InternalTimestampInternalWatermarkDeclaration());
+
+            if (watermarkDeclarations == null) {
+                return result;
+            }
+            for (WatermarkDeclaration watermarkDeclaration : watermarkDeclarations) {
+                result.add(
+                        WatermarkUtils.convertToInternalWatermarkDeclaration(watermarkDeclaration));
+            }
+            return result;
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serializer.", e);
+        }
     }
 
     public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {

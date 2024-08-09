@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
@@ -52,7 +52,7 @@ public class RowTimeRowsBoundedPrecedingFunctionTest extends RowTimeOverWindowTe
         testHarness.processElement(insertRecord("key", 1L, 100L));
         testHarness.processElement(insertRecord("key", 1L, 500L));
 
-        testHarness.processWatermark(new Watermark(500L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(500L));
 
         // late record
         testHarness.processElement(insertRecord("key", 1L, 400L));

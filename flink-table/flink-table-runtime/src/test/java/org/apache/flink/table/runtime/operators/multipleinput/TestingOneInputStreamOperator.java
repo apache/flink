@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
@@ -38,7 +38,7 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
 
     private boolean isOpened = false;
     private StreamRecord<RowData> currentElement = null;
-    private Watermark currentWatermark = null;
+    private WatermarkEvent currentWatermark = null;
     private LatencyMarker currentLatencyMarker = null;
     private boolean isEnd = false;
     private boolean isClosed = false;
@@ -68,7 +68,7 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         currentWatermark = mark;
         output.emitWatermark(mark);
     }
@@ -102,7 +102,7 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
         return currentElement;
     }
 
-    public Watermark getCurrentWatermark() {
+    public WatermarkEvent getCurrentWatermark() {
         return currentWatermark;
     }
 

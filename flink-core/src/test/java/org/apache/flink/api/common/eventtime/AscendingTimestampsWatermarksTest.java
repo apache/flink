@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.eventtime;
 
+import org.apache.flink.api.common.watermark.TimestampWatermark;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,8 +34,9 @@ class AscendingTimestampsWatermarksTest {
                 new AscendingTimestampsWatermarks<>();
 
         watermarks.onPeriodicEmit(output);
-
-        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
+        assertThat(output.lastWatermark()).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) output.lastWatermark()).getTimestamp())
+                .isEqualTo(Long.MIN_VALUE);
     }
 
     @Test
@@ -44,8 +47,8 @@ class AscendingTimestampsWatermarksTest {
 
         watermarks.onEvent(new Object(), 1337L, output);
         watermarks.onPeriodicEmit(output);
-
-        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(1336L);
+        assertThat(output.lastWatermark()).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) output.lastWatermark()).getTimestamp()).isEqualTo(1336L);
     }
 
     @Test
@@ -58,6 +61,7 @@ class AscendingTimestampsWatermarksTest {
         watermarks.onEvent(new Object(), 12340L, output);
         watermarks.onPeriodicEmit(output);
 
-        assertThat(output.lastWatermark().getTimestamp()).isEqualTo(12344L);
+        assertThat(output.lastWatermark()).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) output.lastWatermark()).getTimestamp()).isEqualTo(12344L);
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.CombinedWatermarkStatus.PartialWatermark;
+import org.apache.flink.api.common.watermark.TimestampWatermark;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -147,7 +148,7 @@ public class WatermarkOutputMultiplexer {
     private void updateCombinedWatermark() {
         if (combinedWatermarkStatus.updateCombinedWatermark()) {
             underlyingOutput.emitWatermark(
-                    new Watermark(combinedWatermarkStatus.getCombinedWatermark()));
+                    new TimestampWatermark(combinedWatermarkStatus.getCombinedWatermark()));
         } else if (combinedWatermarkStatus.isIdle()) {
             underlyingOutput.markIdle();
         }
@@ -167,7 +168,9 @@ public class WatermarkOutputMultiplexer {
 
         @Override
         public void emitWatermark(Watermark watermark) {
-            long timestamp = watermark.getTimestamp();
+            assert (watermark instanceof TimestampWatermark);
+
+            long timestamp = ((TimestampWatermark) watermark).getTimestamp();
             boolean wasUpdated = state.setWatermark(timestamp);
 
             // if it's higher than the max watermark so far we might have to update the
@@ -210,7 +213,8 @@ public class WatermarkOutputMultiplexer {
 
         @Override
         public void emitWatermark(Watermark watermark) {
-            state.setWatermark(watermark.getTimestamp());
+            assert (watermark instanceof TimestampWatermark);
+            state.setWatermark(((TimestampWatermark) watermark).getTimestamp());
         }
 
         @Override

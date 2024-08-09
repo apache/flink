@@ -33,7 +33,7 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -42,6 +42,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CollectorOutput;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.AfterEach;
@@ -227,10 +228,10 @@ class SourceOperatorTest {
         assertThat(outputStreamElements)
                 .containsExactly(
                         new StreamRecord<>(1, 1),
-                        new Watermark(0),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(0),
                         new RecordAttributes(true),
                         new StreamRecord<>(1001, 1001),
-                        new Watermark(1000),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(1000),
                         new RecordAttributes(false));
     }
 
@@ -248,7 +249,7 @@ class SourceOperatorTest {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) throws Exception {
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
             output.emitWatermark(watermark);
         }
 

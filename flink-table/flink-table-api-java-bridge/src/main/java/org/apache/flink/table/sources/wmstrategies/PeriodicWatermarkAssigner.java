@@ -19,7 +19,7 @@
 package org.apache.flink.table.sources.wmstrategies;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 /** A periodic watermark assigner. */
 @PublicEvolving
@@ -37,5 +37,5 @@ public abstract class PeriodicWatermarkAssigner extends WatermarkStrategy {
      *
      * @return The current watermark.
      */
-    public abstract Watermark getWatermark();
+    public abstract WatermarkEvent getWatermark();
 }

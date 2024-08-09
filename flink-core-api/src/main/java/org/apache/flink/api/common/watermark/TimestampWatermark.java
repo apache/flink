@@ -16,11 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package org.apache.flink.api.common.eventtime;
+package org.apache.flink.api.common.watermark;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.eventtime.Watermark;
 
-import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -43,7 +43,7 @@ import java.util.Date;
  * records in the stream with a timestamp of {@code Long.MIN_VALUE} are immediately late.
  */
 @Public
-public final class Watermark implements Serializable {
+public class TimestampWatermark implements Watermark {
 
     private static final long serialVersionUID = 1L;
 
@@ -54,7 +54,9 @@ public final class Watermark implements Serializable {
     // ------------------------------------------------------------------------
 
     /** The watermark that signifies end-of-event-time. */
-    public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
+    public static final TimestampWatermark MAX_WATERMARK = new TimestampWatermark(Long.MAX_VALUE);
+    /** The watermark that signifies is used before any actual watermark has been generated. */
+    public static final TimestampWatermark UNINITIALIZED = new TimestampWatermark(Long.MIN_VALUE);
 
     // ------------------------------------------------------------------------
 
@@ -62,7 +64,7 @@ public final class Watermark implements Serializable {
     private final long timestamp;
 
     /** Creates a new watermark with the given timestamp in milliseconds. */
-    public Watermark(long timestamp) {
+    public TimestampWatermark(long timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -83,10 +85,8 @@ public final class Watermark implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        return this == o
-                || o != null
-                        && o.getClass() == Watermark.class
-                        && ((Watermark) o).timestamp == this.timestamp;
+        return (o instanceof TimestampWatermark)
+                && ((TimestampWatermark) o).timestamp == this.timestamp;
     }
 
     @Override

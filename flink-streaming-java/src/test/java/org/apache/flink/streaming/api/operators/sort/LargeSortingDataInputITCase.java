@@ -34,7 +34,7 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -210,7 +210,7 @@ class LargeSortingDataInputITCase {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) throws Exception {}
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {}
 
         @Override
         public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}

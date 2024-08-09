@@ -66,9 +66,11 @@ class DefaultNonPartitionedContextTest {
                                 (key) -> cf.complete(null),
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                                new MockOperatorStateStore(),
+                                null), // TODO JEYHUN fix later
                         collector,
                         false,
+                        null,
                         null);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
@@ -115,10 +117,12 @@ class DefaultNonPartitionedContextTest {
                                 (key) -> currentKey.set((Integer) key),
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                                new MockOperatorStateStore(),
+                                null), // TODO JEYHUN fix later
                         collector,
                         true,
-                        allKeys);
+                        allKeys,
+                        null);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
                     counter.incrementAndGet();

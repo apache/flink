@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import javax.annotation.Nullable;
 
@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
  * will occur any more.
  *
  * @param <T> The type of the elements to which this assigner assigns timestamps.
- * @see org.apache.flink.streaming.api.watermark.Watermark
+ * @see org.apache.flink.streaming.api.watermark.WatermarkEvent
  */
 @Deprecated
 public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> {
@@ -64,10 +64,10 @@ public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 
      * <p>The interval in which this method is called and Watermarks are generated depends on {@link
      * ExecutionConfig#getAutoWatermarkInterval()}.
      *
-     * @see org.apache.flink.streaming.api.watermark.Watermark
+     * @see org.apache.flink.streaming.api.watermark.WatermarkEvent
      * @see ExecutionConfig#getAutoWatermarkInterval()
      * @return {@code Null}, if no watermark should be emitted, or the next watermark to emit.
      */
     @Nullable
-    Watermark getCurrentWatermark();
+    WatermarkEvent getCurrentWatermark();
 }

@@ -22,7 +22,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
@@ -67,7 +67,7 @@ public class SourceOperatorTestHarness<OUT> extends AbstractStreamOperatorTestHa
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
+        public void emitWatermark(WatermarkEvent watermark) {
             output.emitWatermark(watermark);
         }
 

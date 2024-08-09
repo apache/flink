@@ -24,9 +24,9 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -178,7 +178,7 @@ class PythonStreamGroupTableAggregateOperatorTest
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 

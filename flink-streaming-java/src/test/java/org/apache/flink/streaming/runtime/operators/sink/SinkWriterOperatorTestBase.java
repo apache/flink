@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.common.watermark.TimestampWatermark;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -43,12 +44,12 @@ import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.sink.committables.SinkV1CommittableDeserializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -110,11 +111,13 @@ abstract class SinkWriterOperatorTestBase {
         testHarness.processWatermark(initialTime + 1);
 
         assertThat(testHarness.getOutput())
-                .containsExactly(new Watermark(initialTime), new Watermark(initialTime + 1));
+                .containsExactly(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(initialTime),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 1));
         assertThat(sinkAndSuppliers.watermarkSupplier.get())
                 .containsExactly(
-                        new org.apache.flink.api.common.eventtime.Watermark(initialTime),
-                        new org.apache.flink.api.common.eventtime.Watermark(initialTime + 1));
+                        new TimestampWatermark(initialTime),
+                        new TimestampWatermark(initialTime + 1));
         testHarness.close();
     }
 
@@ -202,7 +205,9 @@ abstract class SinkWriterOperatorTestBase {
 
         // we see the watermark and the committable summary, so the committables must be stored in
         // state
-        assertThat(testHarness.getOutput()).hasSize(2).contains(new Watermark(initialTime));
+        assertThat(testHarness.getOutput())
+                .hasSize(2)
+                .contains(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime));
         assertThat(sinkAndSuppliers.lastCheckpointSupplier.getAsLong())
                 .isEqualTo(stateful ? 1L : -1L);
 

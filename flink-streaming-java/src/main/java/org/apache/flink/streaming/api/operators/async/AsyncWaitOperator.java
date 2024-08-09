@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.UnorderedStreamElementQueue;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -276,7 +276,7 @@ public class AsyncWaitOperator<IN, OUT>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         addToWorkQueue(mark);
 
         // watermarks are always completed
@@ -383,7 +383,7 @@ public class AsyncWaitOperator<IN, OUT>
      * Outputs one completed element. Watermarks are always completed if it's their turn to be
      * processed.
      *
-     * <p>This method will be called from {@link #processWatermark(Watermark)} and from a mail
+     * <p>This method will be called from {@link #processWatermark(WatermarkEvent)} and from a mail
      * processing the result of an async function call.
      */
     private void outputCompletedElement() {

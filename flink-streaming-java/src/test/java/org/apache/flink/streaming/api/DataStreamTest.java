@@ -67,7 +67,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -82,6 +82,7 @@ import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -1269,8 +1270,8 @@ class DataStreamTest {
 
         @Nullable
         @Override
-        public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
-            return new Watermark(extractedTimestamp);
+        public WatermarkEvent checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+            return WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp);
         }
     }
 

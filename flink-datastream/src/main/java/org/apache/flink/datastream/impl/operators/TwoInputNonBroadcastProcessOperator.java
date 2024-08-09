@@ -81,7 +81,8 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         this::setCurrentKey,
                         getProcessingTimeManager(),
                         operatorContext,
-                        operatorStateBackend);
+                        operatorStateBackend,
+                        null); // TODO JEYHUN fix later
         this.nonPartitionedContext = getNonPartitionedContext();
     }
 
@@ -104,7 +105,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, collector, false, null);
+                context, partitionedContext, collector, false, null, output);
     }
 
     @Override

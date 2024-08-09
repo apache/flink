@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.join.temporal;
 
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
@@ -41,15 +41,15 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
     @Test
     public void testRowTimeTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
-        expectedOutput.add(new Watermark(2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2));
         expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
-        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5));
         expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
-        expectedOutput.add(new Watermark(8));
-        expectedOutput.add(new Watermark(9));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(8));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(9));
         expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
-        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         testRowTimeTemporalJoin(false, expectedOutput);
     }
@@ -58,18 +58,18 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
     @Test
     public void testRowTimeLeftTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
-        expectedOutput.add(new Watermark(2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
         expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
-        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5));
         expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
-        expectedOutput.add(new Watermark(8));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(8));
         expectedOutput.add(insertRecord(9L, "k2", "5a11", null, null, null));
-        expectedOutput.add(new Watermark(9));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(9));
         expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
-        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         testRowTimeTemporalJoin(true, expectedOutput);
     }
@@ -84,36 +84,36 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
         testHarness.open();
 
-        testHarness.processWatermark1(new Watermark(1));
-        testHarness.processWatermark2(new Watermark(1));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
         testHarness.processElement2(insertRecord(2L, "k1", "1a2"));
 
-        testHarness.processWatermark1(new Watermark(2));
-        testHarness.processWatermark2(new Watermark(2));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(2));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(2));
 
         testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
         testHarness.processElement1(insertRecord(3L, "k1", "1a3"));
         testHarness.processElement2(insertRecord(4L, "k2", "2a4"));
 
-        testHarness.processWatermark1(new Watermark(5));
-        testHarness.processWatermark2(new Watermark(5));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(5));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(5));
 
         testHarness.processElement1(insertRecord(6L, "k2", "2a3"));
         testHarness.processElement2(updateBeforeRecord(7L, "k2", "2a4"));
         testHarness.processElement2(updateAfterRecord(7L, "k2", "2a5"));
 
-        testHarness.processWatermark1(new Watermark(8));
-        testHarness.processWatermark2(new Watermark(9));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(8));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(9));
 
         testHarness.processElement1(insertRecord(9L, "k2", "5a11"));
         testHarness.processElement1(insertRecord(11L, "k2", "5a12"));
         testHarness.processElement2(deleteRecord(9L, "k2", "2a5"));
         testHarness.processElement2(insertRecord(10L, "k2", "2a6"));
 
-        testHarness.processWatermark1(new Watermark(13));
-        testHarness.processWatermark2(new Watermark(13));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -143,30 +143,30 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
         testHarness.setProcessingTime(6);
         testHarness.processElement1(insertRecord(6L, "k1", "0a6"));
 
-        testHarness.processWatermark1(new Watermark(7));
-        testHarness.processWatermark2(new Watermark(7));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(7));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(7));
         testHarness.processElement2(updateBeforeRecord(3L, "k1", "0a3"));
         testHarness.processElement2(updateAfterRecord(3L, "k1", "0a5"));
 
         testHarness.setProcessingTime(9);
         testHarness.processElement1(insertRecord(9L, "k1", "7a9"));
 
-        testHarness.processWatermark1(new Watermark(13));
-        testHarness.processWatermark2(new Watermark(13));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         testHarness.setProcessingTime(9 + maxRetentionTime);
         testHarness.processElement1(insertRecord(15L, "k1", "13a15"));
 
-        testHarness.processWatermark1(new Watermark(15));
-        testHarness.processWatermark2(new Watermark(16));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(15));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(16));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(6L, "k1", "0a6", 3L, "k1", "0a3"));
-        expectedOutput.add(new Watermark(7));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7));
         expectedOutput.add(insertRecord(9L, "k1", "7a9", 3L, "k1", "0a5"));
-        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         expectedOutput.add(insertRecord(15L, "k1", "13a15", null, null, null));
-        expectedOutput.add(new Watermark(15));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(15));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(
@@ -196,15 +196,15 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
     @Test
     public void testRowTimeTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
-        expectedOutput.add(new Watermark(2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2));
         expectedOutput.add(updateAfterRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
-        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5));
         expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
-        expectedOutput.add(new Watermark(8));
-        expectedOutput.add(new Watermark(9));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(8));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(9));
         expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
-        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         testRowTimeTemporalJoinOnUpsertSource(false, expectedOutput);
     }
@@ -212,17 +212,17 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
     @Test
     public void testRowTimeLeftTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
-        expectedOutput.add(new Watermark(2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2));
         expectedOutput.add(updateAfterRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
-        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5));
         expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
-        expectedOutput.add(new Watermark(8));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(8));
         expectedOutput.add(insertRecord(9L, "k2", "5a11", null, null, null));
-        expectedOutput.add(new Watermark(9));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(9));
         expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
-        expectedOutput.add(new Watermark(13));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         testRowTimeTemporalJoinOnUpsertSource(true, expectedOutput);
     }
@@ -237,34 +237,34 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
         testHarness.open();
 
-        testHarness.processWatermark1(new Watermark(1));
-        testHarness.processWatermark2(new Watermark(1));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
         testHarness.processElement2(insertRecord(2L, "k1", "1a2"));
 
-        testHarness.processWatermark1(new Watermark(2));
-        testHarness.processWatermark2(new Watermark(2));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(2));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(2));
 
         testHarness.processElement1(updateAfterRecord(3L, "k1", "1a3"));
         testHarness.processElement2(insertRecord(4L, "k2", "2a4"));
 
-        testHarness.processWatermark1(new Watermark(5));
-        testHarness.processWatermark2(new Watermark(5));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(5));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(5));
 
         testHarness.processElement1(insertRecord(6L, "k2", "2a3"));
         testHarness.processElement2(updateAfterRecord(7L, "k2", "2a5"));
 
-        testHarness.processWatermark1(new Watermark(8));
-        testHarness.processWatermark2(new Watermark(9));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(8));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(9));
 
         testHarness.processElement1(insertRecord(9L, "k2", "5a11"));
         testHarness.processElement1(insertRecord(11L, "k2", "5a12"));
         testHarness.processElement2(deleteRecord(9L, "k2", "2a5"));
         testHarness.processElement2(insertRecord(10L, "k2", "2a6"));
 
-        testHarness.processWatermark1(new Watermark(13));
-        testHarness.processWatermark2(new Watermark(13));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
