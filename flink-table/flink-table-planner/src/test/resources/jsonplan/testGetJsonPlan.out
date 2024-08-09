@@ -27,14 +27,15 @@
             },
             "partitionKeys": [],
             "options": {
-              "bounded": "false",
-              "connector": "values"
+              "bounded": "true",
+              "connector": "values",
+              "sca.parallelism": "2"
             }
           }
         }
       },
       "outputType": "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
-      "description": "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+      "description": "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.parallelism=2, bounded=true}]]])",
       "inputProperties": []
     },
     {

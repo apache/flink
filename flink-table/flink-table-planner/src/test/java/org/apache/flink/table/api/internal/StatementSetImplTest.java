@@ -65,15 +65,19 @@ class StatementSetImplTest {
         tableEnv.executeSql(sinkTableDdl);
 
         StatementSet stmtSet = tableEnv.createStatementSet();
-        stmtSet.addInsertSql("INSERT INTO MySink SELECT * FROM MyTable");
+        stmtSet.addInsertSql(
+                "INSERT INTO MySink SELECT * FROM MyTable "
+                        // OPTIONS hints here do not play any significant role
+                        // we just have to be sure that these options are present in compile plan
+                        + "/*+ OPTIONS('bounded'='true', 'sca.parallelism'='2') */");
         String jsonPlan = stmtSet.compilePlan().asJsonString();
         String actual = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
         assertThat(
-                        TableTestUtil.getFormattedJson(
+                        TableTestUtil.getPrettyJson(
                                 TableTestUtil.replaceExecNodeId(
                                         TableTestUtil.getFormattedJson(actual))))
                 .isEqualTo(
-                        TableTestUtil.getFormattedJson(
+                        TableTestUtil.getPrettyJson(
                                 TableTestUtil.replaceExecNodeId(
                                         TableTestUtil.replaceFlinkVersion(
                                                 TableTestUtil.getFormattedJson(jsonPlan)))));

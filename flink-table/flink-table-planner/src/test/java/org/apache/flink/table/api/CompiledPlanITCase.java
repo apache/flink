@@ -80,17 +80,25 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     @Test
     void testCompilePlanSql() throws IOException {
         CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql("INSERT INTO MySink SELECT * FROM MyTable");
+                tableEnv.compilePlanSql(
+                        "INSERT INTO MySink SELECT * FROM MyTable"
+                                // OPTIONS hints here do not play any significant role
+                                // we just have to be sure that these options are present in compile
+                                // plan
+                                + "/*+ OPTIONS('bounded'='true', 'sca.parallelism'='2') */");
+
         String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
         assertThat(
-                        TableTestUtil.replaceExecNodeId(
-                                TableTestUtil.replaceFlinkVersion(
-                                        TableTestUtil.getFormattedJson(
-                                                compiledPlan.asJsonString()))))
+                        TableTestUtil.getPrettyJson(
+                                TableTestUtil.replaceExecNodeId(
+                                        TableTestUtil.replaceFlinkVersion(
+                                                TableTestUtil.getFormattedJson(
+                                                        compiledPlan.asJsonString())))))
                 .isEqualTo(
-                        TableTestUtil.replaceExecNodeId(
-                                TableTestUtil.replaceFlinkVersion(
-                                        TableTestUtil.getFormattedJson(expected))));
+                        TableTestUtil.getPrettyJson(
+                                TableTestUtil.replaceExecNodeId(
+                                        TableTestUtil.replaceFlinkVersion(
+                                                TableTestUtil.getFormattedJson(expected)))));
     }
 
     @Test

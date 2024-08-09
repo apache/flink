@@ -119,7 +119,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                 !schemaTable.isStreamingMode(),
                 context.getTableConfig(),
                 relBuilder,
-                schemaTable.getContextResolvedTable(),
+                catalogTable,
                 schemaTable.getStatistic(),
                 hints,
                 tableSource);
