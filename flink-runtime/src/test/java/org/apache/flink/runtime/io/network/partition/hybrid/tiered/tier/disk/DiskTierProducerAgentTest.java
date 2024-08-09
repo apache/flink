@@ -229,6 +229,7 @@ public class DiskTierProducerAgentTest {
                 new BatchShuffleReadBufferPool(1, 1),
                 new ManuallyTriggeredScheduledExecutorService(),
                 0,
-                Duration.ofMinutes(5));
+                Duration.ofMinutes(5),
+                null);
     }
 }
