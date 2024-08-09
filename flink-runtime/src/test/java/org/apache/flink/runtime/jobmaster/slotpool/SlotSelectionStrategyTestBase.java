@@ -27,6 +27,8 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import javax.annotation.Nonnull;
+
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -95,13 +97,19 @@ abstract class SlotSelectionStrategyTestBase {
     protected SlotSelectionStrategy selectionStrategy;
 
     private FreeSlotTracker createCandidates() {
+        Map<AllocationID, PhysicalSlot> candidates = getSlotInfosMap();
+        return FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(candidates);
+    }
+
+    @Nonnull
+    protected Map<AllocationID, PhysicalSlot> getSlotInfosMap() {
         Map<AllocationID, PhysicalSlot> candidates = new HashMap<>(4);
 
         candidates.put(slot1.getAllocationId(), slot1);
         candidates.put(slot2.getAllocationId(), slot2);
         candidates.put(slot3.getAllocationId(), slot3);
         candidates.put(slot4.getAllocationId(), slot4);
-        return FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(candidates);
+        return candidates;
     }
 
     protected Optional<SlotSelectionStrategy.SlotInfoAndLocality> runMatching(

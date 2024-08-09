@@ -19,11 +19,16 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Optional;
+
 /** Interface that provides basic information in the context of a slot. */
-public interface SlotInfo {
+public interface SlotInfo extends WeightLoadable {
 
     /**
      * Gets the id under which the slot has been allocated on the TaskManager. This id uniquely
@@ -55,9 +60,26 @@ public interface SlotInfo {
     ResourceProfile getResourceProfile();
 
     /**
+     * Set the loading.
+     *
+     * @param loadingWeight loading weight to set.
+     */
+    void setLoading(LoadingWeight loadingWeight);
+
+    /** Reset the loading. */
+    void resetLoading();
+
+    /**
      * Returns whether the slot will be occupied indefinitely.
      *
      * @return true if the slot will be occupied indefinitely, otherwise false.
      */
     boolean willBeOccupiedIndefinitely();
+
+    /**
+     * Return the previous {@link LoadableResourceProfile} of the current slot.
+     *
+     * @return The previous loadable resource profile of the current slot.
+     */
+    Optional<LoadableResourceProfile> getPreviousLoadableResourceProfile();
 }

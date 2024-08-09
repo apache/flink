@@ -2239,9 +2239,10 @@ public class AdaptiveSchedulerTest {
                 new TestingDeclarativeSlotPoolBuilder()
                         .setContainsFreeSlotFunction(allocationID -> true)
                         .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) ->
+                                (allocationId, resourceProfile, loadingWeight) ->
                                         TestingPhysicalSlot.builder()
                                                 .withAllocationID(allocationId)
+                                                .withLoadingWeight(loadingWeight)
                                                 .build())
                         .setGetFreeSlotTrackerSupplier(
                                 () ->

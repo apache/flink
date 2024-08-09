@@ -19,12 +19,21 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -60,6 +69,10 @@ class AllocatedSlot implements PhysicalSlot {
 
     private final AtomicReference<Payload> payloadReference;
 
+    private @Nonnull LoadingWeight loadingWeight;
+    /** The field is used to present the loading weight of the slot in the last using. */
+    private @Nullable LoadingWeight previousLoadingWeight;
+
     // ------------------------------------------------------------------------
 
     public AllocatedSlot(
@@ -67,12 +80,14 @@ class AllocatedSlot implements PhysicalSlot {
             TaskManagerLocation location,
             int physicalSlotNumber,
             ResourceProfile resourceProfile,
-            TaskManagerGateway taskManagerGateway) {
+            TaskManagerGateway taskManagerGateway,
+            LoadingWeight loadingWeight) {
         this.allocationId = checkNotNull(allocationId);
         this.taskManagerLocation = checkNotNull(location);
         this.physicalSlotNumber = physicalSlotNumber;
         this.resourceProfile = checkNotNull(resourceProfile);
         this.taskManagerGateway = checkNotNull(taskManagerGateway);
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
 
         payloadReference = new AtomicReference<>(null);
     }
@@ -154,6 +169,31 @@ class AllocatedSlot implements PhysicalSlot {
         }
     }
 
+    @Override
+    public void setLoading(LoadingWeight loadingWeight) {
+        this.previousLoadingWeight = this.loadingWeight;
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
+    }
+
+    @Override
+    public void resetLoading() {
+        setLoading(DefaultLoadingWeight.EMPTY);
+    }
+
+    @Nonnull
+    @Override
+    public Optional<LoadableResourceProfile> getPreviousLoadableResourceProfile() {
+        return Objects.isNull(previousLoadingWeight)
+                ? Optional.empty()
+                : Optional.of(resourceProfile.toLoadable(previousLoadingWeight));
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
     // ------------------------------------------------------------------------
 
     /** This always returns a reference hash code. */
@@ -175,6 +215,15 @@ class AllocatedSlot implements PhysicalSlot {
                 + " @ "
                 + taskManagerLocation
                 + " - "
-                + physicalSlotNumber;
+                + physicalSlotNumber
+                + " - loadingWeight("
+                + loadingWeight
+                + ")"
+                + " - previousLoadingWeight("
+                + previousLoadingWeight
+                + ")"
+                + " - resourceProfile("
+                + resourceProfile
+                + ")";
     }
 }
