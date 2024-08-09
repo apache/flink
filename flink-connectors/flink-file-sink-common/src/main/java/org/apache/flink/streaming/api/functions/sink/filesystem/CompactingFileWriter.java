@@ -47,6 +47,7 @@ public interface CompactingFileWriter {
     @Internal
     enum Type {
         RECORD_WISE,
-        OUTPUT_STREAM
+        OUTPUT_STREAM,
+        COMPRESSED_STREAM
     }
 }

@@ -32,7 +32,15 @@ import java.util.List;
 
 /**
  * A {@link OutputStreamBasedFileCompactor} implementation that simply concat the compacting files.
- * The fileDelimiter will be added between neighbouring files if provided.
+ *
+ * <p>The {@code fileDelimiter} will be added between neighboring files if provided. The {@code
+ * compressed} flag denotes if the data stream is compressed or not. Validated compression types:
+ *
+ * <ul>
+ *   <li>DEFLATE
+ *   <li>GZIP
+ *   <li>BZIP2
+ * </ul>
  */
 @PublicEvolving
 public class ConcatFileCompactor extends OutputStreamBasedFileCompactor {
@@ -40,12 +48,18 @@ public class ConcatFileCompactor extends OutputStreamBasedFileCompactor {
     private static final int CHUNK_SIZE = 4 * 1024 * 1024;
 
     private final byte[] fileDelimiter;
+    private final boolean compressed;
 
     public ConcatFileCompactor() {
-        this(null);
+        this(null, false);
     }
 
     public ConcatFileCompactor(@Nullable byte[] fileDelimiter) {
+        this(fileDelimiter, false);
+    }
+
+    public ConcatFileCompactor(@Nullable byte[] fileDelimiter, boolean compressed) {
+        this.compressed = compressed;
         this.fileDelimiter = fileDelimiter;
     }
 
@@ -60,6 +74,10 @@ public class ConcatFileCompactor extends OutputStreamBasedFileCompactor {
                 outputStream.write(fileDelimiter);
             }
         }
+    }
+
+    public boolean isCompressed() {
+        return compressed;
     }
 
     private void copy(InputStream in, OutputStream out) throws IOException {
