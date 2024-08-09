@@ -1212,6 +1212,18 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
 
+    def regexp_extract_all(self, regex, extract_index=None) -> 'Expression':
+        """
+        Extracts all the substrings in str that match the regex expression and correspond to the
+        regex group extract_index. regex may contain multiple groups. extract_index indicates which
+        regex group to extract and starts from 1, also the default value if not specified. And 0
+        means matching the entire regular expression.
+        """
+        if extract_index is None:
+            return _binary_op("regexpExtractAll")(self, regex)
+        else:
+            return _ternary_op("regexpExtractAll")(self, regex, extract_index)
+
     @property
     def from_base64(self) -> 'Expression[str]':
         """

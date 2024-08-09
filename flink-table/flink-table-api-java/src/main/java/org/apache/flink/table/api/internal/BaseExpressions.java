@@ -157,6 +157,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PROCTI
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RADIANS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT_ALL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
@@ -1148,6 +1149,28 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType regexpExtract(InType regex) {
         return toApiSpecificExpression(
                 unresolvedCall(REGEXP_EXTRACT, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
+     * Extracts all the substrings in {@code str} that match the {@code regex} expression and
+     * correspond to the regex group {@code extractIndex}. <br>
+     * {@code regex} may contain multiple groups. {@code extractIndex} indicates which regex group
+     * to extract and starts from 1, also the default value if not specified. And 0 means matching
+     * the entire regular expression.
+     */
+    public OutType regexpExtractAll(InType regex, InType extractIndex) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        REGEXP_EXTRACT_ALL,
+                        toExpr(),
+                        objectToExpression(regex),
+                        objectToExpression(extractIndex)));
+    }
+
+    /** Extracts all the strings in str that match the regex expression. */
+    public OutType regexpExtractAll(InType regex) {
+        return toApiSpecificExpression(
+                unresolvedCall(REGEXP_EXTRACT_ALL, toExpr(), objectToExpression(regex)));
     }
 
     /** Returns the base string decoded with base64. */
