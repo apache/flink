@@ -139,6 +139,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -150,6 +151,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -1144,6 +1146,32 @@ class StreamingJobGraphGeneratorTest {
                 .isTrue();
         assertThat(areOperatorsChainable(streamNodes.get(1), streamNodes.get(2), streamGraph))
                 .isFalse();
+    }
+
+    @Test
+    void testJobGraphGenerationWithManyYieldingOperatorsDoesNotHang() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+        SingleOutputStreamOperator<Long> operator =
+                env.fromSource(
+                                new NumberSequenceSource(0, 10),
+                                WatermarkStrategy.noWatermarks(),
+                                "input")
+                        .map((x) -> x);
+
+        // add 40 YieldingOperatorFactory
+        for (int i = 0; i < 40; i++) {
+            operator =
+                    operator.transform(
+                            "test",
+                            BasicTypeInfo.LONG_TYPE_INFO,
+                            new YieldingTestOperatorFactory<>());
+        }
+
+        operator.sinkTo(new DiscardingSink<>());
+
+        assertThat(CompletableFuture.runAsync(() -> env.getStreamGraph().getJobGraph()))
+                .succeedsWithin(Duration.ofMinutes(1));
     }
 
     @Test
