@@ -88,7 +88,7 @@ _string_doc_seealso = """
              :func:`~Expression.overlay`, :func:`~Expression.regexp_replace`,
              :func:`~Expression.regexp_extract`, :func:`~Expression.substring`,
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
-             :py:attr:`~Expression.ltrim`, :py:attr:`~Expression.rtrim`, :func:`~Expression.repeat`
+             :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`
 """
 
 _temporal_doc_seealso = """
