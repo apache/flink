@@ -428,9 +428,7 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     private String getPreparedToCompareCompiledPlan(final String planAsString) throws IOException {
-        return TableTestUtil.getPrettyJson(
-                TableTestUtil.replaceExecNodeId(
-                        TableTestUtil.replaceFlinkVersion(
-                                TableTestUtil.getFormattedJson(planAsString))));
+        return TableTestUtil.replaceExecNodeId(
+                TableTestUtil.replaceFlinkVersion(TableTestUtil.getPrettyJson(planAsString)));
     }
 }
