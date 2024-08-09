@@ -1308,19 +1308,25 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("parseUrl")(self, part_to_extract, key)
 
-    @property
-    def ltrim(self) -> 'Expression[str]':
+    def ltrim(self, trim_str=None) -> 'Expression[str]':
         """
-        Returns a string that removes the left whitespaces from the given string.
+        Removes any leading characters within trim_str from str.
+        trim_str is set to whitespace by default.
         """
-        return _unary_op("ltrim")(self)
+        if trim_str is None:
+            return _unary_op("ltrim")(self)
+        else:
+            return _binary_op("ltrim")(self, trim_str)
 
-    @property
-    def rtrim(self) -> 'Expression[str]':
+    def rtrim(self, trim_str=None) -> 'Expression[str]':
         """
-        Returns a string that removes the right whitespaces from the given string.
+        Removes any trailing characters within trim_str from str.
+        trim_str is set to whitespace by default.
         """
-        return _unary_op("rtrim")(self)
+        if trim_str is None:
+            return _unary_op("rtrim")(self)
+        else:
+            return _binary_op("rtrim")(self, trim_str)
 
     def btrim(self, trim_str=None) -> 'Expression':
         """

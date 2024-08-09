@@ -324,38 +324,34 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testLTrim(): Unit = {
     testAllApis('f8.ltrim(), "LTRIM(f8)", "This is a test String. ")
 
-    testSqlApi("LTRIM(f8)", "This is a test String. ")
+    testAllApis('f0.ltrim("This "), "LTRIM(f0, 'This ')", "a test String.")
 
-    testSqlApi("LTRIM(f0, 'This ')", "a test String.")
+    testAllApis("abcddcba".ltrim("abc"), "ltrim('abcddcba', 'abc')", "ddcba")
 
-    testSqlApi("ltrim('abcddcba', 'abc')", "ddcba")
+    testAllApis("abcddcba".ltrim("abd"), "LTRIM('abcddcba', 'abd')", "cddcba")
 
-    testSqlApi("LTRIM('abcddcba', 'abd')", "cddcba")
+    testAllApis("心情开开心心".ltrim("开心"), "ltrim('心情开开心心', '开心')", "情开开心心")
 
-    testSqlApi("ltrim('心情开开心心', '开心')", "情开开心心")
+    testAllApis("abcddcba".ltrim('f33), "LTRIM('abcddcba', f33)", "NULL")
 
-    testSqlApi("LTRIM('abcddcba', CAST(null as VARCHAR))", "NULL")
-
-    testSqlApi("LTRIM(CAST(null as VARCHAR), 'abcddcba')", "NULL")
+    testAllApis('f33.ltrim("abcddcba"), "LTRIM(f33, 'abcddcba')", "NULL")
   }
 
   @Test
   def testRTrim(): Unit = {
     testAllApis('f8.rtrim(), "rtrim(f8)", " This is a test String.")
 
-    testSqlApi("rtrim(f8)", " This is a test String.")
+    testAllApis('f0.rtrim("String. "), "RTRIM(f0, 'String. ')", "This is a tes")
 
-    testSqlApi("rtrim(f0, 'String. ')", "This is a tes")
+    testAllApis("abcddcba".rtrim("abc"), "rtrim('abcddcba', 'abc')", "abcdd")
 
-    testSqlApi("rtrim('abcddcba', 'abc')", "abcdd")
+    testAllApis("abcddcba".rtrim("abd"), "RTRIM('abcddcba', 'abd')", "abcddc")
 
-    testSqlApi("rtrim('abcddcba', 'abd')", "abcddc")
+    testAllApis("心情开开心心".rtrim("开心"), "rtrim('心情开开心心', '开心')", "心情")
 
-    testSqlApi("rtrim('心情开开心心', '开心')", "心情")
+    testAllApis("abcddcba".rtrim('f33), "RTRIM('abcddcba', f33)", "NULL")
 
-    testSqlApi("rtrim('abcddcba', CAST(null as VARCHAR))", "NULL")
-
-    testSqlApi("rtrim(CAST(null as VARCHAR), 'abcddcba')", "NULL")
+    testAllApis('f33.rtrim("abcddcba"), "RTRIM(f33, 'abcddcba')", "NULL")
   }
 
   @Test
