@@ -86,10 +86,17 @@ public class InternalKeyedStateTestBase {
     }
 
     <IN> void validateRequestRun(
-            @Nullable State state, StateRequestType type, @Nullable IN payload) {
-        aec.triggerIfNeeded(true);
+            @Nullable State state, StateRequestType type, @Nullable IN payload, boolean isEnd) {
+        aec.drainInflightRecords(0);
         testStateExecutor.validate(state, type, payload);
-        assertThat(testStateExecutor.receivedRequest.isEmpty()).isTrue();
+        if (isEnd) {
+            assertThat(testStateExecutor.receivedRequest.isEmpty()).isTrue();
+        }
+    }
+
+    <IN> void validateRequestRun(
+            @Nullable State state, StateRequestType type, @Nullable IN payload) {
+        validateRequestRun(state, type, payload, true);
     }
 
     /**
@@ -171,6 +178,7 @@ public class InternalKeyedStateTestBase {
         public CompletableFuture<Void> executeBatchRequests(
                 StateRequestContainer stateRequestContainer) {
             receivedRequest.addAll(((TestStateRequestContainer) stateRequestContainer).requests);
+            receivedRequest.forEach(r -> r.getFuture().complete(null));
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.complete(null);
             return future;

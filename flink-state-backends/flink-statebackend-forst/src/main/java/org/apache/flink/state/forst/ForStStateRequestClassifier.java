@@ -68,12 +68,31 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                     dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
                     return;
                 }
+            case AGGREGATING_GET:
+                {
+                    ForStAggregatingState<?, ?, ?, ?, ?> state =
+                            (ForStAggregatingState<?, ?, ?, ?, ?>) stateRequest.getState();
+                    dbGetRequests.add(state.buildDBGetRequest(stateRequest));
+                    return;
+                }
+            case AGGREGATING_PUT:
+                {
+                    ForStAggregatingState<?, ?, ?, ?, ?> state =
+                            (ForStAggregatingState<?, ?, ?, ?, ?>) stateRequest.getState();
+                    dbPutRequests.add(state.buildDBPutRequest(stateRequest));
+                    return;
+                }
             case CLEAR:
                 {
                     if (stateRequest.getState() instanceof ForStValueState) {
                         ForStValueState<?, ?, ?> forStValueState =
                                 (ForStValueState<?, ?, ?>) stateRequest.getState();
                         dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
+                        return;
+                    } else if (stateRequest.getState() instanceof ForStAggregatingState) {
+                        ForStAggregatingState<?, ?, ?, ?, ?> state =
+                                (ForStAggregatingState<?, ?, ?, ?, ?>) stateRequest.getState();
+                        dbPutRequests.add(state.buildDBPutRequest(stateRequest));
                         return;
                     } else {
                         throw new UnsupportedOperationException(

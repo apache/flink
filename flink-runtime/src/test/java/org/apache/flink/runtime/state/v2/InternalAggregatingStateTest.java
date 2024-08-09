@@ -34,7 +34,7 @@ class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
                 new AggregateFunction<Integer, Integer, Integer>() {
                     @Override
                     public Integer createAccumulator() {
-                        return 0;
+                        return 1;
                     }
 
                     @Override
@@ -66,7 +66,9 @@ class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
         state.asyncGet();
         validateRequestRun(state, StateRequestType.AGGREGATING_GET, null);
 
-        state.asyncAdd(1);
-        validateRequestRun(state, StateRequestType.AGGREGATING_ADD, 1);
+        state.asyncAdd(5);
+        validateRequestRun(state, StateRequestType.AGGREGATING_GET, null, false);
+        // the default value is 1
+        validateRequestRun(state, StateRequestType.AGGREGATING_PUT, 6);
     }
 }

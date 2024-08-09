@@ -27,6 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -153,6 +154,16 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                             stateRequestHandler,
                             columnFamilyHandle,
                             (ValueStateDescriptor<SV>) stateDesc,
+                            serializedKeyBuilder,
+                            namespaceSerializer::duplicate,
+                            valueSerializerView,
+                            valueDeserializerView);
+        } else if (stateDesc.getType() == StateDescriptor.Type.AGGREGATING) {
+            return (S)
+                    new ForStAggregatingState<>(
+                            (AggregatingStateDescriptor<?, SV, ?>) stateDesc,
+                            stateRequestHandler,
+                            columnFamilyHandle,
                             serializedKeyBuilder,
                             namespaceSerializer::duplicate,
                             valueSerializerView,
