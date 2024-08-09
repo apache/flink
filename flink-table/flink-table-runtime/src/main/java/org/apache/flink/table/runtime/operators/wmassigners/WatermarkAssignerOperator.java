@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -70,6 +71,9 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     private transient long lastIdleCheckProcessedElements = -1;
 
+    /** {@link PausableRelativeClock} that will be paused in case of backpressure. */
+    private transient PausableRelativeClock inputActivityClock;
+
     /**
      * Create a watermark assigner operator.
      *
@@ -95,6 +99,12 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     @Override
     public void open() throws Exception {
         super.open();
+        inputActivityClock = new PausableRelativeClock(getProcessingTimeService().getClock());
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .registerBackPressureListener(inputActivityClock);
 
         // watermark and timestamp should start from 0
         this.currentWatermark = 0;
@@ -154,7 +164,9 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     @Override
     public void onProcessingTime(long timestamp) throws Exception {
         // timestamp and now can be off in case TM is heavily overloaded.
+        // now and inputActivityNow are using different clocks and can have very different values.
         long now = getProcessingTimeService().getCurrentProcessingTime();
+        long inputActivityNow = inputActivityClock.relativeTimeMillis();
 
         if (watermarkInterval > 0 && lastWatermarkPeriodicEmitTime + watermarkInterval <= now) {
             lastWatermarkPeriodicEmitTime = now;
@@ -162,13 +174,13 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         }
 
         if (processedElements != lastIdleCheckProcessedElements) {
-            timeSinceLastIdleCheck = now;
+            timeSinceLastIdleCheck = inputActivityNow;
             lastIdleCheckProcessedElements = processedElements;
         }
 
         if (isIdlenessEnabled()
                 && currentStatus.equals(WatermarkStatus.ACTIVE)
-                && timeSinceLastIdleCheck + idleTimeout <= now) {
+                && timeSinceLastIdleCheck + idleTimeout <= inputActivityNow) {
             // mark the channel as idle to ignore watermarks from this channel
             emitWatermarkStatus(WatermarkStatus.IDLE);
         }
@@ -213,6 +225,11 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void close() throws Exception {
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .unregisterBackPressureListener(inputActivityClock);
         FunctionUtils.closeFunction(watermarkGenerator);
         super.close();
     }
