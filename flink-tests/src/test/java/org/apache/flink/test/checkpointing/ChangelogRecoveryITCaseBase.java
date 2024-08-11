@@ -163,14 +163,21 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
         env.setStateBackend(stateBackend)
                 .setRestartStrategy(RestartStrategies.fixedDelayRestart(restartAttempts, 0));
-        env.configure(
-                new Configuration()
-                        .set(
-                                StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
-                                Duration.ofMillis(materializationInterval))
-                        .set(
-                                StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED,
-                                materializationMaxFailure));
+        if (materializationInterval >= 0) {
+            env.configure(
+                    new Configuration()
+                            .set(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, true)
+                            .set(
+                                    StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                                    Duration.ofMillis(materializationInterval))
+                            .set(
+                                    StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED,
+                                    materializationMaxFailure));
+        } else {
+            env.configure(
+                    new Configuration()
+                            .set(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, false));
+        }
         return env;
     }
 
