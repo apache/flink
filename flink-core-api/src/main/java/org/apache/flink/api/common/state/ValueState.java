@@ -20,6 +20,8 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -51,6 +53,7 @@ public interface ValueState<T> extends State {
      * @return The state value corresponding to the current input.
      * @throws IOException Thrown if the system cannot access the state.
      */
+    @Nullable
     T value() throws IOException;
 
     /**
