@@ -1816,14 +1816,14 @@ object TableTestUtil {
 
   /** ExecNode {id} is ignored, because id keeps incrementing in test class. */
   def replaceExecNodeId(s: String): String = {
-    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\": 0")
-      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\": 0")
-      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\": 0")
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\" : 0")
+      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\" : 0")
+      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\" : 0")
   }
 
   /** Ignore flink version value. */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\": \"\"")
+    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\" : \"\"")
   }
 
   /** Ignore exec node in operator name and description. */
