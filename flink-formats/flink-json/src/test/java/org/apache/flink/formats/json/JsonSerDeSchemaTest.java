@@ -40,7 +40,7 @@ class JsonSerDeSchemaTest {
     }
 
     @Test
-    void testSrialization() throws IOException {
+    void testSerialization() throws IOException {
         final byte[] serialized = SERIALIZATION_SCHEMA.serialize(new Event(34, "hello"));
         assertThat(serialized).isEqualTo(JSON.getBytes(StandardCharsets.UTF_8));
     }

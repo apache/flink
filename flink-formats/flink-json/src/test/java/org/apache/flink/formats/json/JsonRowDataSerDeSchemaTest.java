@@ -451,7 +451,8 @@ public class JsonRowDataSerDeSchemaTest {
 
         DeserializationSchema<RowData> finalDeserializationSchema = deserializationSchema;
         assertThatThrownBy(() -> finalDeserializationSchema.deserialize(serializedJson))
-                .hasMessage(errorMessage);
+                .hasMessage(errorMessage)
+                .hasRootCauseInstanceOf(JsonParseException.class);
 
         // ignore on parse error
         deserializationSchema =

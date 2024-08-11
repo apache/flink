@@ -549,8 +549,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
             JsonNode field) {
         if (field == null) {
             if (failOnMissingField) {
-                throw new IllegalStateException(
-                        "Could not find field with name '" + fieldName + "'.");
+                throw new JsonParseException("Could not find field with name '" + fieldName + "'.");
             } else {
                 return null;
             }
@@ -574,14 +573,5 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
             return array;
         };
-    }
-
-    /** Exception which refers to parse errors in converters. */
-    private static final class JsonParseException extends RuntimeException {
-        private static final long serialVersionUID = 1L;
-
-        public JsonParseException(String message, Throwable cause) {
-            super(message, cause);
-        }
     }
 }

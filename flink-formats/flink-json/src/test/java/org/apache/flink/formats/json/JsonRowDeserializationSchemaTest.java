@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -233,10 +234,11 @@ public class JsonRowDeserializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowTypeInformation)
                         .failOnMissingField()
                         .build();
-        final JsonRowDeserializationSchema errorDs = deserializationSchema;
-        assertThatThrownBy(() -> errorDs.deserialize(serializedJson))
-                .isInstanceOf(Exception.class)
-                .hasMessageContaining("Failed to deserialize JSON");
+        assertThat(
+                        whenDeserializedWith(deserializationSchema)
+                                .failsWithException(containsCause(JsonParseException.class))
+                                .matches(serializedJson))
+                .isTrue();
 
         // ignore-parse-errors ignores missing field exception too
         deserializationSchema =
