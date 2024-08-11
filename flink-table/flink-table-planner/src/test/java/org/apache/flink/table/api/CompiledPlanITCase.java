@@ -82,11 +82,8 @@ class CompiledPlanITCase extends JsonPlanTestBase {
         CompiledPlan compiledPlan =
                 tableEnv.compilePlanSql("INSERT INTO MySink SELECT * FROM MyTable");
         String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
-        assertThat(
-                        getPreparedToCompareCompiledPlan(
-                                TableTestUtil.getFormattedJson(compiledPlan.asJsonString())))
-                .isEqualTo(
-                        getPreparedToCompareCompiledPlan(TableTestUtil.getFormattedJson(expected)));
+        assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
+                .isEqualTo(getPreparedToCompareCompiledPlan(expected));
     }
 
     @Test
