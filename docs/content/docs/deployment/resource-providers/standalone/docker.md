@@ -429,10 +429,10 @@ services:
   ```sh
   docker-compose run sql-client
   ```
-  You can then start creating tables and queries those.
+  You can then start creating tables and query those.
 
 * Note, that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
-  For example, if you would like to use the Kafka Connector create a custom image with the following Dockerfile
+  For example, if you would like to use the Kafka Connector, then create a custom image with the following Dockerfile:
   
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
