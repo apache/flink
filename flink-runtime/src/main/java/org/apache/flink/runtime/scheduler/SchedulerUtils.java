@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
@@ -64,7 +64,7 @@ public final class SchedulerUtils {
                         ioExecutor,
                         log,
                         jobId,
-                        jobGraph.getSavepointRestoreSettings().getRestoreMode());
+                        jobGraph.getSavepointRestoreSettings().getRecoveryClaimMode());
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -83,7 +83,7 @@ public final class SchedulerUtils {
             Executor ioExecutor,
             Logger log,
             JobID jobId,
-            RestoreMode restoreMode)
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
         return recoveryFactory.createRecoveredCompletedCheckpointStore(
                 jobId,
@@ -91,7 +91,7 @@ public final class SchedulerUtils {
                         jobManagerConfig, log),
                 SharedStateRegistry.DEFAULT_FACTORY,
                 ioExecutor,
-                restoreMode);
+                recoveryClaimMode);
     }
 
     public static CheckpointIDCounter createCheckpointIDCounterIfCheckpointingIsEnabled(

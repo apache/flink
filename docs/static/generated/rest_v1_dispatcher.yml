@@ -2288,7 +2288,7 @@ components:
         allowNonRestoredState:
           type: boolean
         claimMode:
-          $ref: '#/components/schemas/RestoreMode'
+          $ref: '#/components/schemas/RecoveryClaimMode'
         entryClass:
           type: string
         flinkConfiguration:
@@ -2307,7 +2307,7 @@ components:
           items:
             type: string
         restoreMode:
-          $ref: '#/components/schemas/RestoreMode'
+          $ref: '#/components/schemas/RecoveryClaimMode'
         savepointPath:
           type: string
     JarRunResponseBody:
@@ -2773,6 +2773,12 @@ components:
           $ref: '#/components/schemas/Id'
     RawJson:
       type: object
+    RecoveryClaimMode:
+      type: string
+      enum:
+      - CLAIM
+      - NO_CLAIM
+      - LEGACY
     ResourceID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2806,12 +2812,6 @@ components:
       - UNALIGNED_CHECKPOINT
       - SAVEPOINT
       - SYNC_SAVEPOINT
-    RestoreMode:
-      type: string
-      enum:
-      - CLAIM
-      - NO_CLAIM
-      - LEGACY
     RestoredCheckpointStatistics:
       type: object
       properties:

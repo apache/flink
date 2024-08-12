@@ -23,7 +23,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
@@ -305,7 +305,7 @@ public class KubernetesUtils {
      * @param lockIdentity lock identity to check the leadership
      * @param maxNumberOfCheckpointsToRetain max number of checkpoints to retain on state store
      *     handle
-     * @param restoreMode the mode in which the job is restoring
+     * @param recoveryClaimMode the mode in which the job is restoring
      * @return a {@link DefaultCompletedCheckpointStore} with {@link KubernetesStateHandleStore}.
      * @throws Exception when create the storage helper failed
      */
@@ -318,7 +318,7 @@ public class KubernetesUtils {
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
-            RestoreMode restoreMode)
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
 
         final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage =
@@ -342,7 +342,7 @@ public class KubernetesUtils {
                 stateHandleStore,
                 KubernetesCheckpointStoreUtil.INSTANCE,
                 checkpoints,
-                sharedStateRegistryFactory.create(ioExecutor, checkpoints, restoreMode),
+                sharedStateRegistryFactory.create(ioExecutor, checkpoints, recoveryClaimMode),
                 executor);
     }
 

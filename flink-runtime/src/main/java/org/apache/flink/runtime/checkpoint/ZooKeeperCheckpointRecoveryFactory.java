@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -53,7 +53,7 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
-            RestoreMode restoreMode)
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
 
         return ZooKeeperUtils.createCompletedCheckpoints(
@@ -64,7 +64,7 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
                 sharedStateRegistryFactory,
                 ioExecutor,
                 executor,
-                restoreMode);
+                recoveryClaimMode);
     }
 
     @Override

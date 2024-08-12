@@ -21,7 +21,7 @@ package org.apache.flink.client.cli;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.StateRecoveryOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -697,25 +697,25 @@ public class CliFrontendParser {
             String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
             boolean allowNonRestoredState =
                     commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
-            final RestoreMode restoreMode;
+            final RecoveryClaimMode recoveryClaimMode;
             if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
-                restoreMode =
+                recoveryClaimMode =
                         ConfigurationUtils.convertValue(
                                 commandLine.getOptionValue(SAVEPOINT_CLAIM_MODE),
-                                RestoreMode.class);
+                                RecoveryClaimMode.class);
             } else if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
-                restoreMode =
+                recoveryClaimMode =
                         ConfigurationUtils.convertValue(
                                 commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE),
-                                RestoreMode.class);
+                                RecoveryClaimMode.class);
                 System.out.printf(
                         "The option '%s' is deprecated. Please use '%s' instead.%n",
                         SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
             } else {
-                restoreMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
+                recoveryClaimMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
             }
             return SavepointRestoreSettings.forPath(
-                    savepointPath, allowNonRestoredState, restoreMode);
+                    savepointPath, allowNonRestoredState, recoveryClaimMode);
         } else {
             return SavepointRestoreSettings.none();
         }

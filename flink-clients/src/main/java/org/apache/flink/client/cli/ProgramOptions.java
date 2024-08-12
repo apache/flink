@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -139,11 +139,11 @@ public class ProgramOptions extends CommandLineOptions {
         if (getJarFilePath() == null) {
             throw new CliArgsException("Java program should be specified a JAR file.");
         }
-        if (savepointSettings.getRestoreMode().equals(RestoreMode.LEGACY)) {
+        if (savepointSettings.getRecoveryClaimMode().equals(RecoveryClaimMode.LEGACY)) {
             System.out.printf(
                     "Warning: The %s restore mode is deprecated, please use %s or"
                             + " %s mode instead.%n",
-                    RestoreMode.LEGACY, RestoreMode.CLAIM, RestoreMode.NO_CLAIM);
+                    RecoveryClaimMode.LEGACY, RecoveryClaimMode.CLAIM, RecoveryClaimMode.NO_CLAIM);
         }
     }
 

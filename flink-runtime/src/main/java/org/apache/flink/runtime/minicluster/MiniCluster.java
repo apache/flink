@@ -33,7 +33,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -1093,10 +1093,10 @@ public class MiniCluster implements AutoCloseableAsync {
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
         if (overrideRestoreModeForChangelogStateBackend
-                && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
+                && savepointRestoreSettings.getRecoveryClaimMode() == RecoveryClaimMode.NO_CLAIM) {
             final Configuration conf = new Configuration();
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
-            conf.set(StateRecoveryOptions.RESTORE_MODE, RestoreMode.LEGACY);
+            conf.set(StateRecoveryOptions.RESTORE_MODE, RecoveryClaimMode.LEGACY);
             jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.fromConfiguration(conf));
         }
     }

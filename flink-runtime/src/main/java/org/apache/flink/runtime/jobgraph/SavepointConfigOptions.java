@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -56,10 +56,10 @@ public class SavepointConfigOptions {
     /**
      * Describes the mode how Flink should restore from the given savepoint or retained checkpoint.
      */
-    public static final ConfigOption<RestoreMode> RESTORE_MODE =
+    public static final ConfigOption<RecoveryClaimMode> RESTORE_MODE =
             key("execution.savepoint-restore-mode")
-                    .enumType(RestoreMode.class)
-                    .defaultValue(RestoreMode.DEFAULT)
+                    .enumType(RecoveryClaimMode.class)
+                    .defaultValue(RecoveryClaimMode.DEFAULT)
                     .withDescription(
                             "Describes the mode how Flink should restore from the given"
                                     + " savepoint or retained checkpoint.");
