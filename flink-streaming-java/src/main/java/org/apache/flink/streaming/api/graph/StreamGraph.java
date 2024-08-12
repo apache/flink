@@ -135,6 +135,9 @@ public class StreamGraph implements Pipeline {
 
     private boolean autoParallelismEnabled;
 
+    private final transient Map<StreamNode, StreamOperatorFactory<?>> nodeToHeadOperatorCache =
+            new HashMap<>();
+
     public StreamGraph(
             Configuration jobConfiguration,
             ExecutionConfig executionConfig,
@@ -172,6 +175,14 @@ public class StreamGraph implements Pipeline {
 
     public CheckpointConfig getCheckpointConfig() {
         return checkpointConfig;
+    }
+
+    void cacheHeadOperatorForNode(StreamNode node, StreamOperatorFactory<?> headOperator) {
+        nodeToHeadOperatorCache.put(node, headOperator);
+    }
+
+    StreamOperatorFactory<?> getHeadOperatorForNodeFromCache(StreamNode node) {
+        return nodeToHeadOperatorCache.get(node);
     }
 
     public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
