@@ -45,6 +45,8 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
 @Internal
 public class ShowCreateUtil {
 
+    private static final String PRINT_INDENT = "  ";
+
     private ShowCreateUtil() {}
 
     public static String buildShowCreateTableRow(
@@ -57,14 +59,14 @@ public class ShowCreateUtil {
                             "SHOW CREATE TABLE is only supported for tables, but %s is a view. Please use SHOW CREATE VIEW instead.",
                             tableIdentifier.asSerializableString()));
         }
-        final String printIndent = "  ";
         StringBuilder sb =
                 new StringBuilder()
                         .append(buildCreateFormattedPrefix("TABLE", isTemporary, tableIdentifier));
-        sb.append(extractFormattedColumns(table, printIndent));
-        extractFormattedWatermarkSpecs(table, printIndent)
+        sb.append(extractFormattedColumns(table, PRINT_INDENT));
+        extractFormattedWatermarkSpecs(table, PRINT_INDENT)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
-        extractFormattedPrimaryKey(table, printIndent).ifPresent(pk -> sb.append(",\n").append(pk));
+        extractFormattedPrimaryKey(table, PRINT_INDENT)
+                .ifPresent(pk -> sb.append(",\n").append(pk));
         sb.append("\n) ");
         extractFormattedComment(table)
                 .ifPresent(
@@ -76,7 +78,7 @@ public class ShowCreateUtil {
                                 sb.append("PARTITIONED BY (")
                                         .append(partitionedInfoFormatted)
                                         .append(")\n"));
-        extractFormattedOptions(table.getOptions(), printIndent)
+        extractFormattedOptions(table.getOptions(), PRINT_INDENT)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         return sb.toString();
     }
@@ -92,31 +94,22 @@ public class ShowCreateUtil {
                             "SHOW CREATE VIEW is only supported for views, but %s is a table. Please use SHOW CREATE TABLE instead.",
                             viewIdentifier.asSerializableString()));
         }
-        StringBuilder stringBuilder = new StringBuilder();
         if (view.getOrigin() instanceof QueryOperationCatalogView) {
             throw new TableException(
                     "SHOW CREATE VIEW is not supported for views registered by Table API.");
-        } else {
-            stringBuilder.append(
-                    String.format(
-                            "CREATE %sVIEW %s%s as%s%s",
-                            isTemporary ? "TEMPORARY " : "",
-                            viewIdentifier.asSerializableString(),
-                            String.format("(%s)", extractFormattedColumnNames(view)),
-                            System.lineSeparator(),
-                            ((CatalogView) view.getOrigin()).getExpandedQuery()));
         }
-        extractFormattedComment(view)
-                .ifPresent(
-                        c ->
-                                stringBuilder.append(
-                                        String.format(
-                                                " COMMENT '%s'%s", c, System.lineSeparator())));
-        return stringBuilder.toString();
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(buildCreateFormattedPrefix("VIEW", isTemporary, viewIdentifier));
+        sb.append(extractFormattedColumnNames(view, PRINT_INDENT));
+        sb.append("\n) ");
+        extractFormattedComment(view).ifPresent(c -> sb.append(String.format("COMMENT '%s'\n", c)));
+        sb.append("AS ").append(((CatalogView) view.getOrigin()).getExpandedQuery()).append("\n");
+
+        return sb.toString();
     }
 
     public static String buildShowCreateCatalogRow(CatalogDescriptor catalogDescriptor) {
-        final String printIndent = "  ";
         final String comment = catalogDescriptor.getComment().orElse(null);
         return String.format(
                 "CREATE CATALOG %s %sWITH (%s%s%s)%s",
@@ -125,7 +118,7 @@ public class ShowCreateUtil {
                         ? String.format("COMMENT '%s' ", EncodingUtils.escapeSingleQuotes(comment))
                         : "",
                 System.lineSeparator(),
-                extractFormattedOptions(catalogDescriptor.getConfiguration().toMap(), printIndent)
+                extractFormattedOptions(catalogDescriptor.getConfiguration().toMap(), PRINT_INDENT)
                         .orElse(""),
                 System.lineSeparator(),
                 System.lineSeparator());
@@ -249,10 +242,15 @@ public class ShowCreateUtil {
                         .collect(Collectors.joining("," + System.lineSeparator())));
     }
 
-    static String extractFormattedColumnNames(ResolvedCatalogBaseTable<?> baseTable) {
+    static String extractFormattedColumnNames(
+            ResolvedCatalogBaseTable<?> baseTable, String printIndent) {
         return baseTable.getResolvedSchema().getColumns().stream()
-                .map(Column::getName)
-                .map(EncodingUtils::escapeIdentifier)
-                .collect(Collectors.joining(", "));
+                .map(
+                        column ->
+                                String.format(
+                                        "%s%s",
+                                        printIndent,
+                                        EncodingUtils.escapeIdentifier(column.getName())))
+                .collect(Collectors.joining(",\n"));
     }
 }
