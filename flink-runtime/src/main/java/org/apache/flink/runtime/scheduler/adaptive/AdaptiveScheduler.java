@@ -1229,6 +1229,7 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime,
+            boolean forcedRestart,
             List<ExceptionHistoryEntry> failureCollection) {
 
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
@@ -1249,6 +1250,7 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         backoffTime,
+                        forcedRestart,
                         userCodeClassLoader,
                         failureCollection));
         numRestarts++;
