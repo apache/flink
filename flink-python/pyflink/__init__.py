@@ -20,6 +20,12 @@ from functools import wraps
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
+"""
+The pyflink version will be consistent with the flink version and follow the PEP440.
+.. seealso:: https://www.python.org/dev/peps/pep-0440
+"""
+__version__ = "2.0.dev0"
+
 if sys.version_info < (3, 6):
     raise RuntimeError(
         'Python versions prior to 3.6 are not supported for PyFlink [' +

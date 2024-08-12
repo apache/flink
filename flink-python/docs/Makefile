@@ -39,10 +39,6 @@ endif
 SPHINXBUILD = $(SPHINXPYTHON) -m sphinx
 endif
 
-# The project depends on py4j, so py4j-*-src.zip should be set in PYTHONPATH.
-py4j_lib = $(shell echo ../lib/py4j-*-src.zip)
-export PYTHONPATH = $(realpath $(py4j_lib))
-
 # You can set these variables from the command line.
 SPHINXOPTS   ?=
 PAPER        ?=

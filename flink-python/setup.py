@@ -338,7 +338,6 @@ try:
         package_data=PACKAGE_DATA,
         scripts=scripts,
         url='https://flink.apache.org',
-        license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.8',

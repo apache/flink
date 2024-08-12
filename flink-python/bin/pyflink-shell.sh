@@ -36,9 +36,6 @@ export FLINK_HOME
 
 # Add pyflink & py4j & cloudpickle to PYTHONPATH
 export PYTHONPATH="$FLINK_OPT_DIR/python/pyflink.zip:$PYTHONPATH"
-PY4J_ZIP=`echo "$FLINK_OPT_DIR"/python/py4j-*-src.zip`
-CLOUDPICKLE_ZIP=`echo "$FLINK_OPT_DIR"/python/cloudpickle-*-src.zip`
-export PYTHONPATH="$PY4J_ZIP:$CLOUDPICKLE_ZIP:$PYTHONPATH"
 
 PARSER="org.apache.flink.client.python.PythonShellParser"
 function parse_options() {
