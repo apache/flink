@@ -91,12 +91,12 @@ public class ShowCreateUtilTest {
         options.put("k_a", "v_a");
         options.put("k_b", "v_b");
         options.put("k_c", "v_c");
-        final Configuration configuration =
-                Configuration.fromMap(options);
+        final Configuration configuration = Configuration.fromMap(options);
         argList.add(
                 Arguments.of(
                         CatalogDescriptor.of("catalogName", configuration),
-                        "CREATE CATALOG `catalogName`\n" + "WITH (\n"
+                        "CREATE CATALOG `catalogName`\n"
+                                + "WITH (\n"
                                 + "  'k_a' = 'v_a',\n"
                                 + "  'k_b' = 'v_b',\n"
                                 + "  'k_c' = 'v_c'\n"
