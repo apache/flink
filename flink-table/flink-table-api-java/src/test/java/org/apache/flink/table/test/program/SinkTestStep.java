@@ -114,7 +114,9 @@ public final class SinkTestStep extends TableTestStep {
             return expectedMaterializedStrings;
         }
         if (expectedMaterializedRows != null) {
-            return expectedMaterializedRows.stream().map(Row::toString).collect(Collectors.toList());
+            return expectedMaterializedRows.stream()
+                    .map(Row::toString)
+                    .collect(Collectors.toList());
         }
         return getExpectedAsStrings();
     }
