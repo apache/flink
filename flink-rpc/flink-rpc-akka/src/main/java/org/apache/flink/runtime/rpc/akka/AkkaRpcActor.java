@@ -179,7 +179,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                     new EndpointNotStartedException(
                             String.format(
                                     "Discard message %s, because the rpc endpoint %s has not been started yet.",
-                                    message, rpcEndpoint.getAddress())));
+                                    message, getSelf().path())));
         }
     }
 

@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class holds the all {@link TaskLocalStateStoreImpl} objects for a task executor (manager).
@@ -296,9 +297,11 @@ public class TaskExecutorLocalStateStoresManager {
     @Nonnull
     static Collection<Path> listAllocationDirectoriesIn(File localStateRootDirectory)
             throws IOException {
-        return Files.list(localStateRootDirectory.toPath())
-                .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
-                .collect(Collectors.toList());
+        try (Stream<Path> fileListStream = Files.list(localStateRootDirectory.toPath())) {
+            return fileListStream
+                    .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
+                    .collect(Collectors.toList());
+        }
     }
 
     public void shutdown() {

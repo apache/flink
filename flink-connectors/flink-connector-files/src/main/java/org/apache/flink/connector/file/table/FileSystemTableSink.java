@@ -184,7 +184,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         builder.setMetaStoreFactory(new EmptyMetaStoreFactory(path));
         builder.setOverwrite(overwrite);
         builder.setStaticPartitions(staticPartitions);
-        builder.setTempPath(toStagingPath());
+        builder.setPath(path);
         builder.setOutputFileConfig(
                 OutputFileConfig.builder().withPartPrefix("part-" + UUID.randomUUID()).build());
         DataStreamSink<RowData> sink = inputStream.writeUsingOutputFormat(builder.build());

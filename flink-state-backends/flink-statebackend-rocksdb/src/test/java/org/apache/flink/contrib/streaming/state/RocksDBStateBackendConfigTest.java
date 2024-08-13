@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
@@ -42,22 +43,27 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.FlushOptions;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -329,6 +335,57 @@ public class RocksDBStateBackendConfigTest {
         RocksDBStateBackend rocksDbBackend =
                 new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
         rocksDbBackend.setDbStoragePath("relative/path");
+    }
+
+    @Test
+    @Timeout(value = 60)
+    public void testCleanRelocatedDbLogs() throws Exception {
+        final File folder = tempFolder.newFolder();
+        final File relocatedDBLogDir = tempFolder.newFolder("db_logs");
+        final File logFile = new File(relocatedDBLogDir, "taskManager.log");
+        Files.createFile(logFile.toPath());
+        System.setProperty("log.file", logFile.getAbsolutePath());
+
+        Configuration conf = new Configuration();
+        conf.set(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.DEBUG_LEVEL);
+        conf.set(RocksDBConfigurableOptions.LOG_FILE_NUM, 4);
+        conf.set(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE, MemorySize.parse("1kb"));
+        final EmbeddedRocksDBStateBackend rocksDbBackend =
+                new EmbeddedRocksDBStateBackend().configure(conf, getClass().getClassLoader());
+        final String dbStoragePath = new Path(folder.toURI().toString()).toString();
+        rocksDbBackend.setDbStoragePath(dbStoragePath);
+
+        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        RocksDBKeyedStateBackend<Integer> keyedBackend =
+                createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
+
+        File instanceBasePath = keyedBackend.getInstanceBasePath();
+        File instanceRocksDBPath =
+                RocksDBKeyedStateBackendBuilder.getInstanceRocksDBPath(instanceBasePath);
+
+        // avoid tests without relocate.
+        Assume.assumeTrue(instanceRocksDBPath.getAbsolutePath().length() <= 255 - "_LOG".length());
+
+        java.nio.file.Path[] relocatedDbLogs;
+        try {
+            relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
+            while (relocatedDbLogs.length <= 2) {
+                // If the default number of log files in rocksdb is not enough, add more logs.
+                try (FlushOptions flushOptions = new FlushOptions()) {
+                    keyedBackend.db.put(RandomUtils.nextBytes(32), RandomUtils.nextBytes(512));
+                    keyedBackend.db.flush(flushOptions);
+                }
+                relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
+            }
+        } finally {
+            IOUtils.closeQuietly(keyedBackend);
+            keyedBackend.dispose();
+            env.close();
+        }
+
+        relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
+        assertEquals(1, relocatedDbLogs.length);
+        assertEquals("taskManager.log", relocatedDbLogs[0].toFile().getName());
     }
 
     // ------------------------------------------------------------------------

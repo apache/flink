@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -494,6 +495,19 @@ public class ConfigurationTest extends TestLogger {
                         e ->
                                 Assertions.assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
+    }
+
+    @Test
+    public void testToStringDoesNotLeakSensitiveData() {
+        ConfigOption<Map<String, String>> secret =
+                ConfigOptions.key("secret").mapType().noDefaultValue();
+
+        assertTrue(GlobalConfiguration.isSensitive(secret.key()));
+
+        final Configuration cfg = new Configuration();
+        cfg.setString(secret.key(), "secret_value");
+
+        assertThat(cfg.toString(), not(containsString("secret_value")));
     }
 
     // --------------------------------------------------------------------------------------------

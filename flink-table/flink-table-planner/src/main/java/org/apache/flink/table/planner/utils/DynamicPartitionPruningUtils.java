@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -61,7 +62,9 @@ import org.apache.calcite.util.ImmutableIntList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -115,7 +118,7 @@ public class DynamicPartitionPruningUtils {
         private final RelNode relNode;
         private boolean hasFilter;
         private boolean hasPartitionedScan;
-        private final List<ContextResolvedTable> tables = new ArrayList<>();
+        private final Map<ObjectIdentifier, ContextResolvedTable> tables = new HashMap<>();
 
         public DppDimSideChecker(RelNode relNode) {
             this.relNode = relNode;
@@ -232,15 +235,8 @@ public class DynamicPartitionPruningUtils {
         }
 
         private void setTables(ContextResolvedTable catalogTable) {
-            if (tables.size() == 0) {
-                tables.add(catalogTable);
-            } else {
-                for (ContextResolvedTable thisTable : new ArrayList<>(tables)) {
-                    if (!thisTable.getIdentifier().equals(catalogTable.getIdentifier())) {
-                        tables.add(catalogTable);
-                    }
-                }
-            }
+            ObjectIdentifier identifier = catalogTable.getIdentifier();
+            tables.putIfAbsent(identifier, catalogTable);
         }
     }
 
