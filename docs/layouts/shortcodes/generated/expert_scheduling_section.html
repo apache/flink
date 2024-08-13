@@ -87,16 +87,16 @@
             <td>The size of the write buffer of JobEventStore. The content will be flushed to external file system once the buffer is full</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.executing.resource-stabilization-timeout</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Defines the duration the JobManager delays the scaling operation after a resource change if only sufficient resources are available. The scaling operation is performed immediately if the resources have changed and the desired resources are available. The timeout begins as soon as either the available resources or the job's resource requirements are changed.<br />The resource requirements of a running job can be changed using the <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1">REST API endpoint</a>.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.max-delay-for-scale-trigger</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Duration</td>
             <td>The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled and the checkpointing interval multiplied by the by-1-incremented parameter value of jobmanager.adaptive-scheduler.scale-on-failed-checkpoints-count if checkpointing is enabled).</td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>Configure the minimum increase in parallelism for a job to scale up.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.resource-stabilization-timeout</h5></td>
@@ -115,12 +115,6 @@
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
             <td>The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.</td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.adaptive-scheduler.scaling-interval.max</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>Duration</td>
-            <td>Determines the maximum interval time after which a scaling operation is forced even if the <code class="highlighter-rouge">jobmanager.adaptive-scheduler.min-parallelism-increase</code> aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.scaling-interval.min</h5></td>

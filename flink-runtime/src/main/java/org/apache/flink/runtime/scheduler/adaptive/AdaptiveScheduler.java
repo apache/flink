@@ -153,7 +153,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER;
-import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 
 /**
@@ -200,7 +199,7 @@ public class AdaptiveScheduler
         StateTransitionManager create(
                 StateTransitionManager.Context context,
                 Duration cooldownTimeout,
-                @Nullable Duration resourceStabilizationTimeout,
+                Duration resourceStabilizationTimeout,
                 Duration maximumDelayForTrigger,
                 Temporal lastStateTransition);
     }
@@ -232,21 +231,6 @@ public class AdaptiveScheduler
 
             final Duration scalingIntervalMin =
                     configuration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN);
-            final Duration scalingIntervalMax =
-                    configuration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX);
-            Preconditions.checkState(
-                    !scalingIntervalMin.isNegative(),
-                    "%s must be positive integer or 0",
-                    JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key());
-            if (scalingIntervalMax != null) {
-                Preconditions.checkState(
-                        scalingIntervalMax.compareTo(scalingIntervalMin) > 0,
-                        "%s(%d) must be greater than %s(%d)",
-                        JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
-                        scalingIntervalMax,
-                        JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key(),
-                        scalingIntervalMin);
-            }
 
             final int rescaleOnFailedCheckpointsCount =
                     configuration.get(
@@ -283,6 +267,15 @@ public class AdaptiveScheduler
                                                     .getCheckpointInterval())
                             : Duration.ZERO;
 
+            if (configuration.getOptional(JobManagerOptions.MIN_PARALLELISM_INCREASE).isPresent()) {
+                LOG.warn(
+                        "The configuration option {} is deprecated and will be removed in future versions. It's not used anymore. "
+                                + "Please use the configuration option {} and {} to control the sensitivity of a scaling operation.",
+                        JobManagerOptions.MIN_PARALLELISM_INCREASE.key(),
+                        JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key(),
+                        JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT.key());
+            }
+
             return new Settings(
                     executionMode,
                     configuration
@@ -293,8 +286,8 @@ public class AdaptiveScheduler
                             .orElse(stabilizationTimeoutDefault),
                     configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT),
                     scalingIntervalMin,
-                    scalingIntervalMax,
-                    configuration.get(MIN_PARALLELISM_INCREASE),
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT),
                     configuration.get(
                             MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTriggerDefault),
                     rescaleOnFailedCheckpointsCount);
@@ -305,10 +298,9 @@ public class AdaptiveScheduler
         private final Duration resourceStabilizationTimeout;
         private final Duration slotIdleTimeout;
         private final Duration scalingIntervalMin;
-        private final Duration scalingIntervalMax;
+        private final Duration scalingResourceStabilizationTimeout;
         private final Duration maximumDelayForTriggeringRescale;
         private final int rescaleOnFailedCheckpointCount;
-        private final int minParallelismChangeForDesiredRescale;
 
         private Settings(
                 SchedulerExecutionMode executionMode,
@@ -316,8 +308,7 @@ public class AdaptiveScheduler
                 Duration resourceStabilizationTimeout,
                 Duration slotIdleTimeout,
                 Duration scalingIntervalMin,
-                Duration scalingIntervalMax,
-                int minParallelismChangeForDesiredRescale,
+                Duration scalingResourceStabilizationTimeout,
                 Duration maximumDelayForTriggeringRescale,
                 int rescaleOnFailedCheckpointCount) {
             this.executionMode = executionMode;
@@ -325,8 +316,7 @@ public class AdaptiveScheduler
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
             this.slotIdleTimeout = slotIdleTimeout;
             this.scalingIntervalMin = scalingIntervalMin;
-            this.scalingIntervalMax = scalingIntervalMax;
-            this.minParallelismChangeForDesiredRescale = minParallelismChangeForDesiredRescale;
+            this.scalingResourceStabilizationTimeout = scalingResourceStabilizationTimeout;
             this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
             this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
@@ -351,12 +341,8 @@ public class AdaptiveScheduler
             return scalingIntervalMin;
         }
 
-        public Duration getScalingIntervalMax() {
-            return scalingIntervalMax;
-        }
-
-        public int getMinParallelismChangeForDesiredRescale() {
-            return minParallelismChangeForDesiredRescale;
+        public Duration getScalingResourceStabilizationTimeout() {
+            return scalingResourceStabilizationTimeout;
         }
 
         public Duration getMaximumDelayForTriggeringRescale() {
@@ -1206,7 +1192,6 @@ public class AdaptiveScheduler
                         userCodeClassLoader,
                         failureCollection,
                         this::createExecutingStateTransitionManager,
-                        settings.getMinParallelismChangeForDesiredRescale(),
                         settings.getRescaleOnFailedCheckpointCount()));
     }
 
@@ -1215,7 +1200,7 @@ public class AdaptiveScheduler
         return stateTransitionManagerFactory.create(
                 ctx,
                 settings.getScalingIntervalMin(),
-                settings.getScalingIntervalMax(),
+                settings.getScalingResourceStabilizationTimeout(),
                 settings.getMaximumDelayForTriggeringRescale(),
                 lastRescaleTimestamp);
     }

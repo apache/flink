@@ -594,15 +594,12 @@ public class AdaptiveSchedulerTest {
                         Duration.ZERO,
                         mainThreadExecutor);
 
-        final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
-
         scheduler =
                 new AdaptiveSchedulerBuilder(
                                 jobGraph,
                                 singleThreadMainThreadExecutor,
                                 EXECUTOR_RESOURCE.getExecutor())
-                        .setJobMasterConfiguration(configuration)
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
                         .setJobManagerJobMetricGroup(
                                 JobManagerMetricGroup.createJobManagerMetricGroup(
                                                 metricRegistry, "localhost")
@@ -678,7 +675,6 @@ public class AdaptiveSchedulerTest {
                 createDeclarativeSlotPool(jobGraph.getJobID());
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
         configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(10L));
         configuration.set(
                 MetricOptions.JOB_STATUS_METRICS,
@@ -1345,6 +1341,9 @@ public class AdaptiveSchedulerTest {
                 .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
                 .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L))
                 .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L))
+                .set(
+                        JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                        Duration.ofMillis(1L))
                 .set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, Duration.ZERO);
     }
 
@@ -2180,14 +2179,17 @@ public class AdaptiveSchedulerTest {
     @Test
     void testScalingIntervalConfigurationIsRespected() throws ConfigurationException {
         final Duration scalingIntervalMin = Duration.ofMillis(1337);
-        final Duration scalingIntervalMax = Duration.ofMillis(7331);
+        final Duration scalingStabilizationTimeout = Duration.ofMillis(7331);
         final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                scalingStabilizationTimeout);
 
         final AdaptiveScheduler.Settings settings = AdaptiveScheduler.Settings.of(configuration);
         assertThat(settings.getScalingIntervalMin()).isEqualTo(scalingIntervalMin);
-        assertThat(settings.getScalingIntervalMax()).isEqualTo(scalingIntervalMax);
+        assertThat(settings.getScalingResourceStabilizationTimeout())
+                .isEqualTo(scalingStabilizationTimeout);
     }
 
     @Test
@@ -2307,12 +2309,14 @@ public class AdaptiveSchedulerTest {
 
         final Configuration configuration = new Configuration();
         final Duration scalingIntervalMin = Duration.ofMillis(1L);
-        final Duration scalingIntervalMax = Duration.ofMillis(5L);
+        final Duration scalingResourceStabilizationTimeout = Duration.ofMillis(5L);
         final Duration maxDelayForTrigger = Duration.ofMillis(10L);
 
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
         configuration.set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maxDelayForTrigger);
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                scalingResourceStabilizationTimeout);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2333,7 +2337,8 @@ public class AdaptiveSchedulerTest {
         assertThat(scheduler.getState()).isInstanceOf(Executing.class);
         assertThat(factory.cooldownTimeout).isEqualTo(scalingIntervalMin);
         assertThat(factory.maximumDelayForTrigger).isEqualTo(maxDelayForTrigger);
-        assertThat(factory.resourceStabilizationTimeout).isEqualTo(scalingIntervalMax);
+        assertThat(factory.resourceStabilizationTimeout)
+                .isEqualTo(scalingResourceStabilizationTimeout);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -2359,7 +2364,7 @@ public class AdaptiveSchedulerTest {
         public StateTransitionManager create(
                 StateTransitionManager.Context context,
                 Duration cooldownTimeout,
-                @Nullable Duration resourceStabilizationTimeout,
+                Duration resourceStabilizationTimeout,
                 Duration maximumDelayForTrigger,
                 Temporal ignoredTimestamp) {
             this.cooldownTimeout = cooldownTimeout;

@@ -69,7 +69,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
     private final StateTransitionManager.Context transitionContext;
     private Phase phase;
     private final List<ScheduledFuture<?>> scheduledFutures;
-    @Nullable private final Duration resourceStabilizationTimeout;
+    private final Duration resourceStabilizationTimeout;
     private final Duration maxTriggerDelay;
 
     /**
@@ -86,7 +86,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
     DefaultStateTransitionManager(
             Context transitionContext,
             Duration cooldownTimeout,
-            @Nullable Duration resourceStabilizationTimeout,
+            Duration resourceStabilizationTimeout,
             Duration maxTriggerDelay,
             Temporal initializationTime) {
         this(
@@ -103,7 +103,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
             Supplier<Temporal> clock,
             Context transitionContext,
             Duration cooldownTimeout,
-            @Nullable Duration resourceStabilizationTimeout,
+            Duration resourceStabilizationTimeout,
             Duration maxTriggerDelay,
             Temporal initializationTime) {
 
@@ -111,10 +111,11 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         Preconditions.checkArgument(
                 !maxTriggerDelay.isNegative(), "Max trigger delay must not be negative");
         this.maxTriggerDelay = maxTriggerDelay;
+        this.resourceStabilizationTimeout =
+                Preconditions.checkNotNull(resourceStabilizationTimeout);
         Preconditions.checkArgument(
-                resourceStabilizationTimeout == null || !resourceStabilizationTimeout.isNegative(),
+                !resourceStabilizationTimeout.isNegative(),
                 "Resource stabilization timeout must not be negative");
-        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
         this.transitionContext = Preconditions.checkNotNull(transitionContext);
         this.scheduledFutures = new ArrayList<>();
         this.phase =
@@ -318,19 +319,18 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         private Stabilizing(
                 Supplier<Temporal> clock,
                 DefaultStateTransitionManager context,
-                @Nullable Duration resourceStabilizationTimeout,
+                Duration resourceStabilizationTimeout,
                 Temporal firstOnChangeEventTimestamp,
                 Duration maxTriggerDelay) {
             super(clock, context);
             this.onChangeEventTimestamp = firstOnChangeEventTimestamp;
             this.maxTriggerDelay = maxTriggerDelay;
 
-            if (resourceStabilizationTimeout != null) {
-                scheduleRelativelyTo(
-                        () -> context().progressToStabilized(firstOnChangeEventTimestamp),
-                        firstOnChangeEventTimestamp,
-                        resourceStabilizationTimeout);
-            }
+            scheduleRelativelyTo(
+                    () -> context().progressToStabilized(firstOnChangeEventTimestamp),
+                    firstOnChangeEventTimestamp,
+                    resourceStabilizationTimeout);
+
             scheduleTransitionEvaluation();
         }
 
