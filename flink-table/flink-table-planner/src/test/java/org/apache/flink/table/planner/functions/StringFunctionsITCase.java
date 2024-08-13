@@ -136,11 +136,6 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 lit(3).elt("a", "b"), "ELT(3, 'a', 'b')", null, DataTypes.CHAR(1))
                         .testResult(
-                                lit(-1).elt("ab", "b"),
-                                "ELT(-1, 'ab', 'b')",
-                                null,
-                                DataTypes.VARCHAR(2))
-                        .testResult(
                                 lit(9223372036854775807L).elt("ab", "b"),
                                 "ELT(9223372036854775807, 'ab', 'b')",
                                 null,
@@ -186,7 +181,13 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ELT(f2, 'a')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ELT(index <INTEGER_NUMERIC>, expr <CHARACTER_STRING>, exprs <CHARACTER_STRING>...)\n"
-                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)"));
+                                        + "ELT(index <INTEGER_NUMERIC>, expr <BINARY_STRING>, exprs <BINARY_STRING>...)")
+                        .testTableApiValidationError(
+                                lit(-1).elt("a"),
+                                "Index must be an integer starting from '0', but was '-1'.")
+                        .testSqlValidationError(
+                                "ELT(-1, 'a')",
+                                "Index must be an integer starting from '0', but was '-1'."));
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {

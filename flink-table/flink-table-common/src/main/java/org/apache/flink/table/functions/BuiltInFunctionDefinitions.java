@@ -100,6 +100,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAr
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
@@ -1393,19 +1394,28 @@ public final class BuiltInFunctionDefinitions {
                     .name("ELT")
                     .kind(SCALAR)
                     .inputTypeStrategy(
-                            or(
-                                    varyingSequence(
-                                            Arrays.asList("index", "expr", "exprs"),
-                                            Arrays.asList(
-                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
-                                                    logical(LogicalTypeFamily.CHARACTER_STRING))),
-                                    varyingSequence(
-                                            Arrays.asList("index", "expr", "exprs"),
-                                            Arrays.asList(
-                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC),
-                                                    logical(LogicalTypeFamily.BINARY_STRING),
-                                                    logical(LogicalTypeFamily.BINARY_STRING)))))
+                            compositeSequence()
+                                    .argument("index", INDEX)
+                                    .finishWithVarying(
+                                            or(
+                                                    varyingSequence(
+                                                            Arrays.asList("expr", "exprs"),
+                                                            Arrays.asList(
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .CHARACTER_STRING),
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .CHARACTER_STRING))),
+                                                    varyingSequence(
+                                                            Arrays.asList("expr", "exprs"),
+                                                            Arrays.asList(
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .BINARY_STRING),
+                                                                    logical(
+                                                                            LogicalTypeFamily
+                                                                                    .BINARY_STRING))))))
                     .outputTypeStrategy(forceNullable(commonRange(ConstantArgumentCount.from(1))))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
