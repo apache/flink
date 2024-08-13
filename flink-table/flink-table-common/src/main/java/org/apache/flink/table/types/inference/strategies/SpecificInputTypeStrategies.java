@@ -119,6 +119,12 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy TEMPORAL_OVERLAPS =
             new TemporalOverlapsInputTypeStrategy();
 
+    /**
+     * Argument type strategy that expects a {@link LogicalTypeFamily#INTEGER_NUMERIC} starting from
+     * 0.
+     */
+    public static final ArgumentTypeStrategy INDEX = new IndexArgumentTypeStrategy();
+
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies
     // --------------------------------------------------------------------------------------------

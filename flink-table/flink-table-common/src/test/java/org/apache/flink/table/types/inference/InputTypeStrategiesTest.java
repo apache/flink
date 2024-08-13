@@ -42,6 +42,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.logical
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 
 /** Tests for built-in {@link InputTypeStrategies}. */
 class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
@@ -730,7 +731,27 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 DataTypes.INT(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
                         .calledWithLiteralAt(1, DataTypes.BIGINT())
                         .calledWithLiteralAt(2, true)
-                        .expectErrorMessage("Unsupported reinterpret cast from 'INT' to 'BIGINT'"));
+                        .expectErrorMessage("Unsupported reinterpret cast from 'INT' to 'BIGINT'"),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.TINYINT())
+                        .expectSignature("f(<INTEGER_NUMERIC>)")
+                        .expectArgumentTypes(DataTypes.TINYINT()),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .calledWithLiteralAt(0)
+                        .expectArgumentTypes(DataTypes.INT()),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy BIGINT support", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.BIGINT().notNull())
+                        .calledWithLiteralAt(0, Long.MAX_VALUE)
+                        .expectArgumentTypes(DataTypes.BIGINT().notNull()),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy index range", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, -1)
+                        .expectErrorMessage(
+                                "Index must be an integer starting from '0', but was '-1'."),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy index type", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(10, 5))
+                        .expectErrorMessage("Index can only be an INTEGER NUMERIC type."));
     }
 
     private static DataType timeIndicatorType(TimestampKind timestampKind) {
