@@ -109,7 +109,7 @@ public final class SinkTestStep extends TableTestStep {
         return data;
     }
 
-    public List<String> getExpectedBatchResultsAsStrings() {
+    public List<String> getExpectedMaterializedResultsAsStrings() {
         if (expectedMaterializedStrings != null) {
             return expectedMaterializedStrings;
         }
