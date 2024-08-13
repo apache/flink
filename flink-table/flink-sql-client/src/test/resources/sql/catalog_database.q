@@ -101,7 +101,9 @@ show create catalog cat_comment;
 +--------------------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                         result |
 +--------------------------------------------------------------------------------------------------------------------------------+
-| CREATE CATALOG `cat_comment` COMMENT 'hello ''catalog''' WITH (
+| CREATE CATALOG `cat_comment`
+COMMENT 'hello ''catalog'''
+WITH (
   'default-database' = 'db',
   'type' = 'generic_in_memory'
 )
@@ -150,7 +152,8 @@ show create catalog cat2;
 +---------------------------------------------------------------------------------------------+
 |                                                                                      result |
 +---------------------------------------------------------------------------------------------+
-| CREATE CATALOG `cat2` WITH (
+| CREATE CATALOG `cat2`
+WITH (
   'default-database' = 'db',
   'type' = 'generic_in_memory'
 )

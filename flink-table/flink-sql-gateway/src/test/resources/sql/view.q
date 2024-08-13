@@ -90,7 +90,8 @@ CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`v1` (
   `amount`,
   `ts`,
   `ptime`
-) AS SELECT *
+)
+AS SELECT *
 FROM `default_catalog`.`default_database`.`orders`
 !ok
 
@@ -103,7 +104,8 @@ CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`v2` (
   `amount`,
   `ts`,
   `ptime`
-) AS SELECT *
+)
+AS SELECT *
 FROM `default_catalog`.`default_database`.`v1`
 !ok
 
@@ -175,7 +177,8 @@ CREATE VIEW `default_catalog`.`default_database`.`permanent_v1` (
   `amount`,
   `ts`,
   `ptime`
-) AS SELECT *
+)
+AS SELECT *
 FROM `default_catalog`.`default_database`.`orders`
 !ok
 

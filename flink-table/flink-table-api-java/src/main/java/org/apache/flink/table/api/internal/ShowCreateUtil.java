@@ -39,8 +39,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
-
 /** SHOW CREATE statement Util. */
 @Internal
 public class ShowCreateUtil {
@@ -67,10 +65,8 @@ public class ShowCreateUtil {
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
-        sb.append("\n) ");
-        extractFormattedComment(table)
-                .ifPresent(
-                        c -> sb.append(String.format("COMMENT '%s'%s", c, System.lineSeparator())));
+        sb.append("\n)\n");
+        extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         extractFormattedDistributedInfo((ResolvedCatalogTable) table).ifPresent(sb::append);
         extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
                 .ifPresent(
@@ -101,27 +97,23 @@ public class ShowCreateUtil {
         StringBuilder sb =
                 new StringBuilder()
                         .append(buildCreateFormattedPrefix("VIEW", isTemporary, viewIdentifier));
-        sb.append(extractFormattedColumnNames(view, PRINT_INDENT));
-        sb.append("\n) ");
-        extractFormattedComment(view).ifPresent(c -> sb.append(String.format("COMMENT '%s'\n", c)));
+        sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
+        extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         sb.append("AS ").append(((CatalogView) view.getOrigin()).getExpandedQuery()).append("\n");
 
         return sb.toString();
     }
 
     public static String buildShowCreateCatalogRow(CatalogDescriptor catalogDescriptor) {
-        final String comment = catalogDescriptor.getComment().orElse(null);
-        return String.format(
-                "CREATE CATALOG %s %sWITH (%s%s%s)%s",
-                escapeIdentifier(catalogDescriptor.getCatalogName()),
-                StringUtils.isNotEmpty(comment)
-                        ? String.format("COMMENT '%s' ", EncodingUtils.escapeSingleQuotes(comment))
-                        : "",
-                System.lineSeparator(),
-                extractFormattedOptions(catalogDescriptor.getConfiguration().toMap(), PRINT_INDENT)
-                        .orElse(""),
-                System.lineSeparator(),
-                System.lineSeparator());
+        final Optional<String> comment = catalogDescriptor.getComment();
+        StringBuilder sb = new StringBuilder();
+        sb.append("CREATE CATALOG ")
+                .append(EncodingUtils.escapeIdentifier(catalogDescriptor.getCatalogName()))
+                .append("\n");
+        comment.ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractFormattedOptions(catalogDescriptor.getConfiguration().toMap(), PRINT_INDENT)
+                .ifPresent(o -> sb.append("WITH (\n").append(o).append("\n)\n"));
+        return sb.toString();
     }
 
     static String buildCreateFormattedPrefix(
@@ -169,10 +161,7 @@ public class ShowCreateUtil {
                         comment -> {
                             if (StringUtils.isNotEmpty(comment)) {
                                 sb.append(" ");
-                                sb.append(
-                                        String.format(
-                                                "COMMENT '%s'",
-                                                EncodingUtils.escapeSingleQuotes(comment)));
+                                sb.append(formatComment(comment));
                             }
                         });
         return sb.toString();
@@ -204,12 +193,14 @@ public class ShowCreateUtil {
                         .collect(Collectors.joining("\n")));
     }
 
-    static Optional<String> extractFormattedComment(ResolvedCatalogBaseTable<?> table) {
-        String comment = table.getComment();
-        if (StringUtils.isNotEmpty(comment)) {
-            return Optional.of(EncodingUtils.escapeSingleQuotes(comment));
-        }
-        return Optional.empty();
+    private static String formatComment(String comment) {
+        return String.format("COMMENT '%s'", EncodingUtils.escapeSingleQuotes(comment));
+    }
+
+    static Optional<String> extractComment(ResolvedCatalogBaseTable<?> table) {
+        return StringUtils.isEmpty(table.getComment())
+                ? Optional.empty()
+                : Optional.of(table.getComment());
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
@@ -239,6 +230,7 @@ public class ShowCreateUtil {
                                                 printIndent,
                                                 EncodingUtils.escapeSingleQuotes(entry.getKey()),
                                                 EncodingUtils.escapeSingleQuotes(entry.getValue())))
+                        .sorted()
                         .collect(Collectors.joining("," + System.lineSeparator())));
     }
 
