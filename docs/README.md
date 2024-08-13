@@ -64,19 +64,17 @@ Replace <connector_name> with the name of your connector, e.g., `elasticsearch` 
 
 ### Include external documentation hosted on forks for previewing
 
-While contributing to a connector you may want to preview docs changes. To do this, you need to build the Flink docs site locally and include your changes.
-
-To contribute to any Flink's component, you fork the official repo and work on your personal fork. But the configuration above only works for connectors already merged in `apache/flink-connector-<connector-name>` repos.
+If you are contributing to a Fink's connector you may want to preview docs changes locally. To do this, you have to build the Flink docs site locally and include your modified connector's docs. When you contribute to any Flink's component, you fork the official repo and work on your personal fork. But the configuration above only works for connectors already merged in `apache/flink-connector-<connector-name>` repos, not personal forks.
 
 To build the Flink docs site locally and include your connector's docs changes, follow these steps:
 
-1. (If necessary) push the latest changes to your personal fork of the repo, in a branch
+1. (If necessary) push the latest changes to your personal fork of the GitHub repo, in a branch
 
-2. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your forked repo. The reference will look like `integrate_connector_fork_docs <fork_owner> <connector_name> <branch_or_tag>`. Replace <fork_owner> with the owner of the fork, <connector_name> with the name of your connector, and <branch_or_tag> with the name of the branch or tag containing your changes. If you are working on an existing connector, replace the original `integrate_connector_docs <connector_name>...` reference of the same connector with the reference to your fork. If you are working on a new connector not yet released, append the new reference after all other existing connectors. For example, if you are working on Kafka connector's docs, the personal fork is owned by `myUser`, and you are working on the `my-docs-improvements` branch, replace the existing `integrate_connector_docs kafka vX.Y` with `integrate_connector_fork_docs myUser kafka my-docs-improvements`
+2. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your forked repo. The reference will look like `integrate_connector_fork_docs <fork_owner> <connector_name> <branch_or_tag>`. Replace <fork_owner> with the owner of the fork, <connector_name> with the name of your connector, and <branch_or_tag> with the name of the branch or tag containing your changes. For example, if you are working on Kafka connector's docs, the personal fork is owned by `myUser`, and you are working on the `my-docs-improvements` branch, the reference will look like `integrate_connector_fork_docs myUser kafka my-docs-improvements`. If you are contributing to a released connector, replace the refernce to that connector with your own. If you are working on a new connector not yet released, append the new reference after all other existing connectors. 
 
-3. Run `docs/setup_docs.sh`. This will clone the connector's docs from your fork and merge them into Flink docs. 
+3. Run `docs/setup_docs.sh`. Your fork repo is cloned and docs merged into Flink docs, along with all other connectors' docs.
 
-You can now run `docs/build_docs.sh` normally, to generate the Flink docs site.
+4. Run `docs/build_docs.sh` normally, to generate the Flink docs site.
 
 
 ## Generate configuration tables
