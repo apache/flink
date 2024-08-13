@@ -37,6 +37,10 @@ public final class SinkTestStep extends TableTestStep {
     public final @Nullable List<Row> expectedAfterRestore;
     public final @Nullable List<String> expectedBeforeRestoreStrings;
     public final @Nullable List<String> expectedAfterRestoreStrings;
+    // These are added for situations where we need to specify the output in batch.
+    // In many cases, the "expectBeforeRestore*" variables are sufficient.
+    public final @Nullable List<Row> expectedMaterializedRows;
+    public final @Nullable List<String> expectedMaterializedStrings;
     public final boolean testChangelogData;
 
     SinkTestStep(
@@ -49,6 +53,8 @@ public final class SinkTestStep extends TableTestStep {
             @Nullable List<Row> expectedAfterRestore,
             @Nullable List<String> expectedBeforeRestoreStrings,
             @Nullable List<String> expectedAfterRestoreStrings,
+            @Nullable List<Row> expectedMaterializedRows,
+            @Nullable List<String> expectedMaterializedStrings,
             boolean testChangelogData) {
         super(name, schemaComponents, distribution, partitionKeys, options);
         if (expectedBeforeRestore != null && expectedAfterRestoreStrings != null) {
@@ -63,6 +69,8 @@ public final class SinkTestStep extends TableTestStep {
         this.expectedAfterRestore = expectedAfterRestore;
         this.expectedBeforeRestoreStrings = expectedBeforeRestoreStrings;
         this.expectedAfterRestoreStrings = expectedAfterRestoreStrings;
+        this.expectedMaterializedRows = expectedMaterializedRows;
+        this.expectedMaterializedStrings = expectedMaterializedStrings;
         this.testChangelogData = testChangelogData;
     }
 
@@ -101,6 +109,16 @@ public final class SinkTestStep extends TableTestStep {
         return data;
     }
 
+    public List<String> getExpectedBatchResultsAsStrings() {
+        if (expectedMaterializedStrings != null) {
+            return expectedMaterializedStrings;
+        }
+        if (expectedMaterializedRows != null) {
+            return expectedMaterializedRows.stream().map(Row::toString).collect(Collectors.toList());
+        }
+        return getExpectedAsStrings();
+    }
+
     @Override
     public TestKind getKind() {
         return expectedBeforeRestore == null && expectedBeforeRestoreStrings == null
@@ -119,6 +137,8 @@ public final class SinkTestStep extends TableTestStep {
 
         private List<Row> expectedBeforeRestore;
         private List<Row> expectedAfterRestore;
+        private List<Row> expectedMaterializedBeforeRows;
+        private List<String> expectedMaterializedBeforeStrings;
 
         private List<String> expectedBeforeRestoreStrings;
         private List<String> expectedAfterRestoreStrings;
@@ -157,6 +177,16 @@ public final class SinkTestStep extends TableTestStep {
             return this;
         }
 
+        public Builder expectedMaterializedRows(Row... expectedRows) {
+            this.expectedMaterializedBeforeRows = Arrays.asList(expectedRows);
+            return this;
+        }
+
+        public Builder expectedMaterializedStrings(String... expectedRows) {
+            this.expectedMaterializedBeforeStrings = Arrays.asList(expectedRows);
+            return this;
+        }
+
         public Builder testChangelogData() {
             this.testChangelogData = true;
             return this;
@@ -178,6 +208,8 @@ public final class SinkTestStep extends TableTestStep {
                     expectedAfterRestore,
                     expectedBeforeRestoreStrings,
                     expectedAfterRestoreStrings,
+                    expectedMaterializedBeforeRows,
+                    expectedMaterializedBeforeStrings,
                     testChangelogData);
         }
     }
