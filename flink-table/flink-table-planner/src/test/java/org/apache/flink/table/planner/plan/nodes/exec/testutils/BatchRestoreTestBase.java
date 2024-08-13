@@ -230,7 +230,7 @@ public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
             List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);
             List<String> expectResults = sinkTestStep.getExpectedMaterializedResultsAsStrings();
-            assertThat(actualResults).containsAll(expectResults);
+            assertThat(actualResults).containsExactlyInAnyOrderElementsOf(expectResults);
         }
     }
 
