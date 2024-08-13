@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Test for {@link AsyncCalcSplitRule}. */
 public class AsyncCalcSplitRuleTest extends TableTestBase {
 
@@ -239,10 +241,54 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testRightJoinWithFuncInWhereUsingBothTables() {
+    public void testRightJoinEffectivelyInnerJoin() {
         String sqlQuery =
                 "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 "
                         + "WHERE a = a2 AND func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithFuncInWhereUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 " + "WHERE func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinEffectivelyInnerJoin() {
+        String sqlQuery =
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 "
+                        + "WHERE a = a2 AND func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinWithFuncInWhereUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 " + "WHERE func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithFuncInOnUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10 ";
+        assertThatThrownBy(() -> util.verifyRelPlan(sqlQuery))
+                .hasMessage("AsyncScalarFunction not supported for non inner join condition");
+    }
+
+    @Test
+    public void testInnerJoinWithFuncInOnUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testInnerJoinWithFuncInWhereUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
         util.verifyRelPlan(sqlQuery);
     }
 

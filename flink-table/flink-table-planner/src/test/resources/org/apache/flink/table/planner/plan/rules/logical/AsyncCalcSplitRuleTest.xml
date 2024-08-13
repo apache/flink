@@ -553,7 +553,7 @@ AsyncCalc(select=[func1(a) AS EXPR$0])
 ]]>
 		</Resource>
 	</TestCase>
-	<TestCase name="testRightJoinWithFuncInWhereUsingBothTables">
+	<TestCase name="testRightJoinEffectivelyInnerJoin">
 		<Resource name="sql">
 			<![CDATA[SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 WHERE a = a2 AND func6(a, a2) > 10]]>
 		</Resource>
@@ -562,6 +562,145 @@ AsyncCalc(select=[func1(a) AS EXPR$0])
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(=($0, $4), >(func6($0, $4), 10))])
    +- LogicalJoin(condition=[=($0, $4)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[>(f0, 10)])
++- AsyncCalc(select=[a, a2, func6(a, a2) AS f0])
+   +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+      +- Exchange(distribution=[hash[a2]])
+         +- Calc(select=[a2])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testLeftJoinEffectivelyInnerJoin">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE a = a2 AND func6(a, a2) > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(=($0, $4), >(func6($0, $4), 10))])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[>(f0, 10)])
++- AsyncCalc(select=[a, a2, func6(a, a2) AS f0])
+   +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+      +- Exchange(distribution=[hash[a2]])
+         +- Calc(select=[a2])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testRightJoinWithFuncInWhereUsingBothTables">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[>(func6($0, $4), 10)])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[>(f0, 10)])
++- AsyncCalc(select=[a, func6(a, a2) AS f0])
+   +- Join(joinType=[RightOuterJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+      +- Exchange(distribution=[hash[a2]])
+         +- Calc(select=[a2])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testLeftJoinWithFuncInWhereUsingBothTables">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[>(func6($0, $4), 10)])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[>(f0, 10)])
++- AsyncCalc(select=[a, func6(a, a2) AS f0])
+   +- Join(joinType=[LeftOuterJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+      +- Exchange(distribution=[hash[a2]])
+         +- Calc(select=[a2])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testInnerJoinWithFuncInOnUsingBothTables">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalJoin(condition=[AND(=($0, $4), >(func6($0, $4), 10))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[a], where=[>(f0, 10)])
++- AsyncCalc(select=[a, a2, func6(a, a2) AS f0])
+   +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+      +- Exchange(distribution=[hash[a2]])
+         +- Calc(select=[a2])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testInnerJoinWithFuncInWhereUsingBothTables">
+		<Resource name="sql">
+			<![CDATA[SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[>(func6($0, $4), 10)])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
@@ -26,6 +27,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -216,8 +218,13 @@ public class AsyncCalcSplitRule {
         @Override
         public boolean matches(RelOptRuleCall call) {
             FlinkLogicalJoin join = call.rel(0);
-            if (join.getCondition() != null) {
-                return AsyncUtil.containsAsyncCall(join.getCondition());
+            if (join.getCondition() != null && AsyncUtil.containsAsyncCall(join.getCondition())) {
+                if (join.getJoinType() == JoinRelType.INNER) {
+                    return true;
+                } else {
+                    throw new TableException(
+                            "AsyncScalarFunction not supported for non inner join condition");
+                }
             }
             return false;
         }
