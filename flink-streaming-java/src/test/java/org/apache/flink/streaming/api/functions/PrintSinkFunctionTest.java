@@ -31,7 +31,12 @@ import java.io.PrintStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link PrintSinkFunction}. */
+/**
+ * Tests for the {@link PrintSinkFunction}.
+ *
+ * @deprecated will be removed along with {@link PrintSinkFunction}
+ */
+@Deprecated
 class PrintSinkFunctionTest {
 
     private final PrintStream originalSystemOut = System.out;

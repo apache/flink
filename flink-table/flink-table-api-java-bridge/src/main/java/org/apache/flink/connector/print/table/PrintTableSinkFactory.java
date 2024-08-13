@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -158,7 +157,7 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 
     /**
      * Implementation of the SinkFunction converting {@link RowData} to string and passing to {@link
-     * PrintSinkFunction}.
+     * PrintSinkOutputWriter}.
      */
     private static class RowDataPrintFunction extends RichSinkFunction<RowData> {
 

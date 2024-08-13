@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
@@ -69,7 +69,7 @@ public class DataStreamStateTTLTestProgram {
                 .keyBy(TtlStateUpdate::getKey)
                 .flatMap(new TtlVerifyUpdateFunction(ttlConfig, config.reportStatAfterUpdatesNum))
                 .name("TtlVerifyUpdateFunction")
-                .addSink(new PrintSinkFunction<>())
+                .sinkTo(new PrintSink<>())
                 .name("PrintFailedVerifications");
 
         env.execute("State TTL test job");

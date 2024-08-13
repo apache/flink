@@ -37,7 +37,7 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -79,7 +79,7 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
 
         // mutate config according to configuration
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
-        env.fromSequence(0, 1).addSink(new DiscardingSink<>());
+        env.fromSequence(0, 1).sinkTo(new DiscardingSink<>());
 
         DefaultScheduler scheduler =
                 new DefaultSchedulerBuilder(

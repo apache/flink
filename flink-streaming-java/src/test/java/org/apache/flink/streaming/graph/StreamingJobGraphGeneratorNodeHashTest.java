@@ -460,7 +460,7 @@ class StreamingJobGraphGeneratorNodeHashTest {
 
         env.addSource(new NoOpSourceFunction())
                 .setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-                .addSink(new org.apache.flink.streaming.api.functions.sink.DiscardingSink<>())
+                .sinkTo(new org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink<>())
                 // TODO remove this after sinkFunction is not supported.
                 .setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
@@ -475,7 +475,7 @@ class StreamingJobGraphGeneratorNodeHashTest {
         env.addSource(new NoOpSourceFunction())
                 .setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
                 .keyBy(o -> o)
-                .addSink(new org.apache.flink.streaming.api.functions.sink.DiscardingSink<>())
+                .sinkTo(new org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink<>())
                 // TODO remove this after sinkFunction is not supported.
                 .setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 

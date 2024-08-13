@@ -57,7 +57,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
@@ -145,7 +145,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         final DataStreamSource<Integer> input = env.addSource(new SimpleSource());
 
         // TODO replace this by sink v2 after source is ported to FLIP-27.
-        input.addSink(new DiscardingSink<>());
+        input.sinkTo(new DiscardingSink<>());
 
         env.execute();
     }
@@ -241,8 +241,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
 
         env.addSource(new DummySource(StopWithSavepointTestBehavior.FAIL_ON_FIRST_CHECKPOINT_ONLY))
-                // TODO replace this by sink v2 after source is ported to FLIP-27.
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         DummySource.resetForParallelism(PARALLELISM);
 
         JobClient client = env.executeAsync();
@@ -283,9 +282,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
-        env.addSource(new FailOnCompletedCheckpointSource())
-                // TODO replace this by sink v2 after source is ported to FLIP-27.
-                .addSink(new DiscardingSink<>());
+        env.addSource(new FailOnCompletedCheckpointSource()).sinkTo(new DiscardingSink<>());
         final JobClient jobClient = env.executeAsync();
         CommonTestUtils.waitUntilCondition(
                 () -> {
@@ -378,9 +375,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
             StopWithSavepointTestBehavior behavior) {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.addSource(new DummySource(behavior))
-                // TODO replace this by sink v2 after source is ported to FLIP-27.
-                .addSink(new DiscardingSink<>());
+        env.addSource(new DummySource(behavior)).sinkTo(new DiscardingSink<>());
         return env;
     }
 

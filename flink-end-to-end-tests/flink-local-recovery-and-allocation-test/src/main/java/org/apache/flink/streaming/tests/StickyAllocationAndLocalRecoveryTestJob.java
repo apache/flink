@@ -35,7 +35,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
@@ -127,7 +127,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         env.addSource(new RandomLongSource(maxAttempts, delay))
                 .keyBy((KeySelector<Long, Long>) aLong -> aLong)
                 .flatMap(new StateCreatingFlatMap(valueSize, killJvmOnFail))
-                .addSink(new PrintSinkFunction<>());
+                .sinkTo(new PrintSink<>());
 
         env.execute("Sticky Allocation And Local Recovery Test");
     }

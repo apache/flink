@@ -27,7 +27,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 
 import java.util.Collections;
@@ -108,7 +108,7 @@ public class StatefulStreamJobUpgradeTestProgram {
         afterStatefulOperations
                 .flatMap(createSemanticsCheckMapper(pt))
                 .name("SemanticsCheckMapper")
-                .addSink(new PrintSinkFunction<>());
+                .sinkTo(new PrintSink<>());
 
         env.execute("General purpose test job");
     }
@@ -136,7 +136,7 @@ public class StatefulStreamJobUpgradeTestProgram {
                 .keyBy(Event::getKey)
                 .flatMap(createSemanticsCheckMapper(pt))
                 .name("SemanticsCheckMapper")
-                .addSink(new PrintSinkFunction<>());
+                .sinkTo(new PrintSink<>());
 
         env.execute("General purpose test job");
     }

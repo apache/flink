@@ -30,7 +30,7 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -71,7 +71,7 @@ public class RecordAttributesPropagationITCase {
                         env.fromSource(source2, WatermarkStrategy.noWatermarks(), "source2")
                                 .returns(Long.class))
                 .transform("my_op2", Types.LONG, new TwoInputOperator())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         env.execute();
         final RecordAttributes backlog =
                 new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();

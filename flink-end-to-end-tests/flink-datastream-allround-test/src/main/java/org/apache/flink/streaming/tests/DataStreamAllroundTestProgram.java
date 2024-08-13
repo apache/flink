@@ -26,7 +26,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
@@ -240,7 +240,7 @@ public class DataStreamAllroundTestProgram {
                 .flatMap(createSemanticsCheckMapper(pt))
                 .name(SEMANTICS_CHECK_MAPPER.getName())
                 .uid(SEMANTICS_CHECK_MAPPER.getUid())
-                .addSink(new PrintSinkFunction<>())
+                .sinkTo(new PrintSink<>())
                 .name(SEMANTICS_CHECK_PRINT_SINK.getName())
                 .uid(SEMANTICS_CHECK_PRINT_SINK.getUid());
 
@@ -282,7 +282,7 @@ public class DataStreamAllroundTestProgram {
                 .flatMap(createSlidingWindowCheckMapper(pt))
                 .name(SLIDING_WINDOW_CHECK_MAPPER.getName())
                 .uid(SLIDING_WINDOW_CHECK_MAPPER.getUid())
-                .addSink(new PrintSinkFunction<>())
+                .sinkTo(new PrintSink<>())
                 .name(SLIDING_WINDOW_CHECK_PRINT_SINK.getName())
                 .uid(SLIDING_WINDOW_CHECK_PRINT_SINK.getUid());
 

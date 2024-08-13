@@ -61,7 +61,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -952,8 +952,8 @@ public class DataStream<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> print() {
-        PrintSinkFunction<T> printFunction = new PrintSinkFunction<>();
-        return addSink(printFunction).name("Print to Std. Out");
+        PrintSink<T> printSink = new PrintSink<>();
+        return sinkTo(printSink).name("Print to Std. Out");
     }
 
     /**
@@ -968,8 +968,8 @@ public class DataStream<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> printToErr() {
-        PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(true);
-        return addSink(printFunction).name("Print to Std. Err");
+        PrintSink<T> printSink = new PrintSink<>(true);
+        return sinkTo(printSink).name("Print to Std. Err");
     }
 
     /**
@@ -985,8 +985,8 @@ public class DataStream<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> print(String sinkIdentifier) {
-        PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, false);
-        return addSink(printFunction).name("Print to Std. Out");
+        PrintSink<T> printSink = new PrintSink<>(sinkIdentifier, false);
+        return sinkTo(printSink).name("Print to Std. Out");
     }
 
     /**
@@ -1002,8 +1002,8 @@ public class DataStream<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> printToErr(String sinkIdentifier) {
-        PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, true);
-        return addSink(printFunction).name("Print to Std. Err");
+        PrintSink<T> printSink = new PrintSink<>(sinkIdentifier, true);
+        return sinkTo(printSink).name("Print to Std. Err");
     }
 
     /**
