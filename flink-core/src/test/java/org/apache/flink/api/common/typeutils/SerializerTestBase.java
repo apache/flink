@@ -40,7 +40,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CyclicBarrier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -168,11 +170,22 @@ public abstract class SerializerTestBase<T> {
 
         T[] testData = getData();
 
+        Map<T, Void> originalData = new IdentityHashMap<>();
+        Map<T, Void> copiedData = new IdentityHashMap<>();
+
         for (T datum : testData) {
+            originalData.put(datum, null);
             T copy = serializer.copy(datum);
             checkToString(copy);
             deepEquals("Copied element is not equal to the original element.", datum, copy);
+            copiedData.put(copy, null);
         }
+
+        // ensure that all copied data is not reused
+        // Note: Some data may be reused before `copy` but may not be reused
+        // afterward, such as strings in the constant pool. See more at
+        // SimpleVersionedSerializerTypeSerializerProxy.
+        assertThat(copiedData.size()).isGreaterThanOrEqualTo(originalData.size());
     }
 
     @Test
