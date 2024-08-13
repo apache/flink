@@ -251,7 +251,7 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     @Test
     public void testRightJoinWithFuncInWhereUsingBothTables() {
         String sqlQuery =
-                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 " + "WHERE func6(a, a2) > 10";
+                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
         util.verifyRelPlan(sqlQuery);
     }
 
@@ -266,7 +266,7 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     @Test
     public void testLeftJoinWithFuncInWhereUsingBothTables() {
         String sqlQuery =
-                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 " + "WHERE func6(a, a2) > 10";
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
         util.verifyRelPlan(sqlQuery);
     }
 
