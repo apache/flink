@@ -1043,7 +1043,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  `proc` AS PROCTIME(),
         |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
         |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
-        |) COMMENT 'test show create table statement'
+        |)
+        |COMMENT 'test show create table statement'
         |DISTRIBUTED BY (`a`)
         |PARTITIONED BY (`b`, `h`)
         |WITH (
@@ -1105,7 +1106,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  `proc` AS PROCTIME(),
         |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
         |  CONSTRAINT `test_constraint` PRIMARY KEY (`pk1`, `pk2`) NOT ENFORCED
-        |) COMMENT 'test show create table statement'
+        |)
+        |COMMENT 'test show create table statement'
         |DISTRIBUTED INTO 5 BUCKETS
         |PARTITIONED BY (`h`)
         |WITH (
@@ -1140,7 +1142,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |  `a` BIGINT NOT NULL,
         |  `h` VARCHAR(2147483647),
         |  `b` VARCHAR(2147483647) NOT NULL
-        |) COMMENT 'test show create table statement'
+        |)
+        |COMMENT 'test show create table statement'
         |DISTRIBUTED BY RANGE(`a`) INTO 7 BUCKETS
         |PARTITIONED BY (`b`, `h`)
         |WITH (

@@ -90,7 +90,8 @@ show create table orders;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -384,7 +385,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'kafka',
   'scan.startup.mode' = 'earliest-offset'
 )
@@ -411,7 +413,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen',
   'scan.startup.mode' = 'earliest-offset'
 )
@@ -480,7 +483,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -515,7 +519,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -560,7 +565,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -590,7 +596,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -623,7 +630,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `order_constraint` PRIMARY KEY (`trade_order_id`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -653,7 +661,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' MINUTE,
   CONSTRAINT `order_constraint` PRIMARY KEY (`trade_order_id`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -683,7 +692,8 @@ show create table orders2;
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' MINUTE,
   CONSTRAINT `order_constraint` PRIMARY KEY (`trade_order_id`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -712,7 +722,8 @@ show create table orders2;
   `product_id` BIGINT NOT NULL,
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' MINUTE
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -740,7 +751,8 @@ show create table orders2;
   `user_email` VARCHAR(2147483647) NOT NULL,
   `product_id` BIGINT NOT NULL,
   `ptime` AS PROCTIME()
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -838,7 +850,8 @@ show create table tbl1;
   `user` BIGINT NOT NULL,
   `product` VARCHAR(32),
   `amount` INT
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
  |
@@ -970,7 +983,8 @@ show create table orders3;
   `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
   CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+)
+WITH (
   'connector' = 'kafka',
   'scan.startup.mode' = 'earliest-offset'
 )

@@ -121,7 +121,9 @@ create catalog cat_comment comment 'hello ''catalog''' WITH ('type'='generic_in_
 
 show create catalog cat_comment;
 !output
-CREATE CATALOG `cat_comment` COMMENT 'hello ''catalog''' WITH (
+CREATE CATALOG `cat_comment`
+COMMENT 'hello ''catalog'''
+WITH (
   'default-database' = 'db',
   'type' = 'generic_in_memory'
 )
@@ -179,7 +181,8 @@ create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
 
 show create catalog cat2;
 !output
-CREATE CATALOG `cat2` WITH (
+CREATE CATALOG `cat2`
+WITH (
   'default-database' = 'db',
   'type' = 'generic_in_memory'
 )
