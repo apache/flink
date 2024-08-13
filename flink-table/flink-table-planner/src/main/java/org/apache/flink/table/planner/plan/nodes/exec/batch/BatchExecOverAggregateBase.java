@@ -31,6 +31,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction;
@@ -47,6 +49,11 @@ import static org.apache.calcite.sql.SqlKind.PERCENT_RANK;
 public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    public static final String OVER_TRANSFORMATION = "over";
+
+    public static final String FIELD_NAME_OVER_SPEC = "overSpec";
+
+    @JsonProperty(FIELD_NAME_OVER_SPEC)
     protected final OverSpec overSpec;
 
     public BatchExecOverAggregateBase(
@@ -64,6 +71,18 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+        this.overSpec = overSpec;
+    }
+
+    public BatchExecOverAggregateBase(
+            int id,
+            ExecNodeContext context,
+            ReadableConfig persistedConfig,
+            OverSpec overSpec,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.overSpec = overSpec;
     }
 
