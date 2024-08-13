@@ -57,13 +57,14 @@ public final class SinkTestStep extends TableTestStep {
             @Nullable List<String> expectedMaterializedStrings,
             boolean testChangelogData) {
         super(name, schemaComponents, distribution, partitionKeys, options);
-        if (expectedBeforeRestore != null && expectedAfterRestoreStrings != null) {
+        if ((expectedBeforeRestore != null
+                        || expectedAfterRestore != null
+                        || expectedMaterializedRows != null)
+                && (expectedBeforeRestoreStrings != null
+                        || expectedAfterRestoreStrings != null
+                        || expectedMaterializedStrings != null)) {
             throw new IllegalArgumentException(
-                    "You can not mix Row/String representation in before/after restore data.");
-        }
-        if (expectedBeforeRestoreStrings != null && expectedAfterRestore != null) {
-            throw new IllegalArgumentException(
-                    "You can not mix Row/String representation in before/after restore data.");
+                    "You can not mix Row/String representation in restore data.");
         }
         this.expectedBeforeRestore = expectedBeforeRestore;
         this.expectedAfterRestore = expectedAfterRestore;
