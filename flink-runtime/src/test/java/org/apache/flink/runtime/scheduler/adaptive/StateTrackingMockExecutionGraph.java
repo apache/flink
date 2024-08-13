@@ -78,6 +78,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Mocked ExecutionGraph which (partially) tracks the job status, and provides some basic mocks to
@@ -165,7 +167,8 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
-        return Collections.emptyMap();
+        return StreamSupport.stream(getVerticesTopologically().spliterator(), false)
+                .collect(Collectors.toMap(ExecutionJobVertex::getJobVertexId, v -> v));
     }
 
     @Override

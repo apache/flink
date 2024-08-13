@@ -521,17 +521,6 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
-            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            "Configure the minimum increase in parallelism for a job to scale up.");
-
-    @Documentation.Section({
-        Documentation.Sections.EXPERT_SCHEDULING,
-        Documentation.Sections.ALL_JOB_MANAGER
-    })
     public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
             key("jobmanager.adaptive-scheduler.scaling-interval.min")
                     .durationType()
@@ -543,6 +532,56 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
+    public static final ConfigOption<Duration> SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.executing.resource-stabilization-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(60))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the duration the JobManager delays the scaling operation after a resource change if only sufficient resources are available. "
+                                                    + "The scaling operation is performed immediately if the resources have changed and the desired resources are available. "
+                                                    + "The timeout begins as soon as either the available resources or the job's resource requirements are changed.")
+                                    .linebreak()
+                                    .text(
+                                            "The resource requirements of a running job can be changed using the %s.",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1",
+                                                    "REST API endpoint"))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_SCALING_INTERVAL_MIN} and {@link
+     *     JobManagerOptions#SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    public static final ConfigOption<Integer> MIN_PARALLELISM_INCREASE =
+            key("jobmanager.adaptive-scheduler.min-parallelism-increase")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Configure the minimum increase in parallelism for a job to scale up. "
+                                                    + "It's not used anymore. Use the configuration option %s and %s to control the sensitivity of a scaling operation.",
+                                            code(SCHEDULER_SCALING_INTERVAL_MIN.key()),
+                                            code(
+                                                    SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT
+                                                            .key()))
+                                    .linebreak()
+                                    .text(
+                                            "The resource requirements of a running job can be changed using the %s.",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1",
+                                                    "REST API endpoint"))
+                                    .build());
+
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MAX =
             key("jobmanager.adaptive-scheduler.scaling-interval.max")
                     .durationType()

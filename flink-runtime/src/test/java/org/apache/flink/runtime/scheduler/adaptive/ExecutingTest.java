@@ -32,6 +32,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultSubtaskAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.EdgeManager;
@@ -76,6 +77,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +106,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
@@ -158,7 +162,6 @@ class ExecutingTest {
                     new ArrayList<>(),
                     (context, ts) -> TestingStateTransitionManager.withNoOp(),
                     1,
-                    1,
                     Instant.now());
             assertThat(mockExecutionVertex.isDeployCalled()).isFalse();
         }
@@ -185,7 +188,6 @@ class ExecutingTest {
                                         ClassLoader.getSystemClassLoader(),
                                         new ArrayList<>(),
                                         (context, ts) -> TestingStateTransitionManager.withNoOp(),
-                                        1,
                                         1,
                                         Instant.now());
                             }
@@ -609,6 +611,53 @@ class ExecutingTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testInternalParallelismChangeBehavior(boolean parallelismChanged) throws Exception {
+        try (MockExecutingContext adaptiveSchedulerCtx = new MockExecutingContext()) {
+            final AtomicBoolean onChangeCalled = new AtomicBoolean();
+            final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+                    stateTransitionManagerFactory =
+                            (transitionCtx, ts) ->
+                                    TestingStateTransitionManager.withOnChangeEventOnly(
+                                            () -> {
+                                                assertThat(transitionCtx.hasDesiredResources())
+                                                        .isEqualTo(parallelismChanged);
+                                                assertThat(transitionCtx.hasSufficientResources())
+                                                        .isEqualTo(parallelismChanged);
+                                                onChangeCalled.set(true);
+                                            });
+
+            final MockExecutionJobVertex mockExecutionJobVertex =
+                    new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            final ExecutionGraph executionGraph =
+                    new MockExecutionGraph(() -> Collections.singletonList(mockExecutionJobVertex));
+
+            adaptiveSchedulerCtx.setHasDesiredResources(() -> true);
+            adaptiveSchedulerCtx.setHasSufficientResources(() -> true);
+            adaptiveSchedulerCtx.setVertexParallelism(
+                    new VertexParallelism(
+                            executionGraph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v ->
+                                                            parallelismChanged
+                                                                    ? 1 + v.getParallelism()
+                                                                    : v.getParallelism()))));
+
+            final Executing exec =
+                    new ExecutingStateBuilder()
+                            .setStateTransitionManagerFactory(stateTransitionManagerFactory)
+                            .setExecutionGraph(executionGraph)
+                            .build(adaptiveSchedulerCtx);
+
+            exec.onNewResourcesAvailable();
+            assertThat(onChangeCalled.get()).isTrue();
+        }
+    }
+
     public static TaskExecutionStateTransition createFailingStateTransition(
             ExecutionAttemptID attemptId, Exception exception) throws JobException {
         return new TaskExecutionStateTransition(
@@ -666,7 +715,6 @@ class ExecutingTest {
                         ClassLoader.getSystemClassLoader(),
                         new ArrayList<>(),
                         stateTransitionManagerFactory::apply,
-                        1,
                         rescaleOnFailedCheckpointCount,
                         // will be ignored by the TestingStateTransitionManager.Factory
                         Instant.now());
@@ -700,6 +748,10 @@ class ExecutingTest {
         private CompletableFuture<String> mockedStopWithSavepointOperationFuture =
                 new CompletableFuture<>();
 
+        private VertexParallelism vertexParallelism = new VertexParallelism(Collections.emptyMap());
+        private Supplier<Boolean> hasDesiredResourcesSupplier = () -> false;
+        private Supplier<Boolean> hasSufficientResourcesSupplier = () -> false;
+
         public void setExpectFailing(Consumer<FailingArguments> asserter) {
             failingStateValidator.expectInput(asserter);
         }
@@ -718,6 +770,18 @@ class ExecutingTest {
 
         public void setHowToHandleFailure(Function<Throwable, FailureResult> function) {
             this.howToHandleFailure = function;
+        }
+
+        public void setVertexParallelism(VertexParallelism vertexParallelism) {
+            this.vertexParallelism = vertexParallelism;
+        }
+
+        public void setHasDesiredResources(Supplier<Boolean> sup) {
+            hasDesiredResourcesSupplier = sup;
+        }
+
+        public void setHasSufficientResources(Supplier<Boolean> sup) {
+            hasSufficientResourcesSupplier = sup;
         }
 
         // --------- Interface Implementations ------- //
@@ -742,7 +806,7 @@ class ExecutingTest {
 
         @Override
         public Optional<VertexParallelism> getAvailableVertexParallelism() {
-            return Optional.empty();
+            return Optional.ofNullable(vertexParallelism);
         }
 
         @Override
@@ -803,6 +867,16 @@ class ExecutingTest {
                             () -> runIfState(expectedState, action),
                             delay.toMillis(),
                             TimeUnit.MILLISECONDS);
+        }
+
+        @Override
+        public boolean hasDesiredResources() {
+            return hasDesiredResourcesSupplier.get();
+        }
+
+        @Override
+        public boolean hasSufficientResources() {
+            return hasSufficientResourcesSupplier.get();
         }
 
         @Override
