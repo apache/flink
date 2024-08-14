@@ -303,6 +303,14 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testLeftJoinWithFuncInOnUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10 ";
+        assertThatThrownBy(() -> util.verifyRelPlan(sqlQuery))
+                .hasMessage("AsyncScalarFunction not supported for non inner join condition");
+    }
+
+    @Test
     public void testInnerJoinWithFuncInOnUsingBothTables() {
         String sqlQuery =
                 "SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10";
