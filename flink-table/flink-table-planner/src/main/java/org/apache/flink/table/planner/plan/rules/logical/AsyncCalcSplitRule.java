@@ -18,22 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.rex.RexProgramBuilder;
-import org.apache.calcite.rex.RexUtil;
 
 import java.util.List;
 import java.util.Optional;
@@ -66,7 +59,12 @@ public class AsyncCalcSplitRule {
     public static final RelOptRule NESTED_SPLIT = new AsyncCalcSplitNestedRule(ASYNC_CALL_FINDER);
     public static final RelOptRule ONE_PER_CALC_SPLIT =
             new AsyncCalcSplitOnePerCalcRule(ASYNC_CALL_FINDER);
-    public static final RelOptRule NO_ASYNC_JOIN_CONDITIONS = new AsyncCalcSplitJoinCondition();
+    public static final RelOptRule NO_ASYNC_JOIN_CONDITIONS =
+            new SplitRemoteConditionFromJoinRule(
+                    ASYNC_CALL_FINDER,
+                    JavaScalaConversionUtil.toScala(
+                            Optional.of(
+                                    "AsyncScalarFunction not supported for non inner join condition")));
 
     /**
      * An Async implementation of {@link RemoteCalcCallFinder} which finds uses of {@link
@@ -206,73 +204,6 @@ public class AsyncCalcSplitRule {
         /** State object used to keep track of whether a match has been found yet. */
         public static class State {
             boolean foundMatch = false;
-        }
-    }
-
-    public static class AsyncCalcSplitJoinCondition extends RelOptRule {
-
-        protected AsyncCalcSplitJoinCondition() {
-            super(operand(FlinkLogicalJoin.class, RelOptRule.any()), "AsyncCalcSplitJoinCondition");
-        }
-
-        @Override
-        public boolean matches(RelOptRuleCall call) {
-            FlinkLogicalJoin join = call.rel(0);
-            if (join.getCondition() != null && AsyncUtil.containsAsyncCall(join.getCondition())) {
-                if (join.getJoinType() == JoinRelType.INNER) {
-                    return true;
-                } else {
-                    throw new TableException(
-                            "AsyncScalarFunction not supported for non inner join condition");
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public void onMatch(RelOptRuleCall call) {
-            FlinkLogicalJoin join = call.rel(0);
-
-            RexBuilder rexBuilder = join.getCluster().getRexBuilder();
-
-            List<RexNode> joinFilters = RelOptUtil.conjunctions(join.getCondition());
-            List<RexNode> asyncFilters =
-                    joinFilters.stream()
-                            .filter(AsyncUtil::containsAsyncCall)
-                            .collect(Collectors.toList());
-            List<RexNode> remainingFilters =
-                    joinFilters.stream()
-                            .filter(n -> !AsyncUtil.containsAsyncCall(n))
-                            .collect(Collectors.toList());
-
-            RexNode newJoinCondition = RexUtil.composeConjunction(rexBuilder, remainingFilters);
-            FlinkLogicalJoin bottomJoin =
-                    new FlinkLogicalJoin(
-                            join.getCluster(),
-                            join.getTraitSet(),
-                            join.getLeft(),
-                            join.getRight(),
-                            newJoinCondition,
-                            join.getHints(),
-                            join.getJoinType());
-
-            RexProgram rexProgram =
-                    new RexProgramBuilder(bottomJoin.getRowType(), rexBuilder).getProgram();
-            RexNode topCalcCondition = RexUtil.composeConjunction(rexBuilder, asyncFilters);
-
-            FlinkLogicalCalc topCalc =
-                    new FlinkLogicalCalc(
-                            join.getCluster(),
-                            join.getTraitSet(),
-                            bottomJoin,
-                            RexProgram.create(
-                                    bottomJoin.getRowType(),
-                                    rexProgram.getExprList(),
-                                    topCalcCondition,
-                                    bottomJoin.getRowType(),
-                                    rexBuilder));
-
-            call.transformTo(topCalc);
         }
     }
 }
