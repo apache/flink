@@ -928,7 +928,7 @@ show tables;
 !ok
 
 # ==========================================================================
-# test enhanced show tables
+# test enhanced show tables and views
 # ==========================================================================
 
 create catalog catalog1 with ('type'='generic_in_memory');
@@ -991,6 +991,16 @@ create view catalog1.db1.v_person as select * from catalog1.db1.person;
 1 row in set
 !ok
 
+create view catalog1.db1.v_address comment 'view comment' as select * from catalog1.db1.address;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 show tables from catalog1.db1;
 !output
 +------------+
@@ -999,9 +1009,21 @@ show tables from catalog1.db1;
 |    address |
 |        dim |
 |     person |
+|  v_address |
 |   v_person |
 +------------+
-4 rows in set
+5 rows in set
+!ok
+
+show views from catalog1.db1;
+!output
++-----------+
+| view name |
++-----------+
+| v_address |
+|  v_person |
++-----------+
+2 rows in set
 !ok
 
 show tables from catalog1.db1 like '%person%';
@@ -1015,6 +1037,16 @@ show tables from catalog1.db1 like '%person%';
 2 rows in set
 !ok
 
+show views from catalog1.db1 like '%person%';
+!output
++-----------+
+| view name |
++-----------+
+|  v_person |
++-----------+
+1 row in set
+!ok
+
 show tables in catalog1.db1 not like '%person%';
 !output
 +------------+
@@ -1022,8 +1054,19 @@ show tables in catalog1.db1 not like '%person%';
 +------------+
 |    address |
 |        dim |
+|  v_address |
 +------------+
-2 rows in set
+3 rows in set
+!ok
+
+show views in catalog1.db1 not like '%person%';
+!output
++-----------+
+| view name |
++-----------+
+| v_address |
++-----------+
+1 row in set
 !ok
 
 use catalog catalog1;
@@ -1043,5 +1086,15 @@ show tables from db1 like 'p_r%';
 +------------+
 |     person |
 +------------+
+1 row in set
+!ok
+
+show views from db1 like '%p_r%';
+!output
++-----------+
+| view name |
++-----------+
+|  v_person |
++-----------+
 1 row in set
 !ok

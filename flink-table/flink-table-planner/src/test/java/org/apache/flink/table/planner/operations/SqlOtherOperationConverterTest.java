@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowProceduresOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -210,6 +211,34 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         final String sql3 = "SHOW TABLES";
         showTablesOperation = (ShowTablesOperation) parse(sql3);
+        assertThat(showTablesOperation.getCatalogName()).isNull();
+        assertThat(showTablesOperation.getDatabaseName()).isNull();
+        assertThat(showTablesOperation.getPreposition()).isNull();
+    }
+
+    @Test
+    void testShowViews() {
+        final String sql = "SHOW VIEWS from cat1.db1 not like 't%'";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowViewsOperation.class);
+
+        ShowViewsOperation showTablesOperation = (ShowViewsOperation) operation;
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("cat1");
+        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db1");
+        assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
+        assertThat(showTablesOperation.isUseLike()).isTrue();
+        assertThat(showTablesOperation.isNotLike()).isTrue();
+
+        final String sql2 = "SHOW VIEWS in db2";
+        showTablesOperation = (ShowViewsOperation) parse(sql2);
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("builtin");
+        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db2");
+        assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
+        assertThat(showTablesOperation.isUseLike()).isFalse();
+        assertThat(showTablesOperation.isNotLike()).isFalse();
+
+        final String sql3 = "SHOW VIEWS";
+        showTablesOperation = (ShowViewsOperation) parse(sql3);
         assertThat(showTablesOperation.getCatalogName()).isNull();
         assertThat(showTablesOperation.getDatabaseName()).isNull();
         assertThat(showTablesOperation.getPreposition()).isNull();
