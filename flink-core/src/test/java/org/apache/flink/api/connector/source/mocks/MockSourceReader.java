@@ -28,6 +28,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -92,6 +93,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
     @Override
     public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+        releaseFinishedSplits(sourceOutput);
 
         if (waitingForSplitsBehaviour == WaitingForSplits.WAIT_FOR_INITIAL
                 && splitsAssignmentState == SplitsAssignmentState.NO_SPLITS_ASSIGNED) {
@@ -138,6 +140,18 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
             }
             markUnavailable();
             return InputStatus.NOTHING_AVAILABLE;
+        }
+    }
+
+    private void releaseFinishedSplits(ReaderOutput<Integer> sourceOutput) {
+        Iterator<MockSourceSplit> assignedSplitsIterator = assignedSplits.iterator();
+        while (assignedSplitsIterator.hasNext()) {
+            MockSourceSplit assignedSplit = assignedSplitsIterator.next();
+            if (assignedSplit.isFinished()) {
+                sourceOutput.releaseOutputForSplit(assignedSplit.splitId());
+                assignedSplitsIterator.remove();
+                pausedSplits.remove(assignedSplit.splitId());
+            }
         }
     }
 

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -220,6 +221,38 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         // blocked.
         assertThat(sourceReader.getPausedSplits()).containsExactly("0", "1");
         assertThat(dataOutput.getEvents()).doNotHave(new WatermarkAbove(maxEmittedWatermark));
+    }
+
+    @Test
+    void testSplitWatermarkAlignmentWithFinishedSplit() throws Exception {
+        long idleTimeout = 100;
+        MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        MockSourceSplit split0 = new MockSourceSplit(0, 0, 1);
+        MockSourceSplit split1 = new MockSourceSplit(1, 10, 20);
+        int maxAllowedWatermark = 4;
+        int maxEmittedWatermark = maxAllowedWatermark + 1;
+        // the intention is that only first record from split0 gets emitted, then split0 gets
+        // blocked and record (maxEmittedWatermark + 100) is never emitted from split0
+        split0.addRecord(maxEmittedWatermark);
+        split1.addRecord(3);
+
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+
+        while (operator.emitNext(dataOutput) == DataInputStatus.MORE_AVAILABLE) {
+            // split0 emits its only record and is finished/released
+        }
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(maxAllowedWatermark)); // blocks split0
+        assertThat(sourceReader.getPausedSplits()).isEmpty();
     }
 
     private SourceOperator<Integer, MockSourceSplit> createAndOpenSourceOperatorWithIdleness(
