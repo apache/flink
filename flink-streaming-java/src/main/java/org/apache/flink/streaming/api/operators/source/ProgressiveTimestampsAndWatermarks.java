@@ -304,6 +304,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
         }
 
         void releaseOutputForSplit(String splitId) {
+            watermarkUpdateListener.splitFinished(splitId);
             localOutputs.remove(splitId);
             watermarkMultiplexer.unregisterOutput(splitId);
             PausableRelativeClock inputActivityClock =
