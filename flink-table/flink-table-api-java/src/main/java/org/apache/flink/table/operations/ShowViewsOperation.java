@@ -109,7 +109,7 @@ public class ShowViewsOperation implements ShowOperation {
             final String prefix = notLike ? "NOT " : "";
             builder.append(String.format(" %sLIKE '%s'", prefix, likePattern));
         }
-        return "SHOW VIEWS";
+        return builder.toString();
     }
 
     @Override

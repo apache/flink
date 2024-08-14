@@ -200,6 +200,8 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
         assertThat(showTablesOperation.isUseLike()).isTrue();
         assertThat(showTablesOperation.isNotLike()).isTrue();
+        assertThat(showTablesOperation.asSummaryString())
+                .isEqualTo("SHOW TABLES FROM cat1.db1 NOT LIKE 't%'");
 
         final String sql2 = "SHOW TABLES in db2";
         showTablesOperation = (ShowTablesOperation) parse(sql2);
@@ -208,12 +210,14 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
         assertThat(showTablesOperation.isUseLike()).isFalse();
         assertThat(showTablesOperation.isNotLike()).isFalse();
+        assertThat(showTablesOperation.asSummaryString()).isEqualTo("SHOW TABLES IN db2");
 
         final String sql3 = "SHOW TABLES";
         showTablesOperation = (ShowTablesOperation) parse(sql3);
         assertThat(showTablesOperation.getCatalogName()).isNull();
         assertThat(showTablesOperation.getDatabaseName()).isNull();
         assertThat(showTablesOperation.getPreposition()).isNull();
+        assertThat(showTablesOperation.asSummaryString()).isEqualTo("SHOW TABLES");
     }
 
     @Test
@@ -222,26 +226,30 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowViewsOperation.class);
 
-        ShowViewsOperation showTablesOperation = (ShowViewsOperation) operation;
-        assertThat(showTablesOperation.getCatalogName()).isEqualTo("cat1");
-        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db1");
-        assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
-        assertThat(showTablesOperation.isUseLike()).isTrue();
-        assertThat(showTablesOperation.isNotLike()).isTrue();
+        ShowViewsOperation showViewsOperation = (ShowViewsOperation) operation;
+        assertThat(showViewsOperation.getCatalogName()).isEqualTo("cat1");
+        assertThat(showViewsOperation.getDatabaseName()).isEqualTo("db1");
+        assertThat(showViewsOperation.getPreposition()).isEqualTo("FROM");
+        assertThat(showViewsOperation.isUseLike()).isTrue();
+        assertThat(showViewsOperation.isNotLike()).isTrue();
+        assertThat(showViewsOperation.asSummaryString())
+                .isEqualTo("SHOW VIEWS FROM cat1.db1 NOT LIKE 't%'");
 
         final String sql2 = "SHOW VIEWS in db2";
-        showTablesOperation = (ShowViewsOperation) parse(sql2);
-        assertThat(showTablesOperation.getCatalogName()).isEqualTo("builtin");
-        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db2");
-        assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
-        assertThat(showTablesOperation.isUseLike()).isFalse();
-        assertThat(showTablesOperation.isNotLike()).isFalse();
+        showViewsOperation = (ShowViewsOperation) parse(sql2);
+        assertThat(showViewsOperation.getCatalogName()).isEqualTo("builtin");
+        assertThat(showViewsOperation.getDatabaseName()).isEqualTo("db2");
+        assertThat(showViewsOperation.getPreposition()).isEqualTo("IN");
+        assertThat(showViewsOperation.isUseLike()).isFalse();
+        assertThat(showViewsOperation.isNotLike()).isFalse();
+        assertThat(showViewsOperation.asSummaryString()).isEqualTo("SHOW VIEWS IN db2");
 
         final String sql3 = "SHOW VIEWS";
-        showTablesOperation = (ShowViewsOperation) parse(sql3);
-        assertThat(showTablesOperation.getCatalogName()).isNull();
-        assertThat(showTablesOperation.getDatabaseName()).isNull();
-        assertThat(showTablesOperation.getPreposition()).isNull();
+        showViewsOperation = (ShowViewsOperation) parse(sql3);
+        assertThat(showViewsOperation.getCatalogName()).isNull();
+        assertThat(showViewsOperation.getDatabaseName()).isNull();
+        assertThat(showViewsOperation.getPreposition()).isNull();
+        assertThat(showViewsOperation.asSummaryString()).isEqualTo("SHOW VIEWS");
     }
 
     @Test
