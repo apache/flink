@@ -106,11 +106,8 @@ public class ShowTablesOperation implements ShowOperation {
             builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
         }
         if (this.useLike) {
-            if (notLike) {
-                builder.append(String.format(" %s LIKE %s", "NOT", likePattern));
-            } else {
-                builder.append(String.format(" LIKE %s", likePattern));
-            }
+            final String prefix = notLike ? "NOT " : "";
+            builder.append(String.format(" %sLIKE '%s'", prefix, likePattern));
         }
         return builder.toString();
     }

@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowProceduresOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -199,6 +200,8 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
         assertThat(showTablesOperation.isUseLike()).isTrue();
         assertThat(showTablesOperation.isNotLike()).isTrue();
+        assertThat(showTablesOperation.asSummaryString())
+                .isEqualTo("SHOW TABLES FROM cat1.db1 NOT LIKE 't%'");
 
         final String sql2 = "SHOW TABLES in db2";
         showTablesOperation = (ShowTablesOperation) parse(sql2);
@@ -207,12 +210,46 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
         assertThat(showTablesOperation.isUseLike()).isFalse();
         assertThat(showTablesOperation.isNotLike()).isFalse();
+        assertThat(showTablesOperation.asSummaryString()).isEqualTo("SHOW TABLES IN builtin.db2");
 
         final String sql3 = "SHOW TABLES";
         showTablesOperation = (ShowTablesOperation) parse(sql3);
         assertThat(showTablesOperation.getCatalogName()).isNull();
         assertThat(showTablesOperation.getDatabaseName()).isNull();
         assertThat(showTablesOperation.getPreposition()).isNull();
+        assertThat(showTablesOperation.asSummaryString()).isEqualTo("SHOW TABLES");
+    }
+
+    @Test
+    void testShowViews() {
+        final String sql = "SHOW VIEWS from cat1.db1 not like 't%'";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowViewsOperation.class);
+
+        ShowViewsOperation showViewsOperation = (ShowViewsOperation) operation;
+        assertThat(showViewsOperation.getCatalogName()).isEqualTo("cat1");
+        assertThat(showViewsOperation.getDatabaseName()).isEqualTo("db1");
+        assertThat(showViewsOperation.getPreposition()).isEqualTo("FROM");
+        assertThat(showViewsOperation.isUseLike()).isTrue();
+        assertThat(showViewsOperation.isNotLike()).isTrue();
+        assertThat(showViewsOperation.asSummaryString())
+                .isEqualTo("SHOW VIEWS FROM cat1.db1 NOT LIKE 't%'");
+
+        final String sql2 = "SHOW VIEWS in db2";
+        showViewsOperation = (ShowViewsOperation) parse(sql2);
+        assertThat(showViewsOperation.getCatalogName()).isEqualTo("builtin");
+        assertThat(showViewsOperation.getDatabaseName()).isEqualTo("db2");
+        assertThat(showViewsOperation.getPreposition()).isEqualTo("IN");
+        assertThat(showViewsOperation.isUseLike()).isFalse();
+        assertThat(showViewsOperation.isNotLike()).isFalse();
+        assertThat(showViewsOperation.asSummaryString()).isEqualTo("SHOW VIEWS IN builtin.db2");
+
+        final String sql3 = "SHOW VIEWS";
+        showViewsOperation = (ShowViewsOperation) parse(sql3);
+        assertThat(showViewsOperation.getCatalogName()).isNull();
+        assertThat(showViewsOperation.getDatabaseName()).isNull();
+        assertThat(showViewsOperation.getPreposition()).isNull();
+        assertThat(showViewsOperation.asSummaryString()).isEqualTo("SHOW VIEWS");
     }
 
     @Test

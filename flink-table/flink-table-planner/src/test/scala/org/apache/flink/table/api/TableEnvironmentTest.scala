@@ -1481,6 +1481,37 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithEnhancedShowViews(): Unit = {
+    val createCatalogResult =
+      tableEnv.executeSql("CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql("CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createTableStmt =
+      """
+        |CREATE VIEW catalog1.db1.view1 AS SELECT 1, 'abc'
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE VIEW catalog1.db1.view2 AS SELECT 123
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW VIEWS FROM catalog1.db1 like '%w1'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(util.Arrays.asList(Row.of("view1")).iterator(), tableResult3.collect())
+  }
+
+  @Test
   def testExecuteSqlWithShowFunctions(): Unit = {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)

@@ -939,19 +939,19 @@ public class SqlNodeToOperationConversion {
                     sqlShowTables.isWithLike(),
                     sqlShowTables.isNotLike());
         }
-        String[] fullDatabaseName = sqlShowTables.fullDatabaseName();
-        if (fullDatabaseName.length > 2) {
+        List<String> fullDatabaseName = sqlShowTables.fullDatabaseName();
+        if (fullDatabaseName.size() > 2) {
             throw new ValidationException(
                     String.format(
                             "show tables from/in identifier [ %s ] format error",
                             String.join(".", fullDatabaseName)));
         }
         String catalogName =
-                (fullDatabaseName.length == 1)
+                (fullDatabaseName.size() == 1)
                         ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName[0];
+                        : fullDatabaseName.get(0);
         String databaseName =
-                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+                (fullDatabaseName.size() == 1) ? fullDatabaseName.get(0) : fullDatabaseName.get(1);
         return new ShowTablesOperation(
                 catalogName,
                 databaseName,
@@ -1002,7 +1002,32 @@ public class SqlNodeToOperationConversion {
 
     /** Convert SHOW VIEWS statement. */
     private Operation convertShowViews(SqlShowViews sqlShowViews) {
-        return new ShowViewsOperation();
+        if (sqlShowViews.getPreposition() == null) {
+            return new ShowViewsOperation(
+                    sqlShowViews.getLikeSqlPattern(),
+                    sqlShowViews.isWithLike(),
+                    sqlShowViews.isNotLike());
+        }
+        List<String> fullDatabaseName = sqlShowViews.fullDatabaseName();
+        if (fullDatabaseName.size() > 2) {
+            throw new ValidationException(
+                    String.format(
+                            "show views from/in identifier [ %s ] format error",
+                            String.join(".", fullDatabaseName)));
+        }
+        String catalogName =
+                (fullDatabaseName.size() == 1)
+                        ? catalogManager.getCurrentCatalog()
+                        : fullDatabaseName.get(0);
+        String databaseName =
+                (fullDatabaseName.size() == 1) ? fullDatabaseName.get(0) : fullDatabaseName.get(1);
+        return new ShowViewsOperation(
+                catalogName,
+                databaseName,
+                sqlShowViews.getLikeSqlPattern(),
+                sqlShowViews.isWithLike(),
+                sqlShowViews.isNotLike(),
+                sqlShowViews.getPreposition());
     }
 
     /** Convert RICH EXPLAIN statement. */

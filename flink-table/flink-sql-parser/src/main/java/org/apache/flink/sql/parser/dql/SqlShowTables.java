@@ -101,10 +101,8 @@ public class SqlShowTables extends SqlCall {
                 : Collections.singletonList(databaseName);
     }
 
-    public String[] fullDatabaseName() {
-        return Objects.isNull(this.databaseName)
-                ? new String[] {}
-                : databaseName.names.toArray(new String[0]);
+    public List<String> fullDatabaseName() {
+        return Objects.isNull(this.databaseName) ? Collections.emptyList() : databaseName.names;
     }
 
     @Override
@@ -116,11 +114,8 @@ public class SqlShowTables extends SqlCall {
             databaseName.unparse(writer, leftPrec, rightPrec);
         }
         if (isWithLike()) {
-            if (isNotLike()) {
-                writer.keyword(String.format("NOT LIKE '%s'", getLikeSqlPattern()));
-            } else {
-                writer.keyword(String.format("LIKE '%s'", getLikeSqlPattern()));
-            }
+            final String prefix = isNotLike() ? "NOT " : "";
+            writer.keyword(String.format("%sLIKE '%s'", prefix, getLikeSqlPattern()));
         }
     }
 }
