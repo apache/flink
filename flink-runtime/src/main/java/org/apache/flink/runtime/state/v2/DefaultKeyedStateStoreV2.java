@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.ReducingState;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -43,7 +44,7 @@ public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
             return asyncKeyedStateBackend.createState(
-                    VoidNamespaceSerializer.INSTANCE, stateProperties);
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
         }
@@ -54,7 +55,7 @@ public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
             return asyncKeyedStateBackend.createState(
-                    VoidNamespaceSerializer.INSTANCE, stateProperties);
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
         }
@@ -66,7 +67,7 @@ public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
             return asyncKeyedStateBackend.createState(
-                    VoidNamespaceSerializer.INSTANCE, stateProperties);
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
         }
@@ -78,7 +79,7 @@ public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
             return asyncKeyedStateBackend.createState(
-                    VoidNamespaceSerializer.INSTANCE, stateProperties);
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
         }
@@ -90,7 +91,7 @@ public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
             return asyncKeyedStateBackend.createState(
-                    VoidNamespaceSerializer.INSTANCE, stateProperties);
+                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
         }

@@ -480,11 +480,12 @@ class StreamingRuntimeContextTest {
         doAnswer(
                         (Answer<Object>)
                                 invocationOnMock -> {
-                                    ref.set(invocationOnMock.getArguments()[1]);
+                                    ref.set(invocationOnMock.getArguments()[2]);
                                     return null;
                                 })
                 .when(asyncKeyedStateBackend)
                 .createState(
+                        any(),
                         any(TypeSerializer.class),
                         any(org.apache.flink.runtime.state.v2.StateDescriptor.class));
 

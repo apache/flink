@@ -128,7 +128,8 @@ public class InternalKeyedStateTestBase {
                 @Nonnull
                 @Override
                 public <N, S extends State, SV> S createState(
-                        TypeSerializer<N> namespaceSerializer,
+                        @Nonnull N defaultNamespace,
+                        @Nonnull TypeSerializer<N> namespaceSerializer,
                         @Nonnull StateDescriptor<SV> stateDesc)
                         throws Exception {
                     return null;

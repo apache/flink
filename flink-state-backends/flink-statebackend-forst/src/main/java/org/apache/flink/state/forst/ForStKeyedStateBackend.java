@@ -140,7 +140,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     @Override
     @SuppressWarnings("unchecked")
     public <N, S extends State, SV> S createState(
-            TypeSerializer<N> namespaceSerializer, @Nonnull StateDescriptor<SV> stateDesc) {
+            @Nonnull N defaultNamespace,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<SV> stateDesc) {
         Preconditions.checkNotNull(
                 stateRequestHandler,
                 "A non-null stateRequestHandler must be setup before createState");
@@ -154,6 +156,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                             columnFamilyHandle,
                             (ValueStateDescriptor<SV>) stateDesc,
                             serializedKeyBuilder,
+                            defaultNamespace,
                             namespaceSerializer::duplicate,
                             valueSerializerView,
                             valueDeserializerView);

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.v2.InternalKeyedState;
 
 import org.junit.jupiter.api.Test;
@@ -42,8 +43,10 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
     @SuppressWarnings("unchecked")
     public void testExecuteValueStateRequest() throws Exception {
         ForStStateExecutor forStStateExecutor = new ForStStateExecutor(4, db, new WriteOptions());
-        ForStValueState<Integer, Void, String> state1 = buildForStValueState("value-state-1");
-        ForStValueState<Integer, Void, String> state2 = buildForStValueState("value-state-2");
+        ForStValueState<Integer, VoidNamespace, String> state1 =
+                buildForStValueState("value-state-1");
+        ForStValueState<Integer, VoidNamespace, String> state2 =
+                buildForStValueState("value-state-2");
 
         StateRequestContainer stateRequestContainer =
                 forStStateExecutor.createStateRequestContainer();
@@ -52,7 +55,7 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
         // 1. Update value state: keyRange [0, keyNum)
         int keyNum = 1000;
         for (int i = 0; i < keyNum; i++) {
-            ForStValueState<Integer, Void, String> state = (i % 2 == 0 ? state1 : state2);
+            ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
             stateRequestContainer.offer(
                     buildStateRequest(state, StateRequestType.VALUE_UPDATE, i, "test-" + i, i * 2));
         }
@@ -64,14 +67,14 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
         // 2. Get value state: keyRange [0, keyNum)
         //    Update value state: keyRange [keyNum, keyNum + 100]
         for (int i = 0; i < keyNum; i++) {
-            ForStValueState<Integer, Void, String> state = (i % 2 == 0 ? state1 : state2);
+            ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
             StateRequest<?, ?, ?> getRequest =
                     buildStateRequest(state, StateRequestType.VALUE_GET, i, null, i * 2);
             stateRequestContainer.offer(getRequest);
             checkList.add(getRequest);
         }
         for (int i = keyNum; i < keyNum + 100; i++) {
-            ForStValueState<Integer, Void, String> state = (i % 2 == 0 ? state1 : state2);
+            ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
             stateRequestContainer.offer(
                     buildStateRequest(state, StateRequestType.VALUE_UPDATE, i, "test-" + i, i * 2));
         }
@@ -90,12 +93,12 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
         //    Update state with null-value : keyRange [keyNum, keyNum + 100]
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
         for (int i = keyNum - 100; i < keyNum; i++) {
-            ForStValueState<Integer, Void, String> state = (i % 2 == 0 ? state1 : state2);
+            ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
             stateRequestContainer.offer(
                     buildStateRequest(state, StateRequestType.CLEAR, i, null, i * 2));
         }
         for (int i = keyNum; i < keyNum + 100; i++) {
-            ForStValueState<Integer, Void, String> state = (i % 2 == 0 ? state1 : state2);
+            ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
             stateRequestContainer.offer(
                     buildStateRequest(state, StateRequestType.VALUE_UPDATE, i, null, i * 2));
         }
@@ -105,7 +108,7 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
         checkList.clear();
         for (int i = keyNum - 100; i < keyNum + 100; i++) {
-            ForStValueState<Integer, Void, String> state = (i % 2 == 0 ? state1 : state2);
+            ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
             StateRequest<?, ?, ?> getRequest =
                     buildStateRequest(state, StateRequestType.VALUE_GET, i, null, i * 2);
             stateRequestContainer.offer(getRequest);
