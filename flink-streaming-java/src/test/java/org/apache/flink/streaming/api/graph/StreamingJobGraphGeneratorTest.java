@@ -1897,7 +1897,7 @@ class StreamingJobGraphGeneratorTest {
         assertThat(new AbstractID(inputs.get(0).getSourceId()))
                 .isEqualTo(cacheTransformation.getDatasetId());
         assertThat(inputs.get(0).getSource().getProducer().getName())
-                .isEqualTo("map-1 -> map-2 -> Sink: print");
+                .isEqualTo("map-1 -> map-2 -> print: Writer");
 
         env.addCompletedClusterDataset(cacheTransformation.getDatasetId());
         cachedStream.print().name("print");
@@ -1905,7 +1905,7 @@ class StreamingJobGraphGeneratorTest {
         jobGraph = env.getStreamGraph().getJobGraph();
         allVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         assertThat(allVertices).hasSize(1);
-        assertThat(allVertices.get(0).getName()).isEqualTo("CacheRead -> Sink: print");
+        assertThat(allVertices.get(0).getName()).isEqualTo("CacheRead -> print: Writer");
         assertThat(allVertices.get(0).getIntermediateDataSetIdsToConsume()).hasSize(1);
         assertThat(new AbstractID(allVertices.get(0).getIntermediateDataSetIdsToConsume().get(0)))
                 .isEqualTo(cacheTransformation.getDatasetId());
