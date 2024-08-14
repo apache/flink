@@ -256,6 +256,18 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testRightJoinWithLeftOnlyCallInWhere() {
+        String sqlQuery = "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 WHERE func1(a) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithLeftOnlyCallInOn() {
+        String sqlQuery = "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 AND func1(a) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
     public void testLeftJoinEffectivelyInnerJoin() {
         String sqlQuery =
                 "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 "
@@ -267,6 +279,18 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     public void testLeftJoinWithFuncInWhereUsingBothTables() {
         String sqlQuery =
                 "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinWithRightOnlyCallInWhere() {
+        String sqlQuery = "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE func1(a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinWithRightOnlyCallInOn() {
+        String sqlQuery = "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 AND func1(a2) > 10";
         util.verifyRelPlan(sqlQuery);
     }
 
