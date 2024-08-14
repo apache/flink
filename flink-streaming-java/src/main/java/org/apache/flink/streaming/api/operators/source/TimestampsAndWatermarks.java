@@ -62,6 +62,9 @@ public interface TimestampsAndWatermarks<T> {
 
         /** Notifies about changes to per split watermarks. */
         void updateCurrentSplitWatermark(String splitId, long watermark);
+
+        /** Notifies that split has finished. */
+        void splitFinished(String splitId);
     }
 
     /**
