@@ -109,12 +109,11 @@ class RTASITCase extends StreamingTestBase {
     }
 
     @Test
-    void testCreateOrReplaceTableASWithLimit() throws Exception {
-        env().setParallelism(1);
+    void testCreateOrReplaceTableASWithSortLimit() throws Exception {
         tEnv().executeSql(
                         "CREATE OR REPLACE TABLE target WITH ('connector' = 'values',"
-                                + " 'bounded' = 'true')"
-                                + " AS (SELECT a, c FROM source LIMIT 2)")
+                                + " 'sink-insert-only' = 'false')"
+                                + " AS (SELECT a, c FROM source order by `a` LIMIT 2)")
                 .await();
 
         // verify written rows
@@ -122,10 +121,14 @@ class RTASITCase extends StreamingTestBase {
                 .isEqualTo("[+I[1, Hi], +I[2, Hello]]");
 
         // verify the table after replacing
+        Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("connector", "values");
+        expectedOptions.put("sink-insert-only", "false");
         CatalogTable expectCatalogTable =
                 getExpectCatalogTable(
                         new String[] {"a", "c"},
-                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()});
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()},
+                        expectedOptions);
         verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
     }
 
@@ -151,11 +154,16 @@ class RTASITCase extends StreamingTestBase {
 
     private CatalogTable getExpectCatalogTable(
             String[] cols, AbstractDataType<?>[] fieldDataTypes) {
+        return getExpectCatalogTable(cols, fieldDataTypes, getDefaultTargetTableOptions());
+    }
+
+    private CatalogTable getExpectCatalogTable(
+            String[] cols, AbstractDataType<?>[] fieldDataTypes, Map<String, String> tableOptions) {
         return CatalogTable.of(
                 Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
                 null,
                 Collections.emptyList(),
-                getDefaultTargetTableOptions());
+                tableOptions);
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {

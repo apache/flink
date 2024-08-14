@@ -300,20 +300,19 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @TestTemplate
-  def testCreateTableAsSelectWithLimit(): Unit = {
-    env.setParallelism(1)
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
     tEnv
       .executeSql("""
                     |CREATE TABLE MyCtasTable
                     | WITH (
                     |   'connector' = 'values',
-                    |   'sink-insert-only' = 'true'
+                    |   'sink-insert-only' = 'false'
                     |) AS
                     |  (SELECT
                     |    `person`,
                     |    `votes`
                     |  FROM
-                    |    src LIMIT 2)
+                    |    src order by `votes` LIMIT 2)
                     |""".stripMargin)
       .await()
     val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")

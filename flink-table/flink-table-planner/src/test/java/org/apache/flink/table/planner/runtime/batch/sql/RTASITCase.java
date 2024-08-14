@@ -79,12 +79,11 @@ class RTASITCase extends BatchTestBase {
     }
 
     @Test
-    void testReplaceTableASWithLimit() throws Exception {
-        env().setParallelism(1);
+    void testReplaceTableASWithSortLimit() throws Exception {
         tEnv().executeSql(
                         "REPLACE TABLE target WITH ('connector' = 'values',"
                                 + " 'bounded' = 'true')"
-                                + " AS (SELECT * FROM source LIMIT 2)")
+                                + " AS (SELECT * FROM source order by `a` LIMIT 2)")
                 .await();
 
         // verify written rows

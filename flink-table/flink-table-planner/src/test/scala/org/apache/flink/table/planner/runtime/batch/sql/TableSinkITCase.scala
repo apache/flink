@@ -128,8 +128,7 @@ class TableSinkITCase extends BatchTestBase {
   }
 
   @Test
-  def testCreateTableAsSelectWithLimit(): Unit = {
-    env.setParallelism(1)
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
     val resultPath = createTempFolder().getAbsolutePath
     tEnv
       .executeSql(s"""
@@ -139,7 +138,7 @@ class TableSinkITCase extends BatchTestBase {
                      |  'format' = 'testcsv',
                      |  'path' = '$resultPath'
                      |) AS
-                     | (SELECT * FROM MyTable LIMIT 2)
+                     | (SELECT * FROM MyTable order by `a` LIMIT 2)
        """.stripMargin)
       .await()
     val expected = Seq("1,1,Hi", "2,2,Hello")
