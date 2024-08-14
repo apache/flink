@@ -210,7 +210,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
         assertThat(showTablesOperation.isUseLike()).isFalse();
         assertThat(showTablesOperation.isNotLike()).isFalse();
-        assertThat(showTablesOperation.asSummaryString()).isEqualTo("SHOW TABLES IN db2");
+        assertThat(showTablesOperation.asSummaryString()).isEqualTo("SHOW TABLES IN builtin.db2");
 
         final String sql3 = "SHOW TABLES";
         showTablesOperation = (ShowTablesOperation) parse(sql3);
@@ -242,7 +242,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showViewsOperation.getPreposition()).isEqualTo("IN");
         assertThat(showViewsOperation.isUseLike()).isFalse();
         assertThat(showViewsOperation.isNotLike()).isFalse();
-        assertThat(showViewsOperation.asSummaryString()).isEqualTo("SHOW VIEWS IN db2");
+        assertThat(showViewsOperation.asSummaryString()).isEqualTo("SHOW VIEWS IN builtin.db2");
 
         final String sql3 = "SHOW VIEWS";
         showViewsOperation = (ShowViewsOperation) parse(sql3);
