@@ -664,6 +664,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
     }
 
+    @Override
+    public void splitFinished(String splitId) {
+        splitCurrentWatermarks.remove(splitId);
+    }
+
     /**
      * Finds the splits that are beyond the current max watermark and pauses them. At the same time,
      * splits that have been paused and where the global watermark caught up are resumed.
