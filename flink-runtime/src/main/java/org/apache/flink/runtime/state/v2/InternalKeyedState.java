@@ -91,4 +91,8 @@ public abstract class InternalKeyedState<K, N, V> implements InternalPartitioned
     public TypeSerializer<V> getValueSerializer() {
         return stateDescriptor.getSerializer();
     }
+
+    public StateRequestHandler getStateRequestHandler() {
+        return stateRequestHandler;
+    }
 }

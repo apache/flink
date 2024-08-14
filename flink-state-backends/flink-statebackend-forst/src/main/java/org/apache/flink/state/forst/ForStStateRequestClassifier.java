@@ -31,7 +31,7 @@ import java.util.List;
  */
 public class ForStStateRequestClassifier implements StateRequestContainer {
 
-    private final List<ForStDBGetRequest<?, ?, ?>> dbGetRequests;
+    private final List<ForStDBGetRequest<?, ?, ?, ?>> dbGetRequests;
 
     private final List<ForStDBPutRequest<?, ?, ?>> dbPutRequests;
 
@@ -55,17 +55,21 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         StateRequestType stateRequestType = stateRequest.getRequestType();
         switch (stateRequestType) {
             case VALUE_GET:
+            case LIST_GET:
                 {
-                    ForStValueState<?, ?, ?> forStValueState =
-                            (ForStValueState<?, ?, ?>) stateRequest.getState();
-                    dbGetRequests.add(forStValueState.buildDBGetRequest(stateRequest));
+                    ForStInnerTable<?, ?, ?> innerTable =
+                            (ForStInnerTable<?, ?, ?>) stateRequest.getState();
+                    dbGetRequests.add(innerTable.buildDBGetRequest(stateRequest));
                     return;
                 }
             case VALUE_UPDATE:
+            case LIST_UPDATE:
+            case LIST_ADD:
+            case LIST_ADD_ALL:
                 {
-                    ForStValueState<?, ?, ?> forStValueState =
-                            (ForStValueState<?, ?, ?>) stateRequest.getState();
-                    dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
+                    ForStInnerTable<?, ?, ?> innerTable =
+                            (ForStInnerTable<?, ?, ?>) stateRequest.getState();
+                    dbPutRequests.add(innerTable.buildDBPutRequest(stateRequest));
                     return;
                 }
             case CLEAR:
@@ -88,7 +92,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         }
     }
 
-    public List<ForStDBGetRequest<?, ?, ?>> pollDbGetRequests() {
+    public List<ForStDBGetRequest<?, ?, ?, ?>> pollDbGetRequests() {
         return dbGetRequests;
     }
 
