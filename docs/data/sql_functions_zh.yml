@@ -300,8 +300,11 @@ arithmetic:
     table: expr.unhex()
     description: |
       将十六进制字符串 expr 转换为 BINARY。
+      
       如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
+      
       expr <CHAR | VARCHAR>
+      
       返回一个 BINARY。如果 expr 为 `NULL` 或包含非十六进制字符，则返回 `NULL`。
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
@@ -362,8 +365,10 @@ string:
   - sql: BTRIM(str[, trimStr])
     table: str.btrim([trimStr])
     description: |
-      从 str 的左边和右边删除 trimStr 中的字符。trimStr 默认设置为空格。      
+      从 str 的左边和右边删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
       返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
@@ -398,8 +403,11 @@ string:
     table: expr.translate(fromStr, toStr)
     description: |
       将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+      
       如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
-      expr [<CHAR> | <VARCHAR>], fromStr [<CHAR> | <VARCHAR>], toStr [<CHAR> | <VARCHAR>]
+      
+      expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>
+      
       返回 STRING 格式的转换结果。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
@@ -529,8 +537,11 @@ string:
     table: index.elt(expr, exprs...)
     description: |
       返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      
       结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
 
 temporal:

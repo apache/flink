@@ -242,8 +242,11 @@ arithmetic:
     table: expr.unhex()
     description: |
       Converts hexadecimal string expr to BINARY.
+      
       If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
+      
       expr <CHAR | VARCHAR>
+      
       Returns a BINARY. `NULL` if expr is `NULL` or expr contains non-hex characters.
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
@@ -297,7 +300,9 @@ string:
     table: str.btrim([trimStr])
     description: |
       Removes any leading and trailing characters within trimStr from str. trimStr is set to whitespace by default.
+      
       str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
       Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
@@ -322,8 +327,11 @@ string:
     table: expr.translate(fromStr, toStr)
     description: |
       Translate an expr where all characters in fromStr have been replaced with those in toStr.
+      
       If toStr has a shorter length than fromStr, unmatched characters are removed.
-      expr [<CHAR> | <VARCHAR>], fromStr [<CHAR> | <VARCHAR>], toStr [<CHAR> | <VARCHAR>]
+      
+      expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>
+      
       Returns a STRING of translated expr.
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
@@ -429,8 +437,11 @@ string:
     table: index.elt(expr, exprs...)
     description: |
       Returns the index-th expression. index must be an integer between 1 and the number of expressions.
+      
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      
       The result has the type of the least common type of all expressions. `NULL` if index is `NULL` or out of range.
 
 temporal:
