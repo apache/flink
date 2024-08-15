@@ -71,15 +71,12 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     @Override
     public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx)
             throws Exception {
-        if (time == window.maxTimestamp()) {
-            return TriggerResult.FIRE;
-        }
 
         ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
 
         if (fireTimestampState.get().equals(time)) {
             fireTimestampState.clear();
-            registerNextFireTimestamp(time, window, ctx, fireTimestampState);
+            registerNextFireTimestamp(time == window.maxTimestamp() ? time + 1 : time, window, ctx, fireTimestampState);
             return TriggerResult.FIRE;
         }
         return TriggerResult.CONTINUE;
@@ -128,6 +125,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
      *
      * @param interval The time interval at which to fire.
      * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+     *
      * @deprecated Use {@link #of(Duration)}
      */
     @Deprecated
@@ -157,7 +155,8 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     private void registerNextFireTimestamp(
             long time, W window, TriggerContext ctx, ReducingState<Long> fireTimestampState)
             throws Exception {
-        long nextFireTimestamp = Math.min(time + interval, window.maxTimestamp());
+        long nextFireTimestamp = time > window.maxTimestamp() ?
+                time + interval : Math.min(time + interval, window.maxTimestamp());
         fireTimestampState.add(nextFireTimestamp);
         ctx.registerProcessingTimeTimer(nextFireTimestamp);
     }
