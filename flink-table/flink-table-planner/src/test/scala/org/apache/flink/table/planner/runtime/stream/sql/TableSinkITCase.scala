@@ -300,6 +300,30 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @TestTemplate
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'false'
+                    |) AS
+                    |  (SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src order by `votes` LIMIT 2)
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1]",
+      "+I[jason, 1]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCreateTableAsSelectWithoutOptions(): Unit = {
     // TODO: CTAS supports ManagedTable
     // If the connector option is not specified, Flink will creates a Managed table.
