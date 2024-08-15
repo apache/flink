@@ -129,7 +129,6 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
      *
      * @param interval The time interval at which to fire.
      * @param <W> The type of {@link Window Windows} on which this trigger can operate.
-     *
      * @deprecated Use {@link #of(Duration)}
      */
     @Deprecated
