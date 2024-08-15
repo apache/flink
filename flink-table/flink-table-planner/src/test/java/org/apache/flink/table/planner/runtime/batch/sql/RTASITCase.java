@@ -79,6 +79,28 @@ class RTASITCase extends BatchTestBase {
     }
 
     @Test
+    void testReplaceTableASWithSortLimit() throws Exception {
+        tEnv().executeSql(
+                        "REPLACE TABLE target WITH ('connector' = 'values',"
+                                + " 'bounded' = 'true')"
+                                + " AS (SELECT * FROM source order by `a` LIMIT 2)")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[+I[1, 1, Hi], +I[2, 2, Hello]]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"a", "b", "c"},
+                        new AbstractDataType[] {
+                            DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()
+                        });
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
     void testReplaceTableASWithTableNotExist() {
         assertThatThrownBy(() -> tEnv().executeSql("REPLACE TABLE t AS SELECT * FROM source"))
                 .isInstanceOf(TableException.class)
