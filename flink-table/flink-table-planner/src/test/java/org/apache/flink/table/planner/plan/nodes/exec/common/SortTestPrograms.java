@@ -84,6 +84,8 @@ public class SortTestPrograms {
                                             "+I[2, a, 6]",
                                             "-D[2, a, 6]",
                                             "+I[1, a, 5]")
+                                    .expectedMaterializedStrings(
+                                            "+I[1, a, 5]", "+I[1, a, 5]", "+I[2, a, 6]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a LIMIT 3")
                     .build();
@@ -122,6 +124,8 @@ public class SortTestPrograms {
                                     //       [5, c, 9]
                                     // [6, c, 10]  [6, c, 10]
                                     .consumedAfterRestore("-D[4, b, 8]", "+I[6, c, 10]")
+                                    .expectedMaterializedStrings(
+                                            "+I[6, c, 10]", "+I[6, c, 10]", "+I[5, c, 9]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a DESC LIMIT 3")
                     .build();
