@@ -226,6 +226,7 @@ class ContinuousProcessingTimeTriggerTest {
         testHarness.processElement(3, 12);
         // Fire window [10, 20), value is 3.
         testHarness.getProcessingTimeService().setCurrentTime(15);
+        expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(0, 10), 9), 9));
         expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(10, 20), 3), 19));
         TestHarnessUtil.assertOutputEquals(
                 "Output mismatch", expectedOutput, testHarness.getOutput());
