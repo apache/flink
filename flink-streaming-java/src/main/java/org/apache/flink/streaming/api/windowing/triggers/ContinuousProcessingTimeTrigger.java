@@ -76,7 +76,11 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 
         if (fireTimestampState.get().equals(time)) {
             fireTimestampState.clear();
-            registerNextFireTimestamp(time == window.maxTimestamp() ? time + 1 : time, window, ctx, fireTimestampState);
+            registerNextFireTimestamp(
+                    time == window.maxTimestamp() ? time + 1 : time,
+                    window,
+                    ctx,
+                    fireTimestampState);
             return TriggerResult.FIRE;
         }
         return TriggerResult.CONTINUE;
@@ -155,8 +159,10 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     private void registerNextFireTimestamp(
             long time, W window, TriggerContext ctx, ReducingState<Long> fireTimestampState)
             throws Exception {
-        long nextFireTimestamp = time > window.maxTimestamp() ?
-                time + interval : Math.min(time + interval, window.maxTimestamp());
+        long nextFireTimestamp =
+                time > window.maxTimestamp()
+                        ? time + interval
+                        : Math.min(time + interval, window.maxTimestamp());
         fireTimestampState.add(nextFireTimestamp);
         ctx.registerProcessingTimeTimer(nextFireTimestamp);
     }
