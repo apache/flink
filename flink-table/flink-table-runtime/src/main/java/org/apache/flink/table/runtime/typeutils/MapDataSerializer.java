@@ -106,6 +106,7 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
         if (from instanceof BinaryMapData) {
             return ((BinaryMapData) from).copy();
         } else {
+            // the returned value has been copied
             return toBinaryMap(from);
         }
     }

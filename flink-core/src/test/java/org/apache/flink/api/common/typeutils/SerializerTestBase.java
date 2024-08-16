@@ -206,6 +206,24 @@ public abstract class SerializerTestBase<T> {
     }
 
     @Test
+    void testCopyIndependently() {
+        TypeSerializer<T> serializer = getSerializer();
+        T[] originalData = getData();
+        List<T> copiedData = new ArrayList<>(originalData.length);
+
+        for (T datum : originalData) {
+            T copy = serializer.copy(datum, serializer.createInstance());
+            copiedData.add(copy);
+        }
+
+        for (int i = 0; i < originalData.length; i++) {
+            T original = originalData[i];
+            T copied = copiedData.get(i);
+            deepEquals("Copied element is not equal to the original element.", original, copied);
+        }
+    }
+
+    @Test
     void testCopyIntoNewElements() {
         try {
             TypeSerializer<T> serializer = getSerializer();
@@ -497,7 +515,7 @@ public abstract class SerializerTestBase<T> {
 
     // --------------------------------------------------------------------------------------------
 
-    private void deepEquals(String message, T should, T is) {
+    protected void deepEquals(String message, T should, T is) {
         assertThat(message, is, CustomEqualityMatcher.deeplyEquals(should).withChecker(checker));
     }
 
