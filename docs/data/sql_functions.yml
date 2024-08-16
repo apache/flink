@@ -290,12 +290,26 @@ string:
       STRING1.trim(BOTH)
       STRING1.trim()
     description: Returns a string that removes leading and/or trailing characters STRING2 from STRING1. By default, whitespaces at both sides are removed.
-  - sql: LTRIM(string)
-    table: STRING.ltrim()
-    description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
-  - sql: RTRIM(string)
-    table: STRING.rtrim()
-    description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+  - sql: LTRIM(str[, trimStr])
+    table: str.ltrim([trimStr])
+    description: |
+      Removes any leading characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
+  - sql: RTRIM(str[, trimStr])
+    table: str.rtrim([trimStr])
+    description: |
+      Removes any trailing characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
   - sql: BTRIM(str[, trimStr])
     table: str.btrim([trimStr])
     description: |

@@ -1297,9 +1297,21 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(LTRIM, toExpr()));
     }
 
+    /** Returns a string that removes the left chars in trimStr from the given string. */
+    public OutType ltrim(InType trimStr) {
+        return toApiSpecificExpression(
+                unresolvedCall(LTRIM, toExpr(), objectToExpression(trimStr)));
+    }
+
     /** Returns a string that removes the right whitespaces from the given string. */
     public OutType rtrim() {
         return toApiSpecificExpression(unresolvedCall(RTRIM, toExpr()));
+    }
+
+    /** Returns a string that removes the right chars in trimStr from the given string. */
+    public OutType rtrim(InType trimStr) {
+        return toApiSpecificExpression(
+                unresolvedCall(RTRIM, toExpr(), objectToExpression(trimStr)));
     }
 
     /** Returns a string that removes the left and right whitespaces from the given string. */
