@@ -180,6 +180,7 @@ string functions
     Expression.regexp
     Expression.regexp_replace
     Expression.regexp_extract
+    Expression.regexp_extract_all
     Expression.from_base64
     Expression.to_base64
     Expression.ascii
