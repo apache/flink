@@ -1164,6 +1164,21 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.RegexpExtractAllFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition REGEXP_INSTR =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("REGEXP_INSTR")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("str", "regex"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
+                    .outputTypeStrategy(explicit(DataTypes.INT()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.RegexpInstrFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition JSON_QUOTE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_QUOTE")

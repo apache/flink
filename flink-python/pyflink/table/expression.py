@@ -1254,6 +1254,17 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("regexpExtractAll")(self, regex, extract_index)
 
+    def regexp_instr(self, regex) -> 'Expression':
+        """
+        Returns the position of the first substring in str that matches regex.
+        Result indexes begin at 1, 0 if there is no match.
+        null if any of the arguments are null or regex is invalid.
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: An INTEGER representation of the first matched substring index.
+        """
+        return _binary_op("regexpInstr")(self, regex)
+
     @property
     def from_base64(self) -> 'Expression[str]':
         """

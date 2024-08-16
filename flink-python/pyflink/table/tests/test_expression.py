@@ -180,6 +180,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('REGEXP_EXTRACT_ALL(a, b)', str(expr1.regexp_extract_all(expr2)))
         self.assertEqual('REGEXP_EXTRACT_ALL(a, b, 3)', str(expr1.regexp_extract_all(expr2, 3)))
         self.assertEqual("regexpReplace(a, b, 'abc')", str(expr1.regexp_replace(expr2, 'abc')))
+        self.assertEqual("REGEXP_INSTR(a, b)", str(expr1.regexp_instr(expr2)))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))
