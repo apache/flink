@@ -89,7 +89,7 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
         } else if (from instanceof BinaryArrayData) {
             return ((BinaryArrayData) from).copy();
         } else {
-            return toBinaryArray(from);
+            return toBinaryArray(from).copy();
         }
     }
 
