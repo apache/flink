@@ -433,6 +433,16 @@ string:
       `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
       
       返回一个 `ARRAY<STRING>`，表示所有匹配的子串。如果任何参数为 `NULL`或非法，则返回 `NULL`。
+  - sql: REGEXP_INSTR(str, regex)
+    table: str.regexpInstr(regex)
+    description: |
+      返回 str 中第一个匹配 regex 的子字符串的索引。
+      
+      结果索引从 1 开始，如果匹配失败则返回 0。
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      返回一个 `INTEGER` 表示 str 中第一个匹配 regex 的子字符串索引。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |

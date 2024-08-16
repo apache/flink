@@ -163,6 +163,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_COUNT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT_ALL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
@@ -1206,6 +1207,19 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType regexpExtractAll(InType regex) {
         return toApiSpecificExpression(
                 unresolvedCall(REGEXP_EXTRACT_ALL, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
+     * Returns the position of the first substring in {@code str} that matches {@code regex}. <br>
+     * Result indexes begin at 1, 0 if there is no match. <br>
+     *
+     * @param regex A STRING expression with a matching pattern.
+     * @return An INTEGER representation of the first matched substring index. <br>
+     *     null if any of the arguments are null or {@code regex} is invalid.
+     */
+    public OutType regexpInstr(InType regex) {
+        return toApiSpecificExpression(
+                unresolvedCall(REGEXP_INSTR, toExpr(), objectToExpression(regex)));
     }
 
     /**

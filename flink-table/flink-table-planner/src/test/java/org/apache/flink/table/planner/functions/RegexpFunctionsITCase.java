@@ -35,7 +35,8 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                         regexpCountTestCases(),
                         regexpExtractTestCases(),
-                        regexpExtractAllTestCases())
+                        regexpExtractAllTestCases(),
+                        regexpInstrTestCases())
                 .flatMap(s -> s);
     }
 
@@ -237,5 +238,78 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "REGEXP_EXTRACT_ALL(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)\n"
                                         + "REGEXP_EXTRACT_ALL(str <CHARACTER_STRING>, regex <CHARACTER_STRING>, extractIndex <INTEGER_NUMERIC>)"));
+    }
+
+    private Stream<TestSetSpec> regexpInstrTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_INSTR)
+                        .onFieldsWithData(null, "abcdeabde", "100-200, 300-400")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f0").regexpInstr($("f1")),
+                                "REGEXP_INSTR(f0, f1)",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                $("f1").regexpInstr($("f0")),
+                                "REGEXP_INSTR(f1, f0)",
+                                null,
+                                DataTypes.INT())
+                        // invalid regexp
+                        .testResult(
+                                $("f1").regexpInstr("("),
+                                "REGEXP_INSTR(f1, '(')",
+                                null,
+                                DataTypes.INT())
+                        // not found
+                        .testResult(
+                                $("f2").regexpInstr("[a-z]"),
+                                "REGEXP_INSTR(f2, '[a-z]')",
+                                0,
+                                DataTypes.INT())
+                        // border chars
+                        .testResult(
+                                lit("Helloworld! Hello everyone!").regexpInstr("\\bHello\\b"),
+                                "REGEXP_INSTR('Helloworld! Hello everyone!', '\\bHello\\b')",
+                                13,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("Helloworld!  Hello everyone!").regexpInstr("\\bHello\\b"),
+                                "REGEXP_INSTR('Helloworld!  Hello everyone!', '\\bHello\\b')",
+                                14,
+                                DataTypes.INT())
+                        // normal cases
+                        .testResult(
+                                lit("hello world! Hello everyone!").regexpInstr("Hello"),
+                                "REGEXP_INSTR('hello world! Hello everyone!', 'Hello')",
+                                14,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("a.b.c.d").regexpInstr("\\."),
+                                "REGEXP_INSTR('a.b.c.d', '\\.')",
+                                2,
+                                DataTypes.INT())
+                        .testResult(
+                                lit("abc123xyz456").regexpInstr("\\d"),
+                                "REGEXP_INSTR('abc123xyz456', '\\d')",
+                                4,
+                                DataTypes.INT())
+                        .testResult(
+                                $("f2").regexpInstr("(\\d+)-(\\d+)"),
+                                "REGEXP_INSTR(f2, '(\\d+)-(\\d+)')",
+                                1,
+                                DataTypes.INT()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_INSTR, "Validation Error")
+                        .onFieldsWithData(1024)
+                        .andDataTypes(DataTypes.INT())
+                        .testTableApiValidationError(
+                                $("f0").regexpInstr("1024"),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "REGEXP_INSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "REGEXP_INSTR(f0, '1024')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "REGEXP_INSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
     }
 }
