@@ -1265,6 +1265,16 @@ class Expression(Generic[T]):
         """
         return _binary_op("regexpInstr")(self, regex)
 
+    def regexp_substr(self, regex) -> 'Expression':
+        """
+        Returns the first substring in str that matches regex.
+        null if any of the arguments are null or regex is invalid or pattern is not found.
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: A STRING representation of the first matched substring.
+        """
+        return _binary_op("regexpSubstr")(self, regex)
+
     @property
     def from_base64(self) -> 'Expression[str]':
         """

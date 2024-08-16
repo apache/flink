@@ -376,6 +376,14 @@ string:
       `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
       
       Returns an `INTEGER` representation of the first matched substring index. `NULL` if any of the arguments are `NULL` or regex is invalid.
+  - sql: REGEXP_SUBSTR(str, regex)
+    table: str.regexpSubstr(regex)
+    description: |
+      Returns the first substring in str that matches regex.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `STRING` representation of the first matched substring. `NULL` if any of the arguments are `NULL` or regex if invalid or pattern is not found.
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |

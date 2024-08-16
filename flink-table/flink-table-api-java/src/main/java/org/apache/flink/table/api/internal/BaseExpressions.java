@@ -165,6 +165,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT_ALL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_SUBSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REVERSE;
@@ -1220,6 +1221,19 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType regexpInstr(InType regex) {
         return toApiSpecificExpression(
                 unresolvedCall(REGEXP_INSTR, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
+     * Returns the first substring in {@code str} that matches {@code regex}.
+     *
+     * @param regex A STRING expression with a matching pattern.
+     * @return A STRING representation of the first matched substring. <br>
+     *     null if any of the arguments are null or {@code regex} is invalid or pattern is not
+     *     found.
+     */
+    public OutType regexpSubstr(InType regex) {
+        return toApiSpecificExpression(
+                unresolvedCall(REGEXP_SUBSTR, toExpr(), objectToExpression(regex)));
     }
 
     /**
