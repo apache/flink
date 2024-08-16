@@ -84,9 +84,12 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
     protected MapData[] getTestData() {
         Map<Object, Object> first = new HashMap<>();
         first.put(1, StringData.fromString(""));
+        Map<Object, Object> second = new HashMap<>();
+        second.put(2, StringData.fromString(""));
         return new MapData[] {
             new GenericMapData(first),
             new CustomMapData(first),
+            new CustomMapData(second),
             BinaryMapData.valueOf(
                     createArray(1, 2), ArrayDataSerializerTest.createArray("11", "haa")),
             BinaryMapData.valueOf(
