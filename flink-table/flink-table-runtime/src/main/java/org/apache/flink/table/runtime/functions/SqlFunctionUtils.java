@@ -64,7 +64,7 @@ public class SqlFunctionUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlFunctionUtils.class);
 
-    private static final ThreadLocalCache<String, Pattern> REGEXP_PATTERN_CACHE =
+    public static final ThreadLocalCache<String, Pattern> REGEXP_PATTERN_CACHE =
             new ThreadLocalCache<String, Pattern>() {
                 @Override
                 public Pattern getNewInstance(String regex) {

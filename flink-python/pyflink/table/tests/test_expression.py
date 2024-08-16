@@ -146,9 +146,6 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('lpad(a, 4, b)', str(expr1.lpad(4, expr2)))
         self.assertEqual('rpad(a, 4, b)', str(expr1.rpad(4, expr2)))
         self.assertEqual('overlay(a, b, 6, 2)', str(expr1.overlay(expr2, 6, 2)))
-        self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
-        self.assertEqual("regexpReplace(a, b, 'abc')", str(expr1.regexp_replace(expr2, 'abc')))
-        self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
         self.assertEqual('fromBase64(a)', str(expr1.from_base64))
         self.assertEqual('toBase64(a)', str(expr1.to_base64))
         self.assertEqual('ascii(a)', str(expr1.ascii))
@@ -175,6 +172,13 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("ELT(1, a)", str(lit(1).elt(expr1)))
         self.assertEqual('ELT(3, a, b, c)', str(lit(3).elt(expr1, expr2, expr3)))
         self.assertEqual("PRINTF('%d %s', a, b)", str(lit("%d %s").printf(expr1, expr2)))
+
+        # regexp functions
+        self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
+        self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
+        self.assertEqual('REGEXP_EXTRACT_ALL(a, b)', str(expr1.regexp_extract_all(expr2)))
+        self.assertEqual('REGEXP_EXTRACT_ALL(a, b, 3)', str(expr1.regexp_extract_all(expr2, 3)))
+        self.assertEqual("regexpReplace(a, b, 'abc')", str(expr1.regexp_replace(expr2, 'abc')))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))
