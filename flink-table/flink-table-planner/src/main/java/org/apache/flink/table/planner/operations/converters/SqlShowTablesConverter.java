@@ -18,45 +18,35 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.dql.SqlShowFunctions;
+import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.ShowFunctionsOperation;
-import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
+import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
-/** A converter for {@link SqlShowFunctions}. */
-public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowFunctions> {
-
+public class SqlShowTablesConverter extends AbstractSqlShowConverter<SqlShowTables> {
     @Override
-    public Operation getOperationWithoutPrep(
-            SqlShowFunctions sqlShowFunctions, ShowLikeOperator likeOp) {
-        final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
-        return new ShowFunctionsOperation(functionScope, likeOp);
+    public Operation getOperationWithoutPrep(SqlShowTables sqlShowCall, ShowLikeOperator likeOp) {
+        return new ShowTablesOperation(likeOp);
     }
 
     @Override
     public Operation getOperation(
-            SqlShowFunctions sqlShowFunctions,
+            SqlShowTables sqlShowCall,
             String catalogName,
             String databaseName,
             String prep,
             ShowLikeOperator likeOp) {
-        final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
-        return new ShowFunctionsOperation(functionScope, prep, catalogName, databaseName, likeOp);
+        return new ShowTablesOperation(catalogName, databaseName, prep, likeOp);
     }
 
     @Override
-    public Operation convertSqlNode(SqlShowFunctions sqlShowFunctions, ConvertContext context) {
+    public Operation convertSqlNode(SqlShowTables sqlShowTables, ConvertContext context) {
         return convertShowOperation(
-                sqlShowFunctions,
+                sqlShowTables,
                 sqlIdentifierNameList ->
                         String.format(
-                                "Show functions from/in identifier [ %s ] format error, it should be [catalog_name.]database_name.",
+                                "show tables from/in identifier [ %s ] format error",
                                 String.join(".", sqlIdentifierNameList)),
                 context);
-    }
-
-    private static FunctionScope getFunctionScope(SqlShowFunctions sqlShowFunctions) {
-        return sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL;
     }
 }

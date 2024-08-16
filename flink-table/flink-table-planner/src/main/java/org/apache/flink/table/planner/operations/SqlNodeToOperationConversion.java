@@ -73,8 +73,6 @@ import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
-import org.apache.flink.sql.parser.dql.SqlShowTables;
-import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
@@ -133,8 +131,6 @@ import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
-import org.apache.flink.table.operations.ShowTablesOperation;
-import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -166,6 +162,8 @@ import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.operations.utils.LikeType;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
@@ -317,14 +315,10 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertDropTable((SqlDropTable) validated));
         } else if (validated instanceof SqlAlterTable) {
             return Optional.of(converter.convertAlterTable((SqlAlterTable) validated));
-        } else if (validated instanceof SqlShowTables) {
-            return Optional.of(converter.convertShowTables((SqlShowTables) validated));
         } else if (validated instanceof SqlShowColumns) {
             return Optional.of(converter.convertShowColumns((SqlShowColumns) validated));
         } else if (validated instanceof SqlDropView) {
             return Optional.of(converter.convertDropView((SqlDropView) validated));
-        } else if (validated instanceof SqlShowViews) {
-            return Optional.of(converter.convertShowViews((SqlShowViews) validated));
         } else if (validated instanceof SqlCreateFunction) {
             return Optional.of(converter.convertCreateFunction((SqlCreateFunction) validated));
         } else if (validated instanceof SqlDropFunction) {
@@ -931,47 +925,16 @@ public class SqlNodeToOperationConversion {
         return new ShowCurrentDatabaseOperation();
     }
 
-    /** Convert SHOW TABLES statement. */
-    private Operation convertShowTables(SqlShowTables sqlShowTables) {
-        if (sqlShowTables.getPreposition() == null) {
-            return new ShowTablesOperation(
-                    sqlShowTables.getLikeSqlPattern(),
-                    sqlShowTables.isWithLike(),
-                    sqlShowTables.isNotLike());
-        }
-        List<String> fullDatabaseName = sqlShowTables.fullDatabaseName();
-        if (fullDatabaseName.size() > 2) {
-            throw new ValidationException(
-                    String.format(
-                            "show tables from/in identifier [ %s ] format error",
-                            String.join(".", fullDatabaseName)));
-        }
-        String catalogName =
-                (fullDatabaseName.size() == 1)
-                        ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName.get(0);
-        String databaseName =
-                (fullDatabaseName.size() == 1) ? fullDatabaseName.get(0) : fullDatabaseName.get(1);
-        return new ShowTablesOperation(
-                catalogName,
-                databaseName,
-                sqlShowTables.getLikeSqlPattern(),
-                sqlShowTables.isWithLike(),
-                sqlShowTables.isNotLike(),
-                sqlShowTables.getPreposition());
-    }
-
     /** Convert SHOW COLUMNS statement. */
     private Operation convertShowColumns(SqlShowColumns sqlShowColumns) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlShowColumns.fullTableName());
+                UnresolvedIdentifier.of(sqlShowColumns.getSqlIdentifierNameList());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        return new ShowColumnsOperation(
-                identifier,
-                sqlShowColumns.getLikeSqlPattern(),
-                sqlShowColumns.isWithLike(),
-                sqlShowColumns.isNotLike(),
-                sqlShowColumns.getPreposition());
+        ShowLikeOperator likeOp =
+                ShowLikeOperator.of(
+                        LikeType.of(sqlShowColumns.getLikeType(), sqlShowColumns.isNotLike()),
+                        sqlShowColumns.getLikeSqlPattern());
+        return new ShowColumnsOperation(identifier, sqlShowColumns.getLikeSqlPattern(), likeOp);
     }
 
     /** Convert SHOW CREATE TABLE statement. */
@@ -998,36 +961,6 @@ public class SqlNodeToOperationConversion {
 
         return new DropViewOperation(
                 identifier, sqlDropView.getIfExists(), sqlDropView.isTemporary());
-    }
-
-    /** Convert SHOW VIEWS statement. */
-    private Operation convertShowViews(SqlShowViews sqlShowViews) {
-        if (sqlShowViews.getPreposition() == null) {
-            return new ShowViewsOperation(
-                    sqlShowViews.getLikeSqlPattern(),
-                    sqlShowViews.isWithLike(),
-                    sqlShowViews.isNotLike());
-        }
-        List<String> fullDatabaseName = sqlShowViews.fullDatabaseName();
-        if (fullDatabaseName.size() > 2) {
-            throw new ValidationException(
-                    String.format(
-                            "show views from/in identifier [ %s ] format error",
-                            String.join(".", fullDatabaseName)));
-        }
-        String catalogName =
-                (fullDatabaseName.size() == 1)
-                        ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName.get(0);
-        String databaseName =
-                (fullDatabaseName.size() == 1) ? fullDatabaseName.get(0) : fullDatabaseName.get(1);
-        return new ShowViewsOperation(
-                catalogName,
-                databaseName,
-                sqlShowViews.getLikeSqlPattern(),
-                sqlShowViews.isWithLike(),
-                sqlShowViews.isNotLike(),
-                sqlShowViews.getPreposition());
     }
 
     /** Convert RICH EXPLAIN statement. */

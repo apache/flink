@@ -21,23 +21,23 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
+import org.apache.flink.table.operations.utils.LikeType;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
 /** A converter for {@link SqlShowDatabases}. */
 public class SqlShowDatabasesConverter implements SqlNodeConverter<SqlShowDatabases> {
 
     @Override
     public Operation convertSqlNode(SqlShowDatabases sqlShowDatabases, ConvertContext context) {
+        final ShowLikeOperator likeOp =
+                ShowLikeOperator.of(
+                        LikeType.of(sqlShowDatabases.getLikeType(), sqlShowDatabases.isNotLike()),
+                        sqlShowDatabases.getLikeSqlPattern());
         if (sqlShowDatabases.getPreposition() == null) {
-            return new ShowDatabasesOperation(
-                    sqlShowDatabases.getLikeType(),
-                    sqlShowDatabases.getLikeSqlPattern(),
-                    sqlShowDatabases.isNotLike());
+            return new ShowDatabasesOperation(likeOp);
         } else {
             return new ShowDatabasesOperation(
-                    sqlShowDatabases.getCatalog()[0],
-                    sqlShowDatabases.getLikeType(),
-                    sqlShowDatabases.getLikeSqlPattern(),
-                    sqlShowDatabases.isNotLike());
+                    sqlShowDatabases.getCatalogName(), sqlShowDatabases.getPreposition(), likeOp);
         }
     }
 }

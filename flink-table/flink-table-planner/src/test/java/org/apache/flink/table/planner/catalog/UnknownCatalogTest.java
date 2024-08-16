@@ -34,6 +34,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -104,6 +106,46 @@ class UnknownCatalogTest {
 
         // check it has some built-in functions
         assertThat(functions).hasSizeGreaterThan(0);
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @ValueSource(
+            strings = {
+                "SHOW TABLES",
+                "SHOW TABLES IN db",
+                "SHOW VIEWS",
+                "SHOW VIEWS IN db",
+                "SHOW PROCEDURES",
+                "SHOW PROCEDURES IN db",
+                "SHOW COLUMNS IN db",
+                "SHOW DATABASES"
+            })
+    void showForUnsetCatalog(String sql) {
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog(null);
+        assertThatThrownBy(() -> tEnv.executeSql(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A current catalog has not been set");
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @ValueSource(
+            strings = {
+                "SHOW TABLES",
+                "SHOW VIEWS",
+                "SHOW PROCEDURES",
+                // Here `db` is considered as object name
+                "SHOW COLUMNS IN db"
+            })
+    void showForUnsetDatabase(String sql) {
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog("cat");
+        tEnv.useDatabase(null);
+        assertThatThrownBy(() -> tEnv.executeSql(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("A current database has not been set");
     }
 
     @Test
