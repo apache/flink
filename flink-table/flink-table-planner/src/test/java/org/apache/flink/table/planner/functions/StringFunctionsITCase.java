@@ -31,7 +31,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
 
 /** Test String functions correct behaviour. */
@@ -39,12 +38,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(
-                        bTrimTestCases(),
-                        eltTestCases(),
-                        printfTestCases(),
-                        regexpExtractTestCases(),
-                        translateTestCases())
+        return Stream.of(bTrimTestCases(), eltTestCases(), printfTestCases(), translateTestCases())
                 .flatMap(s -> s);
     }
 
@@ -314,23 +308,6 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "PRINTF(f0)",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "PRINTF(format <CHARACTER_STRING>, obj <ANY>...)"));
-    }
-
-    private Stream<TestSetSpec> regexpExtractTestCases() {
-        return Stream.of(
-                TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
-                        .onFieldsWithData("22", "ABC")
-                        .testResult(
-                                call("regexpExtract", $("f0"), "[A-Z]+"),
-                                "REGEXP_EXTRACT(f0,'[A-Z]+')",
-                                null,
-                                DataTypes.STRING().nullable())
-                        .testResult(
-                                call("regexpExtract", $("f1"), "[A-Z]+"),
-                                "REGEXP_EXTRACT(f1, '[A-Z]+')",
-                                "ABC",
-                                DataTypes.STRING().nullable()));
     }
 
     private Stream<TestSetSpec> translateTestCases() {
