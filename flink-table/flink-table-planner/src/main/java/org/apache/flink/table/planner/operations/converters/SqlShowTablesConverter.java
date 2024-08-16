@@ -18,35 +18,33 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.dql.SqlShowProcedures;
+import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.ShowProceduresOperation;
+import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
-/** A converter for {@link SqlShowProcedures}. */
-public class SqlShowProcedureConverter extends AbstractSqlShowConverter<SqlShowProcedures> {
-
+public class SqlShowTablesConverter extends AbstractSqlShowConverter<SqlShowTables> {
     @Override
     public Operation getOperationWithoutPrep(
             String catalogName,
             String databaseName,
-            SqlShowProcedures sqlShowCall,
+            SqlShowTables sqlShowCall,
             ShowLikeOperator likeOp) {
-        return new ShowProceduresOperation(catalogName, databaseName, likeOp);
+        return new ShowTablesOperation(catalogName, databaseName, likeOp);
     }
 
     @Override
     public Operation getOperation(
-            SqlShowProcedures sqlShowCall,
+            SqlShowTables sqlShowCall,
             String catalogName,
             String databaseName,
             String prep,
             ShowLikeOperator likeOp) {
-        return new ShowProceduresOperation(catalogName, databaseName, prep, likeOp);
+        return new ShowTablesOperation(catalogName, databaseName, prep, likeOp);
     }
 
     @Override
-    public Operation convertSqlNode(SqlShowProcedures sqlShowProcedures, ConvertContext context) {
-        return convertShowOperation(sqlShowProcedures, context);
+    public Operation convertSqlNode(SqlShowTables sqlShowTables, ConvertContext context) {
+        return convertShowOperation(sqlShowTables, context);
     }
 }

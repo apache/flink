@@ -20,124 +20,76 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.functions.SqlLikeUtils;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+
+import javax.annotation.Nullable;
 
 import java.util.Set;
 
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/** Operation to describe a SHOW VIEWS statement. */
+/**
+ * Operation to describe a SHOW VIEWS statement. The full syntax for SHOW VIEWS is as followings:
+ *
+ * <pre>{@code
+ * SHOW VIEWS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE
+ * &lt;sql_like_pattern&gt; ] statement
+ * }</pre>
+ */
 @Internal
-public class ShowViewsOperation implements ShowOperation {
+public class ShowViewsOperation extends AbstractShowOperation {
 
-    private final String catalogName;
     private final String databaseName;
-    private final boolean useLike;
-    private final boolean notLike;
-    private final String likePattern;
-    private final String preposition;
-
-    public ShowViewsOperation() {
-        catalogName = null;
-        databaseName = null;
-        useLike = false;
-        notLike = false;
-        likePattern = null;
-        preposition = null;
-    }
-
-    public ShowViewsOperation(String likePattern, boolean useLike, boolean notLike) {
-        this.catalogName = null;
-        this.databaseName = null;
-        this.useLike = useLike;
-        this.notLike = notLike;
-        this.likePattern =
-                useLike ? checkNotNull(likePattern, "Like pattern must not be null.") : null;
-        this.preposition = null;
-    }
 
     public ShowViewsOperation(
             String catalogName,
             String databaseName,
-            String likePattern,
-            boolean useLike,
-            boolean notLike,
-            String preposition) {
-        this.catalogName = checkNotNull(catalogName, "Catalog name must not be null.");
-        this.databaseName = checkNotNull(databaseName, "Database name must not be null");
-        this.useLike = useLike;
-        this.notLike = notLike;
-        this.likePattern =
-                useLike ? checkNotNull(likePattern, "Like pattern must not be null.") : null;
-        this.preposition = checkNotNull(preposition, "Preposition must not be null");
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
+        this.databaseName = databaseName;
     }
 
-    public String getLikePattern() {
-        return likePattern;
+    public ShowViewsOperation(
+            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, databaseName, null, likeOp);
     }
 
-    public String getPreposition() {
-        return preposition;
-    }
-
-    public boolean isUseLike() {
-        return useLike;
-    }
-
-    public boolean isNotLike() {
-        return notLike;
-    }
-
-    public String getCatalogName() {
-        return catalogName;
-    }
-
-    public String getDatabaseName() {
-        return databaseName;
+    public ShowViewsOperation(String catalogName, String databaseName) {
+        this(catalogName, databaseName, null);
     }
 
     @Override
-    public String asSummaryString() {
-        StringBuilder builder = new StringBuilder().append("SHOW VIEWS");
-        if (preposition != null) {
-            builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
-        }
-        if (useLike) {
-            final String prefix = notLike ? "NOT " : "";
-            builder.append(String.format(" %sLIKE '%s'", prefix, likePattern));
-        }
-        return builder.toString();
+    protected String getOperationName() {
+        return "SHOW VIEWS";
     }
 
-    @Override
-    public TableResultInternal execute(Context ctx) {
-        final Set<String> views;
+    protected Set<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
         if (preposition == null) {
-            views = ctx.getCatalogManager().listViews();
+            return catalogManager.listViews();
         } else {
-            Catalog catalog = ctx.getCatalogManager().getCatalogOrThrowException(catalogName);
+            Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
             if (catalog.databaseExists(databaseName)) {
-                views = ctx.getCatalogManager().listViews(catalogName, databaseName);
+                return catalogManager.listViews(catalogName, databaseName);
             } else {
                 throw new ValidationException(
                         String.format(
                                 "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
             }
         }
+    }
 
-        final String[] rows;
-        if (useLike) {
-            rows =
-                    views.stream()
-                            .filter(row -> notLike != SqlLikeUtils.like(row, likePattern, "\\"))
-                            .sorted()
-                            .toArray(String[]::new);
-        } else {
-            rows = views.stream().sorted().toArray(String[]::new);
+    @Override
+    protected String getColumnName() {
+        return "view name";
+    }
+
+    @Override
+    public String getPrepositionSummaryString() {
+        if (databaseName == null) {
+            return super.getPrepositionSummaryString();
         }
-        return buildStringArrayResult("view name", rows);
+        return super.getPrepositionSummaryString() + "." + databaseName;
     }
 }

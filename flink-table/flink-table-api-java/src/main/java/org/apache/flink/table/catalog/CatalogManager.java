@@ -484,7 +484,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @return the current catalog
      * @see CatalogManager#qualifyIdentifier(UnresolvedIdentifier)
      */
-    public String getCurrentCatalog() {
+    public @Nullable String getCurrentCatalog() {
         return currentCatalogName;
     }
 
@@ -530,7 +530,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @return the current database
      * @see CatalogManager#qualifyIdentifier(UnresolvedIdentifier)
      */
-    public String getCurrentDatabase() {
+    public @Nullable String getCurrentDatabase() {
         return currentDatabaseName;
     }
 
@@ -951,38 +951,44 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      */
     public ObjectIdentifier qualifyIdentifier(UnresolvedIdentifier identifier) {
         return ObjectIdentifier.of(
-                identifier
-                        .getCatalogName()
-                        .orElseGet(
-                                () -> {
-                                    final String currentCatalog = getCurrentCatalog();
-                                    if (StringUtils.isNullOrWhitespaceOnly(currentCatalog)) {
-                                        throw new ValidationException(
-                                                "A current catalog has not been set. Please use a"
-                                                        + " fully qualified identifier (such as"
-                                                        + " 'my_catalog.my_database.my_table') or"
-                                                        + " set a current catalog using"
-                                                        + " 'USE CATALOG my_catalog'.");
-                                    }
-                                    return currentCatalog;
-                                }),
-                identifier
-                        .getDatabaseName()
-                        .orElseGet(
-                                () -> {
-                                    final String currentDatabase = getCurrentDatabase();
-                                    if (StringUtils.isNullOrWhitespaceOnly(currentDatabase)) {
-                                        throw new ValidationException(
-                                                "A current database has not been set. Please use a"
-                                                        + " fully qualified identifier (such as"
-                                                        + " 'my_database.my_table' or"
-                                                        + " 'my_catalog.my_database.my_table') or"
-                                                        + " set a current database using"
-                                                        + " 'USE my_database'.");
-                                    }
-                                    return currentDatabase;
-                                }),
+                identifier.getCatalogName().orElseGet(() -> qualifyCatalog(getCurrentCatalog())),
+                identifier.getDatabaseName().orElseGet(() -> qualifyDatabase(getCurrentDatabase())),
                 identifier.getObjectName());
+    }
+
+    /** Qualifies catalog name. Throws {@link ValidationException} if not set. */
+    public String qualifyCatalog(@Nullable String catalogName) {
+        if (!StringUtils.isNullOrWhitespaceOnly(catalogName)) {
+            return catalogName;
+        }
+        final String currentCatalogName = getCurrentCatalog();
+        if (StringUtils.isNullOrWhitespaceOnly(currentCatalogName)) {
+            throw new ValidationException(
+                    "A current catalog has not been set. Please use a"
+                            + " fully qualified identifier (such as"
+                            + " 'my_catalog.my_database.my_table') or"
+                            + " set a current catalog using"
+                            + " 'USE CATALOG my_catalog'.");
+        }
+        return currentCatalogName;
+    }
+
+    /** Qualifies database name. Throws {@link ValidationException} if not set. */
+    public String qualifyDatabase(@Nullable String databaseName) {
+        if (!StringUtils.isNullOrWhitespaceOnly(databaseName)) {
+            return databaseName;
+        }
+        final String currentDatabaseName = getCurrentDatabase();
+        if (StringUtils.isNullOrWhitespaceOnly(currentDatabaseName)) {
+            throw new ValidationException(
+                    "A current database has not been set. Please use a"
+                            + " fully qualified identifier (such as"
+                            + " 'my_database.my_table' or"
+                            + " 'my_catalog.my_database.my_table') or"
+                            + " set a current database using"
+                            + " 'USE my_database'.");
+        }
+        return currentDatabaseName;
     }
 
     /**
