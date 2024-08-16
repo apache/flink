@@ -26,9 +26,8 @@ import org.apache.flink.table.functions.SpecializedFunction;
 import javax.annotation.Nullable;
 
 import java.util.regex.Matcher;
-import java.util.regex.PatternSyntaxException;
 
-import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.REGEXP_PATTERN_CACHE;
+import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.getRegexpMatcher;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#REGEXP_COUNT}. */
 @Internal
@@ -39,14 +38,8 @@ public class RegexpCountFunction extends BuiltInScalarFunction {
     }
 
     public @Nullable Integer eval(@Nullable StringData str, @Nullable StringData regex) {
-        if (str == null || regex == null) {
-            return null;
-        }
-
-        Matcher matcher;
-        try {
-            matcher = REGEXP_PATTERN_CACHE.get(regex.toString()).matcher(str.toString());
-        } catch (PatternSyntaxException e) {
+        Matcher matcher = getRegexpMatcher(str, regex);
+        if (matcher == null) {
             return null;
         }
 
@@ -54,7 +47,6 @@ public class RegexpCountFunction extends BuiltInScalarFunction {
         while (matcher.find()) {
             count++;
         }
-
         return count;
     }
 }
