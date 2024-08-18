@@ -28,6 +28,7 @@ public class TestSlotInfo implements SlotInfo {
 
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
+    private final TaskManagerLocation taskManagerLocation;
 
     public TestSlotInfo() {
         this(new AllocationID(), ResourceProfile.ANY);
@@ -42,8 +43,16 @@ public class TestSlotInfo implements SlotInfo {
     }
 
     public TestSlotInfo(AllocationID allocationId, ResourceProfile resourceProfile) {
+        this(allocationId, resourceProfile, new LocalTaskManagerLocation());
+    }
+
+    private TestSlotInfo(
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            TaskManagerLocation taskManagerLocation) {
         this.allocationId = allocationId;
         this.resourceProfile = resourceProfile;
+        this.taskManagerLocation = taskManagerLocation;
     }
 
     @Override
@@ -53,7 +62,7 @@ public class TestSlotInfo implements SlotInfo {
 
     @Override
     public TaskManagerLocation getTaskManagerLocation() {
-        return new LocalTaskManagerLocation();
+        return taskManagerLocation;
     }
 
     @Override
