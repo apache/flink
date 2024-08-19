@@ -23,6 +23,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -42,8 +43,17 @@ public class UpsertKeyUtil {
      */
     @Nonnull
     public static int[] getSmallestKey(@Nullable Set<ImmutableBitSet> upsertKeys) {
+        return smallestKey(upsertKeys).orElse(new int[0]);
+    }
+
+    /**
+     * Returns the smallest key of given upsert keys wrapped with a java {@link Optional}. Different
+     * from {@link #getSmallestKey(Set)}, it'll return result with an empty {@link Optional} if the
+     * input set is null or empty.
+     */
+    public static Optional<int[]> smallestKey(@Nullable Set<ImmutableBitSet> upsertKeys) {
         if (null == upsertKeys || upsertKeys.isEmpty()) {
-            return new int[0];
+            return Optional.empty();
         }
         return upsertKeys.stream()
                 .map(ImmutableBitSet::toArray)
@@ -60,7 +70,6 @@ public class UpsertKeyUtil {
                                 }
                             }
                             return k2;
-                        })
-                .get();
+                        });
     }
 }

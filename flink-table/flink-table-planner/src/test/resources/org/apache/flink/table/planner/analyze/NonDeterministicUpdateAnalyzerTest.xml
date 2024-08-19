@@ -29,12 +29,12 @@ on t1.a = t2.a and ndFunc(t2.b) > 100]]>
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[>(ndFunc(b), 100)], select=[a, b, c, a])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[>(ndFunc(b), 100)], select=[a, b, c, a], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 
 advice[1]: [WARNING] There exists non deterministic function: 'ndFunc' in condition: '>(ndFunc($1), 100)' which may cause wrong result in update pipeline.
 related rel plan:
-LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[>(ndFunc(b), 100)], select=[a, b, c, a], changelogMode=[I,UB,UA,D])
+LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[>(ndFunc(b), 100)], select=[a, b, c, a], upsertKey=[[0]], changelogMode=[I,UB,UA,D])
 +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c], changelogMode=[I,UB,UA,D], upsertKeys=[[a]])
 
 
@@ -72,7 +72,7 @@ No available advice...
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, c, a0, b], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, c], metadata=[]]], fields=[a, c])
 
 advice[1]: [WARNING] You might want to enable upsert materialization for look up join operator by configuring ('table.optimizer.non-deterministic-update.strategy' to 'TRY_RESOLVE') to resolve the correctness issue caused by 'Non-Deterministic Updates' (NDU) in a changelog pipeline.
