@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 
 /** Meta information about a priority queue state in a backend. */
 public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredStateMetaInfoBase {
@@ -115,5 +116,29 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
     public RegisteredPriorityQueueStateBackendMetaInfo deepCopy() {
         return new RegisteredPriorityQueueStateBackendMetaInfo<>(
                 name, getElementSerializer().duplicate());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+
+        if (!(obj instanceof RegisteredPriorityQueueStateBackendMetaInfo)) {
+            return false;
+        }
+
+        final RegisteredPriorityQueueStateBackendMetaInfo<?> other =
+                (RegisteredPriorityQueueStateBackendMetaInfo<?>) obj;
+
+        return Objects.equals(name, other.getName())
+                && Objects.equals(getElementSerializer(), other.getElementSerializer());
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + getElementSerializer().hashCode();
+        return result;
     }
 }
