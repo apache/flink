@@ -44,12 +44,6 @@ public class SqlShowProcedureConverter extends AbstractSqlShowConverter<SqlShowP
 
     @Override
     public Operation convertSqlNode(SqlShowProcedures sqlShowProcedures, ConvertContext context) {
-        return convertShowOperation(
-                sqlShowProcedures,
-                sqlIdentifierNameList ->
-                        String.format(
-                                "Show procedures from/in identifier [ %s ] format error, it should be [catalog_name.]database_name.",
-                                String.join(".", sqlIdentifierNameList)),
-                context);
+        return convertShowOperation(sqlShowProcedures, context);
     }
 }

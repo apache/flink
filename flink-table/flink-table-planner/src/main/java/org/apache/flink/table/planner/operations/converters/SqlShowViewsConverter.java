@@ -41,12 +41,6 @@ public class SqlShowViewsConverter extends AbstractSqlShowConverter<SqlShowViews
 
     @Override
     public Operation convertSqlNode(SqlShowViews sqlShowViews, ConvertContext context) {
-        return convertShowOperation(
-                sqlShowViews,
-                sqlIdentifierNameList ->
-                        String.format(
-                                "show views from/in identifier [ %s ] format error",
-                                String.join(".", sqlIdentifierNameList)),
-                context);
+        return convertShowOperation(sqlShowViews, context);
     }
 }

@@ -41,12 +41,6 @@ public class SqlShowTablesConverter extends AbstractSqlShowConverter<SqlShowTabl
 
     @Override
     public Operation convertSqlNode(SqlShowTables sqlShowTables, ConvertContext context) {
-        return convertShowOperation(
-                sqlShowTables,
-                sqlIdentifierNameList ->
-                        String.format(
-                                "show tables from/in identifier [ %s ] format error",
-                                String.join(".", sqlIdentifierNameList)),
-                context);
+        return convertShowOperation(sqlShowTables, context);
     }
 }

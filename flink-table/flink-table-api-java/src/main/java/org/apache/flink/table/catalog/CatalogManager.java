@@ -951,27 +951,44 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      */
     public ObjectIdentifier qualifyIdentifier(UnresolvedIdentifier identifier) {
         return ObjectIdentifier.of(
-                identifier.getCatalogName().orElseGet(() -> validateCatalog(getCurrentCatalog())),
-                identifier
-                        .getDatabaseName()
-                        .orElseGet(() -> validateDatabase(getCurrentDatabase())),
+                qualifyCatalog(identifier.getCatalogName().orElseGet(null)),
+                qualifyDatabase(identifier.getCatalogName().orElseGet(null)),
                 identifier.getObjectName());
     }
 
     /** Qualifies catalog name. Throws {@link ValidationException} if not set. */
     public String qualifyCatalog(@Nullable String catalogName) {
-        if (StringUtils.isNullOrWhitespaceOnly(catalogName)) {
-            return validateCatalog(getCurrentCatalog());
+        if (!StringUtils.isNullOrWhitespaceOnly(catalogName)) {
+            return catalogName;
         }
-        return validateCatalog(catalogName);
+        final String currentCatalogName = getCurrentCatalog();
+        if (StringUtils.isNullOrWhitespaceOnly(currentCatalogName)) {
+            throw new ValidationException(
+                    "A current catalog has not been set. Please use a"
+                            + " fully qualified identifier (such as"
+                            + " 'my_catalog.my_database.my_table') or"
+                            + " set a current catalog using"
+                            + " 'USE CATALOG my_catalog'.");
+        }
+        return currentCatalogName;
     }
 
     /** Qualifies database name. Throws {@link ValidationException} if not set. */
     public String qualifyDatabase(@Nullable String databaseName) {
-        if (StringUtils.isNullOrWhitespaceOnly(databaseName)) {
-            return validateDatabase(getCurrentDatabase());
+        if (!StringUtils.isNullOrWhitespaceOnly(databaseName)) {
+            return databaseName;
         }
-        return validateDatabase(databaseName);
+        final String currentDatabaseName = getCurrentDatabase();
+        if (StringUtils.isNullOrWhitespaceOnly(currentDatabaseName)) {
+            throw new ValidationException(
+                    "A current database has not been set. Please use a"
+                            + " fully qualified identifier (such as"
+                            + " 'my_database.my_table' or"
+                            + " 'my_catalog.my_database.my_table') or"
+                            + " set a current database using"
+                            + " 'USE my_database'.");
+        }
+        return currentDatabaseName;
     }
 
     /**
@@ -1580,30 +1597,5 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                         databaseName,
                                         newDatabase,
                                         ignoreIfNotExists)));
-    }
-
-    private String validateCatalog(@Nullable String catalogName) {
-        if (StringUtils.isNullOrWhitespaceOnly(catalogName)) {
-            throw new ValidationException(
-                    "A current catalog has not been set. Please use a"
-                            + " fully qualified identifier (such as"
-                            + " 'my_catalog.my_database.my_table') or"
-                            + " set a current catalog using"
-                            + " 'USE CATALOG my_catalog'.");
-        }
-        return catalogName;
-    }
-
-    private String validateDatabase(@Nullable String databaseName) {
-        if (StringUtils.isNullOrWhitespaceOnly(databaseName)) {
-            throw new ValidationException(
-                    "A current database has not been set. Please use a"
-                            + " fully qualified identifier (such as"
-                            + " 'my_database.my_table' or"
-                            + " 'my_catalog.my_database.my_table') or"
-                            + " set a current database using"
-                            + " 'USE my_database'.");
-        }
-        return databaseName;
     }
 }

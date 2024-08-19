@@ -25,30 +25,36 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.utils.LikeType;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
-import java.util.function.Function;
 
 public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
         implements SqlNodeConverter<T> {
 
-    protected Operation convertShowOperation(
-            T sqlShowCall, Function<List<String>, String> msg, ConvertContext context) {
+    protected Operation convertShowOperation(T sqlShowCall, ConvertContext context) {
         final ShowLikeOperator likeOp = getLikeOp(sqlShowCall);
         if (sqlShowCall.getPreposition() == null) {
             return getOperationWithoutPrep(sqlShowCall, likeOp);
         }
-        List<String> fullDatabaseName = sqlShowCall.getSqlIdentifierNameList();
-        if (fullDatabaseName.size() > 2) {
-            throw new ValidationException(msg.apply(fullDatabaseName));
+        List<String> sqlIdentifierNameList = sqlShowCall.getSqlIdentifierNameList();
+        if (sqlIdentifierNameList.size() > 2) {
+            throw new ValidationException(
+                    String.format(
+                            "%s from/in identifier [ %s ] format error, it should be [catalog_name.]database_name.",
+                            sqlShowCall.getOperator().getName(),
+                            String.join(".", sqlIdentifierNameList)));
         }
         CatalogManager catalogManager = context.getCatalogManager();
         String catalogName =
-                fullDatabaseName.size() == 1
+                sqlIdentifierNameList.size() == 1
                         ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName.get(0);
+                        : sqlIdentifierNameList.get(0);
 
         String databaseName =
-                fullDatabaseName.size() == 1 ? fullDatabaseName.get(0) : fullDatabaseName.get(1);
+                sqlIdentifierNameList.size() == 1
+                        ? sqlIdentifierNameList.get(0)
+                        : sqlIdentifierNameList.get(1);
         return getOperation(
                 sqlShowCall, catalogName, databaseName, sqlShowCall.getPreposition(), likeOp);
     }
@@ -63,10 +69,10 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
 
     public abstract Operation getOperation(
             T sqlShowCall,
-            String catalogName,
-            String databaseName,
-            String prep,
-            ShowLikeOperator likeOp);
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable String prep,
+            @Nullable ShowLikeOperator likeOp);
 
     @Override
     public abstract Operation convertSqlNode(T node, ConvertContext context);

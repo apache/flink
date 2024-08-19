@@ -311,15 +311,6 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    void testShowFunctionsForFailedCase() {
-        // test fail case
-        assertThatThrownBy(() -> parse("show functions in cat.db.t"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Show functions from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
-    }
-
-    @Test
     void testShowDatabasesFailCase() {
         assertThatThrownBy(() -> parse("show databases in db.t"))
                 .isInstanceOf(SqlParserException.class)
@@ -394,13 +385,33 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                         "SHOW procedures", new ShowProceduresOperation(null, null, null, null)));
     }
 
-    @Test
-    void testShowProceduresFailCase() {
+    @ParameterizedTest
+    @MethodSource("argsForTestShowFailedCase")
+    void testShowProceduresFailCase(String sql, String expectedErrorMsg) {
         // test fail case
-        assertThatThrownBy(() -> parse("SHOW procedures in cat.db.t"))
+        assertThatThrownBy(() -> parse(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Show procedures from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
+                .hasMessage(expectedErrorMsg);
+    }
+
+    private static Stream<Arguments> argsForTestShowFailedCase() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW procedures in cat.db.t",
+                        "SHOW PROCEDURES from/in identifier [ cat.db.t ] format error,"
+                                + " it should be [catalog_name.]database_name."),
+                Arguments.of(
+                        "SHOW Views in cat.db1.t2",
+                        "SHOW VIEWS from/in identifier [ cat.db1.t2 ] format error,"
+                                + " it should be [catalog_name.]database_name."),
+                Arguments.of(
+                        "SHOW functions in cat.db3.t5",
+                        "SHOW FUNCTIONS from/in identifier [ cat.db3.t5 ] format error,"
+                                + " it should be [catalog_name.]database_name."),
+                Arguments.of(
+                        "SHOW tables in cat1.db3.t2",
+                        "SHOW TABLES from/in identifier [ cat1.db3.t2 ] format error,"
+                                + " it should be [catalog_name.]database_name."));
     }
 
     @Test

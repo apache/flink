@@ -47,13 +47,7 @@ public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowF
 
     @Override
     public Operation convertSqlNode(SqlShowFunctions sqlShowFunctions, ConvertContext context) {
-        return convertShowOperation(
-                sqlShowFunctions,
-                sqlIdentifierNameList ->
-                        String.format(
-                                "Show functions from/in identifier [ %s ] format error, it should be [catalog_name.]database_name.",
-                                String.join(".", sqlIdentifierNameList)),
-                context);
+        return convertShowOperation(sqlShowFunctions, context);
     }
 
     private static FunctionScope getFunctionScope(SqlShowFunctions sqlShowFunctions) {
