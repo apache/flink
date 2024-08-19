@@ -38,8 +38,8 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
             final CatalogManager catalogManager = context.getCatalogManager();
             final String currentCatalogName = catalogManager.getCurrentCatalog();
             final String currentDatabaseName = catalogManager.getCurrentDatabase();
-            if (skipQualifyingCatalogAndDatabase()) {
-                getOperationWithoutPrep(
+            if (skipQualifyingDefaultCatalogAndDatabase()) {
+                return getOperationWithoutPrep(
                         currentCatalogName, currentDatabaseName, sqlShowCall, likeOp);
             }
             final String catalogName = catalogManager.qualifyCatalog(currentCatalogName);
@@ -96,7 +96,7 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
     @Override
     public abstract Operation convertSqlNode(T node, ConvertContext context);
 
-    protected boolean skipQualifyingCatalogAndDatabase() {
+    protected boolean skipQualifyingDefaultCatalogAndDatabase() {
         return false;
     }
 }

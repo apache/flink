@@ -218,7 +218,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                         "SHOW TABLES IN builtin.db2"),
                 Arguments.of(
                         "SHOW TABLES",
-                        new ShowTablesOperation(null, null, null, null),
+                        new ShowTablesOperation("builtin", "default", null, null),
                         "SHOW TABLES"));
     }
 
@@ -246,7 +246,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                         "SHOW VIEWS IN builtin.db2"),
                 Arguments.of(
                         "SHOW VIEWS",
-                        new ShowViewsOperation(null, null, null, null),
+                        new ShowViewsOperation("builtin", "default", null, null),
                         "SHOW VIEWS"));
     }
 
@@ -280,11 +280,13 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         return Stream.of(
                 Arguments.of(
                         "show functions",
-                        new ShowFunctionsOperation(FunctionScope.ALL, null, null, null, null),
+                        new ShowFunctionsOperation(
+                                FunctionScope.ALL, null, "builtin", "default", null),
                         "SHOW FUNCTIONS"),
                 Arguments.of(
                         "show user functions",
-                        new ShowFunctionsOperation(FunctionScope.USER, null, null, null, null),
+                        new ShowFunctionsOperation(
+                                FunctionScope.USER, null, "builtin", "default", null),
                         "SHOW USER FUNCTIONS"),
                 Arguments.of(
                         "show functions from cat1.db1 not like 'f%'",
@@ -330,7 +332,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         return Stream.of(
                 Arguments.of(
                         "SHOW DATABASES",
-                        new ShowDatabasesOperation(null, null, null),
+                        new ShowDatabasesOperation("builtin", null, null),
                         "SHOW DATABASES"),
                 Arguments.of(
                         "show databases from cat1 not like 'f%'",
@@ -382,7 +384,8 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                         "SHOW procedures in db1",
                         new ShowProceduresOperation("builtin", "db1", "IN", null)),
                 Arguments.of(
-                        "SHOW procedures", new ShowProceduresOperation(null, null, null, null)));
+                        "SHOW procedures",
+                        new ShowProceduresOperation("builtin", "default", null, null)));
     }
 
     @ParameterizedTest

@@ -59,9 +59,9 @@ public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowF
     }
 
     @Override
-    protected boolean skipQualifyingCatalogAndDatabase() {
+    protected boolean skipQualifyingDefaultCatalogAndDatabase() {
         // It should be supported to list functions with unset catalog
-        // for more info FLINK-33093
+        // for more info FLINhK-33093
         return true;
     }
 }
