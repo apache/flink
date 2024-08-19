@@ -508,11 +508,25 @@ final class TestValuesRuntimeFunctions {
             super.initializeState(context);
 
             synchronized (LOCK) {
-                // always store in a single map, global upsert
+                // always store in a single map, global upsert similar to external database
                 this.localUpsertResult =
                         globalUpsertResult
                                 .computeIfAbsent(tableName, k -> new HashMap<>())
                                 .computeIfAbsent(0, k -> new HashMap<>());
+                // load all data from global raw result
+                globalRawResult.computeIfAbsent(tableName, k -> new HashMap<>()).values().stream()
+                        .flatMap(List::stream)
+                        .forEach(
+                                row -> {
+                                    boolean isDelete = row.getKind() == RowKind.DELETE;
+                                    Row key = Row.project(row, keyIndices);
+                                    key.setKind(RowKind.INSERT);
+                                    if (isDelete) {
+                                        localUpsertResult.remove(key);
+                                    } else {
+                                        localUpsertResult.put(key, row);
+                                    }
+                                });
             }
         }
 
