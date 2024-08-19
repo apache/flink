@@ -109,6 +109,9 @@ public final class SpecificTypeStrategies {
     /** See {@link ToTimestampLtzTypeStrategy}. */
     public static final TypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzTypeStrategy();
 
+    /** See {@link ToNumberTypeStrategy}. */
+    public static final TypeStrategy TO_NUMBER = new ToNumberTypeStrategy();
+
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_KEYS}. */
     public static final TypeStrategy MAP_KEYS =
             callContext ->

@@ -1433,6 +1433,22 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition TO_NUMBER =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TO_NUMBER")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("expr", "format"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL))))
+                    .outputTypeStrategy(SpecificTypeStrategies.TO_NUMBER)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ToNumberFunction")
+                    .build();
     // --------------------------------------------------------------------------------------------
     // Math functions
     // --------------------------------------------------------------------------------------------

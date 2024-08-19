@@ -279,7 +279,7 @@ string:
       
       null obj is formated as a string "null".
       
-      format <CHAR | VARCHAR>, obj <ANY>
+      `format <CHAR | VARCHAR>, obj <ANY>`
       
       Returns a STRING representation of the formatted string. `NULL` if format is `NULL` or invalid.
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
@@ -457,6 +457,33 @@ string:
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
       
       The result has the type of the least common type of all expressions. `NULL` if index is `NULL` or out of range.
+  - sql: TO_NUMBER(expr, format)
+    table: expr.toNumber(expr, format)
+    description: |
+      Cast string expr to `DECIMAL` using formatting format.
+      
+      Ordering of tokens in format: [ MI | S ] [ L | $ ] [ 0 | 9 | G | , ]* [ D | . ] [ 0 | 9 ]* [ MI | S | PR]
+      
+      (1) 0 or 9: 
+      Specifies an expected digit between 0 and 9. 
+      For consecutive digits, leading 0 to the left of the decimal points indicates that expr must have exactly number of digits as in format, leading 9 indicates that expr may omit these digits.
+      Digits to the right of the decimal indicate the most digits expr may have to the right of the decimal point than format specifies.
+      (2) . or D: 
+      Specifies the position of the decimal point. expr does not need to include a decimal point.
+      (3) , or G: 
+      Specifies the position of the grouping (thousands) separator. 
+      There must be a 0 or 9 to the left and right of each grouping separator. expr must match the grouping separator relevant to the size of the number.
+      (4) L or $: 
+      Specifies the location of the $ currency sign. This character may only be specified once.
+      (5) S or MI:
+      Specifies the position of an optional + or - sign for S, and - only for MI. This directive may be specified only once.
+      (6) PR: 
+      Only allowed at the end of the format string. Specifies that expr indicates a negative number with wrapping angled brackets (<1> is -1).
+      
+      `expr <CHAR | VARCHAR>, format <CHAR | VARCHAR> & <LITERAL NOT NULL>`
+      
+      Returns a `DECIMAL(p, s)` where p is the total number of digits (0 or 9) and s is the number of digits after the decimal point, or 0 if there is none. 
+      `NULL` if format is invalid or expr mismatches format.
 
 temporal:
   - sql: DATE string

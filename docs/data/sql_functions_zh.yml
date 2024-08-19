@@ -341,7 +341,7 @@ string:
       
       null obj 被格式化为字符串 "null"。
       
-      strfmt <CHAR | VARCHAR>, obj <ANY>
+      `strfmt <CHAR | VARCHAR>, obj <ANY>`
       
       返回一个 STRING 格式的格式化后的字符串。如果 format 为 `NULL` 或不合法，则返回 `NULL`。
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
@@ -553,6 +553,34 @@ string:
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
       
       结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
+  - sql: TO_NUMBER(expr, format)
+    table: expr.toNumber(expr, format)
+    description: |
+      将字符串 expr 根据格式规范 format 转换为 `DECIMAL` 类型。
+  
+      格式规范标准：[ MI | S ] [ L | $ ] [ 0 | 9 | G | , ]* [ D | . ] [ 0 | 9 ]* [ MI | S | PR]
+  
+      (1) 0 或 9：
+      指定期望的 0 到 9 之间的数字。对于连续的数字，小数点左侧的前导 0 表示 expr 必须具有与格式中相同数量的数字，而前导 9 则表示 expr 可以省略这些数字。
+      小数点右侧的数字表示 expr 小数点右侧可能比格式指定的还要多的位数。
+      (2) . 或 D：
+      指定小数点的位置。expr 不一定包含小数点。只能使用一次。
+      (3) , 或 G：
+      指定千位分隔符的位置。
+      每个分隔符的左右两侧都必须有 0 或 9。expr 必须匹配与数字大小相关的分组分隔符。
+      (4) L 或 $：
+      指定货币符号 $ 的位置。只能使用一次。
+      (5) S 或 MI：
+      指定可选的正负号位置，S 允许 + 或 -，而 MI 仅允许 -。只能使用一次。
+      (6) PR：
+      仅允许出现在格式字符串的末尾。指定 expr 使用尖括号包裹来表示负数（如 <1> 代表 -1）。
+      
+      `expr <CHAR | VARCHAR>, format <CHAR | VARCHAR> & <LITERAL NOT NULL>`
+      
+      返回一个 `DECIMAL(p, s)`，其中 p 是总位数（包括 0 或 9），s 是小数点后的位数，如果没有小数点则为 0。
+      如果 format 无效或 expr 与格式不匹配，则返回 `NULL`。
+
+
 
 temporal:
   - sql: DATE string

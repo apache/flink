@@ -175,6 +175,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("ELT(1, a)", str(lit(1).elt(expr1)))
         self.assertEqual('ELT(3, a, b, c)', str(lit(3).elt(expr1, expr2, expr3)))
         self.assertEqual("PRINTF('%d %s', a, b)", str(lit("%d %s").printf(expr1, expr2)))
+        self.assertEqual("TO_NUMBER(a, b)", str(expr1.to_number(expr2)))
 
         # temporal functions
         self.assertEqual('cast(a, DATE)', str(expr1.to_date))

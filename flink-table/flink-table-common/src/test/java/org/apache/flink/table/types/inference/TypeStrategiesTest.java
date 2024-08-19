@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
@@ -169,6 +170,34 @@ class TypeStrategiesTest extends TypeStrategiesTestBase {
                                 "Average without grouped aggregation",
                                 TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                         .inputTypes(DataTypes.INT().notNull())
-                        .expectDataType(DataTypes.INT()));
+                        .expectDataType(DataTypes.INT()),
+
+                // TO_NUMBER
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "normal", SpecificTypeStrategies.TO_NUMBER)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(0, "123.45")
+                        .calledWithLiteralAt(1, "9990.99")
+                        .expectDataType(DataTypes.DECIMAL(6, 2)),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "normal", SpecificTypeStrategies.TO_NUMBER)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(0, "123.45")
+                        .calledWithLiteralAt(1, "99000D")
+                        .expectDataType(DataTypes.DECIMAL(5, 0)),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "invalid format", SpecificTypeStrategies.TO_NUMBER)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(0, "123.45")
+                        .calledWithLiteralAt(1, "D")
+                        .expectErrorMessage(
+                                "Could not infer an output type for the given arguments."),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "invalid output type", SpecificTypeStrategies.TO_NUMBER)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(0, "123.45")
+                        .calledWithLiteralAt(1, "9999999990999999999099999999909999999990")
+                        .expectErrorMessage(
+                                "Could not infer an output type for the given arguments."));
     }
 }

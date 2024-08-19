@@ -1431,6 +1431,37 @@ class Expression(Generic[T]):
                      for e in exprs]
         return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
 
+    def to_number(self, number_format) -> 'Expression':
+        """
+        Cast STRING to DECIMAL using formatting number_format.
+
+        Ordering of tokens in number_format: [ MI | S ] [ L | $ ] [ 0 | 9 | G | , ]* [ D | . ]
+        [ 0 | 9 ]* [ MI | S | PR]
+
+        (1) 0 or 9: Specifies an expected digit between 0 and 9. For consecutive digits, leading
+        0 to the left of the decimal points indicates that expr must have exactly the number of
+        digits as in number_format, leading 9 indicates that expr may omit these digits. Digits to
+        the right of the decimal indicate the most digits expr may have to the right of the decimal
+        point than number_format specifies. (2) . or D: Specifies the position of the decimal point.
+        expr does not need to include a decimal point. (3) , or G: Specifies the position of the
+        grouping (thousands) separator. There must be a 0 or 9 to the left and right of each
+        grouping separator. expr must match the grouping separator relevant to the size of the
+        number. (4) L or $: Specifies the location of the $ currency sign. This character may only
+        be specified once. (5) S or MI: Specifies the position of an optional + or - sign for S,
+        and - only for MI. This directive may be specified only once. (6) PR: Only allowed at the
+        end of the number_format string. Specifies that expr indicates a negative number with
+        wrapping angled brackets (<1> is -1).
+
+        For the returned DECIMAL(p, s), p is the total number of digits (0 or 9) and s is the number
+        of digits after the decimal point, or 0 if there is none. null if number_format is invalid
+        or expr mismatches number_format.
+
+
+        :param number_format: A STRING literal, specifying the expected format of expr.
+        :return: A DECIMAL(p, s).
+        """
+        return _binary_op("toNumber")(self, number_format)
+
     # ---------------------------- temporal functions ----------------------------------
 
     @property

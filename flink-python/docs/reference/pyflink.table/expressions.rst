@@ -203,6 +203,7 @@ string functions
     Expression.split_index
     Expression.str_to_map
     Expression.elt
+    Expression.to_number
 
 temporal functions
 ------------------

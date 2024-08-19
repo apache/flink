@@ -44,6 +44,7 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         eltTestCases(),
                         printfTestCases(),
                         regexpExtractTestCases(),
+                        toNumberTestCases(),
                         translateTestCases())
                 .flatMap(s -> s);
     }
@@ -331,6 +332,107 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_EXTRACT(f1, '[A-Z]+')",
                                 "ABC",
                                 DataTypes.STRING().nullable()));
+    }
+
+    private Stream<TestSetSpec> toNumberTestCases() {
+        return Stream.of(
+                // for full test cases, see NumberParserTest.java
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_NUMBER)
+                        .onFieldsWithData(null, "123.45")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f0").toNumber("999.99"),
+                                "TO_NUMBER(f0, '999.99')",
+                                null,
+                                DataTypes.DECIMAL(5, 2))
+                        // mismatch
+                        .testResult(
+                                lit("$").toNumber("L999"),
+                                "TO_NUMBER('$', 'L999')",
+                                null,
+                                DataTypes.DECIMAL(3, 0))
+                        .testResult(
+                                lit("123").toNumber("000,099"),
+                                "TO_NUMBER('123', '000,099')",
+                                null,
+                                DataTypes.DECIMAL(6, 0))
+                        .testResult(
+                                lit("123.45").toNumber("L999.99"),
+                                "TO_NUMBER('123.45', 'L999.99')",
+                                null,
+                                DataTypes.DECIMAL(5, 2))
+                        .testResult(
+                                lit("123.45").toNumber("000"),
+                                "TO_NUMBER('123.45', '000')",
+                                null,
+                                DataTypes.DECIMAL(3, 0))
+                        .testResult(
+                                lit("1D2").toNumber("0D0"),
+                                "TO_NUMBER('1D2', '0D0')",
+                                null,
+                                DataTypes.DECIMAL(2, 1))
+                        // match
+                        .testResult(
+                                lit("1 2  3.4\n5\f6").toNumber("099.099"),
+                                "TO_NUMBER('1 2  3.4\n5\f6', '099.099')",
+                                BigDecimal.valueOf(123456L, 3),
+                                DataTypes.DECIMAL(6, 3))
+                        .testResult(
+                                lit("123.456").toNumber("999,999.999"),
+                                "TO_NUMBER('123.456', '999,999.999')",
+                                BigDecimal.valueOf(123456L, 3),
+                                DataTypes.DECIMAL(9, 3))
+                        .testResult(
+                                lit("123.45").toNumber("999.999"),
+                                "TO_NUMBER('123.45', '999.999')",
+                                BigDecimal.valueOf(123450L, 3),
+                                DataTypes.DECIMAL(6, 3))
+                        .testResult(
+                                lit(".1").toNumber("900.90"),
+                                "TO_NUMBER('.1', '900.90')",
+                                BigDecimal.valueOf(10L, 2),
+                                DataTypes.DECIMAL(5, 2))
+                        .testResult(
+                                lit("<-123,456.78>").toNumber("MI999,000.99PR"),
+                                "TO_NUMBER('<-123,456.78>', 'MI999,000.99PR')",
+                                BigDecimal.valueOf(12345678L, 2),
+                                DataTypes.DECIMAL(8, 2)),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_NUMBER, "Validation Error")
+                        .onFieldsWithData("123", "000")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").toNumber(900),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "TO_NUMBER(expr <CHARACTER_STRING>, format [<CHARACTER_STRING> & <LITERAL NOT NULL>])")
+                        .testSqlValidationError(
+                                "TO_NUMBER(f0, 900)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "TO_NUMBER(expr <CHARACTER_STRING>, format [<CHARACTER_STRING> & <LITERAL NOT NULL>])")
+                        // not literal
+                        .testTableApiValidationError(
+                                lit("0$").toNumber($("f1")), "Literal expected.")
+                        .testSqlValidationError("TO_NUMBER('0$', f1)", "Literal expected.")
+                        // null format
+                        .testTableApiValidationError(
+                                $("f0").toNumber(null),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "TO_NUMBER(expr <CHARACTER_STRING>, format [<CHARACTER_STRING> & <LITERAL NOT NULL>])")
+                        .testSqlValidationError("TO_NUMBER(f0, NULL)", "Illegal use of 'NULL'")
+                        // invalid format
+                        .testTableApiValidationError(
+                                lit("0$").toNumber("900$"),
+                                "Could not infer an output type for the given arguments.")
+                        .testSqlValidationError(
+                                "TO_NUMBER('0$', '900$')",
+                                "Could not infer an output type for the given arguments.")
+                        // invalid output type
+                        .testTableApiValidationError(
+                                $("f0").toNumber("9999999990999999999099999999909999999990"),
+                                "Could not infer an output type for the given arguments.")
+                        .testSqlValidationError(
+                                "TO_NUMBER(f0, '9999999990999999999099999999909999999990')",
+                                "Could not infer an output type for the given arguments."));
     }
 
     private Stream<TestSetSpec> translateTestCases() {
