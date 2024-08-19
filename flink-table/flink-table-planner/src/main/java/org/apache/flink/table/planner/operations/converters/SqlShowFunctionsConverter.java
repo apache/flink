@@ -57,4 +57,11 @@ public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowF
     private static FunctionScope getFunctionScope(SqlShowFunctions sqlShowFunctions) {
         return sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL;
     }
+
+    @Override
+    protected boolean skipQualifyingCatalogAndDatabase() {
+        // It should be supported to list functions with unset catalog
+        // for more info FLINK-33093
+        return true;
+    }
 }

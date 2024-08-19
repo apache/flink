@@ -55,7 +55,7 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
     }
 
     private final FunctionScope functionScope;
-    private final String databaseName;
+    private final @Nullable String databaseName;
 
     public ShowFunctionsOperation(String catalogName, String databaseName) {
         // "SHOW FUNCTIONS" default is ALL scope
@@ -64,8 +64,8 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
 
     public ShowFunctionsOperation(
             FunctionScope functionScope,
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable ShowLikeOperator likeOp) {
         this(functionScope, null, catalogName, databaseName, likeOp);
     }

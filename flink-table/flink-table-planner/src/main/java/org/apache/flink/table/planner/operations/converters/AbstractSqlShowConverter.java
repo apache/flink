@@ -36,13 +36,17 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
         final ShowLikeOperator likeOp = getLikeOp(sqlShowCall);
         if (sqlShowCall.getPreposition() == null) {
             final CatalogManager catalogManager = context.getCatalogManager();
-            final String catalogName =
-                    catalogManager.qualifyCatalog(catalogManager.getCurrentCatalog());
-            final String databaseName =
-                    catalogManager.qualifyDatabase(catalogManager.getCurrentDatabase());
+            final String currentCatalogName = catalogManager.getCurrentCatalog();
+            final String currentDatabaseName = catalogManager.getCurrentDatabase();
+            if (skipQualifyingCatalogAndDatabase()) {
+                getOperationWithoutPrep(
+                        currentCatalogName, currentDatabaseName, sqlShowCall, likeOp);
+            }
+            final String catalogName = catalogManager.qualifyCatalog(currentCatalogName);
+            final String databaseName = catalogManager.qualifyDatabase(currentDatabaseName);
             return getOperationWithoutPrep(catalogName, databaseName, sqlShowCall, likeOp);
         }
-        List<String> sqlIdentifierNameList = sqlShowCall.getSqlIdentifierNameList();
+        final List<String> sqlIdentifierNameList = sqlShowCall.getSqlIdentifierNameList();
         if (sqlIdentifierNameList.size() > 2) {
             throw new ValidationException(
                     String.format(
@@ -50,18 +54,24 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
                             sqlShowCall.getOperator().getName(),
                             String.join(".", sqlIdentifierNameList)));
         }
-        CatalogManager catalogManager = context.getCatalogManager();
-        String catalogName =
+        final CatalogManager catalogManager = context.getCatalogManager();
+        final String catalogName =
                 sqlIdentifierNameList.size() == 1
                         ? catalogManager.getCurrentCatalog()
                         : sqlIdentifierNameList.get(0);
 
-        String databaseName =
+        final String databaseName =
                 sqlIdentifierNameList.size() == 1
                         ? sqlIdentifierNameList.get(0)
                         : sqlIdentifierNameList.get(1);
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         return getOperation(
-                sqlShowCall, catalogName, databaseName, sqlShowCall.getPreposition(), likeOp);
+                sqlShowCall,
+                qualifiedCatalogName,
+                qualifiedDatabaseName,
+                sqlShowCall.getPreposition(),
+                likeOp);
     }
 
     public ShowLikeOperator getLikeOp(SqlShowCall sqlShowCall) {
@@ -85,4 +95,8 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
 
     @Override
     public abstract Operation convertSqlNode(T node, ConvertContext context);
+
+    protected boolean skipQualifyingCatalogAndDatabase() {
+        return false;
+    }
 }
