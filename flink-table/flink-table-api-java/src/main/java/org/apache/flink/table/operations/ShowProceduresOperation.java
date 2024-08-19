@@ -65,7 +65,7 @@ public class ShowProceduresOperation extends AbstractShowOperation {
             if (preposition == null) {
                 // it's to show current_catalog.current_database
                 return catalogManager
-                        .getCatalogOrThrowException(catalogManager.getCurrentCatalog())
+                        .getCatalogOrError(catalogManager.getCurrentCatalog())
                         .listProcedures(catalogManager.getCurrentDatabase());
             } else {
                 Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);

@@ -951,8 +951,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      */
     public ObjectIdentifier qualifyIdentifier(UnresolvedIdentifier identifier) {
         return ObjectIdentifier.of(
-                qualifyCatalog(identifier.getCatalogName().orElseGet(null)),
-                qualifyDatabase(identifier.getCatalogName().orElseGet(null)),
+                identifier.getCatalogName().orElseGet(() -> qualifyCatalog(getCurrentCatalog())),
+                identifier.getDatabaseName().orElseGet(() -> qualifyDatabase(getCurrentDatabase())),
                 identifier.getObjectName());
     }
 
