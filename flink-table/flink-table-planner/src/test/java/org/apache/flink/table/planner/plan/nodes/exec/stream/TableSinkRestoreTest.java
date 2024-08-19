@@ -43,6 +43,7 @@ public class TableSinkRestoreTest extends RestoreTestBase {
                 TableSinkTestPrograms.SINK_OVERWRITE,
                 TableSinkTestPrograms.SINK_WRITING_METADATA,
                 TableSinkTestPrograms.SINK_NDF_PRIMARY_KEY,
-                TableSinkTestPrograms.SINK_PARTIAL_INSERT);
+                TableSinkTestPrograms.SINK_PARTIAL_INSERT,
+                TableSinkTestPrograms.SINK_UPSERT);
     }
 }
