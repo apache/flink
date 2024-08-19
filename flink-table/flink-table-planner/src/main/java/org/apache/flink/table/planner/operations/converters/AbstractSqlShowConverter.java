@@ -35,7 +35,12 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
     protected Operation convertShowOperation(T sqlShowCall, ConvertContext context) {
         final ShowLikeOperator likeOp = getLikeOp(sqlShowCall);
         if (sqlShowCall.getPreposition() == null) {
-            return getOperationWithoutPrep(sqlShowCall, likeOp);
+            final CatalogManager catalogManager = context.getCatalogManager();
+            final String catalogName =
+                    catalogManager.qualifyCatalog(catalogManager.getCurrentCatalog());
+            final String databaseName =
+                    catalogManager.qualifyDatabase(catalogManager.getCurrentDatabase());
+            return getOperationWithoutPrep(catalogName, databaseName, sqlShowCall, likeOp);
         }
         List<String> sqlIdentifierNameList = sqlShowCall.getSqlIdentifierNameList();
         if (sqlIdentifierNameList.size() > 2) {
@@ -65,12 +70,16 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
                 sqlShowCall.getLikeSqlPattern());
     }
 
-    public abstract Operation getOperationWithoutPrep(T sqlShowCall, ShowLikeOperator likeOp);
+    public abstract Operation getOperationWithoutPrep(
+            String catalogName,
+            String databaseName,
+            T sqlShowCall,
+            @Nullable ShowLikeOperator likeOp);
 
     public abstract Operation getOperation(
             T sqlShowCall,
-            @Nullable String catalogName,
-            @Nullable String databaseName,
+            String catalogName,
+            String databaseName,
             @Nullable String prep,
             @Nullable ShowLikeOperator likeOp);
 

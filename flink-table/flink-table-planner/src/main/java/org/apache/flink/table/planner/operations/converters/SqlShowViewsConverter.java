@@ -25,8 +25,12 @@ import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
 public class SqlShowViewsConverter extends AbstractSqlShowConverter<SqlShowViews> {
     @Override
-    public Operation getOperationWithoutPrep(SqlShowViews sqlShowCall, ShowLikeOperator likeOp) {
-        return new ShowViewsOperation(likeOp);
+    public Operation getOperationWithoutPrep(
+            String qualifiedCatalogName,
+            String qualifiedDatabaseName,
+            SqlShowViews sqlShowCall,
+            ShowLikeOperator likeOp) {
+        return new ShowViewsOperation(qualifiedCatalogName, qualifiedDatabaseName, likeOp);
     }
 
     @Override

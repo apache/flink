@@ -38,24 +38,21 @@ import java.util.Collection;
 public class ShowDatabasesOperation extends AbstractShowOperation {
 
     public ShowDatabasesOperation(
-            @Nullable String catalogName,
-            @Nullable String preposition,
-            @Nullable ShowLikeOperator likeOp) {
+            String catalogName, @Nullable String preposition, @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
     }
 
-    public ShowDatabasesOperation(ShowLikeOperator likeOp) {
-        this(null, null, likeOp);
+    public ShowDatabasesOperation(String catalogName, ShowLikeOperator likeOp) {
+        this(catalogName, null, likeOp);
     }
 
-    public ShowDatabasesOperation() {
-        this(null, null, null);
+    public ShowDatabasesOperation(String catalogName) {
+        this(catalogName, null, null);
     }
 
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String catalogName = catalogManager.qualifyCatalog(this.catalogName);
         return catalogManager.getCatalogOrThrowException(catalogName).listDatabases();
     }
 

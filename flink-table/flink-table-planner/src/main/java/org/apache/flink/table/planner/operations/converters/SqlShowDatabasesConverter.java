@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.utils.LikeType;
@@ -34,7 +35,10 @@ public class SqlShowDatabasesConverter implements SqlNodeConverter<SqlShowDataba
                         LikeType.of(sqlShowDatabases.getLikeType(), sqlShowDatabases.isNotLike()),
                         sqlShowDatabases.getLikeSqlPattern());
         if (sqlShowDatabases.getPreposition() == null) {
-            return new ShowDatabasesOperation(likeOp);
+            final CatalogManager catalogManager = context.getCatalogManager();
+            final String currentCatalogName = catalogManager.getCurrentCatalog();
+            final String qualifiedCatalogName = catalogManager.qualifyCatalog(currentCatalogName);
+            return new ShowDatabasesOperation(qualifiedCatalogName, likeOp);
         } else {
             return new ShowDatabasesOperation(
                     sqlShowDatabases.getCatalogName(), sqlShowDatabases.getPreposition(), likeOp);

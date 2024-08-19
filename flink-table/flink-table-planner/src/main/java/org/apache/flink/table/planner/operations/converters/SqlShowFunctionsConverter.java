@@ -29,9 +29,13 @@ public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowF
 
     @Override
     public Operation getOperationWithoutPrep(
-            SqlShowFunctions sqlShowFunctions, ShowLikeOperator likeOp) {
+            String qualifiedCatalogName,
+            String qualifiedDatabaseName,
+            SqlShowFunctions sqlShowFunctions,
+            ShowLikeOperator likeOp) {
         final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
-        return new ShowFunctionsOperation(functionScope, likeOp);
+        return new ShowFunctionsOperation(
+                functionScope, qualifiedCatalogName, qualifiedDatabaseName, likeOp);
     }
 
     @Override

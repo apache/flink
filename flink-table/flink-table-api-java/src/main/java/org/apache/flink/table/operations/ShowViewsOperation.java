@@ -39,23 +39,24 @@ import java.util.Set;
 @Internal
 public class ShowViewsOperation extends AbstractShowOperation {
 
-    private final @Nullable String databaseName;
+    private final String databaseName;
 
     public ShowViewsOperation(
-            @Nullable String catalogName,
-            @Nullable String databaseName,
+            String catalogName,
+            String databaseName,
             @Nullable String preposition,
             @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
         this.databaseName = databaseName;
     }
 
-    public ShowViewsOperation(@Nullable ShowLikeOperator likeOp) {
-        this(null, null, null, likeOp);
+    public ShowViewsOperation(
+            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, databaseName, null, likeOp);
     }
 
-    public ShowViewsOperation() {
-        this(null);
+    public ShowViewsOperation(String catalogName, String databaseName) {
+        this(catalogName, databaseName, null);
     }
 
     @Override
@@ -65,17 +66,16 @@ public class ShowViewsOperation extends AbstractShowOperation {
 
     protected Set<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String catalogName = catalogManager.qualifyCatalog(this.catalogName);
-        final String dbName = catalogManager.qualifyDatabase(this.databaseName);
         if (preposition == null) {
             return catalogManager.listViews();
         } else {
             Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-            if (catalog.databaseExists(dbName)) {
-                return catalogManager.listViews(catalogName, dbName);
+            if (catalog.databaseExists(databaseName)) {
+                return catalogManager.listViews(catalogName, databaseName);
             } else {
                 throw new ValidationException(
-                        String.format("Database '%s'.'%s' doesn't exist.", catalogName, dbName));
+                        String.format(
+                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
             }
         }
     }

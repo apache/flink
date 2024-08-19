@@ -41,44 +41,38 @@ import java.util.Collection;
 @Internal
 public class ShowProceduresOperation extends AbstractShowOperation {
 
-    private final @Nullable String databaseName;
+    private final String databaseName;
 
     public ShowProceduresOperation(
-            @Nullable String catalogName,
-            @Nullable String databaseName,
+            String catalogName,
+            String databaseName,
             @Nullable String preposition,
             @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
         this.databaseName = databaseName;
     }
 
-    public ShowProceduresOperation(@Nullable ShowLikeOperator likeOp) {
-        this(null, null, null, likeOp);
+    public ShowProceduresOperation(
+            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, databaseName, null, likeOp);
     }
 
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String catalogName = catalogManager.qualifyCatalog(this.catalogName);
-        final String dbName = catalogManager.qualifyDatabase(this.databaseName);
         try {
             if (preposition == null) {
                 // it's to show current_catalog.current_database
-                return catalogManager
-                        .getCatalogOrError(catalogManager.getCurrentCatalog())
-                        .listProcedures(catalogManager.getCurrentDatabase());
+                return catalogManager.getCatalogOrError(catalogName).listProcedures(databaseName);
             } else {
                 Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-                return catalog.listProcedures(dbName);
+                return catalog.listProcedures(databaseName);
             }
         } catch (DatabaseNotExistException e) {
             throw new TableException(
                     String.format(
                             "Fail to show procedures because the Database `%s` to show from/in does not exist in Catalog `%s`.",
-                            preposition == null ? catalogManager.getCurrentDatabase() : dbName,
-                            preposition == null
-                                    ? catalogManager.getCurrentCatalog()
-                                    : catalogName));
+                            databaseName, catalogName));
         }
     }
 
