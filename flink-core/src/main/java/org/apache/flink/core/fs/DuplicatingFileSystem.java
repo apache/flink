@@ -22,33 +22,18 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * An extension interface for {@link FileSystem FileSystems} that can perform cheap DFS side
- * duplicate operation. Such an operation can improve the time required for creating cheaply
- * independent snapshots from incremental snapshots.
+ * This interface is no longer used. Implementing it doesn't have any effect. Please migrate to
+ * {@link PathsCopyingFileSystem} which provides the same functionality.
  */
+@Deprecated
 public interface DuplicatingFileSystem {
-    /**
-     * Tells if we can perform duplicate/copy between given paths.
-     *
-     * <p>This should be a rather cheap operation, preferably not involving any remote accesses. You
-     * can check e.g. if both paths are on the same host.
-     *
-     * @param source The path of the source file to duplicate
-     * @param destination The path where to duplicate the source file
-     * @return true, if we can perform the duplication
-     */
+    /** Please use {@link PathsCopyingFileSystem#canCopyPaths(Path, Path)}. */
     boolean canFastDuplicate(Path source, Path destination) throws IOException;
 
-    /**
-     * Duplicates the source path into the destination path.
-     *
-     * <p>You should first check if you can duplicate with {@link #canFastDuplicate(Path, Path)}.
-     *
-     * @param requests Pairs of src/dst to copy.
-     */
+    /** Please use {@link PathsCopyingFileSystem#copyFiles(List, ICloseableRegistry)}. */
     void duplicate(List<CopyRequest> requests) throws IOException;
 
-    /** A pair of source and destination to duplicate a file. */
+    /** Please use {@link PathsCopyingFileSystem.CopyRequest}. */
     interface CopyRequest {
         /** The path of the source file to duplicate. */
         Path getSource();
