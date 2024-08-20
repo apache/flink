@@ -404,6 +404,9 @@ public class ParquetRowDataWriter {
                         recordConsumer.startField(keyName, 0);
                         keyWriter.write(keyArray, i);
                         recordConsumer.endField(keyName, 0);
+                    } else {
+                        throw new IllegalArgumentException(
+                                "Parquet does not support null keys in maps. See https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.");
                     }
 
                     if (!valueArray.isNullAt(i)) {

@@ -388,12 +388,18 @@ class SlotSharingSlotAllocatorTest {
                 vertex1.getJobVertexID(),
                 Collections.singletonList(
                         new VertexAllocationInformation(
-                                allocation1, vertex1.getJobVertexID(), KeyGroupRange.of(1, 100))));
+                                allocation1,
+                                vertex1.getJobVertexID(),
+                                KeyGroupRange.of(1, 100),
+                                1)));
         locality.put(
                 vertex2.getJobVertexID(),
                 Collections.singletonList(
                         new VertexAllocationInformation(
-                                allocation1, vertex2.getJobVertexID(), KeyGroupRange.of(1, 100))));
+                                allocation1,
+                                vertex2.getJobVertexID(),
+                                KeyGroupRange.of(1, 100),
+                                1)));
 
         // previous allocation allocation2: v3
         AllocationID allocation2 = new AllocationID();
@@ -401,12 +407,15 @@ class SlotSharingSlotAllocatorTest {
                 vertex3.getJobVertexID(),
                 Collections.singletonList(
                         new VertexAllocationInformation(
-                                allocation2, vertex3.getJobVertexID(), KeyGroupRange.of(1, 100))));
+                                allocation2,
+                                vertex3.getJobVertexID(),
+                                KeyGroupRange.of(1, 100),
+                                1)));
 
         List<SlotInfo> freeSlots = new ArrayList<>();
-        IntStream.range(0, 10).forEach(i -> freeSlots.add(new TestSlotInfo(new AllocationID())));
-        freeSlots.add(new TestSlotInfo(allocation1));
-        freeSlots.add(new TestSlotInfo(allocation2));
+        IntStream.range(0, 10).forEach(i -> freeSlots.add(new TestingSlot(new AllocationID())));
+        freeSlots.add(new TestingSlot(allocation1));
+        freeSlots.add(new TestingSlot(allocation2));
 
         JobSchedulingPlan schedulingPlan =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
@@ -439,7 +448,7 @@ class SlotSharingSlotAllocatorTest {
     private static Collection<SlotInfo> getSlots(int count) {
         final Collection<SlotInfo> slotInfo = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            slotInfo.add(new TestSlotInfo());
+            slotInfo.add(new TestingSlot());
         }
         return slotInfo;
     }

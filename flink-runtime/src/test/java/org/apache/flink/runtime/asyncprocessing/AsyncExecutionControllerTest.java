@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
@@ -32,6 +33,8 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendTestUtils;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.InternalValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -45,6 +48,7 @@ import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -106,7 +110,11 @@ class AsyncExecutionControllerTest {
         asyncKeyedStateBackend.setup(aec);
 
         try {
-            valueState = asyncKeyedStateBackend.createState(stateDescriptor);
+            valueState =
+                    asyncKeyedStateBackend.createState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            stateDescriptor);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -228,6 +236,115 @@ class AsyncExecutionControllerTest {
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
         assertThat(output.get()).isEqualTo(1);
         assertThat(recordContext4.getReferenceCount()).isEqualTo(0);
+
+        resourceRegistry.close();
+    }
+
+    @Test
+    void testNamespace() throws IOException {
+        final Consumer<String> userCode =
+                (r) -> {
+                    valueState.setCurrentNamespace(r);
+                    valueState
+                            .asyncValue()
+                            .thenCompose(
+                                    val -> {
+                                        int updated = (val == null ? 1 : (val + 1));
+                                        return valueState
+                                                .asyncUpdate(updated)
+                                                .thenCompose(
+                                                        o ->
+                                                                StateFutureUtils.completedFuture(
+                                                                        updated));
+                                    })
+                            .thenAccept(val -> output.set(val));
+                };
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
+        setup(
+                100,
+                10000L,
+                1000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
+        // ============================ element1 ============================
+        String record1 = "key1-r1";
+        String key1 = "key1";
+        // Simulate the wrapping in {@link RecordProcessorUtils#getRecordProcessor()}, wrapping the
+        // record and key with RecordContext.
+        RecordContext<String> recordContext1 = aec.buildContext(record1, key1);
+        aec.setCurrentContext(recordContext1);
+        // execute user code
+        userCode.accept(record1);
+
+        // Single-step run.
+        // Firstly, the user code generates value get in active buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        // After running, the value update is in active buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        // Value update finishes.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
+        assertThat(output.get()).isEqualTo(1);
+        assertThat(recordContext1.getReferenceCount()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+
+        // ============================ element 2 & 3(1) ============================
+        String record2 = "key1-r2";
+        String key2 = "key1";
+        RecordContext<String> recordContext2 = aec.buildContext(record2, key2);
+        aec.setCurrentContext(recordContext2);
+        // execute user code
+        userCode.accept(record2);
+
+        String record3 = "key1-r1";
+        String key3 = "key1";
+        RecordContext<String> recordContext3 = aec.buildContext(record3, key3);
+        aec.setCurrentContext(recordContext3);
+        // execute user code
+        userCode.accept(record3);
+
+        // Single-step run.
+        // Firstly, the user code for record2 generates value get in active buffer,
+        // while user code for record3 generates value get in blocking buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
+        aec.triggerIfNeeded(true);
+        // After running, the value update for record2 is in active buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
+        aec.triggerIfNeeded(true);
+        // Value update for record2 finishes. The value get for record3 is migrated from blocking
+        // buffer to active buffer actively.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(output.get()).isEqualTo(1);
+        assertThat(recordContext2.getReferenceCount()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+
+        // Let value get for record3 to run.
+        aec.triggerIfNeeded(true);
+        // After running, the value update for record3 is in active buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        // Value update for record3 finishes.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+        assertThat(output.get()).isEqualTo(2);
+        assertThat(recordContext3.getReferenceCount()).isEqualTo(0);
 
         resourceRegistry.close();
     }
@@ -727,22 +844,22 @@ class AsyncExecutionControllerTest {
     /** Simulate the underlying state that is actually used to execute the request. */
     static class TestUnderlyingState {
 
-        private final HashMap<String, Integer> hashMap;
+        private final HashMap<Tuple2<String, String>, Integer> hashMap;
 
         public TestUnderlyingState() {
             this.hashMap = new HashMap<>();
         }
 
-        public Integer get(String key) {
-            return hashMap.get(key);
+        public Integer get(String key, String namespace) {
+            return hashMap.get(Tuple2.of(key, namespace));
         }
 
-        public void update(String key, Integer val) {
-            hashMap.put(key, val);
+        public void update(String key, String namespace, Integer val) {
+            hashMap.put(Tuple2.of(key, namespace), val);
         }
     }
 
-    static class TestValueState extends InternalValueState<String, Integer> {
+    static class TestValueState extends InternalValueState<String, String, Integer> {
 
         private final TestUnderlyingState underlyingState;
 
@@ -776,7 +893,9 @@ class AsyncExecutionControllerTest {
                     Preconditions.checkState(request.getState() != null);
                     TestValueState state = (TestValueState) request.getState();
                     Integer val =
-                            state.underlyingState.get((String) request.getRecordContext().getKey());
+                            state.underlyingState.get(
+                                    (String) request.getRecordContext().getKey(),
+                                    (String) request.getRecordContext().getNamespace(state));
                     request.getFuture().complete(val);
                 } else if (request.getRequestType() == StateRequestType.VALUE_UPDATE) {
                     Preconditions.checkState(request.getState() != null);
@@ -784,6 +903,7 @@ class AsyncExecutionControllerTest {
 
                     state.underlyingState.update(
                             (String) request.getRecordContext().getKey(),
+                            (String) request.getRecordContext().getNamespace(state),
                             (Integer) request.getPayload());
                     request.getFuture().complete(null);
                 } else {

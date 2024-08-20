@@ -84,11 +84,13 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -96,9 +98,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -153,6 +157,7 @@ class ExecutingTest {
                     new ArrayList<>(),
                     TestingRescaleManager.Factory.noOpFactory(),
                     1,
+                    1,
                     Instant.now());
             assertThat(mockExecutionVertex.isDeployCalled()).isFalse();
         }
@@ -180,10 +185,122 @@ class ExecutingTest {
                                         new ArrayList<>(),
                                         TestingRescaleManager.Factory.noOpFactory(),
                                         1,
+                                        1,
                                         Instant.now());
                             }
                         })
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void testTriggerRescaleOnCompletedCheckpoint() throws Exception {
+        final AtomicBoolean rescaleTriggered = new AtomicBoolean();
+        final RescaleManager.Factory rescaleManagerFactory =
+                new TestingRescaleManager.Factory(() -> {}, () -> rescaleTriggered.set(true));
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setRescaleManagerFactory(rescaleManagerFactory)
+                            .build(ctx);
+
+            assertThat(rescaleTriggered).isFalse();
+            testInstance.onCompletedCheckpoint();
+            assertThat(rescaleTriggered).isTrue();
+        }
+    }
+
+    @Test
+    public void testTriggerRescaleOnFailedCheckpoint() throws Exception {
+        final AtomicInteger rescaleTriggerCount = new AtomicInteger();
+        final RescaleManager.Factory rescaleManagerFactory =
+                new TestingRescaleManager.Factory(() -> {}, rescaleTriggerCount::incrementAndGet);
+        final int rescaleOnFailedCheckpointsCount = 3;
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setRescaleManagerFactory(rescaleManagerFactory)
+                            .setRescaleOnFailedCheckpointCount(rescaleOnFailedCheckpointsCount)
+                            .build(ctx);
+
+            // do multiple rescale iterations to verify that subsequent failed checkpoints after a
+            // rescale result in the expected behavior
+            for (int rescaleIteration = 1; rescaleIteration <= 3; rescaleIteration++) {
+
+                // trigger an initial failed checkpoint event to show that the counting only starts
+                // with the subsequent change event
+                testInstance.onFailedCheckpoint();
+
+                // trigger change
+                testInstance.onNewResourceRequirements();
+
+                for (int i = 0; i < rescaleOnFailedCheckpointsCount; i++) {
+                    assertThat(rescaleTriggerCount)
+                            .as(
+                                    "No rescale operation should have been triggered for iteration #%d, yet.",
+                                    rescaleIteration)
+                            .hasValue(rescaleIteration - 1);
+                    testInstance.onFailedCheckpoint();
+                }
+
+                assertThat(rescaleTriggerCount)
+                        .as(
+                                "The rescale operation for iteration #%d should have been properly triggered.",
+                                rescaleIteration)
+                        .hasValue(rescaleIteration);
+            }
+        }
+    }
+
+    @Test
+    public void testOnCompletedCheckpointResetsFailedCheckpointCount() throws Exception {
+        final AtomicInteger rescaleTriggeredCount = new AtomicInteger();
+        final RescaleManager.Factory rescaleManagerFactory =
+                new TestingRescaleManager.Factory(() -> {}, rescaleTriggeredCount::incrementAndGet);
+        final int rescaleOnFailedCheckpointsCount = 3;
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance =
+                    new ExecutingStateBuilder()
+                            .setRescaleManagerFactory(rescaleManagerFactory)
+                            .setRescaleOnFailedCheckpointCount(rescaleOnFailedCheckpointsCount)
+                            .build(ctx);
+
+            // trigger an initial failed checkpoint event to show that the counting only starts with
+            // the subsequent change event
+            testInstance.onFailedCheckpoint();
+
+            // trigger change
+            testInstance.onNewResourcesAvailable();
+
+            IntStream.range(0, rescaleOnFailedCheckpointsCount - 1)
+                    .forEach(ignored -> testInstance.onFailedCheckpoint());
+
+            assertThat(rescaleTriggeredCount)
+                    .as("No rescaling should have been trigger, yet.")
+                    .hasValue(0);
+
+            testInstance.onCompletedCheckpoint();
+
+            // trigger change
+            testInstance.onNewResourceRequirements();
+
+            assertThat(rescaleTriggeredCount)
+                    .as("The completed checkpoint should have triggered a rescale.")
+                    .hasValue(1);
+
+            IntStream.range(0, rescaleOnFailedCheckpointsCount - 1)
+                    .forEach(ignored -> testInstance.onFailedCheckpoint());
+
+            assertThat(rescaleTriggeredCount)
+                    .as(
+                            "No additional rescaling should have been trigger by any subsequent failed checkpoint, yet.")
+                    .hasValue(1);
+
+            testInstance.onFailedCheckpoint();
+
+            assertThat(rescaleTriggeredCount)
+                    .as("The previous failed checkpoint should have triggered the rescale.")
+                    .hasValue(2);
+        }
     }
 
     @Test
@@ -459,15 +576,22 @@ class ExecutingTest {
 
     @Test
     void testExecutingChecksForNewResourcesWhenBeingCreated() throws Exception {
+        final String onChangeEventLabel = "onChange";
+        final String onTriggerEventLabel = "onTrigger";
+        final Queue<String> actualEvents = new ArrayDeque<>();
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            final AtomicBoolean scaleEventTriggered = new AtomicBoolean();
             new ExecutingStateBuilder()
                     .setRescaleManagerFactory(
-                            new TestingRescaleManager.Factory(() -> scaleEventTriggered.set(true)))
+                            new TestingRescaleManager.Factory(
+                                    () -> actualEvents.add(onChangeEventLabel),
+                                    () -> actualEvents.add(onTriggerEventLabel)))
                     .build(ctx);
 
             ctx.triggerExecutors();
-            assertThat(scaleEventTriggered.get()).isTrue();
+
+            assertThat(actualEvents.poll()).isEqualTo(onChangeEventLabel);
+            assertThat(actualEvents.poll()).isEqualTo(onTriggerEventLabel);
+            assertThat(actualEvents.isEmpty()).isTrue();
         }
     }
 
@@ -482,8 +606,9 @@ class ExecutingTest {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .build(EXECUTOR_EXTENSION.getExecutor());
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
-        private TestingRescaleManager.Factory rescaleManagerFactory =
+        private RescaleManager.Factory rescaleManagerFactory =
                 TestingRescaleManager.Factory.noOpFactory();
+        private int rescaleOnFailedCheckpointCount = 1;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
             operatorCoordinatorHandler = new TestingOperatorCoordinatorHandler();
@@ -501,8 +626,14 @@ class ExecutingTest {
         }
 
         public ExecutingStateBuilder setRescaleManagerFactory(
-                TestingRescaleManager.Factory rescaleManagerFactory) {
+                RescaleManager.Factory rescaleManagerFactory) {
             this.rescaleManagerFactory = rescaleManagerFactory;
+            return this;
+        }
+
+        public ExecutingStateBuilder setRescaleOnFailedCheckpointCount(
+                int rescaleOnFailedCheckpointCount) {
+            this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
             return this;
         }
 
@@ -520,6 +651,7 @@ class ExecutingTest {
                         new ArrayList<>(),
                         rescaleManagerFactory,
                         1,
+                        rescaleOnFailedCheckpointCount,
                         // will be ignored by the TestingRescaleManager.Factory
                         Instant.now());
             } finally {

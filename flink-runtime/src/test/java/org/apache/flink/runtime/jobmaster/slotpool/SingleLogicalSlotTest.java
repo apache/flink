@@ -21,13 +21,13 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -73,12 +73,13 @@ class SingleLogicalSlotTest {
     }
 
     private static SlotContext createSlotContext() {
-        return new SimpleSlotContext(
-                new AllocationID(),
-                new LocalTaskManagerLocation(),
-                0,
-                new SimpleAckingTaskManagerGateway(),
-                ResourceProfile.ANY);
+        return TestingPhysicalSlot.builder()
+                .withAllocationID(new AllocationID())
+                .withTaskManagerLocation(new LocalTaskManagerLocation())
+                .withPhysicalSlotNumber(0)
+                .withTaskManagerGateway(new SimpleAckingTaskManagerGateway())
+                .withResourceProfile(ResourceProfile.ANY)
+                .build();
     }
 
     @Test

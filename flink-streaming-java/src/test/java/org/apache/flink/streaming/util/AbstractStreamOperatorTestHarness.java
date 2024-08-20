@@ -776,6 +776,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         return factory;
     }
 
+    public void advanceTime(long delta) throws Exception {
+        processingTimeService.advance(delta);
+    }
+
     public void setProcessingTime(long time) throws Exception {
         processingTimeService.setCurrentTime(time);
     }

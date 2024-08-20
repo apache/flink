@@ -33,6 +33,10 @@ under the License.
 	<properties>
 		<fs.s3.aws.version>1.12.319</fs.s3.aws.version>
 		<japicmp.skip>true</japicmp.skip>
+		<surefire.module.config> <!--
+			S5CmdOnMinioITCase uses ArraysAsListSerializer indirectly
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

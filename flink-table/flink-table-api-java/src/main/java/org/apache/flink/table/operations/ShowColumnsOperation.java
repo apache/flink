@@ -27,7 +27,7 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
-import org.apache.flink.table.functions.SqlLikeUtils;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -35,6 +35,8 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,62 +45,30 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
-/** Show columns from [[catalog.]database.]table. */
+/**
+ * Operation to describe a SHOW COLUMNS statement. The full syntax for SHOW COLUMNS is as
+ * followings:
+ *
+ * <pre>{@code
+ * SHOW COLUMNS [ ( FROM | IN ) [catalog_name.]database_name.]table [ [NOT] (LIKE | ILIKE)
+ * &lt;sql_like_pattern&gt; ] statement
+ * }</pre>
+ */
 @Internal
-public class ShowColumnsOperation implements ShowOperation {
+public class ShowColumnsOperation extends AbstractShowOperation {
 
     private final ObjectIdentifier tableIdentifier;
-    private final boolean useLike;
-    private final boolean notLike;
-    private final @Nullable String likePattern;
-    private final String preposition;
 
     public ShowColumnsOperation(
             ObjectIdentifier tableIdentifier,
-            @Nullable String likePattern,
-            boolean useLike,
-            boolean notLike,
-            String preposition) {
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(tableIdentifier.getCatalogName(), preposition, likeOp);
         this.tableIdentifier = tableIdentifier;
-        this.likePattern = likePattern;
-        this.useLike = useLike;
-        this.notLike = notLike;
-        this.preposition = preposition;
-    }
-
-    public String getLikePattern() {
-        return likePattern;
-    }
-
-    public String getPreposition() {
-        return preposition;
-    }
-
-    public boolean isUseLike() {
-        return useLike;
-    }
-
-    public boolean isNotLike() {
-        return notLike;
     }
 
     public ObjectIdentifier getTableIdentifier() {
         return tableIdentifier;
-    }
-
-    @Override
-    public String asSummaryString() {
-        if (useLike) {
-            if (notLike) {
-                return String.format(
-                        "SHOW COLUMNS %s %s %s LIKE '%s'",
-                        preposition, tableIdentifier.asSummaryString(), "NOT", likePattern);
-            }
-            return String.format(
-                    "SHOW COLUMNS %s %s LIKE '%s'",
-                    preposition, tableIdentifier.asSummaryString(), likePattern);
-        }
-        return String.format("SHOW COLUMNS %s %s", preposition, tableIdentifier.asSummaryString());
     }
 
     @Override
@@ -113,14 +83,10 @@ public class ShowColumnsOperation implements ShowOperation {
 
         ResolvedSchema schema = result.get().getResolvedSchema();
         Object[][] rows = generateTableColumnsRows(schema);
-        if (useLike) {
+        if (likeOp != null) {
             rows =
                     Arrays.stream(rows)
-                            .filter(
-                                    row ->
-                                            notLike
-                                                    != SqlLikeUtils.like(
-                                                            row[0].toString(), likePattern, "\\"))
+                            .filter(row -> ShowLikeOperator.likeFilter(row[0].toString(), likeOp))
                             .toArray(Object[][]::new);
         }
         boolean nonComments = isSchemaNonColumnComments(schema);
@@ -203,5 +169,22 @@ public class ShowColumnsOperation implements ShowOperation {
             result.add(DataTypes.STRING());
         }
         return result.toArray(new DataType[0]);
+    }
+
+    @Override
+    protected String getOperationName() {
+        return "SHOW COLUMNS";
+    }
+
+    @Override
+    protected String getColumnName() {
+        // Dummy implementation since the main logic is overridden in execute method
+        return null;
+    }
+
+    @Override
+    protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        // Dummy implementation since the main logic is overridden in execute method
+        return Collections.emptyList();
     }
 }

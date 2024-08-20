@@ -24,10 +24,14 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.RelativeClock;
 
 import java.time.Duration;
+import java.util.Collection;
 
 /**
  * Basic interface for the timestamp extraction and watermark generation logic for the {@link
@@ -58,6 +62,9 @@ public interface TimestampsAndWatermarks<T> {
 
         /** Notifies about changes to per split watermarks. */
         void updateCurrentSplitWatermark(String splitId, long watermark);
+
+        /** Notifies that split has finished. */
+        void splitFinished(String splitId);
     }
 
     /**
@@ -83,6 +90,8 @@ public interface TimestampsAndWatermarks<T> {
     /** Emit a watermark immediately. */
     void emitImmediateWatermark(long wallClockTimestamp);
 
+    void pauseOrResumeSplits(Collection<String> splitsToPause, Collection<String> splitsToResume);
+
     // ------------------------------------------------------------------------
     //  factories
     // ------------------------------------------------------------------------
@@ -91,27 +100,51 @@ public interface TimestampsAndWatermarks<T> {
             WatermarkStrategy<E> watermarkStrategy,
             MetricGroup metrics,
             ProcessingTimeService timeService,
-            long periodicWatermarkIntervalMillis) {
+            long periodicWatermarkIntervalMillis,
+            RelativeClock mainInputActivityClock,
+            Clock clock,
+            TaskIOMetricGroup taskIOMetricGroup) {
 
-        final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
-        final TimestampAssigner<E> timestampAssigner =
-                watermarkStrategy.createTimestampAssigner(context);
+        TimestampsAndWatermarksContextProvider contextProvider =
+                new TimestampsAndWatermarksContextProvider(metrics);
+        TimestampAssigner<E> timestampAssigner =
+                watermarkStrategy.createTimestampAssigner(
+                        contextProvider.create(mainInputActivityClock));
 
         return new ProgressiveTimestampsAndWatermarks<>(
                 timestampAssigner,
                 watermarkStrategy,
-                context,
+                contextProvider,
                 timeService,
-                Duration.ofMillis(periodicWatermarkIntervalMillis));
+                Duration.ofMillis(periodicWatermarkIntervalMillis),
+                mainInputActivityClock,
+                clock,
+                taskIOMetricGroup);
     }
 
     static <E> TimestampsAndWatermarks<E> createNoOpEventTimeLogic(
-            WatermarkStrategy<E> watermarkStrategy, MetricGroup metrics) {
+            WatermarkStrategy<E> watermarkStrategy,
+            MetricGroup metrics,
+            RelativeClock inputActivityClock) {
 
-        final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
+        final TimestampsAndWatermarksContext context =
+                new TimestampsAndWatermarksContext(metrics, inputActivityClock);
         final TimestampAssigner<E> timestampAssigner =
                 watermarkStrategy.createTimestampAssigner(context);
 
         return new NoOpTimestampsAndWatermarks<>(timestampAssigner);
+    }
+
+    @Internal
+    class TimestampsAndWatermarksContextProvider {
+        private final MetricGroup metrics;
+
+        public TimestampsAndWatermarksContextProvider(MetricGroup metrics) {
+            this.metrics = metrics;
+        }
+
+        public TimestampsAndWatermarksContext create(RelativeClock inputActivityClock) {
+            return new TimestampsAndWatermarksContext(metrics, inputActivityClock);
+        }
     }
 }

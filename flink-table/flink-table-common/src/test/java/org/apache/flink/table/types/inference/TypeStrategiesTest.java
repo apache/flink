@@ -136,6 +136,25 @@ class TypeStrategiesTest extends TypeStrategiesTestBase {
                                 DataTypes.DECIMAL(20, 10))
                         .expectDataType(DataTypes.DECIMAL(20, 10)),
                 TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type of selected arguments",
+                                TypeStrategies.commonRange(ConstantArgumentCount.from(1)))
+                        .inputTypes(DataTypes.INT(), DataTypes.SMALLINT(), DataTypes.TINYINT())
+                        .expectDataType(DataTypes.SMALLINT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type of selected arguments",
+                                TypeStrategies.commonRange(ConstantArgumentCount.between(1, 2)))
+                        .inputTypes(
+                                DataTypes.VARCHAR(10),
+                                DataTypes.CHAR(3),
+                                DataTypes.VARCHAR(4),
+                                DataTypes.CHAR(7))
+                        .expectDataType(DataTypes.VARCHAR(4)),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type of selected arguments",
+                                TypeStrategies.commonRange(ConstantArgumentCount.to(1)))
+                        .inputTypes(DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT())
+                        .expectDataType(DataTypes.SMALLINT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
                                 "Convert to varying string",
                                 varyingString(explicit(DataTypes.CHAR(12).notNull())))
                         .inputTypes(DataTypes.CHAR(12).notNull())

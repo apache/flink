@@ -59,7 +59,7 @@ import org.apache.flink.runtime.state.v2.KeyedStateStoreV2;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -359,6 +359,24 @@ public class StreamOperatorStateHandler {
 
         if (keyedStateBackend != null) {
             return keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+        } else {
+            throw new IllegalStateException(
+                    "Cannot create partitioned state. "
+                            + "The keyed state backend has not been set."
+                            + "This indicates that the operator is not partitioned/keyed.");
+        }
+    }
+
+    /** Create new state (v2) based on new state descriptor. */
+    public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
+            throws Exception {
+
+        if (asyncKeyedStateBackend != null) {
+            return asyncKeyedStateBackend.createState(
+                    defaultNamespace, namespaceSerializer, stateDescriptor);
         } else {
             throw new IllegalStateException(
                     "Cannot create partitioned state. "

@@ -140,7 +140,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
     @Override
     public void reportInitializationMetrics(
             SubTaskInitializationMetrics subTaskInitializationMetrics) {
-        checkpointResponder.reportInitializationMetrics(jobId, subTaskInitializationMetrics);
+        checkpointResponder.reportInitializationMetrics(
+                jobId, executionAttemptID, subTaskInitializationMetrics);
     }
 
     @Override

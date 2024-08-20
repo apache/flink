@@ -121,6 +121,7 @@ The following table lists the type mapping from Flink type to Parquet type.
         <th class="text-left">Flink Data Type</th>
         <th class="text-center">Parquet type</th>
         <th class="text-center">Parquet logical type</th>
+        <th class="text-center">Limitations</th>
       </tr>
     </thead>
     <tbody>
@@ -128,81 +129,103 @@ The following table lists the type mapping from Flink type to Parquet type.
       <td>CHAR / VARCHAR / STRING</td>
       <td>BINARY</td>
       <td>UTF8</td>
+      <td></td>
     </tr>
     <tr>
       <td>BOOLEAN</td>
       <td>BOOLEAN</td>
+      <td></td>
       <td></td>
     </tr>
     <tr>
       <td>BINARY / VARBINARY</td>
       <td>BINARY</td>
       <td></td>
+      <td></td>
     </tr>
     <tr>
       <td>DECIMAL</td>
       <td>FIXED_LEN_BYTE_ARRAY</td>
       <td>DECIMAL</td>
+      <td></td>
     </tr>
     <tr>
       <td>TINYINT</td>
       <td>INT32</td>
       <td>INT_8</td>
+      <td></td>
     </tr>
     <tr>
       <td>SMALLINT</td>
       <td>INT32</td>
       <td>INT_16</td>
+      <td></td>
     </tr>
     <tr>
       <td>INT</td>
       <td>INT32</td>
+      <td></td>
       <td></td>
     </tr>
     <tr>
       <td>BIGINT</td>
       <td>INT64</td>
       <td></td>
+      <td></td>
     </tr>
     <tr>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td></td>
+      <td></td>
     </tr>
     <tr>
       <td>DOUBLE</td>
       <td>DOUBLE</td>
+      <td></td>
       <td></td>
     </tr>
     <tr>
       <td>DATE</td>
       <td>INT32</td>
       <td>DATE</td>
+      <td></td>
     </tr>
     <tr>
       <td>TIME</td>
       <td>INT32</td>
       <td>TIME_MILLIS</td>
+      <td></td>
     </tr>
     <tr>
       <td>TIMESTAMP</td>
       <td>INT96 (or INT64)</td>
+      <td></td>
       <td></td>
     </tr>
     <tr>
       <td>ARRAY</td>
       <td>-</td>
       <td>LIST</td>
+      <td></td>
     </tr>
     <tr>
       <td>MAP</td>
       <td>-</td>
       <td>MAP</td>
+      <td>[Parquet does not support nullable map keys](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps)</td>
+    </tr>
+    <tr>
+      <td>MULTISET</td>
+      <td>-</td>
+      <td>MAP</td>
+      <td>[Parquet does not support nullable map keys](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps)</td>
     </tr>
     <tr>
       <td>ROW</td>
       <td>-</td>
       <td>STRUCT</td>
+      <td></td>
     </tr>
     </tbody>
 </table>

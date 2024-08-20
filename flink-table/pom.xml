@@ -83,7 +83,6 @@ under the License.
 		at the same time minimum 3.1.x Janino version passing Flink tests without WAs is 3.1.10,
 		more details are in FLINK-27995 -->
 		<janino.version>3.1.10</janino.version>
-		<jsonpath.version>2.7.0</jsonpath.version>
 		<guava.version>32.1.3-jre</guava.version>
 		<quartz.version>2.3.2</quartz.version>
 	</properties>

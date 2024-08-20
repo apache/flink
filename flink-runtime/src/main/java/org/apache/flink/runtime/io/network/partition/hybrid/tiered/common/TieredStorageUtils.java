@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.common;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.BufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.HashBufferAccumulator;
@@ -31,6 +32,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote.R
 
 import java.nio.ByteBuffer;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utils for reading from or writing to tiered storage. */
 public class TieredStorageUtils {
@@ -127,5 +130,23 @@ public class TieredStorageUtils {
 
         bufferWithHeaders[index] = header;
         bufferWithHeaders[index + 1] = buffer.getNioBufferReadable();
+    }
+
+    /** Try compress buffer if possible. */
+    public static Buffer compressBufferIfPossible(
+            Buffer buffer, BufferCompressor bufferCompressor) {
+        if (!canBeCompressed(buffer, bufferCompressor)) {
+            return buffer;
+        }
+
+        return checkNotNull(bufferCompressor).compressToOriginalBuffer(buffer);
+    }
+
+    /**
+     * Whether the buffer can be compressed or not. Note that event is not compressed because it is
+     * usually small and the size can become even larger after compression.
+     */
+    public static boolean canBeCompressed(Buffer buffer, BufferCompressor bufferCompressor) {
+        return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
     }
 }

@@ -42,7 +42,7 @@ import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Ordering;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Ordering;
 
 import org.junit.jupiter.api.Test;
 

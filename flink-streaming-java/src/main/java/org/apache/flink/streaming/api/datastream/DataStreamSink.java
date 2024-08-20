@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
@@ -55,13 +56,18 @@ public class DataStreamSink<T> {
         StreamSink<T> sinkOperator = new StreamSink<>(sinkFunction);
         final StreamExecutionEnvironment executionEnvironment =
                 inputStream.getExecutionEnvironment();
-        PhysicalTransformation<T> transformation =
+        LegacySinkTransformation<T> transformation =
                 new LegacySinkTransformation<>(
                         inputStream.getTransformation(),
                         "Unnamed",
                         sinkOperator,
                         executionEnvironment.getParallelism(),
                         false);
+        if (sinkFunction instanceof LineageVertexProvider) {
+            transformation.setLineageVertex(
+                    ((LineageVertexProvider) sinkFunction).getLineageVertex());
+        }
+
         executionEnvironment.addOperator(transformation);
         return new DataStreamSink<>(transformation);
     }
@@ -82,6 +88,10 @@ public class DataStreamSink<T> {
                         executionEnvironment.getParallelism(),
                         false,
                         customSinkOperatorUidHashes);
+        if (sink instanceof LineageVertexProvider) {
+            transformation.setLineageVertex(((LineageVertexProvider) sink).getLineageVertex());
+        }
+
         executionEnvironment.addOperator(transformation);
         return new DataStreamSink<>(transformation);
     }

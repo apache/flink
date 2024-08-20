@@ -108,6 +108,6 @@ public class RowTimeWindowDeduplicateOperatorBuilder {
         final SlicingWindowProcessor<Long> windowProcessor =
                 new RowTimeWindowDeduplicateProcessor(
                         inputSerializer, bufferFactory, windowEndIndex, shiftTimeZone);
-        return new WindowAggOperator<>(windowProcessor);
+        return new WindowAggOperator<>(windowProcessor, true);
     }
 }

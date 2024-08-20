@@ -47,7 +47,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # build Flink; required for Javadoc step
-mvn clean install -B -DskipTests -Dfast -Pskip-webui-build
+mvn clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
 
 # build java/scala docs
 mkdir -p docs/target/api

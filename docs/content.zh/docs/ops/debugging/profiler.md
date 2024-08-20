@@ -25,41 +25,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Profiler
+# 分析器
 
-Since Flink 1.19, we support profiling the JobManager/TaskManager process interactively with [async-profiler](https://github.com/async-profiler/async-profiler) via Flink Web UI, which allows users to create a profiling instance with arbitrary intervals and event modes, e.g ITIMER, CPU, Lock, Wall-Clock and Allocation.
+自 Flink 1.19 起，我们基于 Flink Web UI ，用 [async-profiler](https://github.com/async-profiler/async-profiler) 交互式地分析JobManager/TaskManager 进程， 让用户可以创建具有任意间隔和事件模式的分析实例，比如 ITIMER、CPU、Lock、Wall-Clock 和 Allocation。
 
-- **CPU**: In this mode the profiler collects stack trace samples that include Java methods, native calls, JVM code and kernel functions.
-- **ALLOCATION**: In allocation profiling mode, the top frame of every call trace is the class of the allocated object, and the counter is the heap pressure (the total size of allocated TLABs or objects outside TLAB).
-- **Wall-clock**: Wall-Clock option tells async-profiler to sample all threads equally every given period of time regardless of thread status: Running, Sleeping or Blocked. For instance, this can be helpful when profiling application start-up time.
-- **Lock**: In lock profiling mode the top frame is the class of lock/monitor, and the counter is number of nanoseconds it took to enter this lock/monitor.
-- **ITIMER**: You can fall back to itimer profiling mode. It is similar to cpu mode, but does not require perf_events support. As a drawback, there will be no kernel stack traces.
+- **CPU**: 在这种模式下，分析器收集包括Java方法、本地调用、JVM代码和内核函数在内的堆栈跟踪样本
+- **ALLOCATION**: 在allocation 分析模式下， 每个调用跟踪的顶部框架是被分配对象的类，以及对分配的TLAB或TLAB之外的对象的总大小的计数。
+- **Wall-clock**: Wall-Clock选项使得async-profiler在每个给定的时间段内均匀对所有线程进行采样，无论线程状态如何：正在运行、睡眠或阻塞。这个选项在分析应用程序启动时间时会很有帮助
+- **Lock**: 在lock分析模式下，顶部框架是锁定/监视器的类，计数器是进入此锁定/监视器所需的纳秒数。
+- **ITIMER**: 你可以退回到itimer分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺陷是没有内核堆栈跟踪。
 
 {{< hint warning >}}
 
-Any measurement process in and of itself inevitably affects the subject of measurement. In order to prevent unintended impacts on production environments, Profiler are currently available as an opt-in feature. To enable it, you'll need to set [`rest.profiling.enabled: true`]({{< ref "docs/deployment/config">}}#rest-profiling-enabled) in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
+任何测量过程本身都不可避免地会影响测量对象。为了防止对生产环境产生意外影响，分析器目前作为一项可选的功能。要启用它，你需要在[Flink配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中设置 [`rest.profiling.enabled: true`]({{< ref "docs/deployment/config">}}#rest-profiling-enabled) 。我们建议在开发和预生产环境中启用它，但在生产环境中应将其视为试验性功能。
 
 {{< /hint >}}
 
 
-## Requirements
-Since the Profiler is powered by the Async-profiler, it is required to work on platforms that are supported by the Async-profiler.
+## 要求
+由于分析器由async-profiler驱动，因此必须在async-profiler支持的平台上运行。
 
 |           | Officially maintained builds | Other available ports                     |
 |-----------|------------------------------|-------------------------------------------|
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
 
-Profiling on platforms beyond those listed above will fail with an error message in the `Message` column.
+在上述列表之外的平台分析将在 `Message` 列中报错。
 
 
-##  Usage
-Flink users can complete the profiling submission and result export via Flink Web UI conveniently.
+##  用途
+Flink用户可以通过Flink Web UI方便地完成剖析提交和结果导出。
 
-For example,
-- First, you should find out the candidate TaskManager/JobManager with performance bottleneck for profiling, and switch to the corresponding TaskManager/JobManager page (profiler tab).
-- You can submit a profiling instance with a specified duration and mode by simply clicking on the button **Create Profiling Instance**. (The description of the profiling mode will be shown when hovering over the corresponding mode.)
-- Once the profiling instance is complete, you can easily download the interactive HTML file by clicking on the link.
+比如，
+- 首先，你应找出存在性能瓶颈的 TaskManager/JobManager，然后切换到相应的 TaskManager/JobManager 页面（分析器选项卡）。
+- 你只需通过点击 **创建分析实例**按钮来提交一个具有特定持续时间和模式的剖析实例。 （悬停在模式上时将显示相应分析模式的描述。）
+- 一旦分析实例完成，你可以通过点击链接下载交互式 HTML 文件。
 
 {{< img src="/fig/profiler_instance.png" class="img-fluid" width="90%" >}}
 {{% center %}}
@@ -67,15 +67,15 @@ Profiling Instance
 {{% /center %}}
 
 
-## Troubleshooting
-1. **Failed to profiling in CPU mode: No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'** \
-   That means `perf_event_open()` syscall has failed. By default, Docker container restricts the access to `perf_event_open` syscall. The recommended solution is to fall back to ITIMER profiling mode. It is similar to CPU mode, but does not require `perf_events` support. As a drawback, there will be no kernel stack traces.
+## 故障排除
+1. **Failed to profiling in CPU mode: No access to perf events. Try –fdtransfer or –all-user option or ‘sysctl kernel.perf_event_paranoid=1’** \
+   这意味着 `perf_event_open()` 系统调用失败。默认情况下，Docker容器限制对 `perf_event_open` 系统调用。建议解决方案是回退到ITIMER分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺点是没有内核堆栈跟踪。
 
 2. **Failed to profiling in Allocation mode: No AllocTracer symbols found. Are JDK debug symbols installed?** \
-   The OpenJDK debug symbols are required for allocation profiling. See [Installing Debug Symbols](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#installing-debug-symbols) for more details.
+   OpenJDK debug symbols 在 allocation分析模式下是必需的。 在 [Installing Debug Symbols](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#installing-debug-symbols) 中查看更多详细信息。
 
 {{< hint info >}}
 
-You can refer to the [Troubleshooting](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#troubleshooting) page of async-profiler for more cases.
+你可以在 [Troubleshooting](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#troubleshooting) 页面的async-profiler中查阅更多案例。
 
 {{< /hint >}}

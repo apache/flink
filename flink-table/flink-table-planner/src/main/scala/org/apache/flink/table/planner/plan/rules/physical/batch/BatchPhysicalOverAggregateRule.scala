@@ -26,14 +26,13 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggrega
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase, BatchPhysicalPythonOverAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils
 
-import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle}
 import org.apache.calcite.sql.SqlAggFunction
@@ -107,7 +106,7 @@ class BatchPhysicalOverAggregateRule
           (group, aggCallToAggFunction)
       }
 
-      val outputRowType = inferOutputRowType(
+      val outputRowType = OverAggregateUtil.inferOutputRowType(
         logicWindow.getCluster,
         inputRowType,
         groupToAggCallToAggFunction.flatMap(_._2).map(_._1))
@@ -196,22 +195,6 @@ class BatchPhysicalOverAggregateRule
       }
     }
     isSatisfied
-  }
-
-  private def inferOutputRowType(
-      cluster: RelOptCluster,
-      inputType: RelDataType,
-      aggCalls: Seq[AggregateCall]): RelDataType = {
-
-    val inputNameList = inputType.getFieldNames
-    val inputTypeList = inputType.getFieldList.asScala.map(field => field.getType)
-
-    // we should avoid duplicated names with input column names
-    val aggNames = RowTypeUtils.getUniqueName(aggCalls.map(_.getName), inputNameList)
-    val aggTypes = aggCalls.map(_.getType)
-
-    val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    typeFactory.createStructType(inputTypeList ++ aggTypes, inputNameList ++ aggNames)
   }
 
   private def adjustGroup(

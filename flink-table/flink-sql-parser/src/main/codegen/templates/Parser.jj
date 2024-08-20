@@ -1996,7 +1996,7 @@ SqlNode FromClause() :
     SqlLiteral joinType;
 }
 {
-    e = Join()
+    e = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN)
     (
         // Comma joins should only occur at top-level in the FROM clause.
         // Valid:
@@ -2005,33 +2005,30 @@ SqlNode FromClause() :
         // Not valid:
         //  * FROM a CROSS JOIN (b, c)
         LOOKAHEAD(1)
-        <COMMA> { joinType = JoinType.COMMA.symbol(getPos()); }
-        e2 = Join() {
-            e = new SqlJoin(joinType.getParserPosition(),
-                e,
-                SqlLiteral.createBoolean(false, joinType.getParserPosition()),
-                joinType,
-                e2,
-                JoinConditionType.NONE.symbol(SqlParserPos.ZERO),
-                null);
-        }
+        e = JoinOrCommaTable(e)
     )*
     { return e; }
 }
 
-SqlNode Join() :
+SqlNode JoinOrCommaTable(SqlNode e) :
 {
-    SqlNode e;
+    SqlNode e2;
+    SqlLiteral joinType;
 }
 {
-    e = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN)
-    (
-        LOOKAHEAD(2)
-        e = JoinTable(e)
-    )*
-    {
-        return e;
+    LOOKAHEAD(2)
+    <COMMA> { joinType = JoinType.COMMA.symbol(getPos()); }
+    e2 = TableRef1(ExprContext.ACCEPT_QUERY_OR_JOIN) {
+        return new SqlJoin(joinType.getParserPosition(),
+            e,
+            SqlLiteral.createBoolean(false, joinType.getParserPosition()),
+            joinType,
+            e2,
+            JoinConditionType.NONE.symbol(SqlParserPos.ZERO),
+            null);
     }
+|
+    e2 = JoinTable(e) { return e2; }
 }
 
 /** Matches "LEFT JOIN t ON ...", "RIGHT JOIN t USING ...", "JOIN t". */
@@ -2179,6 +2176,8 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
         tableRef = addLateral(tableRef, lateral)
         [ tableRef = MatchRecognize(tableRef) ]
     |
+        LOOKAHEAD(2)
+        [ <LATERAL> ] // "LATERAL" is implicit with "UNNEST", so ignore
         <UNNEST> { s = span(); }
         args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_SUB_QUERY)
         [

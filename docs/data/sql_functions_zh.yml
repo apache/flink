@@ -296,6 +296,16 @@ arithmetic:
     description: |
       以十六进制格式返回整数 numeric 或字符串 string 的字符串表示。如果参数为 `NULL`，则返回 `NULL`。
       例如数字 20 返回“14”，数字 100 返回“64”，字符串“hello,world” 返回“68656C6C6F2C776F726C64”。
+  - sql: UNHEX(expr)
+    table: expr.unhex()
+    description: |
+      将十六进制字符串 expr 转换为 BINARY。
+      
+      如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
+      
+      expr <CHAR | VARCHAR>
+      
+      返回一个 BINARY。如果 expr 为 `NULL` 或包含非十六进制字符，则返回 `NULL`。
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: |
@@ -322,6 +332,18 @@ string:
   - sql: POSITION(string1 IN string2)
     table: STRING1.position(STRING2)
     description: 返回 STRING2 中第一次出现 STRING1 的位置（从 1 开始）；如果在 STRING2 中找不到 STRING1 返回 0。
+  - sql: PRINTF(format[, obj]*)
+    table: format.printf(obj...)
+    description: |
+      格式化 print-style 样式的字符串。
+      
+      函数使用 java.util.Formatter (Locale.US) 解析字符串。
+      
+      null obj 被格式化为字符串 "null"。
+      
+      strfmt <CHAR | VARCHAR>, obj <ANY>
+      
+      返回一个 STRING 格式的格式化后的字符串。如果 format 为 `NULL` 或不合法，则返回 `NULL`。
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     table: |
       STRING1.trim(LEADING, STRING2)
@@ -330,16 +352,34 @@ string:
       STRING1.trim(BOTH)
       STRING1.trim()
     description: 删除字符串 STRING1 开头和结尾可能存在的字符串 STRING2 并返回。默认情况下，会删除 STRING1 开头和结尾的空格。
-  - sql: LTRIM(string)
-    table: STRING.ltrim()
+  - sql: LTRIM(str[, trimStr])
+    table: str.ltrim([trimStr])
     description: |
-      返回从 STRING 中删除左边空格的字符串。
+      从 str 的开头删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       例如 `' This is a test String.'.ltrim()` 返回 `'This is a test String.'`。
-  - sql: RTRIM(string)
-    table: STRING.rtrim()
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
+  - sql: RTRIM(str[, trimStr])
+    table: str.rtrim([trimStr])
     description: |
-      返回从 STRING 中删除右边空格的字符串。
+      从 str 的结尾删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       例如 `'This is a test String. '.rtrim()` 返回 `'This is a test String.'`。
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
+  - sql: BTRIM(str[, trimStr])
+    table: str.btrim([trimStr])
+    description: |      
+      从 str 的开头和结尾删除 trimStr 中的字符。trimStr 默认设置为空格。      
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: |
@@ -369,6 +409,16 @@ string:
       返回一个新字符串，它用 STRING3（非重叠）替换 STRING1 中所有出现的 STRING2。
       例如 `'hello world'.replace('world', 'flink')` 返回 `'hello flink'`；
       `'ababab'.replace('abab', 'z')` 返回 `'zab'`。
+  - sql: TRANSLATE(expr, fromStr, toStr)
+    table: expr.translate(fromStr, toStr)
+    description: |
+      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+      
+      如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
+      
+      expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>
+      
+      返回 STRING 格式的转换结果。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
@@ -448,6 +498,16 @@ string:
     table: STRING1.locate(STRING2[, INTEGER])
     description: |
       返回 string2 中 string1 在位置 integer 之后第一次出现的位置。未找到返回 0。如果有任一参数为 `NULL` 则返回 `NULL`。
+  - sql: URL_DECODE(string)
+    table: STRING.urlDecode()
+    description:
+      使用 UTF-8 编码方案对“application/x-www-form-urlencoded”格式的给定字符串进行解码。
+      如果输入为 NULL，或者解码过程出现问题（例如遇到非法转义模式或者不支持该编码方案），该函数将返回 NULL。
+  - sql: URL_ENCODE(string)
+    table: STRING.urlEncode()
+    description:
+      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式。
+      如果输入为 NULL，或者编码过程出现问题，或者不支持编码方案，则会返回 NULL。
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
@@ -477,6 +537,22 @@ string:
   - sql: SUBSTR(string, integer1[, integer2])
     table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
+  - sql: JSON_QUOTE(string)
+    table: STRING.JsonQuote()
+    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning the result as a string. If the argument is NULL, the function returns NULL.
+  - sql: JSON_UNQUOTE(string)
+    table: STRING.JsonUnquote()
+    description: Unquotes JSON value, unescapes escaped special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+  - sql: ELT(index, expr[, exprs]*)
+    table: index.elt(expr, exprs...)
+    description: |
+      返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      
+      结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
 
 temporal:
   - sql: DATE string

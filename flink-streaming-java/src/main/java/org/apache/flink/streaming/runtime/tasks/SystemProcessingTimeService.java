@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import org.slf4j.Logger;
@@ -86,8 +88,8 @@ public class SystemProcessingTimeService implements TimerService {
     }
 
     @Override
-    public long getCurrentProcessingTime() {
-        return System.currentTimeMillis();
+    public Clock getClock() {
+        return SystemClock.getInstance();
     }
 
     /**

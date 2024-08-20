@@ -18,30 +18,39 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
+
+import java.time.Duration;
 
 /** Abstract SlotPoolServiceFactory. */
 public abstract class AbstractSlotPoolServiceFactory implements SlotPoolServiceFactory {
 
     @Nonnull protected final Clock clock;
 
-    @Nonnull protected final Time rpcTimeout;
+    @Nonnull protected final Duration rpcTimeout;
 
-    @Nonnull protected final Time slotIdleTimeout;
+    @Nonnull protected final Duration slotIdleTimeout;
 
-    @Nonnull protected final Time batchSlotTimeout;
+    @Nonnull protected final Duration batchSlotTimeout;
+
+    @Nonnull protected final Duration slotRequestMaxInterval;
+
+    protected final boolean slotBatchAllocatable;
 
     protected AbstractSlotPoolServiceFactory(
             @Nonnull Clock clock,
-            @Nonnull Time rpcTimeout,
-            @Nonnull Time slotIdleTimeout,
-            @Nonnull Time batchSlotTimeout) {
+            @Nonnull Duration rpcTimeout,
+            @Nonnull Duration slotIdleTimeout,
+            @Nonnull Duration batchSlotTimeout,
+            @Nonnull Duration slotRequestMaxInterval,
+            boolean slotBatchAllocatable) {
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
         this.slotIdleTimeout = slotIdleTimeout;
         this.batchSlotTimeout = batchSlotTimeout;
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
+        this.slotBatchAllocatable = slotBatchAllocatable;
     }
 }

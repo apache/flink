@@ -28,6 +28,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -102,8 +103,9 @@ import static org.apache.flink.table.factories.WorkflowSchedulerFactoryUtil.WORK
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.service.utils.Constants.CLUSTER_INFO;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
-import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampString;
+import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampStringWithOffset;
 import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
+import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
 
 /** Manager is responsible for execute the {@link MaterializedTableOperation}. */
 @Internal
@@ -541,10 +543,17 @@ public class MaterializedTableManager {
                         materializedTableIdentifier.asSerializableString());
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, STREAMING);
-        customConfig.set(
-                CheckpointingOptions.CHECKPOINTING_INTERVAL,
-                catalogMaterializedTable.getFreshness());
         restorePath.ifPresent(s -> customConfig.set(SAVEPOINT_PATH, s));
+
+        // Do not override the user-defined checkpoint interval
+        if (!operationExecutor
+                .getSessionContext()
+                .getSessionConf()
+                .contains(CheckpointingOptions.CHECKPOINTING_INTERVAL)) {
+            customConfig.set(
+                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                    catalogMaterializedTable.getFreshness());
+        }
 
         String insertStatement =
                 getInsertStatement(
@@ -608,6 +617,7 @@ public class MaterializedTableManager {
                 isPeriodic
                         ? getPeriodRefreshPartition(
                                 scheduleTime,
+                                materializedTable.getDefinitionFreshness(),
                                 materializedTableIdentifier,
                                 materializedTable.getOptions(),
                                 operationExecutor
@@ -621,9 +631,14 @@ public class MaterializedTableManager {
         // Set job name, runtime mode
         Configuration customConfig = new Configuration();
         String jobName =
-                String.format(
-                        "Materialized_table_%s_one_time_refresh_job",
-                        materializedTableIdentifier.asSerializableString());
+                isPeriodic
+                        ? String.format(
+                                "Materialized_table_%s_periodic_refresh_job",
+                                materializedTableIdentifier.asSerializableString())
+                        : String.format(
+                                "Materialized_table_%s_one_time_refresh_job",
+                                materializedTableIdentifier.asSerializableString());
+
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, BATCH);
 
@@ -674,13 +689,14 @@ public class MaterializedTableManager {
     @VisibleForTesting
     static Map<String, String> getPeriodRefreshPartition(
             String scheduleTime,
+            IntervalFreshness freshness,
             ObjectIdentifier materializedTableIdentifier,
             Map<String, String> materializedTableOptions,
             ZoneId localZoneId) {
         if (scheduleTime == null) {
             throw new ValidationException(
                     String.format(
-                            "Scheduler time not properly set for periodic refresh of materialized table %s.",
+                            "The scheduler time must not be null during the periodic refresh of the materialized table %s.",
                             materializedTableIdentifier));
         }
 
@@ -695,12 +711,14 @@ public class MaterializedTableManager {
                             PARTITION_FIELDS.length() + 1,
                             partKey.length() - (DATE_FORMATTER.length() + 1));
             String partFieldFormatter = materializedTableOptions.get(partKey);
+
             String partFiledValue =
-                    formatTimestampString(
+                    formatTimestampStringWithOffset(
                             scheduleTime,
                             SCHEDULE_TIME_DATE_FORMATTER_DEFAULT,
                             partFieldFormatter,
-                            TimeZone.getTimeZone(localZoneId));
+                            TimeZone.getTimeZone(localZoneId),
+                            -convertFreshnessToDuration(freshness).toMillis());
             if (partFiledValue == null) {
                 throw new SqlExecutionException(
                         String.format(

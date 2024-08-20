@@ -300,6 +300,30 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @TestTemplate
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'false'
+                    |) AS
+                    |  (SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src order by `votes` LIMIT 2)
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1]",
+      "+I[jason, 1]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCreateTableAsSelectWithoutOptions(): Unit = {
     // TODO: CTAS supports ManagedTable
     // If the connector option is not specified, Flink will creates a Managed table.
@@ -310,6 +334,137 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .hasMessage("You should enable the checkpointing for sinking to managed table " +
         "'default_catalog.default_database.MyCtasTable'," +
         " managed table relies on checkpoint to commit and the data is visible only after commit.")
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithNewColumnsOnly(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`p1` INT, `p2` STRING)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement(`p1` INT, `p2` STRING)
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithColumnsFromQueryOnly(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`person` STRING, `votes` DOUBLE)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql(
+      """
+        |CREATE TABLE MyCtasTableUseStatement(`person` STRING, `votes` DOUBLE)
+        | WITH (
+        |   'connector' = 'values',
+        |   'sink-insert-only' = 'true'
+        |) AS
+        |  SELECT
+        |    `person`,
+        |    `votes`
+        |  FROM
+        |    src
+        |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithMixOfNewColumnsAndQueryColumns(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`p1` INT, `votes` DOUBLE, `votes_2x` AS `votes` * 2)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql(
+      """
+        |CREATE TABLE MyCtasTableUseStatement(`p1` INT, `votes` DOUBLE, `votes_2x` AS `votes` * 2)
+        | WITH (
+        |   'connector' = 'values',
+        |   'sink-insert-only' = 'true'
+        |) AS
+        |  SELECT
+        |    `person`,
+        |    `votes`
+        |  FROM
+        |    src
+        |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate

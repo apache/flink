@@ -19,16 +19,21 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.JArrayList
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.spec.{OverSpec, PartitionSpec}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 
+import org.apache.calcite.plan.RelOptCluster
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
-import org.apache.calcite.rel.core.Window
+import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexWindowBound}
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 object OverAggregateUtil {
@@ -218,5 +223,21 @@ object OverAggregateUtil {
         true
       }
     }
+  }
+
+  def inferOutputRowType(
+      cluster: RelOptCluster,
+      inputType: RelDataType,
+      aggCalls: Seq[AggregateCall]): RelDataType = {
+
+    val inputNameList = inputType.getFieldNames
+    val inputTypeList = inputType.getFieldList.asScala.map(_.getType)
+
+    // we should avoid duplicated names with input column names
+    val aggNames = RowTypeUtils.getUniqueName(aggCalls.map(_.getName), inputNameList)
+    val aggTypes = aggCalls.map(_.getType)
+
+    val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    typeFactory.createStructType(inputTypeList ++ aggTypes, inputNameList ++ aggNames)
   }
 }

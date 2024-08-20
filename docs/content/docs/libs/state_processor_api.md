@@ -95,7 +95,7 @@ When reading operator state, users specify the operator uid, the state name, and
 
 #### Operator List State
 
-Operator state stored in a `CheckpointedFunction` using `getListState` can be read using `ExistingSavepoint#readListState`.
+Operator state stored in a `CheckpointedFunction` using `getListState` can be read using `SavepointReader#readListState`.
 The state name and type information should match those used to define the `ListStateDescriptor` that declared this state in the DataStream application.
 
 ```java
@@ -107,7 +107,7 @@ DataStream<Integer> listState  = savepoint.readListState<>(
 
 #### Operator Union List State
 
-Operator state stored in a `CheckpointedFunction` using `getUnionListState` can be read using `ExistingSavepoint#readUnionState`.
+Operator state stored in a `CheckpointedFunction` using `getUnionListState` can be read using `SavepointReader#readUnionState`.
 The state name and type information should match those used to define the `ListStateDescriptor` that declared this state in the DataStream application.
 The framework will return a _single_ copy of the state, equivalent to restoring a DataStream with parallelism 1.
 
@@ -120,7 +120,7 @@ DataStream<Integer> listState  = savepoint.readUnionState<>(
 
 #### Broadcast State
 
-[BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}) can be read using `ExistingSavepoint#readBroadcastState`.
+[BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}) can be read using `SavepointReader#readBroadcastState`.
 The state name and type information should match those used to define the `MapStateDescriptor` that declared this state in the DataStream application.
 The framework will return a _single_ copy of the state, equivalent to restoring a DataStream with parallelism 1.
 

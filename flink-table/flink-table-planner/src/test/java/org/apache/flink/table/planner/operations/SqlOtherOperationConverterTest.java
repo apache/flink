@@ -26,10 +26,12 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCreateCatalogOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowProceduresOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -42,12 +44,16 @@ import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.operations.utils.LikeType;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
@@ -55,6 +61,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -187,32 +194,60 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW MODULES");
     }
 
-    @Test
-    void testShowTables() {
-        final String sql = "SHOW TABLES from cat1.db1 not like 't%'";
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowTablesTest")
+    void testShowTables(String sql, ShowTablesOperation expected, String expectedSummary) {
         Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowTablesOperation.class);
+        assertThat(operation).isInstanceOf(ShowTablesOperation.class).isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
 
-        ShowTablesOperation showTablesOperation = (ShowTablesOperation) operation;
-        assertThat(showTablesOperation.getCatalogName()).isEqualTo("cat1");
-        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db1");
-        assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
-        assertThat(showTablesOperation.isUseLike()).isTrue();
-        assertThat(showTablesOperation.isNotLike()).isTrue();
+    private static Stream<Arguments> inputForShowTablesTest() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW TABLES from cat1.db1 not like 't%'",
+                        new ShowTablesOperation(
+                                "cat1",
+                                "db1",
+                                "FROM",
+                                ShowLikeOperator.of(LikeType.NOT_LIKE, "t%")),
+                        "SHOW TABLES FROM cat1.db1 NOT LIKE 't%'"),
+                Arguments.of(
+                        "SHOW TABLES in db2",
+                        new ShowTablesOperation("builtin", "db2", "IN", null),
+                        "SHOW TABLES IN builtin.db2"),
+                Arguments.of(
+                        "SHOW TABLES",
+                        new ShowTablesOperation("builtin", "default", null, null),
+                        "SHOW TABLES"));
+    }
 
-        final String sql2 = "SHOW TABLES in db2";
-        showTablesOperation = (ShowTablesOperation) parse(sql2);
-        assertThat(showTablesOperation.getCatalogName()).isEqualTo("builtin");
-        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db2");
-        assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
-        assertThat(showTablesOperation.isUseLike()).isFalse();
-        assertThat(showTablesOperation.isNotLike()).isFalse();
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowViewsTest")
+    void testShowViews(String sql, ShowViewsOperation expected, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowViewsOperation.class).isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
 
-        final String sql3 = "SHOW TABLES";
-        showTablesOperation = (ShowTablesOperation) parse(sql3);
-        assertThat(showTablesOperation.getCatalogName()).isNull();
-        assertThat(showTablesOperation.getDatabaseName()).isNull();
-        assertThat(showTablesOperation.getPreposition()).isNull();
+    private static Stream<Arguments> inputForShowViewsTest() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW VIEWS from cat1.db1 not like 't%'",
+                        new ShowViewsOperation(
+                                "cat1",
+                                "db1",
+                                "FROM",
+                                ShowLikeOperator.of(LikeType.NOT_LIKE, "t%")),
+                        "SHOW VIEWS FROM cat1.db1 NOT LIKE 't%'"),
+                Arguments.of(
+                        "SHOW VIEWS in db2",
+                        new ShowViewsOperation("builtin", "db2", "IN", null),
+                        "SHOW VIEWS IN builtin.db2"),
+                Arguments.of(
+                        "SHOW VIEWS",
+                        new ShowViewsOperation("builtin", "default", null, null),
+                        "SHOW VIEWS"));
     }
 
     @Test
@@ -233,82 +268,153 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW FULL MODULES");
     }
 
-    @Test
-    void testShowFunctions() {
-        final String sql1 = "SHOW FUNCTIONS";
-        assertShowFunctions(sql1, sql1, ShowFunctionsOperation.FunctionScope.ALL);
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowFunctionsTest")
+    void testShowFunctions(String sql, ShowFunctionsOperation expected, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowFunctionsOperation.class).isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
 
-        final String sql2 = "SHOW USER FUNCTIONS";
-        assertShowFunctions(sql2, sql2, ShowFunctionsOperation.FunctionScope.USER);
-
-        String sql = "show functions from cat1.db1 not like 'f%'";
-        assertShowFunctions(
-                sql,
-                "SHOW FUNCTIONS FROM cat1.db1 NOT LIKE 'f%'",
-                ShowFunctionsOperation.FunctionScope.ALL);
-
-        sql = "show user functions from cat1.db1 ilike 'f%'";
-        assertShowFunctions(
-                sql,
-                "SHOW USER FUNCTIONS FROM cat1.db1 ILIKE 'f%'",
-                ShowFunctionsOperation.FunctionScope.USER);
-
-        sql = "show functions in db1";
-        assertShowFunctions(
-                sql, "SHOW FUNCTIONS IN builtin.db1", ShowFunctionsOperation.FunctionScope.ALL);
-
-        // test fail case
-        assertThatThrownBy(() -> parse("show functions in cat.db.t"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Show functions from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
+    private static Stream<Arguments> inputForShowFunctionsTest() {
+        return Stream.of(
+                Arguments.of(
+                        "show functions",
+                        new ShowFunctionsOperation(
+                                FunctionScope.ALL, null, "builtin", "default", null),
+                        "SHOW FUNCTIONS"),
+                Arguments.of(
+                        "show user functions",
+                        new ShowFunctionsOperation(
+                                FunctionScope.USER, null, "builtin", "default", null),
+                        "SHOW USER FUNCTIONS"),
+                Arguments.of(
+                        "show functions from cat1.db1 not like 'f%'",
+                        new ShowFunctionsOperation(
+                                FunctionScope.ALL,
+                                "FROM",
+                                "cat1",
+                                "db1",
+                                ShowLikeOperator.of(LikeType.NOT_LIKE, "f%")),
+                        "SHOW FUNCTIONS FROM cat1.db1 NOT LIKE 'f%'"),
+                Arguments.of(
+                        "show user functions in cat1.db1 ilike 'f%'",
+                        new ShowFunctionsOperation(
+                                FunctionScope.USER,
+                                "IN",
+                                "cat1",
+                                "db1",
+                                ShowLikeOperator.of(LikeType.ILIKE, "f%")),
+                        "SHOW USER FUNCTIONS IN cat1.db1 ILIKE 'f%'"),
+                Arguments.of(
+                        "show functions in db1",
+                        new ShowFunctionsOperation(FunctionScope.ALL, "IN", "builtin", "db1", null),
+                        "SHOW FUNCTIONS IN builtin.db1"));
     }
 
     @Test
-    void testShowDatabases() {
-        final String sql1 = "SHOW DATABASES";
-        assertShowDatabases(sql1, sql1);
-
-        String sql = "show databases from db1 not like 'f%'";
-        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 NOT LIKE 'f%'");
-
-        sql = "show databases from db1 not ilike 'f%'";
-        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 NOT ILIKE 'f%'");
-
-        sql = "show databases from db1 like 'f%'";
-        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 LIKE 'f%'");
-
-        sql = "show databases from db1 ilike 'f%'";
-        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 ILIKE 'f%'");
-
-        sql = "show databases in db1";
-        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1");
-
+    void testShowDatabasesFailCase() {
         assertThatThrownBy(() -> parse("show databases in db.t"))
                 .isInstanceOf(SqlParserException.class)
                 .hasMessage(
                         "SQL parse failed. Show databases from/in identifier [ db.t ] format error, catalog must be a single part identifier.");
     }
 
-    @Test
-    void testShowProcedures() {
-        String sql = "SHOW procedures from cat1.db1 not like 't%'";
-        assertShowProcedures(sql, "SHOW PROCEDURES FROM cat1.db1 NOT LIKE t%");
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowDatabasesTest")
+    void testShowDatabases(String sql, ShowDatabasesOperation expected, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowDatabasesOperation.class).isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
 
-        sql = "SHOW procedures from cat1.db1 ilike 't%'";
-        assertShowProcedures(sql, "SHOW PROCEDURES FROM cat1.db1 ILIKE t%");
+    private static Stream<Arguments> inputForShowDatabasesTest() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW DATABASES",
+                        new ShowDatabasesOperation("builtin", null, null),
+                        "SHOW DATABASES"),
+                Arguments.of(
+                        "show databases from cat1 not like 'f%'",
+                        new ShowDatabasesOperation(
+                                "cat1", "FROM", ShowLikeOperator.of(LikeType.NOT_LIKE, "f%")),
+                        "SHOW DATABASES FROM cat1 NOT LIKE 'f%'"),
+                Arguments.of(
+                        "show databases from cat1 not ilike 'f%'",
+                        new ShowDatabasesOperation(
+                                "cat1", "FROM", ShowLikeOperator.of(LikeType.NOT_ILIKE, "f%")),
+                        "SHOW DATABASES FROM cat1 NOT ILIKE 'f%'"),
+                Arguments.of(
+                        "show databases from cat1 like 'f%'",
+                        new ShowDatabasesOperation(
+                                "cat1", "FROM", ShowLikeOperator.of(LikeType.LIKE, "f%")),
+                        "SHOW DATABASES FROM cat1 LIKE 'f%'"),
+                Arguments.of(
+                        "show databases in cat1 ilike 'f%'",
+                        new ShowDatabasesOperation(
+                                "cat1", "IN", ShowLikeOperator.of(LikeType.ILIKE, "f%")),
+                        "SHOW DATABASES IN cat1 ILIKE 'f%'"),
+                Arguments.of(
+                        "show databases in cat1",
+                        new ShowDatabasesOperation("cat1", "IN", null),
+                        "SHOW DATABASES IN cat1"));
+    }
 
-        sql = "SHOW procedures in db1";
-        assertShowProcedures(sql, "SHOW PROCEDURES IN builtin.db1");
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowProceduresTest")
+    void testShowProcedures(String sql, ShowProceduresOperation expected) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowProceduresOperation.class).isEqualTo(expected);
+    }
 
-        sql = "SHOW procedures";
-        assertShowProcedures(sql, "SHOW PROCEDURES");
+    private static Stream<Arguments> inputForShowProceduresTest() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW procedures from cat1.db1 not like 't%'",
+                        new ShowProceduresOperation(
+                                "cat1",
+                                "db1",
+                                "FROM",
+                                ShowLikeOperator.of(LikeType.NOT_LIKE, "t%"))),
+                Arguments.of(
+                        "SHOW procedures from cat1.db1 ilike 't%'",
+                        new ShowProceduresOperation(
+                                "cat1", "db1", "FROM", ShowLikeOperator.of(LikeType.ILIKE, "t%"))),
+                Arguments.of(
+                        "SHOW procedures in db1",
+                        new ShowProceduresOperation("builtin", "db1", "IN", null)),
+                Arguments.of(
+                        "SHOW procedures",
+                        new ShowProceduresOperation("builtin", "default", null, null)));
+    }
 
+    @ParameterizedTest
+    @MethodSource("argsForTestShowFailedCase")
+    void testShowProceduresFailCase(String sql, String expectedErrorMsg) {
         // test fail case
-        assertThatThrownBy(() -> parse("SHOW procedures in cat.db.t"))
+        assertThatThrownBy(() -> parse(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Show procedures from/in identifier [ cat.db.t ] format error, it should be [catalog_name.]database_name.");
+                .hasMessage(expectedErrorMsg);
+    }
+
+    private static Stream<Arguments> argsForTestShowFailedCase() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW procedures in cat.db.t",
+                        "SHOW PROCEDURES from/in identifier [ cat.db.t ] format error,"
+                                + " it should be [catalog_name.]database_name."),
+                Arguments.of(
+                        "SHOW Views in cat.db1.t2",
+                        "SHOW VIEWS from/in identifier [ cat.db1.t2 ] format error,"
+                                + " it should be [catalog_name.]database_name."),
+                Arguments.of(
+                        "SHOW functions in cat.db3.t5",
+                        "SHOW FUNCTIONS from/in identifier [ cat.db3.t5 ] format error,"
+                                + " it should be [catalog_name.]database_name."),
+                Arguments.of(
+                        "SHOW tables in cat1.db3.t2",
+                        "SHOW TABLES from/in identifier [ cat1.db3.t2 ] format error,"
+                                + " it should be [catalog_name.]database_name."));
     }
 
     @Test
@@ -428,33 +534,5 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     void testQuitCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
         assertThat(extendedParser.parse(command)).get().isInstanceOf(QuitOperation.class);
-    }
-
-    private void assertShowFunctions(
-            String sql,
-            String expectedSummary,
-            ShowFunctionsOperation.FunctionScope expectedScope) {
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowFunctionsOperation.class);
-
-        final ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
-
-        assertThat(showFunctionsOperation.getFunctionScope()).isEqualTo(expectedScope);
-        assertThat(showFunctionsOperation.asSummaryString()).isEqualTo(expectedSummary);
-    }
-
-    private void assertShowDatabases(String sql, String expectedSummary) {
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowDatabasesOperation.class);
-        final ShowDatabasesOperation showDatabasesOperation = (ShowDatabasesOperation) operation;
-        assertThat(showDatabasesOperation.asSummaryString()).isEqualTo(expectedSummary);
-    }
-
-    private void assertShowProcedures(String sql, String expectedSummary) {
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(ShowProceduresOperation.class);
-
-        final ShowProceduresOperation showProceduresOperation = (ShowProceduresOperation) operation;
-        assertThat(showProceduresOperation.asSummaryString()).isEqualTo(expectedSummary);
     }
 }

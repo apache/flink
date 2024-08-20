@@ -31,9 +31,9 @@ import java.util.List;
  */
 public class ForStStateRequestClassifier implements StateRequestContainer {
 
-    private final List<ForStDBGetRequest<?, ?>> dbGetRequests;
+    private final List<ForStDBGetRequest<?, ?, ?>> dbGetRequests;
 
-    private final List<ForStDBPutRequest<?, ?>> dbPutRequests;
+    private final List<ForStDBPutRequest<?, ?, ?>> dbPutRequests;
 
     public ForStStateRequestClassifier() {
         this.dbGetRequests = new ArrayList<>();
@@ -56,23 +56,23 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         switch (stateRequestType) {
             case VALUE_GET:
                 {
-                    ForStValueState<?, ?> forStValueState =
-                            (ForStValueState<?, ?>) stateRequest.getState();
+                    ForStValueState<?, ?, ?> forStValueState =
+                            (ForStValueState<?, ?, ?>) stateRequest.getState();
                     dbGetRequests.add(forStValueState.buildDBGetRequest(stateRequest));
                     return;
                 }
             case VALUE_UPDATE:
                 {
-                    ForStValueState<?, ?> forStValueState =
-                            (ForStValueState<?, ?>) stateRequest.getState();
+                    ForStValueState<?, ?, ?> forStValueState =
+                            (ForStValueState<?, ?, ?>) stateRequest.getState();
                     dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
                     return;
                 }
             case CLEAR:
                 {
                     if (stateRequest.getState() instanceof ForStValueState) {
-                        ForStValueState<?, ?> forStValueState =
-                                (ForStValueState<?, ?>) stateRequest.getState();
+                        ForStValueState<?, ?, ?> forStValueState =
+                                (ForStValueState<?, ?, ?>) stateRequest.getState();
                         dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
                         return;
                     } else {
@@ -88,11 +88,11 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         }
     }
 
-    public List<ForStDBGetRequest<?, ?>> pollDbGetRequests() {
+    public List<ForStDBGetRequest<?, ?, ?>> pollDbGetRequests() {
         return dbGetRequests;
     }
 
-    public List<ForStDBPutRequest<?, ?>> pollDbPutRequests() {
+    public List<ForStDBPutRequest<?, ?, ?>> pollDbPutRequests() {
         return dbPutRequests;
     }
 }

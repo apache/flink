@@ -105,16 +105,15 @@ public class TieredStorageProducerClient {
             throws IOException {
 
         if (isBroadcast && !isBroadcastOnly) {
+            int currentPosition = record.position();
             for (int i = 0; i < numSubpartitions; ++i) {
                 // As the tiered storage subpartition ID is created only for broadcast records,
                 // which are fewer than normal records, the performance impact of generating new
                 // TieredStorageSubpartitionId objects is expected to be manageable. If the
                 // performance is significantly affected, this logic will be optimized accordingly.
                 bufferAccumulator.receive(
-                        record.duplicate(),
-                        new TieredStorageSubpartitionId(i),
-                        dataType,
-                        isBroadcast);
+                        record, new TieredStorageSubpartitionId(i), dataType, isBroadcast);
+                record.position(currentPosition);
             }
         } else {
             bufferAccumulator.receive(record, subpartitionId, dataType, isBroadcast);
@@ -145,21 +144,21 @@ public class TieredStorageProducerClient {
             TieredStorageSubpartitionId subpartitionId,
             Buffer accumulatedBuffer,
             int numRemainingConsecutiveBuffers) {
+        int unCompressedSize = accumulatedBuffer.readableBytes();
         try {
-            Buffer compressedBuffer = compressBufferIfPossible(accumulatedBuffer);
             if (currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()] == null) {
                 chooseStorageTierToStartSegment(subpartitionId, numRemainingConsecutiveBuffers + 1);
             }
             if (!currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
                     subpartitionId,
-                    compressedBuffer,
+                    accumulatedBuffer,
                     bufferAccumulator,
                     numRemainingConsecutiveBuffers)) {
                 chooseStorageTierToStartSegment(subpartitionId, numRemainingConsecutiveBuffers + 1);
                 checkState(
                         currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
                                 subpartitionId,
-                                compressedBuffer,
+                                accumulatedBuffer,
                                 bufferAccumulator,
                                 numRemainingConsecutiveBuffers),
                         "Failed to write the first buffer to the new segment");
@@ -168,7 +167,7 @@ public class TieredStorageProducerClient {
             accumulatedBuffer.recycleBuffer();
             ExceptionUtils.rethrow(ioe);
         }
-        updateMetricStatistics(1, accumulatedBuffer.readableBytes());
+        updateMetricStatistics(1, unCompressedSize);
     }
 
     private void chooseStorageTierToStartSegment(
@@ -187,22 +186,6 @@ public class TieredStorageProducerClient {
             }
         }
         throw new IOException("Failed to choose a storage tier to start a new segment.");
-    }
-
-    private Buffer compressBufferIfPossible(Buffer buffer) {
-        if (!canBeCompressed(buffer)) {
-            return buffer;
-        }
-
-        return checkNotNull(bufferCompressor).compressToOriginalBuffer(buffer);
-    }
-
-    /**
-     * Whether the buffer can be compressed or not. Note that event is not compressed because it is
-     * usually small and the size can become even larger after compression.
-     */
-    private boolean canBeCompressed(Buffer buffer) {
-        return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
     }
 
     private void updateMetricStatistics(int numWriteBuffersDelta, int numWriteBytesDelta) {

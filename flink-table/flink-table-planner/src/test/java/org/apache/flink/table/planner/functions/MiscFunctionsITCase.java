@@ -55,8 +55,11 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING())
                         .testSqlResult("TYPEOF(NULL)", "NULL", DataTypes.STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IF_NULL)
-                        .onFieldsWithData(null, new BigDecimal("123.45"))
-                        .andDataTypes(DataTypes.INT().nullable(), DataTypes.DECIMAL(5, 2).notNull())
+                        .onFieldsWithData(null, new BigDecimal("123.45"), "Hello world")
+                        .andDataTypes(
+                                DataTypes.INT().nullable(),
+                                DataTypes.DECIMAL(5, 2).notNull(),
+                                DataTypes.STRING())
                         .withFunction(TakesNotNull.class)
                         .testResult(
                                 $("f0").ifNull($("f0")),
@@ -81,6 +84,11 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "IFNULL(f1, f0)",
                                 new BigDecimal("123.45"),
                                 DataTypes.DECIMAL(12, 2).notNull())
+                        .testResult(
+                                $("f2").ifNull("0"),
+                                "IFNULL(f2, '0')",
+                                "Hello world",
+                                DataTypes.STRING().notNull())
                         .testResult(
                                 call("TakesNotNull", $("f0").ifNull(12)),
                                 "TakesNotNull(IFNULL(f0, 12))",

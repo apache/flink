@@ -73,6 +73,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_INTERVAL;
 import static org.apache.flink.table.api.config.TableConfigOptions.RESOURCES_DOWNLOAD_DIR;
 import static org.apache.flink.table.factories.FactoryUtil.WORKFLOW_SCHEDULER_TYPE;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
@@ -168,6 +169,67 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
+    }
+
+    @Test
+    void testCreateMaterializedTableInContinuousModeWithCustomCheckpointInterval()
+            throws Exception {
+
+        // set checkpoint interval to 60 seconds
+        long checkpointInterval = 60 * 1000;
+
+        OperationHandle checkpointSetHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        String.format(
+                                "SET '%s' = '%d'",
+                                CHECKPOINTING_INTERVAL.key(), checkpointInterval),
+                        -1,
+                        new Configuration());
+        awaitOperationTermination(service, sessionHandle, checkpointSetHandle);
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        long actualCheckpointInterval =
+                getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
+        assertThat(actualCheckpointInterval).isEqualTo(checkpointInterval);
     }
 
     @Test
@@ -1330,22 +1392,21 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
     @Test
     void testPeriodicRefreshMaterializedTableWithPartitionOptions() throws Exception {
         List<Row> data = new ArrayList<>();
-        data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
-        data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
 
         // create materialized table with partition formatter
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table",
                 data,
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
-                RefreshMode.CONTINUOUS);
+                RefreshMode.FULL);
 
         ObjectIdentifier materializedTableIdentifier =
                 ObjectIdentifier.of(
                         fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table");
 
         // add more data to all data list
-        data.add(Row.of(3L, 3L, 3L, "2024-01-01"));
+        data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
+        data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
         data.add(Row.of(4L, 4L, 4L, "2024-01-02"));
 
         // refresh the materialized table with period schedule
@@ -1355,7 +1416,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                         sessionHandle,
                         materializedTableIdentifier.asSerializableString(),
                         true,
-                        "2024-01-02 00:00:00",
+                        "2024-01-03 00:00:00",
                         Collections.emptyMap(),
                         Collections.emptyMap(),
                         Collections.emptyMap());
@@ -1423,7 +1484,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
-                                "Scheduler time not properly set for periodic refresh of materialized table %s.",
+                                "The scheduler time must not be null during the periodic refresh of the materialized table %s.",
                                 ObjectIdentifier.of(
                                                 fileSystemCatalogName,
                                                 TEST_DEFAULT_DATABASE,

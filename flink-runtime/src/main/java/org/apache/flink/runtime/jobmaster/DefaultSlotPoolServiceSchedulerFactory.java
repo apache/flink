@@ -57,9 +57,14 @@ import org.apache.flink.util.clock.SystemClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
 
 /** Default {@link SlotPoolServiceSchedulerFactory} implementation. */
 public final class DefaultSlotPoolServiceSchedulerFactory
@@ -85,8 +90,11 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
     @Override
     public SlotPoolService createSlotPoolService(
-            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
-        return slotPoolServiceFactory.createSlotPoolService(jid, declarativeSlotPoolFactory);
+            JobID jid,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
+        return slotPoolServiceFactory.createSlotPoolService(
+                jid, declarativeSlotPoolFactory, componentMainThreadExecutor);
     }
 
     @Override
@@ -151,18 +159,21 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     public static DefaultSlotPoolServiceSchedulerFactory fromConfiguration(
             Configuration configuration, JobType jobType, boolean isDynamicGraph) {
 
-        final Time rpcTimeout =
-                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
-        final Time slotIdleTimeout =
-                Time.fromDuration(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
-        final Time batchSlotTimeout =
-                Time.fromDuration(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+        final Duration rpcTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
+        final Duration slotIdleTimeout = configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT);
+        final Duration batchSlotTimeout = configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
 
         final SlotPoolServiceFactory slotPoolServiceFactory;
         final SchedulerNGFactory schedulerNGFactory;
 
         JobManagerOptions.SchedulerType schedulerType =
                 getSchedulerType(configuration, jobType, isDynamicGraph);
+
+        final Duration slotRequestMaxInterval = configuration.get(SLOT_REQUEST_MAX_INTERVAL);
+
+        // TODO: It will be assigned by the corresponding logic after
+        //  https://issues.apache.org/jira/browse/FLINK-35966
+        final boolean slotBatchAllocatable = false;
 
         if (configuration
                 .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
@@ -182,13 +193,18 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 rpcTimeout,
                                 slotIdleTimeout,
                                 batchSlotTimeout,
+                                slotRequestMaxInterval,
+                                slotBatchAllocatable,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
                 schedulerNGFactory = new AdaptiveSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolServiceFactory(
-                                SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
+                                SystemClock.getInstance(),
+                                slotIdleTimeout,
+                                rpcTimeout,
+                                slotRequestMaxInterval);
                 break;
             case AdaptiveBatch:
                 schedulerNGFactory = new AdaptiveBatchSchedulerFactory();
@@ -198,6 +214,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 rpcTimeout,
                                 slotIdleTimeout,
                                 batchSlotTimeout,
+                                slotRequestMaxInterval,
+                                slotBatchAllocatable,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             default:

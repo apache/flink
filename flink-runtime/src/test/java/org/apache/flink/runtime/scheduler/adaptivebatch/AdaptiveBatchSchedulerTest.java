@@ -76,7 +76,7 @@ import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createC
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
@@ -186,20 +186,18 @@ class AdaptiveBatchSchedulerTest {
         // trigger source finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
-        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
+        // check that the jobGraph is updated
+        assertThat(sink.getParallelism()).isEqualTo(5);
 
         // trigger map finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
 
-        // check that the jobGraph is updated
-        assertThat(sink.getParallelism()).isEqualTo(5);
-
         // check aggregatedInputDataBytes of each ExecutionVertex calculated. Total number of
-        // subpartitions of map is ceil(128 / 5) * 5 = 130, so total bytes sink consume is 130 *
-        // SUBPARTITION_BYTES = 13_000L.
-        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex, 13_000L);
+        // subpartitions of map is 5, so total bytes sink consume is 5 * SUBPARTITION_BYTES = 500L.
+        checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex, 500L);
     }
 
     @Test

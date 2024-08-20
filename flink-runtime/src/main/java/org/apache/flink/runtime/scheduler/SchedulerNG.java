@@ -155,7 +155,9 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
     void declineCheckpoint(DeclineCheckpoint decline);
 
     void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics);
 
     CompletableFuture<String> stopWithSavepoint(
             String targetDirectory, boolean terminate, SavepointFormatType formatType);

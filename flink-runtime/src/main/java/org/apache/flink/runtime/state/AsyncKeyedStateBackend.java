@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
@@ -46,13 +47,20 @@ public interface AsyncKeyedStateBackend extends Disposable, Closeable {
     /**
      * Creates and returns a new state.
      *
-     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-     * @param <SV> The type of the stored state value.
+     * @param <N> the type of namespace for partitioning.
      * @param <S> The type of the public API state.
+     * @param <SV> The type of the stored state value.
+     * @param defaultNamespace the default namespace for this state.
+     * @param namespaceSerializer the serializer for namespace.
+     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
      * @throws Exception Exceptions may occur during initialization of the state.
      */
     @Nonnull
-    <SV, S extends State> S createState(@Nonnull StateDescriptor<SV> stateDesc) throws Exception;
+    <N, S extends State, SV> S createState(
+            @Nonnull N defaultNamespace,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<SV> stateDesc)
+            throws Exception;
 
     /**
      * Creates a {@code StateExecutor} which supports to execute a batch of state requests

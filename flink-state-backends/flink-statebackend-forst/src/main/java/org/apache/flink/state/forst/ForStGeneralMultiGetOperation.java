@@ -38,12 +38,12 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
 
     private final RocksDB db;
 
-    private final List<ForStDBGetRequest<?, ?>> batchRequest;
+    private final List<ForStDBGetRequest<?, ?, ?>> batchRequest;
 
     private final Executor executor;
 
     ForStGeneralMultiGetOperation(
-            RocksDB db, List<ForStDBGetRequest<?, ?>> batchRequest, Executor executor) {
+            RocksDB db, List<ForStDBGetRequest<?, ?, ?>> batchRequest, Executor executor) {
         this.db = db;
         this.batchRequest = batchRequest;
         this.executor = executor;
@@ -58,7 +58,7 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
         AtomicReference<Exception> error = new AtomicReference<>();
         AtomicInteger counter = new AtomicInteger(batchRequest.size());
         for (int i = 0; i < batchRequest.size(); i++) {
-            ForStDBGetRequest<?, ?> request = batchRequest.get(i);
+            ForStDBGetRequest<?, ?, ?> request = batchRequest.get(i);
             executor.execute(
                     () -> {
                         try {

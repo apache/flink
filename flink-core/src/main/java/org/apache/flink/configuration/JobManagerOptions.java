@@ -447,6 +447,13 @@ public class JobManagerOptions {
                     .defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
                     .withDescription("The timeout for a idle slot in Slot Pool.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> SLOT_REQUEST_MAX_INTERVAL =
+            key("slot.request.max-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(20L))
+                    .withDescription("The max interval duration for slots request.");
+
     /** Config parameter determining the scheduler implementation. */
     @Documentation.Section({
         Documentation.Sections.EXPERT_SCHEDULING,
@@ -571,6 +578,36 @@ public class JobManagerOptions {
                                             "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
                                             code(SCHEDULER_MODE.key()),
                                             code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT =
+            key("jobmanager.adaptive-scheduler.scale-on-failed-checkpoints-count")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The number of consecutive failed checkpoints that will trigger rescaling even in the absence of a completed checkpoint.")
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_SCALE_TRIGGER =
+            key("jobmanager.adaptive-scheduler.max-delay-for-scale-trigger")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled "
+                                                    + "and the checkpointing interval multiplied by the by-1-incremented parameter value of %s if checkpointing is enabled).",
+                                            text(SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT.key()))
                                     .build());
 
     @Documentation.Section({

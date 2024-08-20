@@ -32,12 +32,14 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -45,6 +47,9 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.RocksDB;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -83,17 +88,23 @@ public class ForStDBOperationTestBase {
                     @Nullable State state, StateRequestType type, @Nullable IN payload) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public <N> void setCurrentNamespaceForState(
+                    @Nonnull InternalPartitionedState<N> state, N namespace) {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 
-    protected ContextKey<Integer> buildContextKey(int i) {
+    protected ContextKey<Integer, VoidNamespace> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
                 new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
         return new ContextKey<>(recordContext);
     }
 
-    protected ForStValueState<Integer, String> buildForStValueState(String stateName)
+    protected ForStValueState<Integer, VoidNamespace, String> buildForStValueState(String stateName)
             throws Exception {
         ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
         ValueStateDescriptor<String> valueStateDescriptor =
@@ -108,6 +119,8 @@ public class ForStDBOperationTestBase {
                 cf,
                 valueStateDescriptor,
                 serializedKeyBuilder,
+                VoidNamespace.INSTANCE,
+                () -> VoidNamespaceSerializer.INSTANCE,
                 valueSerializerView,
                 valueDeserializerView);
     }

@@ -20,15 +20,18 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.Temporal;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
@@ -45,8 +48,12 @@ import java.util.function.Supplier;
  *       available (its lower threshold is defined by (@code scalingIntervalMax}).
  * </ol>
  *
+ * <p>Thread-safety: This class is not implemented in a thread-safe manner and relies on the fact
+ * that any method call happens within a single thread.
+ *
  * @see Executing
  */
+@NotThreadSafe
 public class DefaultRescaleManager implements RescaleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultRescaleManager.class);
@@ -61,17 +68,32 @@ public class DefaultRescaleManager implements RescaleManager {
 
     private boolean rescaleScheduled = false;
 
+    @VisibleForTesting final Duration maxTriggerDelay;
+
+    /**
+     * {@code triggerFuture} is used to allow triggering a scheduled callback. Rather than
+     * scheduling the callback itself, the callback is just chained with the future. The completion
+     * of the future is then scheduled which will, as a consequence, run the callback as part of the
+     * scheduled operation.
+     *
+     * <p>{@code triggerFuture} can be used to trigger the callback even earlier (before the
+     * scheduled delay has passed). See {@link #onTrigger()}.
+     */
+    private CompletableFuture<Void> triggerFuture;
+
     DefaultRescaleManager(
             Temporal initializationTime,
             RescaleManager.Context rescaleContext,
             Duration scalingIntervalMin,
-            @Nullable Duration scalingIntervalMax) {
+            @Nullable Duration scalingIntervalMax,
+            Duration maxTriggerDelay) {
         this(
                 initializationTime,
                 Instant::now,
                 rescaleContext,
                 scalingIntervalMin,
-                scalingIntervalMax);
+                scalingIntervalMax,
+                maxTriggerDelay);
     }
 
     @VisibleForTesting
@@ -80,9 +102,13 @@ public class DefaultRescaleManager implements RescaleManager {
             Supplier<Temporal> clock,
             RescaleManager.Context rescaleContext,
             Duration scalingIntervalMin,
-            @Nullable Duration scalingIntervalMax) {
+            @Nullable Duration scalingIntervalMax,
+            Duration maxTriggerDelay) {
         this.initializationTime = initializationTime;
         this.clock = clock;
+
+        this.maxTriggerDelay = maxTriggerDelay;
+        this.triggerFuture = FutureUtils.completedVoidFuture();
 
         Preconditions.checkArgument(
                 scalingIntervalMax == null || scalingIntervalMin.compareTo(scalingIntervalMax) <= 0,
@@ -95,12 +121,39 @@ public class DefaultRescaleManager implements RescaleManager {
 
     @Override
     public void onChange() {
+        if (this.triggerFuture.isDone()) {
+            this.triggerFuture = scheduleOperationWithTrigger(this::evaluateChangeEvent);
+        }
+    }
+
+    @Override
+    public void onTrigger() {
+        if (!this.triggerFuture.isDone()) {
+            this.triggerFuture.complete(null);
+            LOG.debug(
+                    "A rescale trigger event was observed causing the rescale verification logic to be initiated.");
+        } else {
+            LOG.debug(
+                    "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
+        }
+    }
+
+    private void evaluateChangeEvent() {
         if (timeSinceLastRescale().compareTo(scalingIntervalMin) > 0) {
             maybeRescale();
         } else if (!rescaleScheduled) {
             rescaleScheduled = true;
             rescaleContext.scheduleOperation(this::maybeRescale, scalingIntervalMin);
         }
+    }
+
+    private CompletableFuture<Void> scheduleOperationWithTrigger(Runnable callback) {
+        final CompletableFuture<Void> triggerFuture = new CompletableFuture<>();
+        triggerFuture.thenRun(callback);
+        this.rescaleContext.scheduleOperation(
+                () -> triggerFuture.complete(null), this.maxTriggerDelay);
+
+        return triggerFuture;
     }
 
     private Duration timeSinceLastRescale() {
@@ -142,6 +195,7 @@ public class DefaultRescaleManager implements RescaleManager {
 
         private final Duration scalingIntervalMin;
         @Nullable private final Duration scalingIntervalMax;
+        private final Duration maximumDelayForTrigger;
 
         /**
          * Creates a {@code Factory} instance based on the {@link AdaptiveScheduler}'s {@code
@@ -150,18 +204,29 @@ public class DefaultRescaleManager implements RescaleManager {
         public static Factory fromSettings(AdaptiveScheduler.Settings settings) {
             // it's not ideal that we use a AdaptiveScheduler internal class here. We might want to
             // change that as part of a more general alignment of the rescaling configuration.
-            return new Factory(settings.getScalingIntervalMin(), settings.getScalingIntervalMax());
+            return new Factory(
+                    settings.getScalingIntervalMin(),
+                    settings.getScalingIntervalMax(),
+                    settings.getMaximumDelayForTriggeringRescale());
         }
 
-        private Factory(Duration scalingIntervalMin, @Nullable Duration scalingIntervalMax) {
+        private Factory(
+                Duration scalingIntervalMin,
+                @Nullable Duration scalingIntervalMax,
+                Duration maximumDelayForTrigger) {
             this.scalingIntervalMin = scalingIntervalMin;
             this.scalingIntervalMax = scalingIntervalMax;
+            this.maximumDelayForTrigger = maximumDelayForTrigger;
         }
 
         @Override
         public DefaultRescaleManager create(Context rescaleContext, Instant lastRescale) {
             return new DefaultRescaleManager(
-                    lastRescale, rescaleContext, scalingIntervalMin, scalingIntervalMax);
+                    lastRescale,
+                    rescaleContext,
+                    scalingIntervalMin,
+                    scalingIntervalMax,
+                    maximumDelayForTrigger);
         }
     }
 }

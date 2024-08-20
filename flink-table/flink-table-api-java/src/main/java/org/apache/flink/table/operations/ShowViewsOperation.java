@@ -19,23 +19,77 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+import javax.annotation.Nullable;
 
-/** Operation to describe a SHOW VIEWS statement. */
+import java.util.Set;
+
+/**
+ * Operation to describe a SHOW VIEWS statement. The full syntax for SHOW VIEWS is as followings:
+ *
+ * <pre>{@code
+ * SHOW VIEWS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE
+ * &lt;sql_like_pattern&gt; ] statement
+ * }</pre>
+ */
 @Internal
-public class ShowViewsOperation implements ShowOperation {
+public class ShowViewsOperation extends AbstractShowOperation {
 
-    @Override
-    public String asSummaryString() {
-        return "SHOW VIEWS";
+    private final String databaseName;
+
+    public ShowViewsOperation(
+            String catalogName,
+            String databaseName,
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
+        this.databaseName = databaseName;
+    }
+
+    public ShowViewsOperation(
+            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, databaseName, null, likeOp);
+    }
+
+    public ShowViewsOperation(String catalogName, String databaseName) {
+        this(catalogName, databaseName, null);
     }
 
     @Override
-    public TableResultInternal execute(Context ctx) {
-        String[] views =
-                ctx.getCatalogManager().listViews().stream().sorted().toArray(String[]::new);
-        return buildStringArrayResult("view name", views);
+    protected String getOperationName() {
+        return "SHOW VIEWS";
+    }
+
+    protected Set<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
+        if (preposition == null) {
+            return catalogManager.listViews();
+        } else {
+            Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
+            if (catalog.databaseExists(databaseName)) {
+                return catalogManager.listViews(catalogName, databaseName);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+            }
+        }
+    }
+
+    @Override
+    protected String getColumnName() {
+        return "view name";
+    }
+
+    @Override
+    public String getPrepositionSummaryString() {
+        if (databaseName == null) {
+            return super.getPrepositionSummaryString();
+        }
+        return super.getPrepositionSummaryString() + "." + databaseName;
     }
 }

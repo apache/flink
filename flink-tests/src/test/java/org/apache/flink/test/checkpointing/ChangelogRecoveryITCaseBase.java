@@ -95,7 +95,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.get;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.get;
 import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -163,14 +163,21 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
         env.setStateBackend(stateBackend)
                 .setRestartStrategy(RestartStrategies.fixedDelayRestart(restartAttempts, 0));
-        env.configure(
-                new Configuration()
-                        .set(
-                                StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
-                                Duration.ofMillis(materializationInterval))
-                        .set(
-                                StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED,
-                                materializationMaxFailure));
+        if (materializationInterval >= 0) {
+            env.configure(
+                    new Configuration()
+                            .set(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, true)
+                            .set(
+                                    StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                                    Duration.ofMillis(materializationInterval))
+                            .set(
+                                    StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED,
+                                    materializationMaxFailure));
+        } else {
+            env.configure(
+                    new Configuration()
+                            .set(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, false));
+        }
         return env;
     }
 

@@ -626,16 +626,39 @@ SqlShowProcedures SqlShowProcedures() :
 }
 
 /**
- * Parse a "Show Views" metadata query command.
+ * SHOW VIEWS FROM [catalog.] database sql call.
  */
 SqlShowViews SqlShowViews() :
 {
+    SqlIdentifier databaseName = null;
+    SqlCharStringLiteral likeLiteral = null;
+    String prep = null;
+    boolean notLike = false;
     SqlParserPos pos;
 }
 {
-    <SHOW> <VIEWS> { pos = getPos(); }
+    <SHOW> <VIEWS>
+    { pos = getPos(); }
+    [
+        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
+        { pos = getPos(); }
+        databaseName = CompoundIdentifier()
+    ]
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        <LIKE> <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
+    ]
     {
-        return new SqlShowViews(pos);
+        return new SqlShowViews(pos, prep, databaseName, notLike, likeLiteral);
     }
 }
 

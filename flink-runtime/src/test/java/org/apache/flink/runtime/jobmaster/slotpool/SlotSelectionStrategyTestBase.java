@@ -23,9 +23,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.net.InetAddress;
@@ -58,27 +57,51 @@ abstract class SlotSelectionStrategyTestBase {
 
     protected final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-    protected final SlotInfo slotInfo1 =
-            new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile);
-    protected final SlotInfo slotInfo2 =
-            new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile);
-    protected final SlotInfo slotInfo3 =
-            new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
-    protected final SlotInfo slotInfo4 =
-            new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
+    protected final PhysicalSlot slot1 =
+            TestingPhysicalSlot.builder()
+                    .withAllocationID(aid1)
+                    .withTaskManagerLocation(tml1)
+                    .withPhysicalSlotNumber(1)
+                    .withTaskManagerGateway(taskManagerGateway)
+                    .withResourceProfile(resourceProfile)
+                    .build();
+    protected final PhysicalSlot slot2 =
+            TestingPhysicalSlot.builder()
+                    .withAllocationID(aid2)
+                    .withTaskManagerLocation(tml2)
+                    .withPhysicalSlotNumber(2)
+                    .withTaskManagerGateway(taskManagerGateway)
+                    .withResourceProfile(biggerResourceProfile)
+                    .build();
+    protected final PhysicalSlot slot3 =
+            TestingPhysicalSlot.builder()
+                    .withAllocationID(aid3)
+                    .withTaskManagerLocation(tml3)
+                    .withPhysicalSlotNumber(3)
+                    .withTaskManagerGateway(taskManagerGateway)
+                    .withResourceProfile(resourceProfile)
+                    .build();
+    protected final PhysicalSlot slot4 =
+            TestingPhysicalSlot.builder()
+                    .withAllocationID(aid4)
+                    .withTaskManagerLocation(tml4)
+                    .withPhysicalSlotNumber(4)
+                    .withTaskManagerGateway(taskManagerGateway)
+                    .withResourceProfile(resourceProfile)
+                    .build();
 
-    protected final FreeSlotInfoTracker candidates = createCandidates();
+    protected final FreeSlotTracker candidates = createCandidates();
 
     protected SlotSelectionStrategy selectionStrategy;
 
-    private FreeSlotInfoTracker createCandidates() {
-        Map<AllocationID, SlotInfo> candidates = new HashMap<>(4);
+    private FreeSlotTracker createCandidates() {
+        Map<AllocationID, PhysicalSlot> candidates = new HashMap<>(4);
 
-        candidates.put(slotInfo1.getAllocationId(), slotInfo1);
-        candidates.put(slotInfo2.getAllocationId(), slotInfo2);
-        candidates.put(slotInfo3.getAllocationId(), slotInfo3);
-        candidates.put(slotInfo4.getAllocationId(), slotInfo4);
-        return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(candidates);
+        candidates.put(slot1.getAllocationId(), slot1);
+        candidates.put(slot2.getAllocationId(), slot2);
+        candidates.put(slot3.getAllocationId(), slot3);
+        candidates.put(slot4.getAllocationId(), slot4);
+        return FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(candidates);
     }
 
     protected Optional<SlotSelectionStrategy.SlotInfoAndLocality> runMatching(

@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -34,6 +32,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -46,11 +45,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
     //  lifecycle
     // ------------------------------------------------------------------------
 
-    void start(
-            JobMasterId jobMasterId,
-            String newJobManagerAddress,
-            ComponentMainThreadExecutor jmMainThreadScheduledExecutor)
-            throws Exception;
+    void start(JobMasterId jobMasterId, String newJobManagerAddress) throws Exception;
 
     void close();
 
@@ -120,7 +115,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      *
      * @return all free slot tracker
      */
-    FreeSlotInfoTracker getFreeSlotInfoTracker();
+    FreeSlotTracker getFreeSlotTracker();
 
     /**
      * Returns a list of {@link SlotInfo} objects about all slots that are currently allocated in
@@ -159,7 +154,9 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @return a newly allocated slot that was previously not available.
      */
     default CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-            SlotRequestId slotRequestId, ResourceProfile resourceProfile, @Nullable Time timeout) {
+            SlotRequestId slotRequestId,
+            ResourceProfile resourceProfile,
+            @Nullable Duration timeout) {
         return requestNewAllocatedSlot(
                 slotRequestId, resourceProfile, Collections.emptyList(), timeout);
     }
@@ -180,7 +177,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
             SlotRequestId slotRequestId,
             ResourceProfile resourceProfile,
             Collection<AllocationID> preferredAllocations,
-            @Nullable Time timeout);
+            @Nullable Duration timeout);
 
     /**
      * Requests the allocation of a new batch slot from the resource manager. Unlike the normal

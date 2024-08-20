@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -30,36 +29,41 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DeclarativeSlotPoolBridgePreferredAllocationsTest {
 
-    @Test
-    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount() throws Exception {
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest(name = "slotBatchAllocatable: {0}")
+    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount(boolean slotBatchAllocatable)
+            throws Exception {
         final DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 new DeclarativeSlotPoolBridge(
                         new JobID(),
                         new DefaultDeclarativeSlotPoolFactory(),
                         SystemClock.getInstance(),
-                        TestingUtils.infiniteTime(),
-                        TestingUtils.infiniteTime(),
-                        TestingUtils.infiniteTime(),
-                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE);
+                        TestingUtils.infiniteDuration(),
+                        TestingUtils.infiniteDuration(),
+                        TestingUtils.infiniteDuration(),
+                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                        Duration.ZERO,
+                        slotBatchAllocatable,
+                        forMainThread());
 
-        declarativeSlotPoolBridge.start(
-                JobMasterId.generate(),
-                "localhost",
-                ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        declarativeSlotPoolBridge.start(JobMasterId.generate(), "localhost");
 
         final LocalTaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
 

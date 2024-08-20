@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.state.InternalStateFuture;
@@ -42,14 +43,20 @@ import java.util.function.Supplier;
  * @param <K> The type of the key.
  * @param <V> The type of the value.
  */
-public class ForStValueState<K, V> extends InternalValueState<K, V>
-        implements ValueState<V>, ForStInnerTable<ContextKey<K>, V> {
+public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
+        implements ValueState<V>, ForStInnerTable<K, N, V> {
 
     /** The column family which this internal value state belongs to. */
     private final ColumnFamilyHandle columnFamilyHandle;
 
     /** The serialized key builder which should be thread-safe. */
     private final ThreadLocal<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder;
+
+    /** The default namespace if not set. * */
+    private final N defaultNamespace;
+
+    /** The serializer for namespace. * */
+    private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
 
     /** The data outputStream used for value serializer, which should be thread-safe. */
     private final ThreadLocal<DataOutputSerializer> valueSerializerView;
@@ -62,11 +69,15 @@ public class ForStValueState<K, V> extends InternalValueState<K, V>
             ColumnFamilyHandle columnFamily,
             ValueStateDescriptor<V> valueStateDescriptor,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
+            N defaultNamespace,
+            Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer) {
         super(stateRequestHandler, valueStateDescriptor);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
+        this.defaultNamespace = defaultNamespace;
+        this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
     }
@@ -77,12 +88,15 @@ public class ForStValueState<K, V> extends InternalValueState<K, V>
     }
 
     @Override
-    public byte[] serializeKey(ContextKey<K> contextKey) throws IOException {
+    public byte[] serializeKey(ContextKey<K, N> contextKey) throws IOException {
         return contextKey.getOrCreateSerializedKey(
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    return builder.build();
+                    N namespace = contextKey.getNamespace(this);
+                    return builder.buildCompositeKeyNamespace(
+                            namespace == null ? defaultNamespace : namespace,
+                            namespaceSerializer.get());
                 });
     }
 
@@ -103,10 +117,9 @@ public class ForStValueState<K, V> extends InternalValueState<K, V>
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBGetRequest<ContextKey<K>, V> buildDBGetRequest(
-            StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBGetRequest<K, N, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest) {
         Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.VALUE_GET);
-        ContextKey<K> contextKey =
+        ContextKey<K, N> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
         return ForStDBGetRequest.of(
                 contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
@@ -114,12 +127,11 @@ public class ForStValueState<K, V> extends InternalValueState<K, V>
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBPutRequest<ContextKey<K>, V> buildDBPutRequest(
-            StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.VALUE_UPDATE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
-        ContextKey<K> contextKey =
+        ContextKey<K, N> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
         V value =
                 (stateRequest.getRequestType() == StateRequestType.CLEAR)

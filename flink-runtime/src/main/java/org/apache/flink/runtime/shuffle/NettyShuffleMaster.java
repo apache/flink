@@ -219,4 +219,11 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     public void notifyPartitionRecoveryStarted(JobID jobId) {
         checkNotNull(jobShuffleContexts.get(jobId)).notifyPartitionRecoveryStarted();
     }
+
+    @Override
+    public void close() throws Exception {
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.close();
+        }
+    }
 }

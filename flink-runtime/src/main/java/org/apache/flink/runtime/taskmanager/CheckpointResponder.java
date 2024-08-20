@@ -75,5 +75,7 @@ public interface CheckpointResponder {
             CheckpointException checkpointException);
 
     void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics);
 }

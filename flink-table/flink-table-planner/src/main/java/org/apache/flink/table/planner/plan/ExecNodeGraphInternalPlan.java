@@ -26,7 +26,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 
 import java.io.File;
 import java.io.IOException;
@@ -102,10 +102,10 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
     @Override
     public List<String> getSinkIdentifiers() {
         return this.execNodeGraph.getRootNodes().stream()
-                .filter(execNode -> execNode instanceof StreamExecSink)
+                .filter(execNode -> execNode instanceof CommonExecSink)
                 .map(
                         execNode ->
-                                ((StreamExecSink) execNode)
+                                ((CommonExecSink) execNode)
                                         .getTableSinkSpec()
                                         .getContextResolvedTable()
                                         .getIdentifier())

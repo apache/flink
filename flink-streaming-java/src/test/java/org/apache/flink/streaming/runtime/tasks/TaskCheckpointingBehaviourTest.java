@@ -285,7 +285,9 @@ class TaskCheckpointingBehaviourTest {
 
         @Override
         public void reportInitializationMetrics(
-                JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+                JobID jobId,
+                ExecutionAttemptID executionAttemptID,
+                SubTaskInitializationMetrics initializationMetrics) {}
 
         public OneShotLatch getDeclinedLatch() {
             return declinedLatch;

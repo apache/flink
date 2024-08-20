@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
@@ -27,6 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
@@ -947,6 +949,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
+   * Generate the stream graph from the INSERT statement.
+   *
+   * @param insert
+   *   the INSERT statement to check
+   */
+  def generateTransformations(insert: String): util.List[Transformation[_]] = {
+    val stmtSet = getTableEnv.createStatementSet()
+    stmtSet.addInsertSql(insert)
+
+    val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
+    val operations = testStmtSet.getOperations;
+    getPlanner.translate(operations)
+  }
+
+  /**
    * Verify the expected plans translated from the given [[Table]].
    *
    * @param table
@@ -1799,14 +1816,14 @@ object TableTestUtil {
 
   /** ExecNode {id} is ignored, because id keeps incrementing in test class. */
   def replaceExecNodeId(s: String): String = {
-    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\": 0")
-      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\": 0")
-      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\": 0")
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\" : 0")
+      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\" : 0")
+      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\" : 0")
   }
 
   /** Ignore flink version value. */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\": \"\"")
+    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\" : \"\"")
   }
 
   /** Ignore exec node in operator name and description. */

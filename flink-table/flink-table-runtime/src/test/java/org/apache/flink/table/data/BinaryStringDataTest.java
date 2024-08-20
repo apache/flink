@@ -42,6 +42,7 @@ import static org.apache.flink.table.data.binary.BinaryStringData.fromBytes;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.EMPTY_STRING_ARRAY;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.concat;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.concatWs;
+import static org.apache.flink.table.data.binary.BinaryStringDataUtil.isEmpty;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.keyValue;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.reverse;
 import static org.apache.flink.table.data.binary.BinaryStringDataUtil.splitByWholeSeparatorPreserveAllTokens;
@@ -857,5 +858,16 @@ public class BinaryStringDataTest {
 
         // check reference same.
         assertThat(javaStr).isSameAs(str.toString());
+    }
+
+    @Test
+    public void testIsEmpty() {
+        assertThat(isEmpty(fromString(""))).isEqualTo(true);
+        assertThat(isEmpty(BinaryStringData.fromBytes(new byte[] {}))).isEqualTo(true);
+        assertThat(isEmpty(fromString("hello"))).isEqualTo(false);
+        assertThat(isEmpty(BinaryStringData.fromBytes("hello".getBytes()))).isEqualTo(false);
+        assertThat(isEmpty(fromString("中文"))).isEqualTo(false);
+        assertThat(isEmpty(BinaryStringData.fromBytes("中文".getBytes()))).isEqualTo(false);
+        assertThat(isEmpty(new BinaryStringData())).isEqualTo(true);
     }
 }

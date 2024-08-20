@@ -237,8 +237,9 @@ class SlotPoolBatchSlotRequestTest {
 
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
-                .setBatchSlotTimeout(batchSlotTimeout)
-                .buildAndStart(componentMainThreadExecutor);
+                .setBatchSlotTimeout(batchSlotTimeout.toDuration())
+                .setMainThreadExecutor(componentMainThreadExecutor)
+                .buildAndStart();
     }
 
     private DeclarativeSlotPoolBridge createAndSetUpSlotPool(
@@ -250,8 +251,9 @@ class SlotPoolBatchSlotRequestTest {
 
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
-                .setBatchSlotTimeout(batchSlotTimeout)
+                .setBatchSlotTimeout(batchSlotTimeout.toDuration())
                 .setClock(clock)
-                .buildAndStart(componentMainThreadExecutor);
+                .setMainThreadExecutor(componentMainThreadExecutor)
+                .buildAndStart();
     }
 }

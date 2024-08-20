@@ -34,13 +34,13 @@ public interface SlotSelectionStrategy {
      * of available slots and considering the given {@link SlotProfile} that describes the
      * requirements.
      *
-     * @param freeSlotInfoTracker a list of the available slots together with their remaining
-     *     resources to select from.
+     * @param freeSlotTracker a list of the available slots together with their remaining resources
+     *     to select from.
      * @param slotProfile a slot profile, describing requirements for the slot selection.
      * @return the selected slot info with the corresponding locality hint.
      */
     Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker, @Nonnull SlotProfile slotProfile);
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull SlotProfile slotProfile);
 
     /** This class is a value type that combines a {@link SlotInfo} with a {@link Locality} hint. */
     final class SlotInfoAndLocality {
