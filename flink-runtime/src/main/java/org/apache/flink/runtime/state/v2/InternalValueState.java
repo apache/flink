@@ -47,4 +47,14 @@ public class InternalValueState<K, N, V> extends InternalKeyedState<K, N, V>
     public final StateFuture<Void> asyncUpdate(V value) {
         return handleRequest(StateRequestType.VALUE_UPDATE, value);
     }
+
+    @Override
+    public V value() {
+        return handleRequestSync(StateRequestType.VALUE_GET, null);
+    }
+
+    @Override
+    public void update(V value) {
+        handleRequestSync(StateRequestType.VALUE_UPDATE, value);
+    }
 }

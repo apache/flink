@@ -35,6 +35,16 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
     }
 
     @Override
+    public boolean isDone() {
+        return true;
+    }
+
+    @Override
+    public T get() {
+        return result;
+    }
+
+    @Override
     public <U> StateFuture<U> thenApply(
             FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
         return StateFutureUtils.completedFuture(FunctionWithException.unchecked(fn).apply(result));

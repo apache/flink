@@ -70,5 +70,38 @@ public class InternalMapStateTest extends InternalKeyedStateTestBase {
 
         mapState.asyncIsEmpty();
         validateRequestRun(mapState, StateRequestType.MAP_IS_EMPTY, null);
+
+        mapState.clear();
+        validateRequestRun(mapState, StateRequestType.CLEAR, null);
+
+        mapState.get("key1");
+        validateRequestRun(mapState, StateRequestType.MAP_GET, "key1");
+
+        mapState.put("key2", 2);
+        validateRequestRun(mapState, StateRequestType.MAP_PUT, Tuple2.of("key2", 2));
+
+        mapState.putAll(map);
+        validateRequestRun(mapState, StateRequestType.MAP_PUT_ALL, map);
+
+        mapState.remove("key3");
+        validateRequestRun(mapState, StateRequestType.MAP_REMOVE, "key3");
+
+        mapState.contains("key4");
+        validateRequestRun(mapState, StateRequestType.MAP_CONTAINS, "key4");
+
+        mapState.iterator();
+        validateRequestRun(mapState, StateRequestType.MAP_ITER, null);
+
+        mapState.entries().iterator();
+        validateRequestRun(mapState, StateRequestType.MAP_ITER, null);
+
+        mapState.keys().iterator();
+        validateRequestRun(mapState, StateRequestType.MAP_ITER_KEY, null);
+
+        mapState.values().iterator();
+        validateRequestRun(mapState, StateRequestType.MAP_ITER_VALUE, null);
+
+        mapState.isEmpty();
+        validateRequestRun(mapState, StateRequestType.MAP_IS_EMPTY, null);
     }
 }

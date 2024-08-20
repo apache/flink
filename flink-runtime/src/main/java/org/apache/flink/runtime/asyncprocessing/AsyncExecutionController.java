@@ -258,6 +258,21 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     }
 
     @Override
+    public <IN, OUT> OUT handleRequestSync(
+            State state, StateRequestType type, @Nullable IN payload) {
+        InternalStateFuture<OUT> stateFuture = handleRequest(state, type, payload);
+        while (!stateFuture.isDone()) {
+            try {
+                mailboxExecutor.yield();
+            } catch (InterruptedException e) {
+                LOG.warn("Error while waiting for state future to complete.", e);
+                throw new RuntimeException("Error while waiting for state future to complete.", e);
+            }
+        }
+        return stateFuture.get();
+    }
+
+    @Override
     public <N> void setCurrentNamespaceForState(
             @Nonnull InternalPartitionedState<N> state, N namespace) {
         currentContext.setNamespace(state, namespace);

@@ -60,4 +60,14 @@ public class InternalAggregatingState<K, N, IN, ACC, OUT> extends InternalKeyedS
     public StateFuture<Void> asyncAdd(IN value) {
         return handleRequest(StateRequestType.AGGREGATING_ADD, value);
     }
+
+    @Override
+    public OUT get() {
+        return handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+    }
+
+    @Override
+    public void add(IN value) {
+        handleRequestSync(StateRequestType.AGGREGATING_ADD, value);
+    }
 }

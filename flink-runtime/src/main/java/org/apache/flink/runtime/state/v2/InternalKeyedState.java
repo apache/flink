@@ -64,6 +64,10 @@ public abstract class InternalKeyedState<K, N, V> implements InternalPartitioned
         return stateRequestHandler.handleRequest(this, stateRequestType, payload);
     }
 
+    protected final <IN, OUT> OUT handleRequestSync(StateRequestType stateRequestType, IN payload) {
+        return stateRequestHandler.handleRequestSync(this, stateRequestType, payload);
+    }
+
     @Override
     public void setCurrentNamespace(N namespace) {
         stateRequestHandler.setCurrentNamespaceForState(this, namespace);
@@ -72,6 +76,10 @@ public abstract class InternalKeyedState<K, N, V> implements InternalPartitioned
     @Override
     public final StateFuture<Void> asyncClear() {
         return handleRequest(StateRequestType.CLEAR, null);
+    }
+
+    public final void clear() {
+        handleRequestSync(StateRequestType.CLEAR, null);
     }
 
     /** Return specific {@code StateDescriptor}. */

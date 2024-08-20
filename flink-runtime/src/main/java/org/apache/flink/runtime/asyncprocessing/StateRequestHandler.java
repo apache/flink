@@ -43,6 +43,17 @@ public interface StateRequestHandler {
             @Nullable State state, StateRequestType type, @Nullable IN payload);
 
     /**
+     * Submit a {@link StateRequest} to this StateRequestHandler, and wait for the response
+     * synchronously.
+     *
+     * @param state the state to request.
+     * @param type the type of this request.
+     * @param payload the payload input for this request.
+     * @return the state future.
+     */
+    <IN, OUT> OUT handleRequestSync(State state, StateRequestType type, @Nullable IN payload);
+
+    /**
      * Set current namespace for a state. See {@link
      * InternalPartitionedState#setCurrentNamespace(Object)}.
      */

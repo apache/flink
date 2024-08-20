@@ -50,4 +50,14 @@ public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
     public StateFuture<Void> asyncAdd(V value) {
         return handleRequest(StateRequestType.REDUCING_ADD, value);
     }
+
+    @Override
+    public V get() {
+        return handleRequestSync(StateRequestType.REDUCING_GET, null);
+    }
+
+    @Override
+    public void add(V value) {
+        handleRequestSync(StateRequestType.REDUCING_ADD, value);
+    }
 }
