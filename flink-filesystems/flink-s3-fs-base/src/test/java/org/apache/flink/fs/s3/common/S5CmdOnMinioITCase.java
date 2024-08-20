@@ -137,7 +137,7 @@ public abstract class S5CmdOnMinioITCase {
     }
 
     @BeforeAll
-    public static void prepareS5Cmd() throws Exception {
+    static void prepareS5Cmd() throws Exception {
         Path s5CmdTgz = Paths.get(temporaryDirectory.getPath(), "s5cmd.tar.gz");
         MessageDigest md = MessageDigest.getInstance("MD5");
 

@@ -44,7 +44,7 @@ class HadoopOSSRecoverableWriterExceptionITCase
     private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
     @BeforeAll
-    public static void checkCredentialsAndSetup() throws IOException {
+    static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
         OSSTestCredentials.assumeCredentialsAvailable();
 

@@ -45,16 +45,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(ParameterizedTestExtension.class)
 class GSRecoverableWriterTest {
 
-    @Parameter public long position = 16;
+    @Parameter private long position = 16;
 
     @Parameter(value = 1)
-    public boolean closed = false;
+    private boolean closed = false;
 
     @Parameter(value = 2)
-    public int componentCount;
+    private int componentCount;
 
     @Parameters(name = "position={0}, closed={1}, componentCount={2}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // position 0, not closed, component count = 0
@@ -81,7 +81,7 @@ class GSRecoverableWriterTest {
     private GSBlobIdentifier blobIdentifier;
 
     @BeforeEach
-    public void before() {
+    void before() {
         MockBlobStorage storage = new MockBlobStorage();
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
 
@@ -100,17 +100,17 @@ class GSRecoverableWriterTest {
     }
 
     @TestTemplate
-    public void testRequiresCleanupOfRecoverableState() {
+    void testRequiresCleanupOfRecoverableState() {
         assertThat(writer.requiresCleanupOfRecoverableState()).isFalse();
     }
 
     @TestTemplate
-    public void testSupportsResume() {
+    void testSupportsResume() {
         assertThat(writer.supportsResume()).isTrue();
     }
 
     @TestTemplate
-    public void testOpen() throws IOException {
+    void testOpen() throws IOException {
         Path path = new Path("gs://foo/bar");
         GSRecoverableFsDataOutputStream stream =
                 (GSRecoverableFsDataOutputStream) writer.open(path);
@@ -118,40 +118,40 @@ class GSRecoverableWriterTest {
     }
 
     @TestTemplate
-    public void testOpenWithEmptyBucketName() throws IOException {
+    void testOpenWithEmptyBucketName() throws IOException {
         Path path = new Path("gs:///bar");
 
         assertThatThrownBy(() -> writer.open(path)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @TestTemplate
-    public void testOpenWithEmptyObjectName() throws IOException {
+    void testOpenWithEmptyObjectName() throws IOException {
         Path path = new Path("gs://foo/");
 
         assertThatThrownBy(() -> writer.open(path)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @TestTemplate
-    public void testOpenWithMissingObjectName() throws IOException {
+    void testOpenWithMissingObjectName() throws IOException {
         Path path = new Path("gs://foo");
 
         assertThatThrownBy(() -> writer.open(path)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @TestTemplate
-    public void testCleanupRecoverableState() {
+    void testCleanupRecoverableState() {
         assertThat(writer.cleanupRecoverableState(resumeRecoverable)).isTrue();
     }
 
     @TestTemplate
-    public void testRecover() throws IOException {
+    void testRecover() throws IOException {
         GSRecoverableFsDataOutputStream stream =
                 (GSRecoverableFsDataOutputStream) writer.recover(resumeRecoverable);
         assertThat(stream.getPos()).isEqualTo(position);
     }
 
     @TestTemplate
-    public void testRecoverForCommit() {
+    void testRecoverForCommit() {
         GSRecoverableWriterCommitter committer =
                 (GSRecoverableWriterCommitter) writer.recoverForCommit(commitRecoverable);
         assertThat(committer.options).isEqualTo(options);
@@ -159,13 +159,13 @@ class GSRecoverableWriterTest {
     }
 
     @TestTemplate
-    public void testGetCommitRecoverableSerializer() {
+    void testGetCommitRecoverableSerializer() {
         Object serializer = writer.getCommitRecoverableSerializer();
         assertThat(serializer.getClass()).isEqualTo(GSCommitRecoverableSerializer.class);
     }
 
     @TestTemplate
-    public void testGetResumeRecoverableSerializer() {
+    void testGetResumeRecoverableSerializer() {
         Object serializer = writer.getResumeRecoverableSerializer();
         assertThat(serializer.getClass()).isEqualTo(GSResumeRecoverableSerializer.class);
     }

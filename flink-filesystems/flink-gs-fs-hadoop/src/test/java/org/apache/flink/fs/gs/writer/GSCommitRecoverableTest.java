@@ -42,13 +42,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(ParameterizedTestExtension.class)
 class GSCommitRecoverableTest {
 
-    @Parameter public List<UUID> componentObjectIds;
+    @Parameter private List<UUID> componentObjectIds;
 
     @Parameter(value = 1)
-    public String temporaryBucketName;
+    private String temporaryBucketName;
 
     @Parameters(name = "componentObjectIds={0}, temporaryBucketName={1}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
 
         ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
         ArrayList<UUID> populatedComponentObjectIds = new ArrayList<>();
@@ -73,12 +73,12 @@ class GSCommitRecoverableTest {
     private GSBlobIdentifier blobIdentifier;
 
     @BeforeEach
-    public void before() {
+    void before() {
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
     }
 
     @TestTemplate
-    public void shouldConstructProperly() {
+    void shouldConstructProperly() {
         GSCommitRecoverable commitRecoverable =
                 new GSCommitRecoverable(blobIdentifier, componentObjectIds);
         assertThat(commitRecoverable.finalBlobIdentifier).isEqualTo(blobIdentifier);
@@ -87,7 +87,7 @@ class GSCommitRecoverableTest {
 
     /** Ensure that the list of component object ids cannot be added to. */
     @TestTemplate
-    public void shouldNotAddComponentId() {
+    void shouldNotAddComponentId() {
         GSCommitRecoverable commitRecoverable =
                 new GSCommitRecoverable(blobIdentifier, componentObjectIds);
         assertThatThrownBy(() -> commitRecoverable.componentObjectIds.add(UUID.randomUUID()))
@@ -96,7 +96,7 @@ class GSCommitRecoverableTest {
 
     /** Ensure that component object ids can't be updated. */
     @TestTemplate
-    public void shouldNotModifyComponentId() {
+    void shouldNotModifyComponentId() {
         GSCommitRecoverable commitRecoverable =
                 new GSCommitRecoverable(blobIdentifier, componentObjectIds);
 
@@ -105,7 +105,7 @@ class GSCommitRecoverableTest {
     }
 
     @TestTemplate
-    public void shouldGetComponentBlobIds() {
+    void shouldGetComponentBlobIds() {
 
         // configure options, if this test configuration has a temporary bucket name, set it
         Configuration flinkConfig = new Configuration();
@@ -142,7 +142,7 @@ class GSCommitRecoverableTest {
     }
 
     @TestTemplate
-    public void shouldGetComponentBlobIdsWithEntropy() {
+    void shouldGetComponentBlobIdsWithEntropy() {
 
         // configure options, if this test configuration has a temporary bucket name, set it
         Configuration flinkConfig = new Configuration();

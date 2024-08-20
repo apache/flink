@@ -50,21 +50,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(ParameterizedTestExtension.class)
 class GSRecoverableWriterCommitterTest {
 
-    @Parameter @Nullable public String temporaryBucketName;
+    @Parameter @Nullable private String temporaryBucketName;
 
     @Parameter(value = 1)
-    public int composeMaxBlobs;
+    private int composeMaxBlobs;
 
     @Parameter(value = 2)
-    public int[] blobSizes;
+    private int[] blobSizes;
 
     @Parameter(value = 3)
-    public int commitBlobCount;
+    private int commitBlobCount;
 
     @Parameters(
             name =
                     "temporaryBucketName={0}, composeMaxBlobs={1}, blobSizes={2}, commitBlobCount={3}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // no specified temporary bucket, compose up to 4 blobs at once, compose no
@@ -105,7 +105,7 @@ class GSRecoverableWriterCommitterTest {
     private GSBlobIdentifier blobIdentifier;
 
     @BeforeEach
-    public void before() {
+    void before() {
         Configuration flinkConfig = new Configuration();
         if (temporaryBucketName != null) {
             flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, temporaryBucketName);
@@ -132,12 +132,12 @@ class GSRecoverableWriterCommitterTest {
      * @throws IOException On underlying failure
      */
     @TestTemplate
-    public void commitTest() throws IOException {
+    void commitTest() throws IOException {
         GSRecoverableWriterCommitter committer = commitTestInternal();
         committer.commit();
 
         // there should be exactly one blob left, the final blob identifier. validate its contents.
-        assertThat(blobStorage.blobs.size()).isOne();
+        assertThat(blobStorage.blobs).hasSize(1);
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
         assertThat(blobValue).isNotNull();
         assertThat(blobValue.content).isEqualTo(expectedBytes.toByteArray());
@@ -149,7 +149,7 @@ class GSRecoverableWriterCommitterTest {
      * @throws IOException On underlying failure
      */
     @TestTemplate
-    public void commitOverwriteShouldFailTest() throws IOException {
+    void commitOverwriteShouldFailTest() throws IOException {
         blobStorage.createBlob(blobIdentifier);
         GSRecoverableWriterCommitter committer = commitTestInternal();
 
@@ -163,7 +163,7 @@ class GSRecoverableWriterCommitterTest {
      * @throws IOException On underlying failure
      */
     @TestTemplate
-    public void commitWithRecoveryOverwriteShouldSucceedTest() throws IOException {
+    void commitWithRecoveryOverwriteShouldSucceedTest() throws IOException {
         blobStorage.createBlob(blobIdentifier);
         GSRecoverableWriterCommitter committer = commitTestInternal();
         committer.commitAfterRecovery();

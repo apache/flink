@@ -44,31 +44,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ConfigUtilsHadoopTest {
 
     /* The test case description. */
-    @Parameter public String description;
+    @Parameter private String description;
 
     /* The value to use for the HADOOP_CONF_DIR environment variable. */
     @Parameter(value = 1)
     @Nullable
-    String envHadoopConfDir;
+    private String envHadoopConfDir;
 
     /* The value to use for the Flink config. */
     @Parameter(value = 2)
-    Configuration flinkConfig;
+    private Configuration flinkConfig;
 
     /* The Hadoop resources to load from the config dir. */
     @Parameter(value = 3)
-    org.apache.hadoop.conf.Configuration loadedHadoopConfig;
+    private org.apache.hadoop.conf.Configuration loadedHadoopConfig;
 
     /* The expected Hadoop configuration directory. */
     @Parameter(value = 4)
-    String expectedHadoopConfigDir;
+    private String expectedHadoopConfigDir;
 
     /* The expected Hadoop configuration. */
     @Parameter(value = 5)
-    org.apache.hadoop.conf.Configuration expectedHadoopConfig;
+    private org.apache.hadoop.conf.Configuration expectedHadoopConfig;
 
     @Parameters(name = "description={0}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {

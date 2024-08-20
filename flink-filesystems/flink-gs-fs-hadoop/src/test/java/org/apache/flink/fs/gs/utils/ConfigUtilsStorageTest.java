@@ -38,27 +38,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test construction of Storage instance in GSFileSystemFactory. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigUtilsStorageTest {
+class ConfigUtilsStorageTest {
 
     /* The test case description. */
-    public @Parameter String description;
+    private @Parameter String description;
 
     /* The value to use for the GOOGLE_APPLICATION_CREDENTIALS environment variable. */
     @Parameter(value = 1)
     @Nullable
-    public String envGoogleApplicationCredentials;
+    private String envGoogleApplicationCredentials;
 
     /* The Hadoop config. */
     @Parameter(value = 2)
-    public org.apache.hadoop.conf.Configuration hadoopConfig;
+    private org.apache.hadoop.conf.Configuration hadoopConfig;
 
     /* The expected credentials file to use. */
     @Parameter(value = 3)
     @Nullable
-    public String expectedCredentialsFilePath;
+    private String expectedCredentialsFilePath;
 
     @Parameters(name = "description={0}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {

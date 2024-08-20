@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GSFileSystemFactoryTest {
 
     @Test
-    public void testOverrideStorageRootUrl() {
+    void testOverrideStorageRootUrl() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.setString("gs.storage.root.url", "http://240.0.0.0:12345");
 

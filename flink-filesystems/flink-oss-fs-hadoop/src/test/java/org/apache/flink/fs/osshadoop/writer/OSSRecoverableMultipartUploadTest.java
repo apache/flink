@@ -145,7 +145,7 @@ class OSSRecoverableMultipartUploadTest {
 
         OSSRecoverable ossRecoverable = uploader.getRecoverable(partFile);
 
-        assertThat(ossRecoverable.getPartETags().size()).isEqualTo(2);
+        assertThat(ossRecoverable.getPartETags()).hasSize(2);
         assertThat(ossRecoverable.getLastPartObject()).isNotNull();
         assertThat(ossRecoverable.getLastPartObjectLength()).isEqualTo(1026);
         assertThat(ossRecoverable.getNumBytesInParts()).isEqualTo(2 * 1024 * 1024 + 20);

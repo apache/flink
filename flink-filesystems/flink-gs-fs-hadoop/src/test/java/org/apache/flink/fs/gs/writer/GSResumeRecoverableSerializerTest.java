@@ -38,23 +38,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(ParameterizedTestExtension.class)
 class GSResumeRecoverableSerializerTest {
 
-    @Parameter public String bucketName;
+    @Parameter private String bucketName;
 
     @Parameter(value = 1)
-    public String objectName;
+    private String objectName;
 
     @Parameter(value = 2)
-    public long position;
+    private long position;
 
     @Parameter(value = 3)
-    public boolean closed;
+    private boolean closed;
 
     @Parameter(value = 4)
-    public int componentCount;
+    private int componentCount;
 
     @Parameters(
             name = "bucketName={0}, objectName={1}, position={2}, closed={3}, componentCount={4}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // resume recoverable for foo/bar at position 0, closed, with 4 component ids
@@ -72,7 +72,7 @@ class GSResumeRecoverableSerializerTest {
     }
 
     @TestTemplate
-    public void shouldSerdeState() throws IOException {
+    void shouldSerdeState() throws IOException {
 
         // create the state
         GSBlobIdentifier finalBlobIdentifier = new GSBlobIdentifier(bucketName, objectName);
@@ -94,7 +94,7 @@ class GSResumeRecoverableSerializerTest {
         assertThat(deserializedState.finalBlobIdentifier.objectName).isEqualTo(objectName);
         assertThat(deserializedState.position).isEqualTo(position);
         assertThat(deserializedState.closed).isEqualTo(closed);
-        assertThat(deserializedState.componentObjectIds.size()).isEqualTo(componentCount);
+        assertThat(deserializedState.componentObjectIds).hasSize(componentCount);
         for (int i = 0; i < componentCount; i++) {
             assertThat(deserializedState.componentObjectIds.get(i))
                     .isEqualTo(state.componentObjectIds.get(i));

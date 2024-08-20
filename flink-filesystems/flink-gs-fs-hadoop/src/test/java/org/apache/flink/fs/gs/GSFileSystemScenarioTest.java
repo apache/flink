@@ -50,14 +50,14 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 class GSFileSystemScenarioTest {
 
     /* The temporary bucket name to use. */
-    @Parameter public String temporaryBucketName;
+    @Parameter private String temporaryBucketName;
 
     /* The chunk size to use for writing to GCS. */
     @Parameter(value = 1)
-    public MemorySize writeChunkSize;
+    private MemorySize writeChunkSize;
 
     @Parameters(name = "temporaryBucketName={0}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // no specified bucket, no chunk size
@@ -92,7 +92,7 @@ class GSFileSystemScenarioTest {
     private boolean writeChunkSizeIsValid;
 
     @BeforeEach
-    public void before() {
+    void before() {
 
         random = new Random(TestUtils.RANDOM_SEED);
 
@@ -126,7 +126,7 @@ class GSFileSystemScenarioTest {
 
     /* Test writing a single array of bytes to a stream. */
     @TestTemplate
-    public void simpleWriteTest() throws IOException {
+    void simpleWriteTest() throws IOException {
 
         // only run the test for valid chunk sizes
         assumeThat(writeChunkSizeIsValid).isTrue();
@@ -147,7 +147,7 @@ class GSFileSystemScenarioTest {
         // there should be a single blob now, in the specified temporary bucket or, if no temporary
         // bucket
         // specified, in the final bucket
-        assertThat(storage.blobs.size()).isOne();
+        assertThat(storage.blobs).hasSize(1);
         GSBlobIdentifier temporaryBlobIdentifier =
                 (GSBlobIdentifier) storage.blobs.keySet().toArray()[0];
         String expectedTemporaryBucket =
@@ -161,14 +161,14 @@ class GSFileSystemScenarioTest {
 
         // there should be exactly one blob after commit, with the expected contents.
         // all temporary blobs should be removed.
-        assertThat(storage.blobs.size()).isOne();
+        assertThat(storage.blobs).hasSize(1);
         MockBlobStorage.BlobValue blobValue = storage.blobs.get(blobIdentifier);
         assertThat(blobValue.content).isEqualTo(data);
     }
 
     /* Test writing multiple arrays of bytes to a stream. */
     @TestTemplate
-    public void compoundWriteTest() throws IOException {
+    void compoundWriteTest() throws IOException {
 
         // only run the test for valid chunk sizes
         assumeThat(writeChunkSizeIsValid).isTrue();
@@ -198,7 +198,7 @@ class GSFileSystemScenarioTest {
 
             // there should be exactly one blob after commit, with the expected contents.
             // all temporary blobs should be removed.
-            assertThat(storage.blobs.size()).isOne();
+            assertThat(storage.blobs).hasSize(1);
             MockBlobStorage.BlobValue blobValue = storage.blobs.get(blobIdentifier);
             assertThat(blobValue.content).isEqualTo(expectedData.toByteArray());
         }
@@ -206,7 +206,7 @@ class GSFileSystemScenarioTest {
 
     /* Test writing multiple arrays of bytes to a stream. */
     @TestTemplate
-    public void compoundWriteTestWithRestore() throws IOException {
+    void compoundWriteTestWithRestore() throws IOException {
 
         // only run the test for valid chunk sizes
         assumeThat(writeChunkSizeIsValid).isTrue();
@@ -252,14 +252,14 @@ class GSFileSystemScenarioTest {
 
             // there should be exactly one blob after commit, with the expected contents.
             // all temporary blobs should be removed.
-            assertThat(storage.blobs.size()).isOne();
+            assertThat(storage.blobs).hasSize(1);
             MockBlobStorage.BlobValue blobValue = storage.blobs.get(blobIdentifier);
             assertThat(blobValue.content).isEqualTo(expectedData.toByteArray());
         }
     }
 
     @TestTemplate
-    public void invalidChunkSizeTest() {
+    void invalidChunkSizeTest() {
 
         // only run the test for invalid chunk sizes
         assumeThat(writeChunkSizeIsValid).isFalse();

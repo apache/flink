@@ -40,19 +40,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(ParameterizedTestExtension.class)
 class GSResumeRecoverableTest {
 
-    @Parameter public int position;
+    @Parameter private int position;
 
     @Parameter(value = 1)
-    public boolean closed;
+    private boolean closed;
 
     @Parameter(value = 2)
-    public List<UUID> componentObjectIds;
+    private List<UUID> componentObjectIds;
 
     @Parameter(value = 3)
-    public String temporaryBucketName;
+    private String temporaryBucketName;
 
     @Parameters(name = "position={0}, closed={1}, componentObjectIds={2}, temporaryBucketName={3}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
 
         ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
         ArrayList<UUID> populatedComponentObjectIds = new ArrayList<>();
@@ -85,12 +85,12 @@ class GSResumeRecoverableTest {
     private GSBlobIdentifier blobIdentifier;
 
     @BeforeEach
-    public void before() {
+    void before() {
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
     }
 
     @TestTemplate
-    public void shouldConstructProperly() {
+    void shouldConstructProperly() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
         assertThat(resumeRecoverable.finalBlobIdentifier).isEqualTo(blobIdentifier);
@@ -101,7 +101,7 @@ class GSResumeRecoverableTest {
 
     /** Ensure that the list of component object ids cannot be added to. */
     @TestTemplate
-    public void shouldNotAddComponentId() {
+    void shouldNotAddComponentId() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
 
@@ -111,7 +111,7 @@ class GSResumeRecoverableTest {
 
     /** Ensure that component object ids can't be updated. */
     @TestTemplate
-    public void shouldNotModifyComponentId() {
+    void shouldNotModifyComponentId() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
 

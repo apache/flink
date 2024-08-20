@@ -45,21 +45,21 @@ class GSChecksumWriteChannelTest {
 
     /* The sizes of each buffer of bytes used for writing. */
     @Parameter(value = 0)
-    int[] bufferSizes;
+    private int[] bufferSizes;
 
     /* The start positions in write buffers. */
     @Parameter(value = 1)
-    int[] writeStarts;
+    private int[] writeStarts;
 
     /* The length of each write. */
     @Parameter(value = 2)
-    int[] writeLengths;
+    private int[] writeLengths;
 
     @Parameter(value = 3)
-    String description;
+    private String description;
 
     @Parameters(name = "{3}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {
@@ -94,7 +94,7 @@ class GSChecksumWriteChannelTest {
     private GSBlobIdentifier blobIdentifier;
 
     @BeforeEach
-    public void before() throws IOException {
+    void before() throws IOException {
         Random random = new Random();
         random.setSeed(RANDOM_SEED);
 
@@ -155,7 +155,7 @@ class GSChecksumWriteChannelTest {
      * @throws IOException On checksum failure.
      */
     @TestTemplate
-    public void shouldThrowOnChecksumMismatch() throws IOException {
+    void shouldThrowOnChecksumMismatch() throws IOException {
 
         MockBlobStorage blobStorage = new MockBlobStorage();
         blobStorage.forcedChecksum = "";

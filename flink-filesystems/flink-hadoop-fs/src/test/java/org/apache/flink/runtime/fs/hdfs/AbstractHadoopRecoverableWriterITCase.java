@@ -126,7 +126,7 @@ public abstract class AbstractHadoopRecoverableWriterITCase {
         // delete local tmp dir.
         assertThat(Files.exists(localTmpDir)).isTrue();
         try (Stream<java.nio.file.Path> files = Files.list(localTmpDir)) {
-            assertThat(files.count()).isEqualTo(0L);
+            assertThat(files).isEmpty();
         }
         Files.delete(localTmpDir);
 

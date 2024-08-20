@@ -36,7 +36,7 @@ class AbstractS3DelegationTokenProviderTest {
     private AbstractS3DelegationTokenProvider provider;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         provider =
                 new AbstractS3DelegationTokenProvider() {
                     @Override

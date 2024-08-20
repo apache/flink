@@ -38,16 +38,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(ParameterizedTestExtension.class)
 class GSCommitRecoverableSerializerTest {
 
-    @Parameter public String bucketName;
+    @Parameter private String bucketName;
 
     @Parameter(value = 1)
-    public String objectName;
+    private String objectName;
 
     @Parameter(value = 2)
-    public int componentCount;
+    private int componentCount;
 
     @Parameters(name = "bucketName={0}, objectName={1}, componentCount={2}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // commit recoverable for foo/bar with 4 component object uuids
@@ -62,7 +62,7 @@ class GSCommitRecoverableSerializerTest {
     }
 
     @TestTemplate
-    public void shouldSerdeState() throws IOException {
+    void shouldSerdeState() throws IOException {
 
         // create the state
         GSBlobIdentifier finalBlobIdentifier = new GSBlobIdentifier(bucketName, objectName);
@@ -82,7 +82,7 @@ class GSCommitRecoverableSerializerTest {
         // check that states match
         assertThat(deserializedState.finalBlobIdentifier.bucketName).isEqualTo(bucketName);
         assertThat(deserializedState.finalBlobIdentifier.objectName).isEqualTo(objectName);
-        assertThat(deserializedState.componentObjectIds.size()).isEqualTo(componentCount);
+        assertThat(deserializedState.componentObjectIds).hasSize(componentCount);
         for (int i = 0; i < componentCount; i++) {
             assertThat(deserializedState.componentObjectIds.get(i))
                     .isEqualTo(state.componentObjectIds.get(i));
