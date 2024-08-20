@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.StringData;
@@ -41,6 +42,7 @@ import java.util.stream.IntStream;
  * sequence of tokens and compares them against the input string, returning a {@link DecimalData}
  * object if they match (or null otherwise).
  */
+@Internal
 public final class NumberParser {
 
     private static final char ANGLE_BRACKET_CLOSE = '>';
