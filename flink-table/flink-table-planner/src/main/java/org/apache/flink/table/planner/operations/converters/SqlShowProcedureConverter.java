@@ -28,11 +28,11 @@ public class SqlShowProcedureConverter extends AbstractSqlShowConverter<SqlShowP
 
     @Override
     public Operation getOperationWithoutPrep(
-            String qualifiedCatalogName,
-            String qualifiedDatabaseName,
+            String catalogName,
+            String databaseName,
             SqlShowProcedures sqlShowCall,
             ShowLikeOperator likeOp) {
-        return new ShowProceduresOperation(qualifiedCatalogName, qualifiedDatabaseName, likeOp);
+        return new ShowProceduresOperation(catalogName, databaseName, likeOp);
     }
 
     @Override
