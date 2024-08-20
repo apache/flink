@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -132,12 +132,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
         this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
         this.fileStateThreshold = fileStateSizeThreshold;
         this.writeBufferSize = writeBufferSize;
-        if (fileSystem instanceof DuplicatingFileSystem) {
-            final DuplicatingFileSystem duplicatingFileSystem = (DuplicatingFileSystem) fileSystem;
+        if (fileSystem instanceof PathsCopyingFileSystem) {
+            final PathsCopyingFileSystem pathsCopyingFileSystem =
+                    (PathsCopyingFileSystem) fileSystem;
             this.privateStateToolset =
-                    new FsCheckpointStateToolset(checkpointDirectory, duplicatingFileSystem);
+                    new FsCheckpointStateToolset(checkpointDirectory, pathsCopyingFileSystem);
             this.sharedStateToolset =
-                    new FsCheckpointStateToolset(sharedStateDirectory, duplicatingFileSystem);
+                    new FsCheckpointStateToolset(sharedStateDirectory, pathsCopyingFileSystem);
         } else {
             this.privateStateToolset = null;
             this.sharedStateToolset = null;
