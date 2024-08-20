@@ -43,5 +43,14 @@ public class InternalValueStateTest extends InternalKeyedStateTestBase {
 
         valueState.asyncUpdate(1);
         validateRequestRun(valueState, StateRequestType.VALUE_UPDATE, 1);
+
+        valueState.clear();
+        validateRequestRun(valueState, StateRequestType.CLEAR, null);
+
+        valueState.value();
+        validateRequestRun(valueState, StateRequestType.VALUE_GET, null);
+
+        valueState.update(1);
+        validateRequestRun(valueState, StateRequestType.VALUE_UPDATE, 1);
     }
 }

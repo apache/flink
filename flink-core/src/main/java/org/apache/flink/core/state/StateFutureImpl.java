@@ -234,6 +234,24 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     @Override
+    public boolean isDone() {
+        return completableFuture.isDone();
+    }
+
+    @Override
+    public T get() {
+        T t;
+        try {
+            t = completableFuture.get();
+        } catch (Exception e) {
+            exceptionHandler.handleException(
+                    "Caught exception when getting StateFuture's result.", e);
+            return null;
+        }
+        return t;
+    }
+
+    @Override
     public void complete(T result) {
         if (completableFuture.isCompletedExceptionally()) {
             throw new IllegalStateException("StateFuture already failed !");

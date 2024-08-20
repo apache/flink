@@ -33,4 +33,7 @@ public interface State {
 
     /** Removes the value mapped under the current key asynchronously. */
     StateFuture<Void> asyncClear();
+
+    /** Removes the value mapped under the current key. */
+    void clear();
 }

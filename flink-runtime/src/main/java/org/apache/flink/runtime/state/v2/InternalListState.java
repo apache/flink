@@ -59,4 +59,27 @@ public class InternalListState<K, N, V> extends InternalKeyedState<K, N, V>
     public StateFuture<Void> asyncAddAll(List<V> values) {
         return handleRequest(StateRequestType.LIST_ADD_ALL, values);
     }
+
+    @Override
+    public Iterable<V> get() {
+        return () -> {
+            StateIterator<V> stateIterator = handleRequestSync(StateRequestType.LIST_GET, null);
+            return new SyncIteratorWrapper<>(stateIterator);
+        };
+    }
+
+    @Override
+    public void add(V value) {
+        handleRequestSync(StateRequestType.LIST_ADD, value);
+    }
+
+    @Override
+    public void update(List<V> values) {
+        handleRequestSync(StateRequestType.LIST_UPDATE, values);
+    }
+
+    @Override
+    public void addAll(List<V> values) {
+        handleRequestSync(StateRequestType.LIST_ADD_ALL, values);
+    }
 }

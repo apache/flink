@@ -172,6 +172,14 @@ public class InternalKeyedStateTestBase {
         public CompletableFuture<Void> executeBatchRequests(
                 StateRequestContainer stateRequestContainer) {
             receivedRequest.addAll(((TestStateRequestContainer) stateRequestContainer).requests);
+            for (StateRequest request : receivedRequest) {
+                if (request.getRequestType() == StateRequestType.MAP_CONTAINS
+                        || request.getRequestType() == StateRequestType.MAP_IS_EMPTY) {
+                    request.getFuture().complete(true);
+                } else {
+                    request.getFuture().complete(null);
+                }
+            }
             CompletableFuture<Void> future = new CompletableFuture<>();
             future.complete(null);
             return future;

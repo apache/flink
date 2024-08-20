@@ -90,6 +90,14 @@ public class ForStDBOperationTestBase {
             }
 
             @Override
+            public <IN, OUT> OUT handleRequestSync(
+                    State state,
+                    StateRequestType type,
+                    @org.jetbrains.annotations.Nullable IN payload) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public <N> void setCurrentNamespaceForState(
                     @Nonnull InternalPartitionedState<N> state, N namespace) {
                 throw new UnsupportedOperationException();
@@ -128,6 +136,22 @@ public class ForStDBOperationTestBase {
     static class TestStateFuture<T> implements InternalStateFuture<T> {
 
         public CompletableFuture<T> future = new CompletableFuture<>();
+
+        @Override
+        public boolean isDone() {
+            return future.isDone();
+        }
+
+        @Override
+        public T get() {
+            T t;
+            try {
+                t = future.get();
+            } catch (Exception e) {
+                throw new RuntimeException("Error while getting future's result.", e);
+            }
+            return t;
+        }
 
         @Override
         public void complete(T result) {

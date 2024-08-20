@@ -54,5 +54,22 @@ public class InternalListStateTest extends InternalKeyedStateTestBase {
         list = new ArrayList<>();
         listState.asyncAddAll(list);
         validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list);
+
+        listState.clear();
+        validateRequestRun(listState, StateRequestType.CLEAR, null);
+
+        listState.get().iterator();
+        validateRequestRun(listState, StateRequestType.LIST_GET, null);
+
+        listState.add(1);
+        validateRequestRun(listState, StateRequestType.LIST_ADD, 1);
+
+        list = new ArrayList<>();
+        listState.update(list);
+        validateRequestRun(listState, StateRequestType.LIST_UPDATE, list);
+
+        list = new ArrayList<>();
+        listState.addAll(list);
+        validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list);
     }
 }

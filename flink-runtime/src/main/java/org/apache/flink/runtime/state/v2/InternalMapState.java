@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -85,5 +86,66 @@ public class InternalMapState<K, N, UK, V> extends InternalKeyedState<K, N, V>
     @Override
     public StateFuture<Boolean> asyncIsEmpty() {
         return handleRequest(StateRequestType.MAP_IS_EMPTY, null);
+    }
+
+    @Override
+    public V get(UK key) {
+        return handleRequestSync(StateRequestType.MAP_GET, key);
+    }
+
+    @Override
+    public void put(UK key, V value) {
+        handleRequestSync(StateRequestType.MAP_PUT, Tuple2.of(key, value));
+    }
+
+    @Override
+    public void putAll(Map<UK, V> map) {
+        handleRequestSync(StateRequestType.MAP_PUT_ALL, map);
+    }
+
+    @Override
+    public void remove(UK key) {
+        handleRequestSync(StateRequestType.MAP_REMOVE, key);
+    }
+
+    @Override
+    public boolean contains(UK key) {
+        return handleRequestSync(StateRequestType.MAP_CONTAINS, key);
+    }
+
+    // wait
+    @Override
+    public Iterable<Map.Entry<UK, V>> entries() {
+        return this::iterator;
+    }
+
+    @Override
+    public Iterable<UK> keys() {
+        return () -> {
+            StateIterator<UK> stateIterator =
+                    handleRequestSync(StateRequestType.MAP_ITER_KEY, null);
+            return new SyncIteratorWrapper<>(stateIterator);
+        };
+    }
+
+    @Override
+    public Iterable<V> values() {
+        return () -> {
+            StateIterator<V> stateIterator =
+                    handleRequestSync(StateRequestType.MAP_ITER_VALUE, null);
+            return new SyncIteratorWrapper<>(stateIterator);
+        };
+    }
+
+    @Override
+    public Iterator<Map.Entry<UK, V>> iterator() {
+        StateIterator<Map.Entry<UK, V>> stateIterator =
+                handleRequestSync(StateRequestType.MAP_ITER, null);
+        return new SyncIteratorWrapper<>(stateIterator);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return handleRequestSync(StateRequestType.MAP_IS_EMPTY, null);
     }
 }

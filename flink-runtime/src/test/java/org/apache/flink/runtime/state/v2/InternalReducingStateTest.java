@@ -45,5 +45,14 @@ public class InternalReducingStateTest extends InternalKeyedStateTestBase {
 
         reducingState.asyncAdd(1);
         validateRequestRun(reducingState, StateRequestType.REDUCING_ADD, 1);
+
+        reducingState.clear();
+        validateRequestRun(reducingState, StateRequestType.CLEAR, null);
+
+        reducingState.get();
+        validateRequestRun(reducingState, StateRequestType.REDUCING_GET, null);
+
+        reducingState.add(1);
+        validateRequestRun(reducingState, StateRequestType.REDUCING_ADD, 1);
     }
 }
