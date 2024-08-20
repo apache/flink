@@ -1135,12 +1135,19 @@ class Expression(Generic[T]):
         """
         return _unary_op("initCap")(self)
 
-    def like(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
+    def like(self,
+             pattern: Union[str, 'Expression[str]'] = None,
+             escape=None) -> 'Expression[bool]':
         """
-        Returns true, if a string matches the specified LIKE pattern.
-        e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'
+        Returns true, if a string matches the specified LIKE pattern
+        e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'.
+        An escape character consisting of a single char can be defined if necessary,
+        '\\' by default.
         """
-        return _binary_op("like")(self, pattern)
+        if escape is None:
+            return _binary_op("like")(self, pattern)
+        else:
+            return _ternary_op("like")(self, pattern, escape)
 
     def similar(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
         """

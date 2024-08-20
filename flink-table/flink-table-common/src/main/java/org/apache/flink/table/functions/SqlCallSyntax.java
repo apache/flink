@@ -274,4 +274,27 @@ public interface SqlCallSyntax {
                                     .collect(Collectors.joining(", ")));
 
     SqlCallSyntax WINDOW_START_END = (sqlName, operands) -> String.format("%s", sqlName);
+
+    /**
+     * Special sql syntax for LIKE.
+     *
+     * <p>Example: 'TE_ST' LIKE '%E&_S%' ESCAPE '&';
+     */
+    SqlCallSyntax LIKE =
+            (sqlName, operands) -> {
+                if (operands.size() == 2) {
+                    return String.format(
+                            "%s %s %s",
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0)),
+                            sqlName,
+                            CallSyntaxUtils.asSerializableOperand(operands.get(1)));
+                } else {
+                    return String.format(
+                            "%s %s %s ESCAPE %s",
+                            CallSyntaxUtils.asSerializableOperand(operands.get(0)),
+                            sqlName,
+                            CallSyntaxUtils.asSerializableOperand(operands.get(1)),
+                            CallSyntaxUtils.asSerializableOperand(operands.get(2)));
+                }
+            };
 }
