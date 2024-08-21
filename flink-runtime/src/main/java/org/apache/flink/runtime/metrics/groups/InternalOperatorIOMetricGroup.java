@@ -97,4 +97,16 @@ public class InternalOperatorIOMetricGroup extends ProxyMetricGroup<InternalOper
         TaskIOMetricGroup taskIO = parentMetricGroup.getTaskIOMetricGroup();
         taskIO.reuseRecordsOutputCounter(this.numRecordsOut);
     }
+
+    /** Causes the containing task to use this operators input bytes counter. */
+    public void reuseBytesInputMetricsForTask() {
+        TaskIOMetricGroup taskIO = parentMetricGroup.getTaskIOMetricGroup();
+        taskIO.reuseBytesInputCounter(this.numBytesIn);
+    }
+
+    /** Causes the containing task to use this operators output bytes counter. */
+    public void reuseBytesOutputMetricsForTask() {
+        TaskIOMetricGroup taskIO = parentMetricGroup.getTaskIOMetricGroup();
+        taskIO.reuseBytesOutputCounter(this.numBytesOut);
+    }
 }
