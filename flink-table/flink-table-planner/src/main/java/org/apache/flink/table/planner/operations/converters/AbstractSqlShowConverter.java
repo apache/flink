@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
+/** An abstract class for SHOW converters. */
 public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
         implements SqlNodeConverter<T> {
 
@@ -38,13 +39,8 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
             final CatalogManager catalogManager = context.getCatalogManager();
             final String currentCatalogName = catalogManager.getCurrentCatalog();
             final String currentDatabaseName = catalogManager.getCurrentDatabase();
-            if (skipQualifyingDefaultCatalogAndDatabase()) {
-                return getOperationWithoutPrep(
-                        currentCatalogName, currentDatabaseName, sqlShowCall, likeOp);
-            }
-            final String catalogName = catalogManager.qualifyCatalog(currentCatalogName);
-            final String databaseName = catalogManager.qualifyDatabase(currentDatabaseName);
-            return getOperationWithoutPrep(catalogName, databaseName, sqlShowCall, likeOp);
+            return getOperationWithoutPrep(
+                    sqlShowCall, currentCatalogName, currentDatabaseName, likeOp);
         }
         final List<String> sqlIdentifierNameList = sqlShowCall.getSqlIdentifierNameList();
         if (sqlIdentifierNameList.size() > 2) {
@@ -64,14 +60,8 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
                 sqlIdentifierNameList.size() == 1
                         ? sqlIdentifierNameList.get(0)
                         : sqlIdentifierNameList.get(1);
-        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
-        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         return getOperation(
-                sqlShowCall,
-                qualifiedCatalogName,
-                qualifiedDatabaseName,
-                sqlShowCall.getPreposition(),
-                likeOp);
+                sqlShowCall, catalogName, databaseName, sqlShowCall.getPreposition(), likeOp);
     }
 
     public ShowLikeOperator getLikeOp(SqlShowCall sqlShowCall) {
@@ -81,22 +71,18 @@ public abstract class AbstractSqlShowConverter<T extends SqlShowCall>
     }
 
     public abstract Operation getOperationWithoutPrep(
-            String catalogName,
-            String databaseName,
             T sqlShowCall,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable ShowLikeOperator likeOp);
 
     public abstract Operation getOperation(
             T sqlShowCall,
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable String prep,
             @Nullable ShowLikeOperator likeOp);
 
     @Override
     public abstract Operation convertSqlNode(T node, ConvertContext context);
-
-    protected boolean skipQualifyingDefaultCatalogAndDatabase() {
-        return false;
-    }
 }

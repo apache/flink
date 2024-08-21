@@ -41,11 +41,11 @@ import java.util.Collection;
 @Internal
 public class ShowProceduresOperation extends AbstractShowOperation {
 
-    private final String databaseName;
+    private final @Nullable String databaseName;
 
     public ShowProceduresOperation(
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable String preposition,
             @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
@@ -53,26 +53,33 @@ public class ShowProceduresOperation extends AbstractShowOperation {
     }
 
     public ShowProceduresOperation(
-            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
         this(catalogName, databaseName, null, likeOp);
     }
 
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         try {
             if (preposition == null) {
                 // it's to show current_catalog.current_database
-                return catalogManager.getCatalogOrError(catalogName).listProcedures(databaseName);
+                return catalogManager
+                        .getCatalogOrError(qualifiedCatalogName)
+                        .listProcedures(qualifiedDatabaseName);
             } else {
-                Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-                return catalog.listProcedures(databaseName);
+                Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
+                return catalog.listProcedures(qualifiedDatabaseName);
             }
         } catch (DatabaseNotExistException e) {
             throw new TableException(
                     String.format(
                             "Fail to show procedures because the Database `%s` to show from/in does not exist in Catalog `%s`.",
-                            databaseName, catalogName));
+                            qualifiedDatabaseName, qualifiedCatalogName),
+                    e);
         }
     }
 

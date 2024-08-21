@@ -39,11 +39,11 @@ import java.util.Set;
 @Internal
 public class ShowTablesOperation extends AbstractShowOperation {
 
-    private final String databaseName;
+    private final @Nullable String databaseName;
 
     public ShowTablesOperation(
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable String preposition,
             @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
@@ -51,27 +51,32 @@ public class ShowTablesOperation extends AbstractShowOperation {
     }
 
     public ShowTablesOperation(
-            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
         this(catalogName, databaseName, null, likeOp);
     }
 
-    public ShowTablesOperation(String catalogName, String databaseName) {
+    public ShowTablesOperation(@Nullable String catalogName, @Nullable String databaseName) {
         this(catalogName, databaseName, null);
     }
 
     @Override
     protected Set<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         if (preposition == null) {
             return catalogManager.listTables();
         } else {
-            Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-            if (catalog.databaseExists(databaseName)) {
-                return catalogManager.listTables(catalogName, databaseName);
+            Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
+            if (catalog.databaseExists(qualifiedDatabaseName)) {
+                return catalogManager.listTables(qualifiedCatalogName, qualifiedDatabaseName);
             } else {
                 throw new ValidationException(
                         String.format(
-                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+                                "Database '%s'.'%s' doesn't exist.",
+                                qualifiedCatalogName, qualifiedDatabaseName));
             }
         }
     }

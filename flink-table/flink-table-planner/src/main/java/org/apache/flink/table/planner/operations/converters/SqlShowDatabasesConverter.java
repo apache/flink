@@ -37,8 +37,7 @@ public class SqlShowDatabasesConverter implements SqlNodeConverter<SqlShowDataba
         if (sqlShowDatabases.getPreposition() == null) {
             final CatalogManager catalogManager = context.getCatalogManager();
             final String currentCatalogName = catalogManager.getCurrentCatalog();
-            final String qualifiedCatalogName = catalogManager.qualifyCatalog(currentCatalogName);
-            return new ShowDatabasesOperation(qualifiedCatalogName, likeOp);
+            return new ShowDatabasesOperation(currentCatalogName, likeOp);
         } else {
             return new ShowDatabasesOperation(
                     sqlShowDatabases.getCatalogName(), sqlShowDatabases.getPreposition(), likeOp);
