@@ -26,6 +26,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -57,6 +58,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
@@ -663,6 +665,16 @@ public abstract class FileSystem implements IFileSystem {
     @Override
     public RecoverableWriter createRecoverableWriter() throws IOException {
         return IFileSystem.super.createRecoverableWriter();
+    }
+
+    @PublicEvolving
+    @Override
+    public RecoverableWriter createRecoverableWriter(Map<String, String> conf) throws IOException {
+        if (conf == null || conf.isEmpty()) {
+            return createRecoverableWriter();
+        } else {
+            return IFileSystem.super.createRecoverableWriter(conf);
+        }
     }
 
     @Override

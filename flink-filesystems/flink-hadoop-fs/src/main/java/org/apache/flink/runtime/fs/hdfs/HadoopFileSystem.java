@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -213,6 +214,21 @@ public class HadoopFileSystem extends FileSystem {
         // specific versions. We check these schemes and versions eagerly for better error
         // messages in the constructor of the writer.
         return new HadoopRecoverableWriter(fs);
+    }
+
+    @Override
+    public RecoverableWriter createRecoverableWriter(Map<String, String> conf) throws IOException {
+        // This writer is only supported on a subset of file systems, and on
+        // specific versions. We check these schemes and versions eagerly for better error
+        // messages in the constructor of the writer.
+        if (conf == null || conf.isEmpty()) {
+            return createRecoverableWriter();
+        } else if (conf.containsKey("fs.hdfs.no-local-write")) {
+            return new HadoopRecoverableWriter(
+                    fs, Boolean.parseBoolean(conf.get("fs.hdfs.no-local-write")));
+        } else {
+            return new HadoopRecoverableWriter(fs);
+        }
     }
 
     // ------------------------------------------------------------------------
