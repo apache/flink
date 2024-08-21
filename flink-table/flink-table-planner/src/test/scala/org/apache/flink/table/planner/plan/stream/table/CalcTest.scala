@@ -155,4 +155,22 @@ class CalcTest extends TableTestBase {
 
     util.verifyExecPlan(resultTable)
   }
+
+  @Test
+  def testRowTypeEquality(): Unit = {
+    val util = streamTestUtil()
+    util.addTable(s"""
+                     |CREATE TABLE MyTable (
+                     |  my_row ROW(a INT, b STRING)
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |  )
+                     |""".stripMargin)
+
+    val resultTable = util.tableEnv
+      .from("MyTable")
+      .select('my_row === row(1, "str"))
+
+    util.verifyExecPlan(resultTable)
+  }
 }
