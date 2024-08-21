@@ -63,8 +63,13 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
     // TODO (FLINK-35020) : remove after implementing dropModel in catalog
     @AfterEach
     void cleanup() throws Exception {
+        if (catalog.modelExists(modelPath1)) {
+            ((GenericInMemoryCatalog) catalog).dropModel(modelPath1, true);
+        }
+        if (catalog.modelExists(modelPath2)) {
+            ((GenericInMemoryCatalog) catalog).dropModel(modelPath2, true);
+        }
         super.cleanup();
-        ((GenericInMemoryCatalog) catalog).dropAllModels();
     }
 
     // These are put here instead of CatalogTest class since model operations are not implemented

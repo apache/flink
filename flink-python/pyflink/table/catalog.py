@@ -15,9 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Dict, List, Optional
-
 from py4j.java_gateway import java_import
+from typing import Dict, List, Optional
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.schema import Schema
@@ -486,7 +485,7 @@ class Catalog(object):
         """
         Drop a model.
 
-        :param model_path: Path :class:`ObjectPath` of the function to be dropped.
+        :param model_path: Path :class:`ObjectPath` of the model to be dropped.
         :param ignore_if_not_exists: Flag to specify behavior if the model does not exist:
                                      if set to false, throw an exception
                                      if set to true, nothing happens.
@@ -1121,21 +1120,27 @@ class CatalogModel(object):
 
     @staticmethod
     def create_model(
+        input_schema: TableSchema,
+        output_schema: TableSchema,
         properties: Dict[str, str] = {},
         comment: str = None
     ) -> "CatalogModel":
         """
         Create an instance of CatalogModel for the catalog model.
 
+        :param input_schema: the model input schema
+        :param output_schema: the model output schema
         :param properties: the properties of the catalog model
         :param comment: the comment of the catalog model
         """
+        assert input_schema is not None
+        assert output_schema is not None
         assert properties is not None
 
         gateway = get_gateway()
         return CatalogModel(
             gateway.jvm.org.apache.flink.table.catalog.CatalogModel.of(
-                None, None, properties, comment))
+                input_schema._j_table_schema, output_schema._j_table_schema, properties, comment))
 
     @staticmethod
     def _get(j_catalog_model):

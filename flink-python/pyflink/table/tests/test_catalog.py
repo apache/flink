@@ -113,12 +113,16 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_model():
         return CatalogModel.create_model(
+            CatalogTestBase.create_table_schema(),
+            CatalogTestBase.create_table_schema(),
             properties={},
             comment="some comment")
 
     @staticmethod
     def create_another_model():
         return CatalogModel.create_model(
+            CatalogTestBase.create_table_schema(),
+            CatalogTestBase.create_table_schema(),
             properties={"key": "value"},
             comment="some comment")
 

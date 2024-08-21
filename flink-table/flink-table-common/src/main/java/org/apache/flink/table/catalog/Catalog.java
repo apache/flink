@@ -49,6 +49,7 @@ import org.apache.flink.table.procedures.Procedure;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -804,8 +805,7 @@ public interface Catalog {
      */
     default List<String> listModels(String databaseName)
             throws DatabaseNotExistException, CatalogException {
-        throw new UnsupportedOperationException(
-                String.format("listModel(String) is not implemented for %s.", this.getClass()));
+        return Collections.emptyList();
     }
 
     /**
@@ -818,8 +818,7 @@ public interface Catalog {
      */
     default CatalogModel getModel(ObjectPath modelPath)
             throws ModelNotExistException, CatalogException {
-        throw new UnsupportedOperationException(
-                String.format("getModel(ObjectPath) is not implemented for %s.", this.getClass()));
+        throw new ModelNotExistException(null, modelPath);
     }
 
     /**
@@ -830,9 +829,7 @@ public interface Catalog {
      * @throws CatalogException in case of any runtime exception
      */
     default boolean modelExists(ObjectPath modelPath) throws CatalogException {
-        throw new UnsupportedOperationException(
-                String.format(
-                        "modelExists(ObjectPath) is not implemented for %s.", this.getClass()));
+        return false;
     }
 
     /**

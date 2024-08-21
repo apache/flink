@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -120,25 +118,7 @@ public class CatalogPropertiesUtilTest {
         final CatalogTable deserializedTable =
                 CatalogPropertiesUtil.deserializeCatalogTable(serializedMap);
 
-        // We need to compare the fields one by one since equalsTo in UnresolvedDataType in
-        // UnresolvedColumn doesn't work
-        BiConsumer<Schema, Schema> schemaComparision =
-                (actual, expected) -> {
-                    assertThat(actual.getColumns().size()).isEqualTo(expected.getColumns().size());
-                    for (int i = 0; i < actual.getColumns().size(); i++) {
-                        final UnresolvedPhysicalColumn actualColumn =
-                                (UnresolvedPhysicalColumn) actual.getColumns().get(i);
-                        final UnresolvedPhysicalColumn expectedColumn =
-                                (UnresolvedPhysicalColumn) expected.getColumns().get(i);
-                        assertThat(actualColumn.getName()).isEqualTo(expectedColumn.getName());
-                        assertThat(actualColumn.getDataType().toString())
-                                .isEqualTo(expectedColumn.getDataType().toString());
-                    }
-                };
-        schemaComparision.accept(
-                deserializedTable.getUnresolvedSchema(), catalogTable.getUnresolvedSchema());
-        // Verify that the primary key and vector index are correctly deserialized
-        assertThat(deserializedTable.getUnresolvedSchema().getPrimaryKey())
-                .isEqualTo(catalogTable.getUnresolvedSchema().getPrimaryKey());
+        assertThat(deserializedTable.getUnresolvedSchema().toString())
+                .isEqualTo(catalogTable.getUnresolvedSchema().toString());
     }
 }

@@ -23,7 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.util.Map;
 
 /**
- * * A validated {@link CatalogModel} that is backed by the original metadata coming from the {@link
+ * A validated {@link CatalogModel} that is backed by the original metadata coming from the {@link
  * Catalog} but resolved by the framework.
  */
 @PublicEvolving

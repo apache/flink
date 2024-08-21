@@ -483,10 +483,6 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         return databaseExists(modelPath.getDatabaseName()) && models.containsKey(modelPath);
     }
 
-    public void dropAllModels() {
-        models.clear();
-    }
-
     // ------ functions ------
 
     @Override
