@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Test for {@link AsyncCalcSplitRule}. */
 public class AsyncCalcSplitRuleTest extends TableTestBase {
 
@@ -75,6 +77,7 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
         util.addTemporarySystemFunction("func3", new Func3());
         util.addTemporarySystemFunction("func4", new Func4());
         util.addTemporarySystemFunction("func5", new Func5());
+        util.addTemporarySystemFunction("func6", new Func6());
     }
 
     @Test
@@ -237,6 +240,90 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
         util.verifyRelPlan(sqlQuery);
     }
 
+    @Test
+    public void testRightJoinEffectivelyInnerJoin() {
+        String sqlQuery =
+                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 "
+                        + "WHERE a = a2 AND func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithFuncInWhereUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithLeftOnlyCallInWhere() {
+        String sqlQuery = "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 WHERE func1(a) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithLeftOnlyCallInOn() {
+        String sqlQuery = "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 AND func1(a) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinEffectivelyInnerJoin() {
+        String sqlQuery =
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 "
+                        + "WHERE a = a2 AND func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinWithFuncInWhereUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinWithRightOnlyCallInWhere() {
+        String sqlQuery = "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 WHERE func1(a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testLeftJoinWithRightOnlyCallInOn() {
+        String sqlQuery = "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 AND func1(a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testRightJoinWithFuncInOnUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable RIGHT JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10 ";
+        assertThatThrownBy(() -> util.verifyRelPlan(sqlQuery))
+                .hasMessage("AsyncScalarFunction not supported for non inner join condition");
+    }
+
+    @Test
+    public void testLeftJoinWithFuncInOnUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable LEFT JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10 ";
+        assertThatThrownBy(() -> util.verifyRelPlan(sqlQuery))
+                .hasMessage("AsyncScalarFunction not supported for non inner join condition");
+    }
+
+    @Test
+    public void testInnerJoinWithFuncInOnUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 AND func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testInnerJoinWithFuncInWhereUsingBothTables() {
+        String sqlQuery =
+                "SELECT a from MyTable INNER JOIN MyTable2 ON a = a2 WHERE func6(a, a2) > 10";
+        util.verifyRelPlan(sqlQuery);
+    }
+
     /** Test function. */
     public static class Func1 extends AsyncScalarFunction {
         public void eval(CompletableFuture<Integer> future, Integer param) {
@@ -271,6 +358,12 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
         @DataTypeHint("ROW<f0 INT, f1 String>")
         public void eval(CompletableFuture<Row> future, Integer a) {
             future.complete(Row.of(a + 1, "" + (a * a)));
+        }
+    }
+
+    public static class Func6 extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> future, Integer param, Integer param2) {
+            future.complete(param + param2);
         }
     }
 }
