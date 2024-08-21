@@ -38,12 +38,14 @@ import static org.apache.flink.table.api.internal.TableResultUtils.buildStringAr
  */
 @Internal
 public abstract class AbstractShowOperation implements ShowOperation {
-    protected final String catalogName;
-    protected final @Nullable String preposition;
-    protected final @Nullable ShowLikeOperator likeOp;
+    private final @Nullable String catalogName;
+    private final @Nullable String preposition;
+    private final @Nullable ShowLikeOperator likeOp;
 
     public AbstractShowOperation(
-            String catalogName, @Nullable String preposition, @Nullable ShowLikeOperator likeOp) {
+            @Nullable String catalogName,
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
         this.catalogName = catalogName;
         this.preposition = preposition;
         this.likeOp = likeOp;
@@ -54,6 +56,18 @@ public abstract class AbstractShowOperation implements ShowOperation {
     protected abstract String getOperationName();
 
     protected abstract String getColumnName();
+
+    public String getCatalogName() {
+        return catalogName;
+    }
+
+    public ShowLikeOperator getLikeOp() {
+        return likeOp;
+    }
+
+    public String getPreposition() {
+        return preposition;
+    }
 
     @Override
     public TableResultInternal execute(Context ctx) {

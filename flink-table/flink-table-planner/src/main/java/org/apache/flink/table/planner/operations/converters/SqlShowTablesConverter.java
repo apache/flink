@@ -23,23 +23,25 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
+import javax.annotation.Nullable;
+
 public class SqlShowTablesConverter extends AbstractSqlShowConverter<SqlShowTables> {
     @Override
     public Operation getOperationWithoutPrep(
-            String catalogName,
-            String databaseName,
             SqlShowTables sqlShowCall,
-            ShowLikeOperator likeOp) {
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
         return new ShowTablesOperation(catalogName, databaseName, likeOp);
     }
 
     @Override
     public Operation getOperation(
             SqlShowTables sqlShowCall,
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             String prep,
-            ShowLikeOperator likeOp) {
+            @Nullable ShowLikeOperator likeOp) {
         return new ShowTablesOperation(catalogName, databaseName, prep, likeOp);
     }
 

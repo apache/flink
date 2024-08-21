@@ -24,15 +24,17 @@ import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
+import javax.annotation.Nullable;
+
 /** A converter for {@link SqlShowFunctions}. */
 public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowFunctions> {
 
     @Override
     public Operation getOperationWithoutPrep(
-            String catalogName,
-            String databaseName,
             SqlShowFunctions sqlShowFunctions,
-            ShowLikeOperator likeOp) {
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
         final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
         return new ShowFunctionsOperation(functionScope, catalogName, databaseName, likeOp);
     }
@@ -40,10 +42,10 @@ public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowF
     @Override
     public Operation getOperation(
             SqlShowFunctions sqlShowFunctions,
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             String prep,
-            ShowLikeOperator likeOp) {
+            @Nullable ShowLikeOperator likeOp) {
         final FunctionScope functionScope = getFunctionScope(sqlShowFunctions);
         return new ShowFunctionsOperation(functionScope, prep, catalogName, databaseName, likeOp);
     }
@@ -55,12 +57,5 @@ public class SqlShowFunctionsConverter extends AbstractSqlShowConverter<SqlShowF
 
     private static FunctionScope getFunctionScope(SqlShowFunctions sqlShowFunctions) {
         return sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL;
-    }
-
-    @Override
-    protected boolean skipQualifyingDefaultCatalogAndDatabase() {
-        // It should be supported to list functions with unset catalog
-        // for more info FLINK-33093
-        return true;
     }
 }

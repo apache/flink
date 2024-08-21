@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+/** Abstract class for SHOW sql call. */
 public abstract class SqlShowCall extends SqlCall {
     private final String preposition;
     private final SqlIdentifier sqlIdentifier;

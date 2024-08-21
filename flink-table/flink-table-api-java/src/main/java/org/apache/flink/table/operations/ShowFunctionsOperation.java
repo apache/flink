@@ -57,7 +57,7 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
     private final FunctionScope functionScope;
     private final @Nullable String databaseName;
 
-    public ShowFunctionsOperation(String catalogName, String databaseName) {
+    public ShowFunctionsOperation(@Nullable String catalogName, @Nullable String databaseName) {
         // "SHOW FUNCTIONS" default is ALL scope
         this(FunctionScope.ALL, catalogName, databaseName, null);
     }
@@ -73,8 +73,8 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
     public ShowFunctionsOperation(
             FunctionScope functionScope,
             @Nullable String preposition,
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
         this.functionScope = functionScope;
@@ -83,6 +83,8 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
 
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        final String preposition = getPreposition();
+        final String catalogName = getCatalogName();
         switch (functionScope) {
             case USER:
                 if (preposition == null) {
@@ -103,6 +105,14 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
                         String.format(
                                 "SHOW FUNCTIONS with %s scope is not supported.", databaseName));
         }
+    }
+
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
+    public FunctionScope getFunctionScope() {
+        return functionScope;
     }
 
     @Override

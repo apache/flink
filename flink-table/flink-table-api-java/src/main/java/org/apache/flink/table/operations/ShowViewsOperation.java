@@ -39,11 +39,11 @@ import java.util.Set;
 @Internal
 public class ShowViewsOperation extends AbstractShowOperation {
 
-    private final String databaseName;
+    private final @Nullable String databaseName;
 
     public ShowViewsOperation(
-            String catalogName,
-            String databaseName,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
             @Nullable String preposition,
             @Nullable ShowLikeOperator likeOp) {
         super(catalogName, preposition, likeOp);
@@ -51,11 +51,13 @@ public class ShowViewsOperation extends AbstractShowOperation {
     }
 
     public ShowViewsOperation(
-            String catalogName, String databaseName, @Nullable ShowLikeOperator likeOp) {
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
         this(catalogName, databaseName, null, likeOp);
     }
 
-    public ShowViewsOperation(String catalogName, String databaseName) {
+    public ShowViewsOperation(@Nullable String catalogName, @Nullable String databaseName) {
         this(catalogName, databaseName, null);
     }
 
@@ -66,18 +68,25 @@ public class ShowViewsOperation extends AbstractShowOperation {
 
     protected Set<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        if (preposition == null) {
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(getCatalogName());
+        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
+        if (getPreposition() == null) {
             return catalogManager.listViews();
         } else {
-            Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-            if (catalog.databaseExists(databaseName)) {
-                return catalogManager.listViews(catalogName, databaseName);
+            Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
+            if (catalog.databaseExists(qualifiedDatabaseName)) {
+                return catalogManager.listViews(qualifiedCatalogName, qualifiedDatabaseName);
             } else {
                 throw new ValidationException(
                         String.format(
-                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+                                "Database '%s'.'%s' doesn't exist.",
+                                qualifiedCatalogName, qualifiedDatabaseName));
             }
         }
+    }
+
+    public String getDatabaseName() {
+        return databaseName;
     }
 
     @Override
