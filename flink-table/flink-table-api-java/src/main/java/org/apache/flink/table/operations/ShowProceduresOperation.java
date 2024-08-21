@@ -62,10 +62,10 @@ public class ShowProceduresOperation extends AbstractShowOperation {
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String qualifiedCatalogName = catalogManager.qualifyCatalog(getCatalogName());
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
         final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         try {
-            if (getPreposition() == null) {
+            if (preposition == null) {
                 // it's to show current_catalog.current_database
                 return catalogManager
                         .getCatalogOrError(qualifiedCatalogName)
@@ -81,10 +81,6 @@ public class ShowProceduresOperation extends AbstractShowOperation {
                             qualifiedDatabaseName, qualifiedCatalogName),
                     e);
         }
-    }
-
-    public String getDatabaseName() {
-        return databaseName;
     }
 
     @Override

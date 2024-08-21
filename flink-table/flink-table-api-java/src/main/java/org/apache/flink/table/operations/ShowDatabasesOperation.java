@@ -55,7 +55,7 @@ public class ShowDatabasesOperation extends AbstractShowOperation {
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String qualifiedCatalogName = catalogManager.qualifyCatalog(getCatalogName());
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
         return catalogManager.getCatalogOrThrowException(qualifiedCatalogName).listDatabases();
     }
 

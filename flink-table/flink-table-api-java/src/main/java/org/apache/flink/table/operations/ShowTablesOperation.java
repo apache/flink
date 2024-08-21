@@ -64,9 +64,9 @@ public class ShowTablesOperation extends AbstractShowOperation {
     @Override
     protected Set<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String qualifiedCatalogName = catalogManager.qualifyCatalog(getCatalogName());
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
         final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
-        if (getPreposition() == null) {
+        if (preposition == null) {
             return catalogManager.listTables();
         } else {
             Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
@@ -79,10 +79,6 @@ public class ShowTablesOperation extends AbstractShowOperation {
                                 qualifiedCatalogName, qualifiedDatabaseName));
             }
         }
-    }
-
-    public String getDatabaseName() {
-        return databaseName;
     }
 
     @Override

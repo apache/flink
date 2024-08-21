@@ -83,8 +83,6 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
 
     @Override
     protected Collection<String> retrieveDataForTableResult(Context ctx) {
-        final String preposition = getPreposition();
-        final String catalogName = getCatalogName();
         switch (functionScope) {
             case USER:
                 if (preposition == null) {

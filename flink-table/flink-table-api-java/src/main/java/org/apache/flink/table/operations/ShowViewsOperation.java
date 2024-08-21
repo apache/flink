@@ -68,9 +68,9 @@ public class ShowViewsOperation extends AbstractShowOperation {
 
     protected Set<String> retrieveDataForTableResult(Context ctx) {
         final CatalogManager catalogManager = ctx.getCatalogManager();
-        final String qualifiedCatalogName = catalogManager.qualifyCatalog(getCatalogName());
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
         final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
-        if (getPreposition() == null) {
+        if (preposition == null) {
             return catalogManager.listViews();
         } else {
             Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
@@ -83,10 +83,6 @@ public class ShowViewsOperation extends AbstractShowOperation {
                                 qualifiedCatalogName, qualifiedDatabaseName));
             }
         }
-    }
-
-    public String getDatabaseName() {
-        return databaseName;
     }
 
     @Override

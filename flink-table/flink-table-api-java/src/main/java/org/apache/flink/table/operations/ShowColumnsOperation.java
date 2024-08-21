@@ -83,7 +83,6 @@ public class ShowColumnsOperation extends AbstractShowOperation {
 
         ResolvedSchema schema = result.get().getResolvedSchema();
         Object[][] rows = generateTableColumnsRows(schema);
-        ShowLikeOperator likeOp = getLikeOp();
         if (likeOp != null) {
             rows =
                     Arrays.stream(rows)
