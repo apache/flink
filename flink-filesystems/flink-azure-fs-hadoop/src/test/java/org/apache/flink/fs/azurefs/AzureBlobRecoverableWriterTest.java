@@ -25,11 +25,12 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 import java.util.UUID;
+
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link AzureBlobRecoverableWriter}. */
 class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTest {
@@ -45,13 +46,8 @@ class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTest {
     @BeforeAll
     static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials and container details exist
-        Assumptions.assumeFalse(
-                StringUtils.isNullOrWhitespaceOnly(CONTAINER),
-                "Azure container not configured, skipping test...");
-        Assumptions.assumeFalse(
-                StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY),
-                "Azure access key not configured, skipping test...");
-
+        assumeThat(StringUtils.isNullOrWhitespaceOnly(CONTAINER)).isFalse();
+        assumeThat(StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY)).isFalse();
         // adjusting the minbuffer length for tests
         AzureBlobFsRecoverableDataOutputStream.minBufferLength = 4;
         // initialize configuration with valid credentials
