@@ -585,12 +585,71 @@ CREATE TABLE my_ctas_table (
 INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
+The `CREATE` part allows you to specify explicit columns. The resulting table schema will contain the columns defined in the `CREATE` part first followed by the columns from the `SELECT` part. Columns named in both parts, in the `CREATE` and `SELECT` parts, keep the same column position as defined in the `SELECT` part. The data type of `SELECT` columns can also be overridden if specified in the `CREATE` part.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table (
+    desc STRING,
+    quantity DOUBLE,   
+    cost AS price * quantity,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+) WITH (
+    'connector' = 'kafka',
+    ...
+) AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    desc STRING,
+    cost AS price * quantity,
+    id BIGINT,
+    price DOUBLE,
+    quantity DOUBLE,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_ctas_table (id, price, quantity, order_time)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The `CREATE` part also lets you specify primary keys and distribution strategies. Notice that primary keys work only on `NOT NULL` columns. Currently, primary keys only allow you to define columns from the `SELECT` part which may be `NOT NULL`. The `CREATE` part does not allow `NOT NULL` column definitions.
+
+Consider the example statement below where `id` is a not null column in the `SELECT` part:
+
+```sql
+CREATE TABLE my_ctas_table (
+    PRIMARY KEY (id) NOT ENFORCED
+) DISTRIBUTED BY (id) INTO 4 buckets 
+AS SELECT id, name FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    id BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,
+    name STRING 
+) DISTRIBUTED BY (id) INTO 4 buckets;
+
+INSERT INTO my_ctas_table SELECT id, name FROM source_table;
+```
+
+**Note:** CTAS has these restrictions:
+* Does not support creating a temporary table yet.
+* Does not support creating partitioned table yet.
+
 **注意：** CTAS 有如下约束：
 * 暂不支持创建临时表。
-* 暂不支持指定列信息。
-* 暂不支持指定 Watermark。
 * 暂不支持创建分区表。
-* 暂不支持主键约束。
 
 **注意：** 默认情况下，CTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除。
 
@@ -605,7 +664,13 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 ## [CREATE OR] REPLACE TABLE
 ```sql
 [CREATE OR] REPLACE TABLE [catalog_name.][db_name.]table_name
+  [(
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
+    [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
+  )]
 [COMMENT table_comment]
+[ <distribution> ]
 WITH (key1=val1, key2=val2, ...)
 AS select_query
 ```
@@ -645,12 +710,46 @@ CREATE TABLE my_rtas_table (
 INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
+Similar to `CREATE TABLE AS`, `REPLACE TABLE AS` allows you to specify explicit columns, watermarks, primary keys and distribution strategies. The resulting table schema is built from the `CREATE` part first followed by the columns from the `SELECT` part. Columns named in both parts, in the `CREATE` and `SELECT` parts, keep the same column position as defined in the `SELECT` part. The data type of `SELECT` columns can also be overridden if specified in the `CREATE` part.
+
+Consider the example statement below:
+
+```sql
+REPLACE TABLE my_rtas_table (
+    desc STRING,
+    quantity DOUBLE,   
+    cost AS price * quantity,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+    PRIMARY KEY (id) NOT ENFORCED
+) DISTRIBUTED BY (id) INTO 4 buckets
+AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_rtas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```sql
+DROP TABLE my_rtas_table;
+
+CREATE TABLE my_rtas_table (
+    desc STRING,
+    cost AS price * quantity,
+    id BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,
+    price DOUBLE,
+    quantity DOUBLE,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_rtas_table (id, price, quantity, order_time)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
 **注意：** RTAS 有如下约束：
 * 暂不支持替换临时表。
-* 暂不支持指定列信息。
-* 暂不支持指定 Watermark。
 * 暂不支持创建分区表。
-* 暂不支持主键约束。
 
 **注意：** 默认情况下，RTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除或还原成原来的表。
 **注意：** RTAS 会先删除表，然后创建表并写入数据。但如果表是在基于内存的 Catalog 里，删除表只会将其从 Catalog 里移除，并不会移除物理表中的数据。因此，执行RTAS语句之前的数据仍然存在。
