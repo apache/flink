@@ -122,16 +122,19 @@ class SqlCreateTableConverter {
                                                 new TableException(
                                                         "CTAS unsupported node type "
                                                                 + sqlCreateTableAs
-                                                                        .getAsQuery()
-                                                                        .getClass()
-                                                                        .getSimpleName()));
+                                                                .getAsQuery()
+                                                                .getClass()
+                                                                .getSimpleName()));
         ResolvedCatalogTable tableWithResolvedSchema =
                 createCatalogTable(sqlCreateTableAs, query.getResolvedSchema());
 
         // If needed, rewrite the query to include the new sink fields in the select list
-        query =
-                maybeRewriteCreateTableAsQuery(
-                        flinkPlanner, sqlCreateTableAs, tableWithResolvedSchema, query);
+        query = mergeTableAsUtil.maybeRewriteQuery(
+                catalogManager,
+                flinkPlanner,
+                query,
+                sqlCreateTableAs.getAsQuery(),
+                tableWithResolvedSchema);
 
         CreateTableOperation createTableOperation =
                 new CreateTableOperation(
@@ -142,83 +145,6 @@ class SqlCreateTableConverter {
 
         return new CreateTableASOperation(
                 createTableOperation, Collections.emptyMap(), query, false);
-    }
-
-    /**
-     * Builds and returns a new Query operation with new sink fields declared in the {@code
-     * sinkTable}.
-     */
-    private PlannerQueryOperation maybeRewriteCreateTableAsQuery(
-            FlinkPlannerImpl flinkPlanner,
-            SqlCreateTableAs sqlCreateTableAs,
-            ResolvedCatalogTable sinkTable,
-            PlannerQueryOperation query) {
-
-        // Only fields that may be persisted will be included in the select query
-        RowType sinkRowType =
-                ((RowType) sinkTable.getResolvedSchema().toSinkRowDataType().getLogicalType());
-
-        Map<String, Integer> sourceFields =
-                IntStream.range(0, query.getResolvedSchema().getColumnNames().size())
-                        .boxed()
-                        .collect(
-                                Collectors.toMap(
-                                        query.getResolvedSchema().getColumnNames()::get,
-                                        Function.identity()));
-
-        // assignedFields contains the new sink fields that are not present in the source
-        // and that will be included in the select query
-        LinkedHashMap<Integer, SqlNode> assignedFields = new LinkedHashMap<>();
-
-        // targetPositions contains the positions of the source fields that will be
-        // included in the select query
-        List<Object> targetPositions = new ArrayList<>();
-
-        int pos = -1;
-        for (RowField targetField : sinkRowType.getFields()) {
-            pos++;
-
-            if (!sourceFields.containsKey(targetField.getName())) {
-                if (!targetField.getType().isNullable()) {
-                    throw new ValidationException(
-                            "Column '"
-                                    + targetField.getName()
-                                    + "' has "
-                                    + "no default value and does not allow NULLs.");
-                }
-
-                assignedFields.put(
-                        pos,
-                        rewriterUtils.maybeCast(
-                                SqlLiteral.createNull(SqlParserPos.ZERO),
-                                typeFactory.createUnknownType(),
-                                typeFactory.createFieldTypeFromLogicalType(targetField.getType()),
-                                typeFactory));
-            } else {
-                targetPositions.add(sourceFields.get(targetField.getName()));
-            }
-        }
-
-        // if there are no new sink fields to include, then return the original query
-        if (assignedFields.isEmpty()) {
-            return query;
-        }
-
-        // rewrite query
-        SqlCall newSelect =
-                rewriterUtils.rewriteSelect(
-                        (SqlSelect) sqlCreateTableAs.getAsQuery(),
-                        typeFactory.buildRelNodeRowType(sinkRowType),
-                        assignedFields,
-                        targetPositions);
-
-        return (PlannerQueryOperation)
-                SqlNodeToOperationConversion.convert(flinkPlanner, catalogManager, newSelect)
-                        .orElseThrow(
-                                () ->
-                                        new TableException(
-                                                "CTAS unsupported node type "
-                                                        + newSelect.getClass().getSimpleName()));
     }
 
     private ResolvedCatalogTable createCatalogTable(
@@ -233,7 +159,12 @@ class SqlCreateTableConverter {
         String tableComment =
                 OperationConverterUtils.getTableComment(sqlCreateTableAs.getComment());
 
-        Schema mergedSchema = mergeTableAsUtil.mergeSchemas(sqlCreateTableAs, mergeSchema);
+        Schema mergedSchema =
+                mergeTableAsUtil.mergeSchemas(
+                        sqlCreateTableAs.getColumnList(),
+                        sqlCreateTableAs.getWatermark().orElse(null),
+                        sqlCreateTableAs.getFullConstraints(),
+                        mergeSchema);
 
         Optional<TableDistribution> tableDistribution =
                 Optional.ofNullable(sqlCreateTableAs.getDistribution())

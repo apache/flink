@@ -21,8 +21,10 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -37,15 +39,17 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test base for testing convert [CREATE OR] REPLACE TABLE AS statement to operation. */
 public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
-    public void testReplaceTableAS() {
+    public void testReplaceTableAs() {
         String tableName = "replace_table";
         String tableComment = "test table comment 表描述";
         String sql =
@@ -58,7 +62,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAS() {
+    public void testCreateOrReplaceTableAs() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -68,25 +72,163 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableASWithLimit() {
+    public void testCreateOrReplaceTableAsWithColumns() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
                         + tableName
-                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as (SELECT * FROM t1 LIMIT 5)";
-        testCommonReplaceTableAs(sql, tableName, null);
+                        + "(c0 int, c1 double metadata, c2 as c0 * a) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+        Schema tableSchema =
+                Schema.newBuilder()
+                        .column("c0", DataTypes.INT())
+                        .columnByMetadata("c1", DataTypes.DOUBLE())
+                        .columnByExpression("c2", "`c0` * `a`")
+                        .fromSchema(getDefaultTableSchema())
+                        .build();
+
+        testCommonReplaceTableAs(sql, tableName, null, tableSchema, null, Collections.emptyList());
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithColumnsOverridden() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(c0 int, a double, c int) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+        Schema tableSchema =
+                Schema.newBuilder()
+                        .column("c0", DataTypes.INT())
+                        .column("a", DataTypes.DOUBLE())
+                        .column("b", DataTypes.STRING())
+                        .column("c", DataTypes.INT())
+                        .column("d", DataTypes.STRING())
+                        .build();
+
+        testCommonReplaceTableAs(sql, tableName, null, tableSchema, null, Collections.emptyList());
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithNotNullColumnsAreNotAllowed() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(c0 int not null) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column 'c0' has no default value and does not allow NULLs.");
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithIncompatibleImplicitCastTypes() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(a boolean) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Incompatible types for sink column 'a' at position 0. "
+                                + "The source column has type 'BIGINT NOT NULL', while the target "
+                                + "column has type 'BOOLEAN'.");
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithDistribution() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + " DISTRIBUTED BY HASH(b) INTO 2 BUCKETS "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+        Schema tableSchema = Schema.newBuilder().fromSchema(getDefaultTableSchema()).build();
+
+        testCommonReplaceTableAs(
+                sql,
+                tableName,
+                null,
+                tableSchema,
+                TableDistribution.ofHash(Collections.singletonList("b"), 2),
+                Collections.emptyList());
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithPrimaryKey() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(PRIMARY KEY (a) NOT ENFORCED) "
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+        Schema tableSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.BIGINT().notNull())
+                        .column("b", DataTypes.STRING())
+                        .column("c", DataTypes.INT())
+                        .column("d", DataTypes.STRING())
+                        .primaryKey("a")
+                        .build();
+
+        testCommonReplaceTableAs(sql, tableName, null, tableSchema, null, Collections.emptyList());
+    }
+
+    @Test
+    public void testCreateOrReplaceTableAsWithWatermark() {
+        String tableName = "create_or_replace_table";
+        String sql =
+                "CREATE OR REPLACE TABLE "
+                        + tableName
+                        + "(c0 TIMESTAMP(3), WATERMARK FOR c0 AS c0 - INTERVAL '3' SECOND)"
+                        + " WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT * FROM t1";
+        Schema tableSchema =
+                Schema.newBuilder()
+                        .column("c0", DataTypes.TIMESTAMP(3))
+                        .column("a", DataTypes.BIGINT().notNull())
+                        .column("b", DataTypes.STRING())
+                        .column("c", DataTypes.INT())
+                        .column("d", DataTypes.STRING())
+                        .watermark("c0", "`c0` - INTERVAL '3' SECOND")
+                        .build();
+
+        testCommonReplaceTableAs(sql, tableName, null, tableSchema, null, Collections.emptyList());
     }
 
     private void testCommonReplaceTableAs(
             String sql, String tableName, @Nullable String tableComment) {
+        testCommonReplaceTableAs(
+                sql,
+                tableName,
+                tableComment,
+                getDefaultTableSchema(),
+                null,
+                Collections.emptyList());
+    }
+
+    private void testCommonReplaceTableAs(
+            String sql,
+            String tableName,
+            @Nullable String tableComment,
+            Schema tableSchema,
+            @Nullable TableDistribution distribution,
+            List<String> partitionKey) {
         ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("builtin", "default", tableName);
         Operation operation = parseAndConvert(sql);
         CatalogTable expectedCatalogTable =
-                CatalogTable.of(
-                        getDefaultTableSchema(),
-                        tableComment,
-                        Collections.emptyList(),
-                        getDefaultTableOptions());
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment(tableComment)
+                        .distribution(distribution)
+                        .options(getDefaultTableOptions())
+                        .partitionKeys(partitionKey)
+                        .build();
         verifyReplaceTableAsOperation(operation, expectedIdentifier, expectedCatalogTable);
     }
 
@@ -122,6 +264,8 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
         assertThat(actualCatalogTable.getPartitionKeys())
                 .isEqualTo(expectedCatalogTable.getPartitionKeys());
         assertThat(actualCatalogTable.getOptions()).isEqualTo(expectedCatalogTable.getOptions());
+        assertThat(actualCatalogTable.getDistribution())
+                .isEqualTo(expectedCatalogTable.getDistribution());
     }
 
     private Map<String, String> getDefaultTableOptions() {
