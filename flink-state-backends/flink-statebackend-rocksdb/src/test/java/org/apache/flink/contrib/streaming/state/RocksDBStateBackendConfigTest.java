@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -291,7 +290,6 @@ public class RocksDBStateBackendConfigTest {
 
     @Test
     public void testConfigureRocksDBCompressionPerLevel() throws Exception {
-        GlobalConfiguration.setStandardYaml(false);
         final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
         EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
         CompressionType[] compressionTypes = {
@@ -312,7 +310,6 @@ public class RocksDBStateBackendConfigTest {
 
         resourceContainer.close();
         env.close();
-        GlobalConfiguration.setStandardYaml(true);
     }
 
     @Test
