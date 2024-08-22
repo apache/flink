@@ -25,6 +25,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 
@@ -59,7 +60,7 @@ public class LogicalFile {
     private long lastUsedCheckpointID = -1L;
 
     /** Whether this logical file is removed by checkpoint subsumption/abortion. */
-    boolean discarded = false;
+    AtomicBoolean discarded = new AtomicBoolean(false);
 
     /** The physical file where this logical file is stored. This should never be null. */
     @Nonnull private final PhysicalFile physicalFile;
@@ -114,10 +115,9 @@ public class LogicalFile {
      * @throws IOException if anything goes wrong with file system.
      */
     public void discardWithCheckpointId(long checkpointId) throws IOException {
-        if (!discarded && checkpointId >= lastUsedCheckpointID) {
+        if (checkpointId >= lastUsedCheckpointID && discarded.compareAndSet(false, true)) {
             physicalFile.decRefCount();
             physicalFile.decSize(length);
-            discarded = true;
         }
     }
 
@@ -145,7 +145,7 @@ public class LogicalFile {
 
     @VisibleForTesting
     public boolean isDiscarded() {
-        return discarded;
+        return discarded.get();
     }
 
     @Override
