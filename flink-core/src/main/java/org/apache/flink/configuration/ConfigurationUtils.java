@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL;
-import static org.apache.flink.configuration.StructuredOptionsSplitter.escapeWithSingleQuote;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utility class for {@link Configuration} related helper functions. */
@@ -131,11 +130,11 @@ public class ConfigurationUtils {
      * @return parsed map
      */
     public static Map<String, String> parseStringToMap(String stringSerializedMap) {
-        return convertToProperties(stringSerializedMap, GlobalConfiguration.isStandardYaml());
+        return convertToProperties(stringSerializedMap);
     }
 
     public static String parseMapToString(Map<String, String> map) {
-        return convertToString(map, GlobalConfiguration.isStandardYaml());
+        return convertToString(map);
     }
 
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
@@ -247,7 +246,7 @@ public class ConfigurationUtils {
      */
     public static List<String> convertConfigToWritableLines(
             Configuration configuration, boolean flattenYaml) {
-        if (configuration.standardYaml && !flattenYaml) {
+        if (!flattenYaml) {
             return YamlParserUtils.convertAndDumpYamlFromFlatMap(
                     Collections.unmodifiableMap(configuration.confData));
         } else {
@@ -372,11 +371,6 @@ public class ConfigurationUtils {
      */
     @SuppressWarnings("unchecked")
     public static <T> T convertValue(Object rawValue, Class<?> clazz) {
-        return convertValue(rawValue, clazz, GlobalConfiguration.isStandardYaml());
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T convertValue(Object rawValue, Class<?> clazz, boolean standardYaml) {
         if (Integer.class.equals(clazz)) {
             return (T) convertToInt(rawValue);
         } else if (Long.class.equals(clazz)) {
@@ -388,7 +382,7 @@ public class ConfigurationUtils {
         } else if (Double.class.equals(clazz)) {
             return (T) convertToDouble(rawValue);
         } else if (String.class.equals(clazz)) {
-            return (T) convertToString(rawValue, standardYaml);
+            return (T) convertToString(rawValue);
         } else if (clazz.isEnum()) {
             return (T) convertToEnum(rawValue, (Class<? extends Enum<?>>) clazz);
         } else if (clazz == Duration.class) {
@@ -396,17 +390,17 @@ public class ConfigurationUtils {
         } else if (clazz == MemorySize.class) {
             return (T) convertToMemorySize(rawValue);
         } else if (clazz == Map.class) {
-            return (T) convertToProperties(rawValue, standardYaml);
+            return (T) convertToProperties(rawValue);
         }
 
         throw new IllegalArgumentException("Unsupported type: " + clazz);
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T convertToList(Object rawValue, Class<?> atomicClass, boolean standardYaml) {
+    public static <T> T convertToList(Object rawValue, Class<?> atomicClass) {
         if (rawValue instanceof List) {
             return (T) rawValue;
-        } else if (standardYaml) {
+        } else {
             try {
                 List<Object> data =
                         YamlParserUtils.convertToObject(rawValue.toString(), List.class);
@@ -417,20 +411,18 @@ public class ConfigurationUtils {
                 if (atomicClass == Map.class) {
                     return (T)
                             data.stream()
-                                    .map(map -> convertToStringMap((Map<Object, Object>) map, true))
+                                    .map(map -> convertToStringMap((Map<Object, Object>) map))
                                     .collect(Collectors.toList());
                 }
 
                 return (T)
                         data.stream()
-                                .map(s -> convertValue(s, atomicClass, true))
+                                .map(s -> convertValue(s, atomicClass))
                                 .collect(Collectors.toList());
             } catch (Exception e) {
                 // Fallback to legacy pattern
                 return convertToListWithLegacyProperties(rawValue, atomicClass);
             }
-        } else {
-            return convertToListWithLegacyProperties(rawValue, atomicClass);
         }
     }
 
@@ -438,24 +430,22 @@ public class ConfigurationUtils {
     private static <T> T convertToListWithLegacyProperties(Object rawValue, Class<?> atomicClass) {
         return (T)
                 StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
-                        .map(s -> convertValue(s, atomicClass, false))
+                        .map(s -> convertValue(s, atomicClass))
                         .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
-    static Map<String, String> convertToProperties(Object o, boolean standardYaml) {
+    static Map<String, String> convertToProperties(Object o) {
         if (o instanceof Map) {
             return (Map<String, String>) o;
-        } else if (standardYaml) {
+        } else {
             try {
                 Map<Object, Object> map = YamlParserUtils.convertToObject(o.toString(), Map.class);
-                return convertToStringMap(map, true);
+                return convertToStringMap(map);
             } catch (Exception e) {
                 // Fallback to legacy pattern
                 return convertToPropertiesWithLegacyPattern(o);
             }
-        } else {
-            return convertToPropertiesWithLegacyPattern(o);
         }
     }
 
@@ -475,13 +465,12 @@ public class ConfigurationUtils {
                 .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
     }
 
-    private static Map<String, String> convertToStringMap(
-            Map<Object, Object> map, boolean standardYaml) {
+    private static Map<String, String> convertToStringMap(Map<Object, Object> map) {
         return map.entrySet().stream()
                 .collect(
                         Collectors.toMap(
-                                entry -> convertToString(entry.getKey(), standardYaml),
-                                entry -> convertToString(entry.getValue(), standardYaml)));
+                                entry -> convertToString(entry.getKey()),
+                                entry -> convertToString(entry.getValue())));
     }
 
     @SuppressWarnings("unchecked")
@@ -521,42 +510,12 @@ public class ConfigurationUtils {
         return MemorySize.parse(o.toString());
     }
 
-    static String convertToString(Object o, boolean standardYaml) {
-        if (standardYaml) {
-            if (o.getClass() == String.class) {
-                return (String) o;
-            } else {
-                return YamlParserUtils.toYAMLString(o);
-            }
-        }
-
+    static String convertToString(Object o) {
         if (o.getClass() == String.class) {
             return (String) o;
-        } else if (o.getClass() == Duration.class) {
-            Duration duration = (Duration) o;
-            return TimeUtils.formatWithHighestUnit(duration);
-        } else if (o instanceof List) {
-            return ((List<?>) o)
-                    .stream()
-                            .map(e -> escapeWithSingleQuote(convertToString(e, false), ";"))
-                            .collect(Collectors.joining(";"));
-        } else if (o instanceof Map) {
-            return ((Map<?, ?>) o)
-                    .entrySet().stream()
-                            .map(
-                                    e -> {
-                                        String escapedKey =
-                                                escapeWithSingleQuote(e.getKey().toString(), ":");
-                                        String escapedValue =
-                                                escapeWithSingleQuote(e.getValue().toString(), ":");
-
-                                        return escapeWithSingleQuote(
-                                                escapedKey + ":" + escapedValue, ",");
-                                    })
-                            .collect(Collectors.joining(","));
+        } else {
+            return YamlParserUtils.toYAMLString(o);
         }
-
-        return o.toString();
     }
 
     static Integer convertToInt(Object o) {
@@ -666,14 +625,14 @@ public class ConfigurationUtils {
     }
 
     static Map<String, String> convertToPropertiesPrefixed(
-            Map<String, Object> confData, String key, boolean standardYaml) {
+            Map<String, Object> confData, String key) {
         final String prefixKey = key + ".";
         return confData.keySet().stream()
                 .filter(k -> k.startsWith(prefixKey))
                 .collect(
                         Collectors.toMap(
                                 k -> k.substring(prefixKey.length()),
-                                k -> convertToString(confData.get(k), standardYaml)));
+                                k -> convertToString(confData.get(k))));
     }
 
     static boolean containsPrefixMap(Map<String, Object> confData, String key) {

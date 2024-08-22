@@ -72,7 +72,7 @@ programs.
 This class is a pure API class that abstracts configuration from various sources. Currently,
 configuration can be set in any of the following layers (in the given order):
 
-- flink-conf.yaml
+- config.yaml
 - CLI parameters
 - :class:`~pyflink.datastream.StreamExecutionEnvironment` when bridging to DataStream API
 - :func:`~EnvironmentSettings.Builder.with_configuration`
