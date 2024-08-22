@@ -26,7 +26,7 @@ FLINK_BIN_DIR=`cd "$FLINK_BIN_DIR"; pwd`
   
 FLINK_CONF_DIR="$FLINK_BIN_DIR"/../conf
 echo "Using Flink configuration directory: $FLINK_CONF_DIR"
-setJavaRun "$FLINK_CONF_DIR"
+setJavaRun "$FLINK_CONF_DIR/flink-conf.yaml"
 
 FLINK_LIB_DIR="$FLINK_BIN_DIR"/../lib
 echo "Using Flink library directory: $FLINK_LIB_DIR"

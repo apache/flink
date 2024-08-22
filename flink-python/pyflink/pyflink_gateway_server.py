@@ -46,34 +46,14 @@ def on_windows():
 def read_from_config(key, default_value, flink_conf_directory):
     from ruamel.yaml import YAML
     yaml = YAML(typ='safe')
-    # try to find flink-conf.yaml file in flink_conf_directory
-    flink_conf_file = os.path.join(flink_conf_directory, "flink-conf.yaml")
-    if os.path.isfile(flink_conf_file):
-        # If flink-conf.yaml exists, use the old parsing logic to read the value
-        # get the realpath of tainted path value to avoid CWE22 problem that constructs a path
-        # or URI using the tainted value and might allow an attacker to access, modify, or test
-        # the existence of critical or sensitive files.
-        with open(os.path.realpath(flink_conf_file), "r") as f:
-            while True:
-                line = f.readline()
-                if not line:
-                    break
-                if line.startswith("#") or len(line.strip()) == 0:
-                    continue
-                k, v = line.split(":", 1)
-                if k.strip() == key:
-                    return v.strip()
-    else:
-        # If flink-conf.yaml does not exist, try to find config.yaml instead
-        config_file = os.path.join(flink_conf_directory, "config.yaml")
-        if os.path.isfile(config_file):
-            # If config.yaml exists, use YAML parser to read the value
-            with open(os.path.realpath(config_file), "r") as f:
-                config = yaml.load(f)
-                flat_config = flatten_config(config)
-                return flat_config.get(key, default_value)
+    config_file = os.path.join(flink_conf_directory, "config.yaml")
+    if os.path.isfile(config_file):
+        # If config.yaml exists, use YAML parser to read the value
+        with open(os.path.realpath(config_file), "r") as f:
+            config = yaml.load(f)
+            flat_config = flatten_config(config)
+            return flat_config.get(key, default_value)
 
-    # If neither file exists, return the default value
     return default_value
 
 
