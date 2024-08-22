@@ -22,48 +22,45 @@ import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
 import org.apache.flink.table.data.TimestampData;
 
 import org.apache.parquet.schema.LogicalTypeAnnotation;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TimestampColumnReader}. */
 public class ParquetInt64TimestampReaderTest {
     @Test
     public void testReadInt64TimestampMicros() {
-        LocalDateTime localDateTime = LocalDateTime.of(2021, 11, 22, 17, 50, 20, 112233);
-        long time =
-                localDateTime.toEpochSecond(OffsetDateTime.now().getOffset()) * 1_000_000
-                        + localDateTime.getNano() / 1_000;
+        ZonedDateTime zonedDateTime =
+                ZonedDateTime.of(2021, 11, 22, 17, 50, 20, 112233, ZoneOffset.systemDefault());
+        long time = zonedDateTime.toEpochSecond() * 1_000_000 + zonedDateTime.getNano() / 1_000;
         TimestampData timestampData =
                 TimestampColumnReader.int64ToTimestamp(
                         false, time, LogicalTypeAnnotation.TimeUnit.MICROS);
-        assertEquals("2021-11-22T17:50:20.000112", timestampData.toString());
+        assertThat(timestampData.toString()).isEqualTo("2021-11-22T17:50:20.000112");
     }
 
     @Test
     public void testReadInt64TimestampMillis() {
-        LocalDateTime localDateTime = LocalDateTime.of(2021, 11, 22, 17, 50, 20, 112233);
-        long time =
-                localDateTime.toEpochSecond(OffsetDateTime.now().getOffset()) * 1_000
-                        + localDateTime.getNano() / 1_000_000;
+        ZonedDateTime zonedDateTime =
+                ZonedDateTime.of(2021, 11, 22, 17, 50, 20, 112233, ZoneOffset.systemDefault());
+        long time = zonedDateTime.toEpochSecond() * 1000 + zonedDateTime.getNano() / 1_000_000;
         TimestampData timestampData =
                 TimestampColumnReader.int64ToTimestamp(
                         false, time, LogicalTypeAnnotation.TimeUnit.MILLIS);
-        assertEquals("2021-11-22T17:50:20", timestampData.toString());
+        assertThat(timestampData.toString()).isEqualTo("2021-11-22T17:50:20");
     }
 
     @Test
     public void testReadInt64TimestampNanos() {
-        LocalDateTime localDateTime = LocalDateTime.of(2021, 11, 22, 17, 50, 20, 112233);
-        long time =
-                localDateTime.toEpochSecond(OffsetDateTime.now().getOffset()) * 1_000_000_000
-                        + localDateTime.getNano();
+        ZonedDateTime zonedDateTime =
+                ZonedDateTime.of(2021, 11, 22, 17, 50, 20, 112233, ZoneOffset.systemDefault());
+        long time = zonedDateTime.toEpochSecond() * 1_000_000_000 + zonedDateTime.getNano();
         TimestampData timestampData =
                 TimestampColumnReader.int64ToTimestamp(
                         false, time, LogicalTypeAnnotation.TimeUnit.NANOS);
-        assertEquals("2021-11-22T17:50:20.000112233", timestampData.toString());
+        assertThat(timestampData.toString()).isEqualTo("2021-11-22T17:50:20.000112233");
     }
 }
