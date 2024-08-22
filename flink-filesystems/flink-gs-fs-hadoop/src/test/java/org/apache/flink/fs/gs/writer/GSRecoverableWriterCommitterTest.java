@@ -122,7 +122,7 @@ class GSRecoverableWriterCommitterTest {
     }
 
     @AfterEach
-    public void after() throws IOException {
+    void after() throws IOException {
         expectedBytes.close();
     }
 

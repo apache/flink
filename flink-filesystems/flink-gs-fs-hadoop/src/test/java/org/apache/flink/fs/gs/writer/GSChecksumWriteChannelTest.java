@@ -127,7 +127,7 @@ class GSChecksumWriteChannelTest {
      * @throws IOException On storage failure.
      */
     @TestTemplate
-    public void shouldWriteProperly() throws IOException {
+    void shouldWriteProperly() throws IOException {
 
         MockBlobStorage blobStorage = new MockBlobStorage();
         GSBlobStorage.WriteChannel writeChannel = blobStorage.writeBlob(blobIdentifier);
