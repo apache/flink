@@ -17,18 +17,17 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.{BeforeEach, Test}
 
+/**
+ * Note: This test class will be removed after finishing FLINK-36134. Do not add more tests here.
+ */
 class LegacyTableSourceTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -39,19 +38,6 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @BeforeEach
   def setup(): Unit = {
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSourceInternal(
-        "ProjectableTable",
-        new TestLegacyProjectableTableSource(
-          true,
-          tableSchema,
-          new RowTypeInfo(
-            tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
-            tableSchema.getFieldNames),
-          Seq.empty[Row])
-      )
-
     TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
       TestLegacyFilterableTableSource.defaultSchema,
@@ -73,59 +59,6 @@ class LegacyTableSourceTest extends TableTestBase {
     assertThatThrownBy(() => util.verifyExecPlan("SELECT * FROM MyTable"))
       .hasMessageContaining("Only bounded StreamTableSource can be used in batch mode.")
       .isInstanceOf[ValidationException]
-  }
-
-  @Test
-  def testSimpleProject(): Unit = {
-    util.verifyExecPlan("SELECT a, c FROM ProjectableTable")
-  }
-
-  @Test
-  def testProjectWithoutInputRef(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(1) FROM ProjectableTable")
-  }
-
-  @Test
-  def testNestedProject(): Unit = {
-    val nested1 = new RowTypeInfo(
-      Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
-      Array("name", "value")
-    )
-
-    val nested2 = new RowTypeInfo(
-      Array(Types.INT, Types.BOOLEAN).asInstanceOf[Array[TypeInformation[_]]],
-      Array("num", "flag")
-    )
-
-    val deepNested = new RowTypeInfo(
-      Array(nested1, nested2).asInstanceOf[Array[TypeInformation[_]]],
-      Array("nested1", "nested2")
-    )
-
-    val tableSchema = new TableSchema(
-      Array("id", "deepNested", "nested", "name"),
-      Array(Types.INT, deepNested, nested1, Types.STRING))
-
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "deepNested", "nested", "name"))
-
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSourceInternal(
-        "T",
-        new TestNestedProjectableTableSource(true, tableSchema, returnType, Seq()))
-
-    val sqlQuery =
-      """
-        |SELECT id,
-        |    deepNested.nested1.name AS nestedName,
-        |    nested.`value` AS nestedValue,
-        |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum
-        |FROM T
-      """.stripMargin
-    util.verifyExecPlan(sqlQuery)
   }
 
   @Test

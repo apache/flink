@@ -17,139 +17,31 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.{createFileInTempFolder, createTempFolder}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils._
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.io.FileWriter
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
 import java.time.{Instant, LocalDateTime, ZoneId}
 
 import scala.collection.mutable
 
+/**
+ * Note: This test class will be removed after finishing FLINK-36134. Do not add more tests here.
+ */
 class LegacyTableSourceITCase extends BatchTestBase {
 
   @BeforeEach
   override def before(): Unit = {
     super.before()
     env.setParallelism(1) // set sink parallelism to 1
-    val tableSchema = TableSchema
-      .builder()
-      .fields(Array("a", "b", "c"), Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()))
-      .build()
-    tEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSourceInternal(
-        "MyTable",
-        new TestLegacyProjectableTableSource(
-          true,
-          tableSchema,
-          new RowTypeInfo(
-            tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
-            tableSchema.getFieldNames),
-          TestData.smallData3)
-      )
-  }
-
-  @Test
-  def testSimpleProject(): Unit = {
-    checkResult(
-      "SELECT a, c FROM MyTable",
-      Seq(row(1, "Hi"), row(2, "Hello"), row(3, "Hello world"))
-    )
-  }
-
-  @Test
-  def testProjectWithoutInputRef(): Unit = {
-    checkResult(
-      "SELECT COUNT(*) FROM MyTable",
-      Seq(row(3))
-    )
-  }
-
-  @Test
-  def testNestedProject(): Unit = {
-    val data = Seq(
-      Row.of(
-        new JLong(1),
-        Row.of(
-          Row.of("Sarah", new JInt(100)),
-          Row.of(new JInt(1000), new JBool(true))
-        ),
-        Row.of("Peter", new JInt(10000)),
-        "Mary"),
-      Row.of(
-        new JLong(2),
-        Row.of(
-          Row.of("Rob", new JInt(200)),
-          Row.of(new JInt(2000), new JBool(false))
-        ),
-        Row.of("Lucy", new JInt(20000)),
-        "Bob"),
-      Row.of(
-        new JLong(3),
-        Row.of(
-          Row.of("Mike", new JInt(300)),
-          Row.of(new JInt(3000), new JBool(true))
-        ),
-        Row.of("Betty", new JInt(30000)),
-        "Liz")
-    )
-
-    val nested1 = new RowTypeInfo(
-      Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
-      Array("name", "value")
-    )
-
-    val nested2 = new RowTypeInfo(
-      Array(Types.INT, Types.BOOLEAN).asInstanceOf[Array[TypeInformation[_]]],
-      Array("num", "flag")
-    )
-
-    val deepNested = new RowTypeInfo(
-      Array(nested1, nested2).asInstanceOf[Array[TypeInformation[_]]],
-      Array("nested1", "nested2")
-    )
-
-    val tableSchema = new TableSchema(
-      Array("id", "deepNested", "nested", "name"),
-      Array(Types.LONG, deepNested, nested1, Types.STRING))
-
-    val returnType = new RowTypeInfo(
-      Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "deepNested", "nested", "name"))
-
-    tEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSourceInternal(
-        "T",
-        new TestNestedProjectableTableSource(true, tableSchema, returnType, data))
-
-    checkResult(
-      """
-        |SELECT id,
-        |    deepNested.nested1.name AS nestedName,
-        |    nested.`value` AS nestedValue,
-        |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum
-        |FROM T
-      """.stripMargin,
-      Seq(
-        row(1, "Sarah", 10000, true, 1000),
-        row(2, "Rob", 20000, false, 2000),
-        row(3, "Mike", 30000, true, 3000))
-    )
   }
 
   @Test
