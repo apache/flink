@@ -154,7 +154,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
         public static final String FIELD_NAME_EXCEPTION_STACKTRACE = "stacktrace";
         public static final String FIELD_NAME_EXCEPTION_TIMESTAMP = "timestamp";
         public static final String FIELD_NAME_TASK_NAME = "taskName";
-        @Deprecated public static final String FIELD_NAME_LOCATION = "location";
         public static final String FIELD_NAME_ENDPOINT = "endpoint";
         public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
         public static final String FIELD_NAME_FAILURE_LABELS = "failureLabels";
@@ -173,13 +172,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
         @Nullable
         private final String taskName;
 
-        /** @deprecated Use {@link ExceptionInfo#endpoint} instead. */
-        @Deprecated
-        @JsonInclude(NON_NULL)
-        @JsonProperty(FIELD_NAME_LOCATION)
-        @Nullable
-        private final String location;
-
         @JsonInclude(NON_NULL)
         @JsonProperty(FIELD_NAME_ENDPOINT)
         @Nullable
@@ -194,15 +186,7 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
         private final Map<String, String> failureLabels;
 
         public ExceptionInfo(String exceptionName, String stacktrace, long timestamp) {
-            this(
-                    exceptionName,
-                    stacktrace,
-                    timestamp,
-                    Collections.emptyMap(),
-                    null,
-                    null,
-                    null,
-                    null);
+            this(exceptionName, stacktrace, timestamp, Collections.emptyMap(), null, null, null);
         }
 
         @JsonCreator
@@ -212,7 +196,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
                 @JsonProperty(FIELD_NAME_FAILURE_LABELS) Map<String, String> failureLabels,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
-                @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_ENDPOINT) @Nullable String endpoint,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId) {
             this.exceptionName = checkNotNull(exceptionName);
@@ -220,7 +203,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
             this.timestamp = timestamp;
             this.failureLabels = checkNotNull(failureLabels);
             this.taskName = taskName;
-            this.location = location;
             this.endpoint = endpoint;
             this.taskManagerId = taskManagerId;
         }
@@ -244,13 +226,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
         @Nullable
         public String getTaskName() {
             return taskName;
-        }
-
-        @Deprecated
-        @JsonIgnore
-        @Nullable
-        public String getLocation() {
-            return location;
         }
 
         @JsonIgnore
@@ -286,20 +261,13 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
                     && Objects.equals(timestamp, that.timestamp)
                     && Objects.equals(failureLabels, that.failureLabels)
                     && Objects.equals(taskName, that.taskName)
-                    && Objects.equals(location, that.location)
                     && Objects.equals(endpoint, that.endpoint);
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(
-                    exceptionName,
-                    stacktrace,
-                    timestamp,
-                    failureLabels,
-                    taskName,
-                    location,
-                    endpoint);
+                    exceptionName, stacktrace, timestamp, failureLabels, taskName, endpoint);
         }
 
         @Override
@@ -340,7 +308,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
                     null,
                     null,
                     null,
-                    null,
                     concurrentExceptions);
         }
 
@@ -351,7 +318,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
                 @JsonProperty(FIELD_NAME_FAILURE_LABELS) Map<String, String> failureLabels,
                 @JsonProperty(FIELD_NAME_TASK_NAME) @Nullable String taskName,
-                @JsonProperty(FIELD_NAME_LOCATION) @Nullable String location,
                 @JsonProperty(FIELD_NAME_ENDPOINT) @Nullable String endpoint,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) @Nullable String taskManagerId,
                 @JsonProperty(FIELD_NAME_CONCURRENT_EXCEPTIONS)
@@ -362,7 +328,6 @@ public class JobExceptionsInfoWithHistory implements ResponseBody {
                     timestamp,
                     failureLabels,
                     taskName,
-                    location,
                     endpoint,
                     taskManagerId);
             this.concurrentExceptions = concurrentExceptions;

@@ -1989,9 +1989,6 @@
                   "taskName" : {
                     "type" : "string"
                   },
-                  "location" : {
-                    "type" : "string"
-                  },
                   "endpoint" : {
                     "type" : "string"
                   },
@@ -2020,9 +2017,6 @@
                           }
                         },
                         "taskName" : {
-                          "type" : "string"
-                        },
-                        "location" : {
                           "type" : "string"
                         },
                         "endpoint" : {

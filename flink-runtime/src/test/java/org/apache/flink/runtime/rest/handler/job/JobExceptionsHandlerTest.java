@@ -708,7 +708,7 @@ class JobExceptionsHandlerTest {
         private final long expectedTimestamp;
         private final Map<String, String> expectedFailureLabels;
         private final String expectedTaskName;
-        private final String expectedLocation;
+        private final String expectedEndpoint;
         private final String expectedTaskManagerId;
 
         private ExceptionInfoMatcher(
@@ -716,14 +716,14 @@ class JobExceptionsHandlerTest {
                 long expectedTimestamp,
                 CompletableFuture<Map<String, String>> expectedFailureLabels,
                 String expectedTaskName,
-                String expectedLocation,
+                String expectedEndpoint,
                 String expectedTaskManagerId)
                 throws ExecutionException, InterruptedException {
             this.expectedException = deserializeSerializedThrowable(expectedException);
             this.expectedTimestamp = expectedTimestamp;
             this.expectedFailureLabels = expectedFailureLabels.get();
             this.expectedTaskName = expectedTaskName;
-            this.expectedLocation = expectedLocation;
+            this.expectedEndpoint = expectedEndpoint;
             this.expectedTaskManagerId = expectedTaskManagerId;
         }
 
@@ -740,8 +740,8 @@ class JobExceptionsHandlerTest {
                     .appendText(String.valueOf(expectedFailureLabels))
                     .appendText(", taskName=")
                     .appendText(expectedTaskName)
-                    .appendText(", location=")
-                    .appendText(expectedLocation)
+                    .appendText(", endpoint=")
+                    .appendText(expectedEndpoint)
                     .appendText(", taskManagerId=")
                     .appendText(expectedTaskManagerId);
         }
@@ -783,8 +783,8 @@ class JobExceptionsHandlerTest {
                     && matches(
                             info,
                             description,
-                            ExceptionInfo::getLocation,
-                            expectedLocation,
+                            ExceptionInfo::getEndpoint,
+                            expectedEndpoint,
                             "location")
                     && matches(
                             info,
