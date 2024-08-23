@@ -309,7 +309,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     && Objects.equals(failureLabels, that.failureLabels)
                     && Objects.equals(taskName, that.taskName)
                     && Objects.equals(location, that.location)
-                    && Objects.equals(location, that.endpoint);
+                    && Objects.equals(endpoint, that.endpoint);
         }
 
         @Override
