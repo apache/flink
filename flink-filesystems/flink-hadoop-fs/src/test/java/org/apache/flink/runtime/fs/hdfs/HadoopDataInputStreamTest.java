@@ -23,11 +23,12 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -36,13 +37,13 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 /** Tests for the {@link HadoopDataInputStream}. */
-public class HadoopDataInputStreamTest {
+class HadoopDataInputStreamTest {
 
     private FSDataInputStream verifyInputStream;
     private HadoopDataInputStream testInputStream;
 
     @Test
-    public void testSeekSkip() throws IOException {
+    void testSeekSkip() throws IOException {
         verifyInputStream =
                 spy(
                         new FSDataInputStream(
@@ -59,21 +60,14 @@ public class HadoopDataInputStreamTest {
         seekAndAssert(testInputStream.getPos() + HadoopDataInputStream.MIN_SKIP_BYTES);
         seekAndAssert(testInputStream.getPos() + HadoopDataInputStream.MIN_SKIP_BYTES - 1);
 
-        try {
-            seekAndAssert(-1);
-            Assert.fail();
-        } catch (Exception ignore) {
-        }
+        assertThatThrownBy(() -> seekAndAssert(-1)).isInstanceOf(Exception.class);
 
-        try {
-            seekAndAssert(-HadoopDataInputStream.MIN_SKIP_BYTES - 1);
-            Assert.fail();
-        } catch (Exception ignore) {
-        }
+        assertThatThrownBy(() -> seekAndAssert(-HadoopDataInputStream.MIN_SKIP_BYTES - 1))
+                .isInstanceOf(Exception.class);
     }
 
     private void seekAndAssert(long seekPos) throws IOException {
-        Assert.assertEquals(verifyInputStream.getPos(), testInputStream.getPos());
+        assertThat(testInputStream.getPos()).isEqualTo(verifyInputStream.getPos());
         long delta = seekPos - testInputStream.getPos();
         testInputStream.seek(seekPos);
 
@@ -88,7 +82,8 @@ public class HadoopDataInputStreamTest {
             verify(verifyInputStream, never()).skip(anyLong());
         }
 
-        Assert.assertEquals(seekPos, verifyInputStream.getPos());
+        assertThat(verifyInputStream.getPos()).isEqualTo(seekPos);
+
         reset(verifyInputStream);
     }
 

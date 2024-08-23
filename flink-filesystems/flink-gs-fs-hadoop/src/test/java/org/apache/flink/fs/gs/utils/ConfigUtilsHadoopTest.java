@@ -20,54 +20,55 @@ package org.apache.flink.fs.gs.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.TestUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.MapDifference;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Maps;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test construction of Hadoop config in GSFileSystemFactory. */
-@RunWith(Parameterized.class)
-public class ConfigUtilsHadoopTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ConfigUtilsHadoopTest {
 
     /* The test case description. */
-    @Parameterized.Parameter(value = 0)
-    public String description;
+    @Parameter private String description;
 
     /* The value to use for the HADOOP_CONF_DIR environment variable. */
-    @Parameterized.Parameter(value = 1)
-    public @Nullable String envHadoopConfDir;
+    @Parameter(value = 1)
+    @Nullable
+    private String envHadoopConfDir;
 
     /* The value to use for the Flink config. */
-    @Parameterized.Parameter(value = 2)
-    public Configuration flinkConfig;
+    @Parameter(value = 2)
+    private Configuration flinkConfig;
 
     /* The Hadoop resources to load from the config dir. */
-    @Parameterized.Parameter(value = 3)
-    public org.apache.hadoop.conf.Configuration loadedHadoopConfig;
+    @Parameter(value = 3)
+    private org.apache.hadoop.conf.Configuration loadedHadoopConfig;
 
     /* The expected Hadoop configuration directory. */
-    @Parameterized.Parameter(value = 4)
-    public String expectedHadoopConfigDir;
+    @Parameter(value = 4)
+    private String expectedHadoopConfigDir;
 
     /* The expected Hadoop configuration. */
-    @Parameterized.Parameter(value = 5)
-    public org.apache.hadoop.conf.Configuration expectedHadoopConfig;
+    @Parameter(value = 5)
+    private org.apache.hadoop.conf.Configuration expectedHadoopConfig;
 
-    @Parameterized.Parameters(name = "description={0}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "description={0}")
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {
@@ -253,8 +254,8 @@ public class ConfigUtilsHadoopTest {
                 });
     }
 
-    @Test
-    public void shouldProperlyCreateHadoopConfig() {
+    @TestTemplate
+    void shouldProperlyCreateHadoopConfig() {
 
         // construct the testing config context
         HashMap<String, String> envs = new HashMap<>();
@@ -278,8 +279,8 @@ public class ConfigUtilsHadoopTest {
         Map<String, String> hadoopConfigMap = TestUtils.hadoopConfigToMap(hadoopConfig);
         MapDifference<String, String> difference =
                 Maps.difference(expectedHadoopConfigMap, hadoopConfigMap);
-        assertEquals(Collections.EMPTY_MAP, difference.entriesDiffering());
-        assertEquals(Collections.EMPTY_MAP, difference.entriesOnlyOnLeft());
-        assertEquals(Collections.EMPTY_MAP, difference.entriesOnlyOnRight());
+        assertThat(difference.entriesDiffering()).isEmpty();
+        assertThat(difference.entriesOnlyOnLeft()).isEmpty();
+        assertThat(difference.entriesOnlyOnRight()).isEmpty();
     }
 }

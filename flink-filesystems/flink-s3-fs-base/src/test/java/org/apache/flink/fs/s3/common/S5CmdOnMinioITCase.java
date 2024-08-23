@@ -137,7 +137,7 @@ public abstract class S5CmdOnMinioITCase {
     }
 
     @BeforeAll
-    public static void prepareS5Cmd() throws Exception {
+    static void prepareS5Cmd() throws Exception {
         Path s5CmdTgz = Paths.get(temporaryDirectory.getPath(), "s5cmd.tar.gz");
         MessageDigest md = MessageDigest.getInstance("MD5");
 
@@ -186,12 +186,12 @@ public abstract class S5CmdOnMinioITCase {
     }
 
     @AfterAll
-    public static void unsetFileSystem() {
+    static void unsetFileSystem() {
         FileSystem.initialize(new Configuration(), null);
     }
 
     @Test
-    public void testS5CmdConfigurationIsUsed(@InjectMiniCluster MiniCluster flinkCluster)
+    void testS5CmdConfigurationIsUsed(@InjectMiniCluster MiniCluster flinkCluster)
             throws Exception {
         String moveFrom = getS5CmdPath();
         String moveTo = moveFrom + "-moved";
@@ -208,8 +208,7 @@ public abstract class S5CmdOnMinioITCase {
     }
 
     @Test
-    public void testRecoveryWithS5Cmd(@InjectMiniCluster MiniCluster flinkCluster)
-            throws Exception {
+    void testRecoveryWithS5Cmd(@InjectMiniCluster MiniCluster flinkCluster) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
         env.enableCheckpointing(CHECKPOINT_INTERVAL);

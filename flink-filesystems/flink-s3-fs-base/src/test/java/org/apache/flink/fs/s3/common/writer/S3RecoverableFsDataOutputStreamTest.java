@@ -27,13 +27,9 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
@@ -54,10 +50,11 @@ import java.util.Optional;
 import java.util.SplittableRandom;
 import java.util.UUID;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link S3RecoverableFsDataOutputStream}. */
-public class S3RecoverableFsDataOutputStreamTest {
+class S3RecoverableFsDataOutputStreamTest {
 
     private static final long USER_DEFINED_MIN_PART_SIZE = 10L;
 
@@ -67,11 +64,11 @@ public class S3RecoverableFsDataOutputStreamTest {
 
     private S3RecoverableFsDataOutputStream streamUnderTest;
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir static File tempFolder;
 
-    @Before
-    public void beforeTest() throws IOException {
-        fileProvider = new TestFileProvider(TEMP_FOLDER);
+    @BeforeEach
+    void beforeTest() throws IOException {
+        fileProvider = new TestFileProvider(tempFolder);
 
         multipartUploadUnderTest = new TestMultipartUpload(fileProvider);
 
@@ -88,45 +85,47 @@ public class S3RecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void simpleUsage() throws IOException {
+    void simpleUsage() throws IOException {
         streamUnderTest.write(bytesOf("hello world"));
 
         RecoverableFsDataOutputStream.Committer committer = streamUnderTest.closeForCommit();
         committer.commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
-    public void noWritesShouldResolveInAnEmptyFile() throws IOException {
+    void noWritesShouldResolveInAnEmptyFile() throws IOException {
         RecoverableFsDataOutputStream.Committer committer = streamUnderTest.closeForCommit();
         committer.commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(new byte[0]));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(new byte[0]);
     }
 
     @Test
-    public void closingWithoutCommittingDiscardsTheData() throws IOException {
+    void closingWithoutCommittingDiscardsTheData() throws IOException {
         streamUnderTest.write(bytesOf("hello world"));
 
         streamUnderTest.close();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("")));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf(""));
     }
 
     @Test
-    public void twoWritesAreConcatenated() throws IOException {
+    void twoWritesAreConcatenated() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
         streamUnderTest.write(bytesOf(" "));
         streamUnderTest.write(bytesOf("world"));
 
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
-    public void writeLargeFile() throws IOException {
+    void writeLargeFile() throws IOException {
         List<byte[]> testDataBuffers = createRandomLargeTestDataBuffers();
 
         for (byte[] buffer : testDataBuffers) {
@@ -134,11 +133,11 @@ public class S3RecoverableFsDataOutputStreamTest {
         }
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(testDataBuffers));
+        assertThatHasContent(multipartUploadUnderTest, testDataBuffers);
     }
 
     @Test
-    public void simpleRecovery() throws IOException {
+    void simpleRecovery() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
 
         streamUnderTest.persist();
@@ -146,11 +145,11 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest = reopenStreamUnderTestAfterRecovery();
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello")));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf("hello"));
     }
 
     @Test
-    public void multiplePersistsDoesNotIntroduceJunk() throws IOException {
+    void multiplePersistsDoesNotIntroduceJunk() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
 
         streamUnderTest.persist();
@@ -163,11 +162,12 @@ public class S3RecoverableFsDataOutputStreamTest {
 
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
-    public void multipleWritesAndPersists() throws IOException {
+    void multipleWritesAndPersists() throws IOException {
         streamUnderTest.write(bytesOf("a"));
 
         streamUnderTest.persist();
@@ -184,11 +184,11 @@ public class S3RecoverableFsDataOutputStreamTest {
 
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("abcde")));
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf("abcde"));
     }
 
     @Test
-    public void multipleWritesAndPersistsWithBigChunks() throws IOException {
+    void multipleWritesAndPersistsWithBigChunks() throws IOException {
         List<byte[]> testDataBuffers = createRandomLargeTestDataBuffers();
 
         for (byte[] buffer : testDataBuffers) {
@@ -197,11 +197,11 @@ public class S3RecoverableFsDataOutputStreamTest {
         }
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(testDataBuffers));
+        assertThatHasContent(multipartUploadUnderTest, testDataBuffers);
     }
 
     @Test
-    public void addDataAfterRecovery() throws IOException {
+    void addDataAfterRecovery() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
 
         streamUnderTest.persist();
@@ -211,11 +211,12 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf("world"));
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
-    public void discardingUnpersistedNotYetUploadedData() throws IOException {
+    void discardingUnpersistedNotYetUploadedData() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
 
         streamUnderTest.persist();
@@ -226,11 +227,12 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
-    public void discardingUnpersistedUploadedData() throws IOException {
+    void discardingUnpersistedUploadedData() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
 
         streamUnderTest.persist();
@@ -240,28 +242,37 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.closeForCommit().commit();
 
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
     }
 
     @Test
-    public void commitEmptyStreamShouldBeSuccessful() throws IOException {
+    void commitEmptyStreamShouldBeSuccessful() throws IOException {
         streamUnderTest.closeForCommit().commit();
     }
 
-    @Test(expected = IOException.class)
-    public void closeForCommitOnClosedStreamShouldFail() throws IOException {
+    @Test
+    void closeForCommitOnClosedStreamShouldFail() throws IOException {
         streamUnderTest.closeForCommit().commit();
-        streamUnderTest.closeForCommit().commit();
+        assertThatThrownBy(() -> streamUnderTest.closeForCommit().commit())
+                .isInstanceOf(IOException.class);
     }
 
-    @Test(expected = Exception.class)
-    public void testSync() throws IOException {
+    @Test
+    void testSync() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.sync();
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
-        streamUnderTest.write(randomBuffer(RefCountedBufferingFileStream.BUFFER_SIZE + 1));
-        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+
+        assertThat(multipartUploadUnderTest.getPublishedContents())
+                .isEqualTo(bytesOf("hello world"));
+
+        assertThatThrownBy(
+                        () ->
+                                streamUnderTest.write(
+                                        randomBuffer(
+                                                RefCountedBufferingFileStream.BUFFER_SIZE + 1)))
+                .isInstanceOf(IOException.class);
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -328,34 +339,15 @@ public class S3RecoverableFsDataOutputStreamTest {
         long bytesRead =
                 new FileInputStream(inputFile)
                         .read(content, 0, MathUtils.checkedDownCast(inputFile.length()));
-        Assert.assertEquals(file.getPos(), bytesRead);
+
+        assertThat(bytesRead).isEqualTo(file.getPos());
+
         return content;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
-    // Matchers
-    // ------------------------------------------------------------------------------------------------------------
-
-    private static TypeSafeMatcher<TestMultipartUpload> hasContent(final byte[] expectedContent) {
-        return new TypeSafeMatcher<TestMultipartUpload>() {
-            @Override
-            protected boolean matchesSafely(TestMultipartUpload testMultipartUpload) {
-                return Arrays.equals(testMultipartUpload.getPublishedContents(), expectedContent);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a TestMultipartUpload with contents='")
-                        .appendValue(expectedContent)
-                        .appendText("'");
-            }
-        };
-    }
-
-    private static TypeSafeMatcher<TestMultipartUpload> hasContent(
-            final Collection<byte[]> expectedContents) throws IOException {
-
+    private static void assertThatHasContent(
+            TestMultipartUpload testMultipartUpload, Collection<byte[]> expectedContents)
+            throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         for (byte[] c : expectedContents) {
             stream.write(c);
@@ -363,20 +355,7 @@ public class S3RecoverableFsDataOutputStreamTest {
 
         byte[] expectedContent = stream.toByteArray();
 
-        return new TypeSafeMatcher<TestMultipartUpload>() {
-            @Override
-            protected boolean matchesSafely(TestMultipartUpload testMultipartUpload) {
-                return Arrays.equals(testMultipartUpload.getPublishedContents(), expectedContent);
-            }
-
-            @Override
-            public void describeTo(Description description) {
-                description
-                        .appendText("a TestMultipartUpload with contents='")
-                        .appendValue(expectedContent)
-                        .appendText("'");
-            }
-        };
+        assertThat(testMultipartUpload.getPublishedContents()).isEqualTo(expectedContent);
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -494,9 +473,9 @@ public class S3RecoverableFsDataOutputStreamTest {
     private static class TestFileProvider
             implements FunctionWithException<File, RefCountedFileWithStream, IOException> {
 
-        private final TemporaryFolder folder;
+        private final File folder;
 
-        TestFileProvider(TemporaryFolder folder) {
+        TestFileProvider(File folder) {
             this.folder = Preconditions.checkNotNull(folder);
         }
 
@@ -505,8 +484,7 @@ public class S3RecoverableFsDataOutputStreamTest {
             while (true) {
                 try {
                     if (file == null) {
-                        final File newFile =
-                                new File(folder.getRoot(), ".tmp_" + UUID.randomUUID());
+                        final File newFile = new File(folder, ".tmp_" + UUID.randomUUID());
                         final OutputStream out =
                                 Files.newOutputStream(
                                         newFile.toPath(), StandardOpenOption.CREATE_NEW);

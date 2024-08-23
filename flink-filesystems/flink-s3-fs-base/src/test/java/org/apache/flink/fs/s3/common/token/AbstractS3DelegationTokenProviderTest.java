@@ -24,11 +24,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AbstractS3DelegationTokenProvider}. */
-public class AbstractS3DelegationTokenProviderTest {
+class AbstractS3DelegationTokenProviderTest {
 
     private static final String REGION = "testRegion";
     private static final String ACCESS_KEY_ID = "testAccessKeyId";
@@ -37,7 +36,7 @@ public class AbstractS3DelegationTokenProviderTest {
     private AbstractS3DelegationTokenProvider provider;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         provider =
                 new AbstractS3DelegationTokenProvider() {
                     @Override
@@ -48,19 +47,19 @@ public class AbstractS3DelegationTokenProviderTest {
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnFalseWithoutCredentials() {
+    void delegationTokensRequiredShouldReturnFalseWithoutCredentials() {
         provider.init(new Configuration());
-        assertFalse(provider.delegationTokensRequired());
+        assertThat(provider.delegationTokensRequired()).isFalse();
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnTrueWithCredentials() {
+    void delegationTokensRequiredShouldReturnTrueWithCredentials() {
         Configuration configuration = new Configuration();
         configuration.setString(CONFIG_PREFIX + ".s3.region", REGION);
         configuration.setString(CONFIG_PREFIX + ".s3.access-key", ACCESS_KEY_ID);
         configuration.setString(CONFIG_PREFIX + ".s3.secret-key", SECRET_ACCESS_KEY);
         provider.init(configuration);
 
-        assertTrue(provider.delegationTokensRequired());
+        assertThat(provider.delegationTokensRequired()).isTrue();
     }
 }
