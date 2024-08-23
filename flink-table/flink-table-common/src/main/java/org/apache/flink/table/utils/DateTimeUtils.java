@@ -127,11 +127,17 @@ public class DateTimeUtils {
     /** The valid minimum epoch seconds ('0000-01-01 00:00:00 UTC+0'). */
     private static final long MIN_EPOCH_SECONDS = -62167219200L;
 
+    /** The valid minimum epoch days ('0000-01-01 UTC+0'). */
+    private static final long MIN_EPOCH_DAYS = -719528L;
+
     /** The valid maximum epoch milliseconds ('9999-12-31 23:59:59.999 UTC+0'). */
     private static final long MAX_EPOCH_MILLS = 253402300799999L;
 
     /** The valid maximum epoch seconds ('9999-12-31 23:59:59 UTC+0'). */
     private static final long MAX_EPOCH_SECONDS = 253402300799L;
+
+    /** The valid maximum epoch days ('9999-12-31 UTC+0'). */
+    private static final long MAX_EPOCH_DAYS = 2932896L;
 
     private static final DateTimeFormatter DEFAULT_TIMESTAMP_FORMATTER =
             new DateTimeFormatterBuilder()
@@ -1708,6 +1714,20 @@ public class DateTimeUtils {
             --x;
         }
         return x;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // ADD/REMOVE days
+    // --------------------------------------------------------------------------------------------
+
+    /** Adds a given number of days to a date, represented as the number of days since the epoch. */
+    public static int addDays(int startDate, int numDays) throws DateTimeException {
+        long date = (long) startDate + numDays;
+        if (date < MIN_EPOCH_DAYS || date > MAX_EPOCH_DAYS) {
+            throw new DateTimeException(
+                    "Date result overflows, the valid range is from '0000-01-01' to '9999-12-31'.");
+        }
+        return (int) date;
     }
 
     // --------------------------------------------------------------------------------------------

@@ -2226,6 +2226,28 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP(3))))
                     .build();
 
+    public static final BuiltInFunctionDefinition DATE_ADD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATE_ADD")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("startDate", "numDays"),
+                                    Arrays.asList(
+                                            or(
+                                                    logical(LogicalTypeRoot.DATE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITHOUT_TIME_ZONE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC))))
+                    .outputTypeStrategy(explicit(DataTypes.DATE()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.DateAddFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Collection functions
     // --------------------------------------------------------------------------------------------

@@ -1555,6 +1555,18 @@ class Expression(Generic[T]):
             return _binary_op("ceil")(
                 self, time_interval_unit._to_j_time_interval_unit())
 
+    def date_add(self, num_days) -> 'Expression':
+        """
+        Adds num_days days to start_date.
+        If num_days is negative, -num_days are subtracted from start_date.
+
+        null if any of the arguments are null or result overflows or date string invalid.
+
+        :param num_days: An INTEGER expression.
+        :return: A DATE.
+        """
+        return _binary_op("dateAdd")(self, num_days)
+
     # ---------------------------- advanced type helper functions -----------------------------
 
     def get(self, name_or_index: Union[str, int]) -> 'Expression':
