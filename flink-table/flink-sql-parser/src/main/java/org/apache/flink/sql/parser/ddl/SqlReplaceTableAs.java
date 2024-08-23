@@ -175,33 +175,6 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
                     getParserPosition(),
                     errorMsg + " syntax does not support temporary table yet.");
         }
-
-        if (getColumnList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support to specify explicit columns yet.");
-        }
-
-        if (getWatermark().isPresent()) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support to specify explicit watermark yet.");
-        }
-        if (getDistribution() != null) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support creating distributed tables yet.");
-        }
-        if (getPartitionKeyList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support to create partitioned table yet.");
-        }
-        if (getFullConstraints().stream().anyMatch(SqlTableConstraint::isPrimaryKey)) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support primary key constraints yet.");
-        }
     }
 
     public SqlNode getAsQuery() {

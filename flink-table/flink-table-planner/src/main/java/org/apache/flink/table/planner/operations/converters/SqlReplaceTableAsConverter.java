@@ -21,22 +21,34 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.ddl.SqlReplaceTableAs;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.operations.MergeTableAsUtil;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.SqlNodeToOperationConversion;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
-import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNodeList;
 
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** A converter for {@link SqlReplaceTableAs}. */
 public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTableAs> {
@@ -47,13 +59,60 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlReplaceTableAs.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
 
-        SqlNode asQuerySqlNode = sqlReplaceTableAs.getAsQuery();
-        SqlNode validated = context.getSqlValidator().validate(asQuerySqlNode);
-        QueryOperation query =
-                new PlannerQueryOperation(
-                        context.toRelRoot(validated).project(),
-                        () -> context.toQuotedSqlString(asQuerySqlNode));
+        MergeTableAsUtil mergeTableAsUtil =
+                new MergeTableAsUtil(
+                        context.getSqlValidator(),
+                        sqlNode -> sqlNode.toString(),
+                        catalogManager.getDataTypeFactory());
+
+        PlannerQueryOperation query =
+                (PlannerQueryOperation)
+                        SqlNodeToOperationConversion.convert(
+                                        flinkPlanner,
+                                        catalogManager,
+                                        sqlReplaceTableAs.getAsQuery())
+                                .orElseThrow(
+                                        () ->
+                                                new TableException(
+                                                        "RTAS unsupported node type "
+                                                                + sqlReplaceTableAs
+                                                                        .getAsQuery()
+                                                                        .getClass()
+                                                                        .getSimpleName()));
+
+        // get table
+        ResolvedCatalogTable tableWithResolvedSchema =
+                createCatalogTable(
+                        context, mergeTableAsUtil, sqlReplaceTableAs, query.getResolvedSchema());
+
+        // If needed, rewrite the query to include the new sink fields in the select list
+        query =
+                mergeTableAsUtil.maybeRewriteQuery(
+                        context.getCatalogManager(),
+                        flinkPlanner,
+                        query,
+                        sqlReplaceTableAs.getAsQuery(),
+                        tableWithResolvedSchema);
+
+        CreateTableOperation createTableOperation =
+                new CreateTableOperation(
+                        identifier,
+                        tableWithResolvedSchema,
+                        sqlReplaceTableAs.isIfNotExists(),
+                        sqlReplaceTableAs.isTemporary());
+
+        return new ReplaceTableAsOperation(
+                createTableOperation, query, sqlReplaceTableAs.isCreateOrReplace());
+    }
+
+    private ResolvedCatalogTable createCatalogTable(
+            ConvertContext context,
+            MergeTableAsUtil mergeTableAsUtil,
+            SqlReplaceTableAs sqlReplaceTableAs,
+            ResolvedSchema mergeSchema) {
+        CatalogManager catalogManager = context.getCatalogManager();
 
         // get table comment
         String tableComment =
@@ -70,22 +129,56 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
                                         ((SqlTableOption) p).getKeyString(),
                                         ((SqlTableOption) p).getValueString()));
 
-        // get table
+        // merge schemas
+        Schema mergedSchema =
+                mergeTableAsUtil.mergeSchemas(
+                        sqlReplaceTableAs.getColumnList(),
+                        sqlReplaceTableAs.getWatermark().orElse(null),
+                        sqlReplaceTableAs.getFullConstraints(),
+                        mergeSchema);
+
+        // get distribution
+        Optional<TableDistribution> tableDistribution =
+                Optional.ofNullable(sqlReplaceTableAs.getDistribution())
+                        .map(OperationConverterUtils::getDistributionFromSqlDistribution);
+
+        // get partition key
+        List<String> partitionKeys =
+                getPartitionKeyColumnNames(sqlReplaceTableAs.getPartitionKeyList());
+        verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
+
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(query.getResolvedSchema()).build(),
-                        tableComment,
-                        Collections.emptyList(),
-                        properties);
+                CatalogTable.newBuilder()
+                        .schema(mergedSchema)
+                        .comment(tableComment)
+                        .distribution(tableDistribution.orElse(null))
+                        .options(properties)
+                        .partitionKeys(partitionKeys)
+                        .build();
 
-        CreateTableOperation createTableOperation =
-                new CreateTableOperation(
-                        identifier,
-                        catalogTable,
-                        sqlReplaceTableAs.isIfNotExists(),
-                        sqlReplaceTableAs.isTemporary());
+        return catalogManager.resolveCatalogTable(catalogTable);
+    }
 
-        return new ReplaceTableAsOperation(
-                createTableOperation, query, sqlReplaceTableAs.isCreateOrReplace());
+    private List<String> getPartitionKeyColumnNames(SqlNodeList partitionKey) {
+        return partitionKey.getList().stream()
+                .map(p -> ((SqlIdentifier) p).getSimple())
+                .collect(Collectors.toList());
+    }
+
+    private void verifyPartitioningColumnsExist(Schema mergedSchema, List<String> partitionKeys) {
+        Set<String> columnNames =
+                mergedSchema.getColumns().stream()
+                        .map(Schema.UnresolvedColumn::getName)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        for (String partitionKey : partitionKeys) {
+            if (!columnNames.contains(partitionKey)) {
+                throw new ValidationException(
+                        String.format(
+                                "Partition column '%s' not defined in the table schema. Available columns: [%s]",
+                                partitionKey,
+                                columnNames.stream()
+                                        .collect(Collectors.joining("', '", "'", "'"))));
+            }
+        }
     }
 }
