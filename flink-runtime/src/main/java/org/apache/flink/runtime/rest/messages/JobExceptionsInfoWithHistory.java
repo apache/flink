@@ -38,10 +38,10 @@ import static org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@code JobExceptionsInfoWithHistory} extends {@link JobExceptionsInfo} providing a history of
- * previously caused failures. It's the response type of the {@link JobExceptionsHandler}.
+ * {@code JobExceptionsInfoWithHistory} providing a history of previously caused failures. It's the
+ * response type of the {@link JobExceptionsHandler}.
  */
-public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements ResponseBody {
+public class JobExceptionsInfoWithHistory implements ResponseBody {
 
     public static final String FIELD_NAME_EXCEPTION_HISTORY = "exceptionHistory";
 
@@ -50,17 +50,8 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
 
     @JsonCreator
     public JobExceptionsInfoWithHistory(
-            @JsonProperty(FIELD_NAME_ROOT_EXCEPTION) String rootException,
-            @JsonProperty(FIELD_NAME_TIMESTAMP) Long rootTimestamp,
-            @JsonProperty(FIELD_NAME_ALL_EXCEPTIONS) List<ExecutionExceptionInfo> allExceptions,
-            @JsonProperty(FIELD_NAME_TRUNCATED) boolean truncated,
             @JsonProperty(FIELD_NAME_EXCEPTION_HISTORY) JobExceptionHistory exceptionHistory) {
-        super(rootException, rootTimestamp, allExceptions, truncated);
         this.exceptionHistory = exceptionHistory;
-    }
-
-    public JobExceptionsInfoWithHistory(JobExceptionHistory exceptionHistory) {
-        this(null, null, Collections.emptyList(), false, exceptionHistory);
     }
 
     @JsonIgnore
@@ -79,30 +70,17 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return false;
         }
         JobExceptionsInfoWithHistory that = (JobExceptionsInfoWithHistory) o;
-        return this.isTruncated() == that.isTruncated()
-                && Objects.equals(this.getRootException(), that.getRootException())
-                && Objects.equals(this.getRootTimestamp(), that.getRootTimestamp())
-                && Objects.equals(this.getAllExceptions(), that.getAllExceptions())
-                && Objects.equals(exceptionHistory, that.exceptionHistory);
+        return Objects.equals(exceptionHistory, that.exceptionHistory);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                isTruncated(),
-                getRootException(),
-                getRootTimestamp(),
-                getAllExceptions(),
-                exceptionHistory);
+        return Objects.hash(exceptionHistory);
     }
 
     @Override
     public String toString() {
         return new StringJoiner(", ", JobExceptionsInfoWithHistory.class.getSimpleName() + "[", "]")
-                .add("rootException='" + getRootException() + "'")
-                .add("rootTimestamp=" + getRootTimestamp())
-                .add("allExceptions=" + getAllExceptions())
-                .add("truncated=" + isTruncated())
                 .add("exceptionHistory=" + exceptionHistory)
                 .toString();
     }
