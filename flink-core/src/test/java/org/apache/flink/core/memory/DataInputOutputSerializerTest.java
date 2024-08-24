@@ -143,7 +143,7 @@ class DataInputOutputSerializerTest {
     }
 
     @Test
-    public void testWriteBytes() {
+    void testWriteBytes() {
         DataOutputSerializer serializer = new DataOutputSerializer(1);
         String givenStr = "Hello, World!";
 
@@ -155,12 +155,11 @@ class DataInputOutputSerializerTest {
     }
 
     @Test
-    public void testWriteBytesRandomly() {
+    void testWriteBytesRandomly() {
         DataOutputSerializer serializer = new DataOutputSerializer(1);
         String randomStr = UUID.randomUUID().toString();
 
-        assertThatCode(() -> serializer.writeBytes(randomStr))
-                  .doesNotThrowAnyException();
+        assertThatCode(() -> serializer.writeBytes(randomStr)).doesNotThrowAnyException();
 
         ByteBuffer wrote = serializer.wrapAsByteBuffer();
         String actual = Charset.defaultCharset().decode(wrote).toString();
