@@ -111,7 +111,7 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
     @Override
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, outputCollector, true, keySet);
+                context, partitionedContext, outputCollector, true, keySet, output);
     }
 
     @Override

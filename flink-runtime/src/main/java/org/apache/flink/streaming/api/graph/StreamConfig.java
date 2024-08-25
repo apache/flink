@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.watermark.WatermarkDeclaration;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -33,12 +34,14 @@ import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
+import org.apache.flink.runtime.watermark.InternalWatermarkDeclaration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -119,6 +122,9 @@ public class StreamConfig implements Serializable {
     private static final String TIME_CHARACTERISTIC = "timechar";
 
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
+
+    private static final String WATERMARK_DECLARATIONS = "watermark-declarations";
+
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
                     .booleanType()
@@ -325,6 +331,29 @@ public class StreamConfig implements Serializable {
         try {
             return InstantiationUtil.readObjectFromConfig(
                     this.config, TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serializer.", e);
+        }
+    }
+
+    public void setWatermarkDeclarations(Set<WatermarkDeclaration> watermarkDeclarations) {
+        toBeSerializedConfigObjects.put(WATERMARK_DECLARATIONS, watermarkDeclarations);
+    }
+
+    public Set<InternalWatermarkDeclaration> getWatermarkDeclarations(ClassLoader cl) {
+        try {
+            Set<WatermarkDeclaration> watermarkDeclarations =
+                    InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
+            Set<InternalWatermarkDeclaration> result = new HashSet<>();
+
+            if (watermarkDeclarations == null) {
+                return result;
+            }
+            for (WatermarkDeclaration watermarkDeclaration : watermarkDeclarations) {
+                result.add(
+                        WatermarkUtils.convertToInternalWatermarkDeclaration(watermarkDeclaration));
+            }
+            return result;
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate serializer.", e);
         }

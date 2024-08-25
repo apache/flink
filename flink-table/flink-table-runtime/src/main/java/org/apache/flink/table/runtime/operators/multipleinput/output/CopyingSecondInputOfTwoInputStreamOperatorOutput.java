@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -77,6 +78,15 @@ public class CopyingSecondInputOfTwoInputStreamOperatorOutput extends OutputBase
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
         try {
             operator.processRecordAttributes2(recordAttributes);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
+
+    @Override
+    public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark) {
+        try {
+            operator.processGeneralizedWatermark2(watermark);
         } catch (Exception e) {
             throw new ExceptionInMultipleInputOperatorException(e);
         }

@@ -26,8 +26,10 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.watermark.WatermarkDeclaration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.datastream.watermark.DeclarableWatermark;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -38,6 +40,9 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecords
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -166,6 +171,12 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
         if (source instanceof OutputTypeConfigurable) {
             ((OutputTypeConfigurable<OUT>) source).setOutputType(type, executionConfig);
         }
+    }
+
+    public Collection<? extends WatermarkDeclaration> getSourceWatermarkDeclarations() {
+        return (source != null && source instanceof DeclarableWatermark) // TODOJEY
+                ? ((DeclarableWatermark) source).watermarkDeclarations()
+                : Collections.emptySet();
     }
 
     /**

@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.watermark.GeneralizedWatermark;
+import org.apache.flink.api.watermark.WatermarkPolicy;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -51,4 +53,11 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      * @param ctx runtime context in which this function is executed.
      */
     default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+
+    default void onEventTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+
+    default WatermarkPolicy onWatermark(
+            GeneralizedWatermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+        return WatermarkPolicy.PEEK;
+    }
 }

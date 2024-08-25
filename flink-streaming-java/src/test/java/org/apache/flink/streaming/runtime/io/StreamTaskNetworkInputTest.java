@@ -49,6 +49,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTrac
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.UpstreamRecoveryTracker;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
@@ -453,6 +454,9 @@ class StreamTaskNetworkInputTest {
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark) {}
     }
 
     private static class VerifyRecordsDataOutput<T> extends NoOpDataOutput<T> {

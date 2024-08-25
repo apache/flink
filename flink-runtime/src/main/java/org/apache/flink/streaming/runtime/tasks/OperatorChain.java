@@ -46,6 +46,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.watermark.InternalWatermarkDeclaration;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -87,6 +88,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -554,12 +556,21 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             taskEnvironment.getUserCodeClassLoader().asClassLoader());
         }
 
+        Set<InternalWatermarkDeclaration> watermarkDeclarationSet =
+                upStreamConfig.getWatermarkDeclarations(
+                        taskEnvironment.getUserCodeClassLoader().asClassLoader());
+        List<InternalWatermarkDeclaration.WatermarkSerde> watermarkDeclarations =
+                watermarkDeclarationSet.stream()
+                        .map(w -> w.declaredWatermark())
+                        .collect(Collectors.toList());
+
         return closer.register(
                 new RecordWriterOutput<OUT>(
                         recordWriter,
                         outSerializer,
                         sideOutputTag,
-                        streamOutput.supportsUnalignedCheckpoints()));
+                        streamOutput.supportsUnalignedCheckpoints(),
+                        watermarkDeclarations));
     }
 
     @SuppressWarnings("rawtypes")

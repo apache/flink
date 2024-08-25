@@ -19,8 +19,8 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -48,7 +48,7 @@ class TwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    PartitionedContext ctx) {
+                                    TwoOutputPartitionedContext ctx) {
                                 output1.collect(record);
                                 output2.collect((long) (record * 2));
                             }
@@ -86,7 +86,7 @@ class TwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    PartitionedContext ctx) {
+                                    TwoOutputPartitionedContext ctx) {
                                 // do nothing.
                             }
 

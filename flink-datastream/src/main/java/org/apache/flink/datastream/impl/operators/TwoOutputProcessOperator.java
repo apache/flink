@@ -25,9 +25,9 @@ import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
-import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
+import org.apache.flink.datastream.impl.context.DefaultTwoOutputPartitionedContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -53,7 +53,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected transient DefaultRuntimeContext context;
 
-    protected transient DefaultPartitionedContext partitionedContext;
+    protected transient DefaultTwoOutputPartitionedContext partitionedContext;
 
     protected transient TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> nonPartitionedContext;
 
@@ -83,15 +83,16 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName(),
                         operatorContext.getMetricGroup());
+        this.nonPartitionedContext = getNonPartitionedContext();
         this.partitionedContext =
-                new DefaultPartitionedContext(
+                new DefaultTwoOutputPartitionedContext(
                         context,
                         this::currentKey,
                         this::setCurrentKey,
                         getProcessingTimeManager(),
                         operatorContext,
-                        operatorStateStore);
-        this.nonPartitionedContext = getNonPartitionedContext();
+                        operatorStateStore,
+                        this.nonPartitionedContext);
     }
 
     @Override

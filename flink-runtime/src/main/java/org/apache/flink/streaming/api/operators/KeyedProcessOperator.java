@@ -24,7 +24,9 @@ import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -68,6 +70,11 @@ public class KeyedProcessOperator<K, IN, OUT>
     public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
         collector.setAbsoluteTimestamp(timer.getTimestamp());
         invokeUserFunction(TimeDomain.EVENT_TIME, timer);
+    }
+
+    @Override
+    public void processGeneralizedWatermark(GeneralizedWatermarkEvent watermark) throws Exception {
+        throw new FlinkRuntimeException("asdsad");
     }
 
     @Override

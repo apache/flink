@@ -70,7 +70,8 @@ class DefaultTwoOutputNonPartitionedContextTest {
                                 (key) -> cf.complete(null),
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                                new MockOperatorStateStore(),
+                                null), // TODOJEY
                         firstCollector,
                         secondCollector,
                         false,
@@ -128,7 +129,8 @@ class DefaultTwoOutputNonPartitionedContextTest {
                                 (key) -> currentKey.set((Integer) key),
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                                new MockOperatorStateStore(),
+                                null), // TODOJEY
                         firstCollector,
                         secondCollector,
                         true,

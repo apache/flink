@@ -20,6 +20,7 @@ package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.datastream.api.context.JobInfo;
+import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
@@ -31,12 +32,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** The default implementation of {@link PartitionedContext}. */
-public class DefaultPartitionedContext implements PartitionedContext {
-    private final RuntimeContext context;
-
-    private final DefaultStateManager stateManager;
-
-    private final ProcessingTimeManager processingTimeManager;
+public class DefaultPartitionedContext extends DefaultAbstractPartitionedContext
+        implements PartitionedContext {
+    protected final NonPartitionedContext<?> nonPartitionedContext;
 
     public DefaultPartitionedContext(
             RuntimeContext context,
@@ -44,12 +42,16 @@ public class DefaultPartitionedContext implements PartitionedContext {
             Consumer<Object> currentKeySetter,
             ProcessingTimeManager processingTimeManager,
             StreamingRuntimeContext operatorContext,
-            OperatorStateStore operatorStateStore) {
-        this.context = context;
-        this.stateManager =
-                new DefaultStateManager(
-                        currentKeySupplier, currentKeySetter, operatorContext, operatorStateStore);
-        this.processingTimeManager = processingTimeManager;
+            OperatorStateStore operatorStateStore,
+            NonPartitionedContext<?> nonPartitionedContext) {
+        super(
+                context,
+                currentKeySupplier,
+                currentKeySetter,
+                processingTimeManager,
+                operatorContext,
+                operatorStateStore);
+        this.nonPartitionedContext = nonPartitionedContext;
     }
 
     @Override
@@ -75,5 +77,10 @@ public class DefaultPartitionedContext implements PartitionedContext {
     @Override
     public MetricGroup getMetricGroup() {
         return context.getMetricGroup();
+    }
+
+    @Override
+    public NonPartitionedContext<?> getNonPartitionedContext() {
+        return nonPartitionedContext;
     }
 }

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.operators.sort.PushSorter;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -190,6 +191,10 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             // The SortingDataInput is only used in batch execution mode. The RecordAttributes is
             // not used in batch execution mode. We will ignore all the RecordAttributes.
         }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark)
+                throws Exception {}
     }
 
     @Override

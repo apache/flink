@@ -76,6 +76,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -869,6 +870,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {
             outputList.add(recordAttributes);
+        }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark) {
+            outputList.add(watermark);
         }
 
         @Override

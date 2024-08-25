@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.watermark.WatermarkManager;
 import org.apache.flink.datastream.api.function.ApplyPartitionFunction;
 
 /**
@@ -32,4 +33,6 @@ public interface NonPartitionedContext<OUT> extends RuntimeContext {
      * non-keyed stream, it will apply to single partition.
      */
     void applyToAllPartitions(ApplyPartitionFunction<OUT> applyPartitionFunction) throws Exception;
+
+    WatermarkManager getWatermarkManager();
 }

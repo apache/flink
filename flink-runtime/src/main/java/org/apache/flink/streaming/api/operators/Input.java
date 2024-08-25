@@ -20,7 +20,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.watermark.GeneralizedWatermark;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -78,4 +80,12 @@ public interface Input<IN> {
      */
     @Experimental
     default void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {}
+
+    /**
+     * Processes a {@link GeneralizedWatermark} that arrived at this input. This method is
+     * guaranteed to not be called concurrently with other methods of the operator.
+     */
+    @Experimental
+    default void processGeneralizedWatermark(GeneralizedWatermarkEvent watermark)
+            throws Exception {}
 }

@@ -41,6 +41,7 @@ import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -433,6 +434,10 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             // RecordAttributes is not used in batch execution mode. We will ignore all the
             // RecordAttributes.
         }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark)
+                throws Exception {}
     }
 
     /**

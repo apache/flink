@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -153,6 +154,9 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark) {}
 
         @Override
         public void collect(StreamRecord<OUT> record) {

@@ -32,7 +32,7 @@ public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
         implements TwoOutputNonPartitionedContext<OUT1, OUT2> {
     protected final DefaultRuntimeContext context;
 
-    private final DefaultPartitionedContext partitionedContext;
+    private final DefaultAbstractPartitionedContext partitionedContext;
 
     protected final Collector<OUT1> firstCollector;
 
@@ -44,7 +44,7 @@ public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
 
     public DefaultTwoOutputNonPartitionedContext(
             DefaultRuntimeContext context,
-            DefaultPartitionedContext partitionedContext,
+            DefaultAbstractPartitionedContext partitionedContext,
             Collector<OUT1> firstCollector,
             Collector<OUT2> secondCollector,
             boolean isKeyed,

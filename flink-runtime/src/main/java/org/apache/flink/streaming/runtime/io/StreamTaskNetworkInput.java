@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.watermark.InternalWatermarkDeclaration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -35,7 +36,9 @@ import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.function.Function.identity;
@@ -68,13 +71,32 @@ public final class StreamTaskNetworkInput<T>
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+        this(
+                checkpointedInputGate,
+                inputSerializer,
+                ioManager,
+                statusWatermarkValve,
+                inputIndex,
+                canEmitBatchOfRecords,
+                new HashSet<>());
+    }
+
+    public StreamTaskNetworkInput(
+            CheckpointedInputGate checkpointedInputGate,
+            TypeSerializer<T> inputSerializer,
+            IOManager ioManager,
+            StatusWatermarkValve statusWatermarkValve,
+            int inputIndex,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Set<InternalWatermarkDeclaration> watermarkDeclarationSet) {
         super(
                 checkpointedInputGate,
                 inputSerializer,
                 statusWatermarkValve,
                 inputIndex,
                 getRecordDeserializers(checkpointedInputGate, ioManager),
-                canEmitBatchOfRecords);
+                canEmitBatchOfRecords,
+                watermarkDeclarationSet);
     }
 
     // Initialize one deserializer per input channel

@@ -38,6 +38,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskExternallyInducedSourceIn
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -318,6 +319,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {
             output.emitRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark) throws Exception {
+            output.emitGeneralizedWatermark(watermark);
         }
 
         @Override

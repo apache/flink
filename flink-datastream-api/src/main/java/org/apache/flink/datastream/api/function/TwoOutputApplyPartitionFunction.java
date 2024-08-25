@@ -21,7 +21,7 @@ package org.apache.flink.datastream.api.function;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.watermark.AbstractPartitionedContext;
 
 /** A function to be applied to all partitions with two outputs. */
 @FunctionalInterface
@@ -34,6 +34,9 @@ public interface TwoOutputApplyPartitionFunction<OUT1, OUT2> extends Function {
      * @param secondOutput to emit record to second output.
      * @param ctx runtime context in which this function is executed.
      */
-    void apply(Collector<OUT1> firstOutput, Collector<OUT2> secondOutput, PartitionedContext ctx)
+    void apply(
+            Collector<OUT1> firstOutput,
+            Collector<OUT2> secondOutput,
+            AbstractPartitionedContext ctx)
             throws Exception;
 }

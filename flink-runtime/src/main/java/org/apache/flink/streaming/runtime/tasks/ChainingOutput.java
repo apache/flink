@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -160,6 +161,15 @@ class ChainingOutput<T>
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
         try {
             input.processRecordAttributes(recordAttributes);
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
+
+    @Override
+    public void emitGeneralizedWatermark(GeneralizedWatermarkEvent watermark) {
+        try {
+            input.processGeneralizedWatermark(watermark);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }

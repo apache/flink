@@ -72,6 +72,15 @@ public abstract class StreamElement {
     }
 
     /**
+     * Check whether this element is generalized watermark.
+     *
+     * @return True, if this element is record attributes, false otherwise.
+     */
+    public final boolean isGeneralizedWatermark() {
+        return getClass() == GeneralizedWatermarkEvent.class;
+    }
+
+    /**
      * Casts this element into a StreamRecord.
      *
      * @return This element as a stream record.
@@ -122,5 +131,16 @@ public abstract class StreamElement {
      */
     public final RecordAttributes asRecordAttributes() {
         return (RecordAttributes) this;
+    }
+
+    /**
+     * Casts this element into a RecordAttributes.
+     *
+     * @return This element as a RecordAttributes.
+     * @throws java.lang.ClassCastException Thrown, if this element is actually not a
+     *     RecordAttributes.
+     */
+    public final GeneralizedWatermarkEvent asGeneralizedWatermark() {
+        return (GeneralizedWatermarkEvent) this;
     }
 }

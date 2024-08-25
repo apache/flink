@@ -21,14 +21,20 @@ package org.apache.flink.streaming.runtime.streamrecord;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.watermark.GeneralizedWatermark;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.watermark.InternalWatermarkDeclaration;
 import org.apache.flink.streaming.api.watermark.InternalWatermark;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,16 +59,33 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     private static final int TAG_STREAM_STATUS = 4;
     private static final int TAG_RECORD_ATTRIBUTES = 5;
     private static final int TAG_INTERNAL_WATERMARK = 6;
+    private static final int TAG_GENERALIZED_WATERMARK = 7;
 
     private final TypeSerializer<T> typeSerializer;
 
+    private final Map<String, InternalWatermarkDeclaration.WatermarkSerde> watermarkDeclarationMap;
+
     public StreamElementSerializer(TypeSerializer<T> serializer) {
+        this(serializer, new ArrayList<>());
+    }
+
+    public StreamElementSerializer(
+            TypeSerializer<T> serializer,
+            List<InternalWatermarkDeclaration.WatermarkSerde> watermarkSerdes) {
         if (serializer instanceof StreamElementSerializer) {
             throw new RuntimeException(
                     "StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: "
                             + serializer);
         }
         this.typeSerializer = requireNonNull(serializer);
+        this.watermarkDeclarationMap = new HashMap<>();
+
+        for (InternalWatermarkDeclaration.WatermarkSerde genericWatermarkDeclaration :
+                watermarkSerdes) {
+            this.watermarkDeclarationMap.put(
+                    genericWatermarkDeclaration.watermarkClass().getName(),
+                    genericWatermarkDeclaration);
+        }
     }
 
     public TypeSerializer<T> getContainedTypeSerializer() {
@@ -154,6 +177,13 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             target.writeInt(source.readInt());
         } else if (tag == TAG_RECORD_ATTRIBUTES) {
             target.writeBoolean(source.readBoolean());
+        } else if (tag == TAG_GENERALIZED_WATERMARK) {
+            String watermarkClazz = source.readUTF();
+            InternalWatermarkDeclaration.WatermarkSerde watermarkSerde =
+                    watermarkDeclarationMap.get(watermarkClazz);
+            GeneralizedWatermark watermark = watermarkSerde.deserialize(source);
+            target.writeUTF(watermarkClazz);
+            watermarkSerde.serialize(watermark, target);
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }
@@ -191,6 +221,13 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (value.isRecordAttributes()) {
             target.write(TAG_RECORD_ATTRIBUTES);
             target.writeBoolean(value.asRecordAttributes().isBacklog());
+        } else if (value.isGeneralizedWatermark()) {
+            target.write(TAG_GENERALIZED_WATERMARK);
+            GeneralizedWatermark genericWatermark = value.asGeneralizedWatermark().getWatermark();
+            String identifier = genericWatermark.getClass().getName();
+            target.writeUTF(identifier);
+            watermarkDeclarationMap.get(identifier).serialize(genericWatermark, target);
+            // TODOJEY
         } else {
             throw new RuntimeException();
         }
@@ -218,6 +255,11 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
                     source.readInt());
         } else if (tag == TAG_RECORD_ATTRIBUTES) {
             return new RecordAttributes(source.readBoolean());
+        } else if (tag == TAG_GENERALIZED_WATERMARK) {
+            String identifier = source.readUTF();
+            GeneralizedWatermark watermark =
+                    watermarkDeclarationMap.get(identifier).deserialize(source);
+            return new GeneralizedWatermarkEvent(watermark);
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }
@@ -249,6 +291,13 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
                     source.readInt());
         } else if (tag == TAG_RECORD_ATTRIBUTES) {
             return new RecordAttributes(source.readBoolean());
+        } else if (tag == TAG_GENERALIZED_WATERMARK) {
+            // TODOJEY
+            throw new IOException("CCCCC");
+            //            return new Watermark(source.readLong());
+            //        } else if (tag == TAG_INTERNAL_WATERMARK) {
+            //            int subpartitionIndex = source.readInt();
+            //            return new InternalWatermark(source.readLong(), subpartitionIndex);
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }

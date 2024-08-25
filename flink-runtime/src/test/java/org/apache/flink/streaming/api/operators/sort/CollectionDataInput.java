@@ -55,6 +55,8 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
                 output.emitWatermark(streamElement.asWatermark());
             } else if (streamElement.isRecordAttributes()) {
                 output.emitRecordAttributes(streamElement.asRecordAttributes());
+            } else if (streamElement.isGeneralizedWatermark()) {
+                output.emitGeneralizedWatermark(streamElement.asGeneralizedWatermark());
             } else if (streamElement.isWatermarkStatus()) {
                 output.emitWatermarkStatus(streamElement.asWatermarkStatus());
             } else {
