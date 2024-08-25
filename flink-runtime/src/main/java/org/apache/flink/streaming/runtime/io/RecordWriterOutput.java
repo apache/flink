@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.GeneralizedWatermarkEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.InternalWatermark;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -72,12 +75,16 @@ public class RecordWriterOutput<OUT>
     // per-record path.
     private Counter numRecordsOut = new SimpleCounter();
 
+    /** {@link org.apache.flink.api.common.watermark.Watermark#getIdentifier()} to align flag. */
+    private final Map<String, Boolean> watermarkAlignedMap;
+
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
             RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
             TypeSerializer<OUT> outSerializer,
             OutputTag outputTag,
-            boolean supportsUnalignedCheckpoints) {
+            boolean supportsUnalignedCheckpoints,
+            Map<String, Boolean> watermarkAlignedMap) {
 
         checkNotNull(recordWriter);
         this.outputTag = outputTag;
@@ -94,6 +101,7 @@ public class RecordWriterOutput<OUT>
         }
 
         this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
+        this.watermarkAlignedMap = watermarkAlignedMap;
     }
 
     @Override
@@ -244,6 +252,24 @@ public class RecordWriterOutput<OUT>
         try {
             serializationDelegate.setInstance(recordAttributes);
             recordWriter.broadcastEmit(serializationDelegate);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark) {
+        if (!recordWriter.isSubpartitionDerivable()) {
+            LOG.warn(
+                    watermark
+                            + " will be ignored, because its correctness cannot not be "
+                            + "guaranteed when the subpartition information is not derivable.");
+            return;
+        }
+
+        try {
+            boolean isAligned = watermarkAlignedMap.get(watermark.getWatermark().getIdentifier());
+            recordWriter.broadcastEvent(new GeneralizedWatermarkEvent(watermark, isAligned), false);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

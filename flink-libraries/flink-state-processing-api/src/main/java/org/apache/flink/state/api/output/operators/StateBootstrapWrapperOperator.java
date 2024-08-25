@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -205,6 +206,9 @@ public final class StateBootstrapWrapperOperator<
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark) {}
 
         @Override
         public void collect(T record) {}

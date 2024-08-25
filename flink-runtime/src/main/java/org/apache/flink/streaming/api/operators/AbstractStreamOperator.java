@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
@@ -732,6 +733,12 @@ public abstract class AbstractStreamOperator<OUT>
     public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         output.emitRecordAttributes(
                 new RecordAttributesBuilder(Collections.singletonList(recordAttributes)).build());
+    }
+
+    @Experimental
+    public void processGeneralizedWatermark(GeneralizedWatermarkElement watermark)
+            throws Exception {
+        output.emitGeneralizedWatermark(watermark);
     }
 
     @Experimental

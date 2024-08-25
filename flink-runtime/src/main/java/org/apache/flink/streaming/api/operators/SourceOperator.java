@@ -59,6 +59,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleFuturesAvailabilityHelper;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -323,6 +324,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     @Override
                     public int currentParallelism() {
                         return getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+                    }
+
+                    @Override
+                    public void emitWatermark(
+                            org.apache.flink.api.common.watermark.Watermark watermark) {
+                        output.emitGeneralizedWatermark(new GeneralizedWatermarkElement(watermark));
                     }
                 };
 

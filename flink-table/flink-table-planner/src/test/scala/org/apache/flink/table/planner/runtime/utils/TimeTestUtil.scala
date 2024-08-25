@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks
-import org.apache.flink.streaming.runtime.streamrecord.{RecordAttributes, StreamRecord}
+import org.apache.flink.streaming.runtime.streamrecord.{GeneralizedWatermarkElement, RecordAttributes, StreamRecord}
 import org.apache.flink.table.planner.JLong
 
 import SourceFunction.SourceContext
@@ -101,6 +101,9 @@ object TimeTestUtil {
 
     override def processRecordAttributes(recordAttributes: RecordAttributes): Unit =
       super.processRecordAttributes(recordAttributes)
+
+    override def processGeneralizedWatermark(event: GeneralizedWatermarkElement): Unit =
+      super.processGeneralizedWatermark(event)
   }
 
 }

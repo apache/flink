@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.GeneralizedWatermarkEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -324,7 +326,19 @@ public interface Buffer {
         END_OF_PARTITION(false, true, false, false, false, false),
 
         /** Contains the metadata used during a recovery process. */
-        RECOVERY_METADATA(false, true, false, false, false, false);
+        RECOVERY_METADATA(false, true, false, false, false, false),
+
+        /**
+         * {@link #ALIGNED_GENERALIZED_WATERMARK} indicates that this buffer represents a serialized
+         * {@link Watermark}, which needs to be aligned.
+         */
+        ALIGNED_GENERALIZED_WATERMARK(false, true, true, false, false, false),
+
+        /**
+         * {@link #UNALIGNED_GENERALIZED_WATERMARK} indicates that this buffer represents a
+         * serialized {@link Watermark}, which does not need to be aligned.
+         */
+        UNALIGNED_GENERALIZED_WATERMARK(false, true, false, false, false, false);
 
         private final boolean isBuffer;
         private final boolean isEvent;
@@ -396,6 +410,12 @@ public interface Buffer {
                 return END_OF_DATA;
             } else if (event instanceof EndOfPartitionEvent) {
                 return END_OF_PARTITION;
+            } else if (event instanceof GeneralizedWatermarkEvent) {
+                if (((GeneralizedWatermarkEvent) event).isAligned()) {
+                    return ALIGNED_GENERALIZED_WATERMARK;
+                } else {
+                    return UNALIGNED_GENERALIZED_WATERMARK;
+                }
             } else if (!(event instanceof CheckpointBarrier)) {
                 return EVENT_BUFFER;
             }

@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -94,7 +95,8 @@ public class StreamTwoInputProcessorFactory {
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
                         taskInfo,
-                        canEmitBatchOfRecords);
+                        canEmitBatchOfRecords,
+                        streamConfig.getWatermarkDeclarations(userClassloader));
         TypeSerializer<IN2> typeSerializer2 = streamConfig.getTypeSerializerIn(1, userClassloader);
         StreamTaskInput<IN2> input2 =
                 StreamTaskNetworkInputFactory.create(
@@ -106,7 +108,8 @@ public class StreamTwoInputProcessorFactory {
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
                         taskInfo,
-                        canEmitBatchOfRecords);
+                        canEmitBatchOfRecords,
+                        streamConfig.getWatermarkDeclarations(userClassloader));
 
         InputSelectable inputSelectable =
                 streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;
@@ -296,6 +299,16 @@ public class StreamTwoInputProcessorFactory {
                 operator.processRecordAttributes1(recordAttributes);
             } else {
                 operator.processRecordAttributes2(recordAttributes);
+            }
+        }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark)
+                throws Exception {
+            if (inputIndex == 0) {
+                operator.processGeneralizedWatermark1(watermark);
+            } else {
+                operator.processGeneralizedWatermark2(watermark);
             }
         }
     }

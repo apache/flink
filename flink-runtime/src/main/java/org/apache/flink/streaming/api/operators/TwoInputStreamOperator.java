@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -114,4 +115,20 @@ public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OU
      */
     @Experimental
     default void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {}
+
+    /**
+     * Processes a {@link org.apache.flink.api.common.watermark.Watermark} that arrived on the first
+     * input of this operator.
+     */
+    @Experimental
+    default void processGeneralizedWatermark1(GeneralizedWatermarkElement watermark)
+            throws Exception {}
+
+    /**
+     * Processes a {@link org.apache.flink.api.common.watermark.Watermark} that arrived on the
+     * second input of this operator.
+     */
+    @Experimental
+    default void processGeneralizedWatermark2(GeneralizedWatermarkElement watermark)
+            throws Exception {}
 }

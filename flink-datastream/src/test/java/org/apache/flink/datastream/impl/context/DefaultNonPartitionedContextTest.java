@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorStateS
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -59,19 +60,24 @@ class DefaultNonPartitionedContextTest {
                         0,
                         operatorRuntimeContext.getMetricGroup());
 
+        DefaultPartitionedContext partitionedContext =
+                new DefaultPartitionedContext(
+                        runtimeContext,
+                        Optional::empty,
+                        (key) -> cf.complete(null),
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
                 new DefaultNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                Optional::empty,
-                                (key) -> cf.complete(null),
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                        partitionedContext,
                         collector,
                         false,
-                        null);
+                        null,
+                        null,
+                        Collections.EMPTY_SET);
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
                     counter.incrementAndGet();
@@ -110,19 +116,25 @@ class DefaultNonPartitionedContextTest {
                         0,
                         0,
                         operatorRuntimeContext.getMetricGroup());
+
+        DefaultPartitionedContext partitionedContext =
+                new DefaultPartitionedContext(
+                        runtimeContext,
+                        currentKey::get,
+                        (key) -> currentKey.set((Integer) key),
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
                 new DefaultNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                currentKey::get,
-                                (key) -> currentKey.set((Integer) key),
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                        partitionedContext,
                         collector,
                         true,
-                        allKeys);
+                        allKeys,
+                        null,
+                        Collections.EMPTY_SET);
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
                     counter.incrementAndGet();

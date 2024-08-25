@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -141,6 +142,9 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark) {}
 
         @Override
         public void collect(StreamRecord<IN> record) {

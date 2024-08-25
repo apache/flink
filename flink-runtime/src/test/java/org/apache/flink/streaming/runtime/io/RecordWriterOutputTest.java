@@ -36,6 +36,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -62,7 +63,11 @@ class RecordWriterOutputTest {
 
         RecordWriterOutput<Long> writerOutput =
                 new RecordWriterOutput<>(
-                        task1, LongSerializer.INSTANCE, null, supportsUnalignedCheckpoints);
+                        task1,
+                        LongSerializer.INSTANCE,
+                        null,
+                        supportsUnalignedCheckpoints,
+                        Collections.emptyMap());
 
         // Test unalignedBarrier
         CheckpointBarrier unalignedBarrier =

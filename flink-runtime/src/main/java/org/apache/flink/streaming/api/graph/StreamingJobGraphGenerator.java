@@ -114,6 +114,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.util.watermark.WatermarkUtils.getInternalWatermarkDeclarationsFromStreamGraph;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -1179,6 +1180,9 @@ public class StreamingJobGraphGenerator {
         config.setInputs(inputConfigs);
 
         config.setTypeSerializerOut(vertex.getTypeSerializerOut());
+
+        config.setWatermarkDeclarations(
+                getInternalWatermarkDeclarationsFromStreamGraph(streamGraph));
 
         config.setStreamOperatorFactory(vertex.getOperatorFactory());
 

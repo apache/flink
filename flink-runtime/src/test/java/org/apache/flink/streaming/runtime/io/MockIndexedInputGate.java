@@ -114,6 +114,11 @@ public class MockIndexedInputGate extends IndexedInputGate {
     public void sendTaskEvent(TaskEvent event) {}
 
     @Override
+    public void resumeGateConsumption() throws IOException {
+        throw new UnsupportedOperationException("Should not call it.");
+    }
+
+    @Override
     public void close() {}
 
     @Override

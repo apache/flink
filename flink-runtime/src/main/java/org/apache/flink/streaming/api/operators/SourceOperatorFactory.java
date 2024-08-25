@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -38,6 +39,8 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecords
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
+
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -163,6 +166,10 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
         if (source instanceof OutputTypeConfigurable) {
             ((OutputTypeConfigurable<OUT>) source).setOutputType(type, executionConfig);
         }
+    }
+
+    public Collection<? extends WatermarkDeclaration> getSourceWatermarkDeclarations() {
+        return source.watermarkDeclarations();
     }
 
     /**

@@ -66,7 +66,7 @@ class DefaultTwoOutputNonPartitionedContextTest {
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
+                        new DefaultTwoOutputPartitionedContext(
                                 runtimeContext,
                                 Optional::empty,
                                 (key) -> cf.complete(null),
@@ -126,7 +126,7 @@ class DefaultTwoOutputNonPartitionedContextTest {
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
+                        new DefaultTwoOutputPartitionedContext(
                                 runtimeContext,
                                 currentKey::get,
                                 (key) -> currentKey.set((Integer) key),

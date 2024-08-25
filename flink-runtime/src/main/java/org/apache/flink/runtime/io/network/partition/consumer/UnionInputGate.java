@@ -319,6 +319,12 @@ public class UnionInputGate extends InputGate {
         }
     }
 
+    public void resumeGateConsumption() throws IOException {
+        for (Map.Entry<Integer, InputGate> entry : inputGatesByGateIndex.entrySet()) {
+            entry.getValue().resumeGateConsumption();
+        }
+    }
+
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
         inputGatesByGateIndex.get(channelInfo.getGateIdx()).resumeConsumption(channelInfo);

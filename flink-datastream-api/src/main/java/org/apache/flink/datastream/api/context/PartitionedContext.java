@@ -31,4 +31,7 @@ public interface PartitionedContext extends RuntimeContext {
 
     /** Get the {@link ProcessingTimeManager} of this process function. */
     ProcessingTimeManager getProcessingTimeManager();
+
+    /** Get the non-partitioned context of this process function. */
+    NonPartitionedContext<?> getNonPartitionedContext();
 }

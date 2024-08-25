@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.watermark.Watermark;
+import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -82,4 +84,28 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param ctx runtime context in which this function is executed.
      */
     default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+
+    /**
+     * Callback function when receive the watermark from the first input.
+     *
+     * @param watermark to process.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default WatermarkHandlingResult onWatermarkFromFirstInput(
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+        return WatermarkHandlingResult.PEEK;
+    }
+
+    /**
+     * Callback function when receive the watermark from the second input.
+     *
+     * @param watermark to process.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default WatermarkHandlingResult onWatermarkFromSecondInput(
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+        return WatermarkHandlingResult.PEEK;
+    }
 }

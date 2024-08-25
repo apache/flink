@@ -44,6 +44,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -529,5 +530,9 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {}
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark)
+                throws Exception {}
     }
 }

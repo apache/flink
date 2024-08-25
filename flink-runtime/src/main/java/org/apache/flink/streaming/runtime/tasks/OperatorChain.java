@@ -61,6 +61,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.watermark.generalized.AbstractInternalWatermarkDeclaration;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
@@ -87,6 +88,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -554,12 +556,23 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             taskEnvironment.getUserCodeClassLoader().asClassLoader());
         }
 
+        Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet =
+                upStreamConfig.getWatermarkDeclarations(
+                        taskEnvironment.getUserCodeClassLoader().asClassLoader());
+        Map<String, Boolean> watermarkAlignedMap =
+                watermarkDeclarationSet.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AbstractInternalWatermarkDeclaration::getIdentifier,
+                                        AbstractInternalWatermarkDeclaration::isAligned));
+
         return closer.register(
                 new RecordWriterOutput<OUT>(
                         recordWriter,
                         outSerializer,
                         sideOutputTag,
-                        streamOutput.supportsUnalignedCheckpoints()));
+                        streamOutput.supportsUnalignedCheckpoints(),
+                        watermarkAlignedMap));
     }
 
     @SuppressWarnings("rawtypes")

@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -265,6 +266,12 @@ class SourceOperatorTest {
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
             output.emitRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark)
+                throws Exception {
+            output.emitGeneralizedWatermark(watermark);
         }
     }
 }

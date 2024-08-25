@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.api.common.watermark.BoolWatermark;
+import org.apache.flink.api.common.watermark.LongWatermark;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.GeneralizedWatermarkEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -37,6 +40,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 
 import org.junit.jupiter.api.Test;
 
@@ -114,7 +118,11 @@ class EventSerializerTest {
                 44),
         new SubtaskConnectionDescriptor(23, 42),
         EndOfSegmentEvent.INSTANCE,
-        new RecoveryMetadata(3)
+        new RecoveryMetadata(3),
+        new GeneralizedWatermarkEvent(
+                new GeneralizedWatermarkElement(new LongWatermark(42L, "test")), false),
+        new GeneralizedWatermarkEvent(
+                new GeneralizedWatermarkElement(new BoolWatermark(true, "test")), true),
     };
 
     @Test
@@ -148,6 +156,14 @@ class EventSerializerTest {
             } else if (evt instanceof EndOfPartitionEvent) {
                 assertThat(bufferConsumer.build().getDataType())
                         .isEqualTo(Buffer.DataType.END_OF_PARTITION);
+            } else if (evt instanceof GeneralizedWatermarkEvent) {
+                if (((GeneralizedWatermarkEvent) evt).isAligned()) {
+                    assertThat(bufferConsumer.build().getDataType())
+                            .isEqualTo(Buffer.DataType.ALIGNED_GENERALIZED_WATERMARK);
+                } else {
+                    assertThat(bufferConsumer.build().getDataType())
+                            .isEqualTo(Buffer.DataType.UNALIGNED_GENERALIZED_WATERMARK);
+                }
             } else {
                 assertThat(bufferConsumer.build().getDataType())
                         .isEqualTo(Buffer.DataType.EVENT_BUFFER);
@@ -170,6 +186,14 @@ class EventSerializerTest {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.END_OF_DATA);
             } else if (evt instanceof EndOfPartitionEvent) {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.END_OF_PARTITION);
+            } else if (evt instanceof GeneralizedWatermarkEvent) {
+                if (((GeneralizedWatermarkEvent) evt).isAligned()) {
+                    assertThat(buffer.getDataType())
+                            .isEqualTo(Buffer.DataType.ALIGNED_GENERALIZED_WATERMARK);
+                } else {
+                    assertThat(buffer.getDataType())
+                            .isEqualTo(Buffer.DataType.UNALIGNED_GENERALIZED_WATERMARK);
+                }
             } else {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
             }

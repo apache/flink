@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.GeneralizedWatermarkElement;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -119,7 +120,8 @@ public class StreamMultipleInputProcessorFactory {
                                 inflightDataRescalingDescriptor,
                                 gatePartitioners,
                                 taskInfo,
-                                canEmitBatchOfRecords);
+                                canEmitBatchOfRecords,
+                                streamConfig.getWatermarkDeclarations(userClassloader));
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
@@ -294,6 +296,12 @@ public class StreamMultipleInputProcessorFactory {
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
             input.processRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitGeneralizedWatermark(GeneralizedWatermarkElement watermark)
+                throws Exception {
+            input.processGeneralizedWatermark(watermark);
         }
     }
 

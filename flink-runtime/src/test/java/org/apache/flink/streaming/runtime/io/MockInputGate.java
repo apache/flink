@@ -150,6 +150,11 @@ public class MockInputGate extends IndexedInputGate {
     public void sendTaskEvent(TaskEvent event) {}
 
     @Override
+    public void resumeGateConsumption() throws IOException {
+        throw new UnsupportedOperationException("Should not call it.");
+    }
+
+    @Override
     public void resumeConsumption(InputChannelInfo channelInfo) {
         lastUnblockedChannels.add(channelInfo.getInputChannelIdx());
         blockedChannels.remove(channelInfo.getInputChannelIdx());
