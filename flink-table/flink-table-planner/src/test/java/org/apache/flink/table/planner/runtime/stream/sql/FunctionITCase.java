@@ -1346,6 +1346,12 @@ public class FunctionITCase extends StreamingTestBase {
         testLookupTableFunctionBase(LookupTableWithoutHintLevel1Function.class.getName());
     }
 
+    @Test
+    void testLookupTableFunctionWithoutHintLevel2()
+            throws ExecutionException, InterruptedException {
+        testLookupTableFunctionBase(LookupTableWithoutHintLevel2Function.class.getName());
+    }
+
     private void testLookupTableFunctionBase(String lookupTableFunctionClassName)
             throws ExecutionException, InterruptedException {
         final List<Row> sourceData = Arrays.asList(Row.of("Bob"), Row.of("Alice"));
@@ -2040,6 +2046,9 @@ public class FunctionITCase extends StreamingTestBase {
             collect(GenericRowData.of(StringData.fromString(s.toString()), s.toBytes()));
         }
     }
+
+    public static class LookupTableWithoutHintLevel2Function
+            extends LookupTableWithoutHintLevel1Function {}
 
     /**
      * Synchronous table function that uses {@link RowData} type for {@link LookupTableSource} and
