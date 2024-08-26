@@ -90,7 +90,7 @@ public class JsonFormatOptions {
     public static final ConfigOption<Boolean> IGNORE_KEY_CASE =
             ConfigOptions.key("ignore-key-case")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             "Optional flag to specify whether to ignore key case of field when decoding, false by default.");
 
