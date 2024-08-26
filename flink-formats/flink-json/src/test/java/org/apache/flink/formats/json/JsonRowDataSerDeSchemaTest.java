@@ -906,6 +906,7 @@ public class JsonRowDataSerDeSchemaTest {
                     InternalTypeInfo.of(rowType),
                     failOnMissingField,
                     ignoreParseErrors,
+                    false,
                     timestampFormat);
         } else {
             return new JsonRowDataDeserializationSchema(

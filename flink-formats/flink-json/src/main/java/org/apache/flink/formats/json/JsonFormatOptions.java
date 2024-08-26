@@ -87,6 +87,13 @@ public class JsonFormatOptions {
                     .withDescription(
                             "Optional flag to specify whether to use the Jackson JsonParser to decode json with better performance, true by default.");
 
+    public static final ConfigOption<Boolean> IGNORE_KEY_CASE =
+            ConfigOptions.key("ignore-key-case")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Optional flag to specify whether to ignore key case of field when decoding, false by default.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------

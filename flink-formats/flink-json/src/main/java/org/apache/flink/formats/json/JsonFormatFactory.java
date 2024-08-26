@@ -48,6 +48,7 @@ import static org.apache.flink.formats.json.JsonFormatOptions.DECODE_JSON_PARSER
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
 import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_KEY_CASE;
 import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
@@ -71,6 +72,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         final boolean jsonParserEnabled = formatOptions.get(DECODE_JSON_PARSER_ENABLED);
+        final boolean ignoreKeyCase = formatOptions.get(IGNORE_KEY_CASE);
         TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -90,6 +92,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                             rowDataTypeInfo,
                             failOnMissingField,
                             ignoreParseErrors,
+                            ignoreKeyCase,
                             timestampOption,
                             toProjectedNames(
                                     (RowType) physicalDataType.getLogicalType(), projections));
@@ -202,6 +205,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
         options.add(ENCODE_IGNORE_NULL_FIELDS);
+        options.add(IGNORE_KEY_CASE);
         return options;
     }
 }
