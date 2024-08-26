@@ -1120,8 +1120,8 @@ class CatalogModel(object):
 
     @staticmethod
     def create_model(
-        input_schema: TableSchema,
-        output_schema: TableSchema,
+        input_schema: Schema,
+        output_schema: Schema,
         properties: Dict[str, str] = {},
         comment: str = None
     ) -> "CatalogModel":
@@ -1140,7 +1140,7 @@ class CatalogModel(object):
         gateway = get_gateway()
         return CatalogModel(
             gateway.jvm.org.apache.flink.table.catalog.CatalogModel.of(
-                input_schema._j_table_schema, output_schema._j_table_schema, properties, comment))
+                input_schema._j_schema, output_schema._j_schema, properties, comment))
 
     @staticmethod
     def _get(j_catalog_model):

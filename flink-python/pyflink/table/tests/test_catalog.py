@@ -17,7 +17,7 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table import TableSchema, DataTypes
+from pyflink.table import Schema, TableSchema, DataTypes
 
 from pyflink.table.catalog import ObjectPath, Catalog, CatalogDatabase, CatalogBaseTable, \
     CatalogFunction, CatalogPartition, CatalogPartitionSpec, CatalogModel
@@ -94,6 +94,10 @@ class CatalogTestBase(PyFlinkTestCase):
                            [DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING()])
 
     @staticmethod
+    def create_model_schema():
+        return Schema.new_builder().column("id", DataTypes.STRING()).build()
+
+    @staticmethod
     def create_another_table_schema():
         return TableSchema(["first2", "second", "third"],
                            [DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()])
@@ -113,16 +117,16 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_model():
         return CatalogModel.create_model(
-            CatalogTestBase.create_table_schema(),
-            CatalogTestBase.create_table_schema(),
+            CatalogTestBase.create_model_schema(),
+            CatalogTestBase.create_model_schema(),
             properties={},
             comment="some comment")
 
     @staticmethod
     def create_another_model():
         return CatalogModel.create_model(
-            CatalogTestBase.create_table_schema(),
-            CatalogTestBase.create_table_schema(),
+            CatalogTestBase.create_model_schema(),
+            CatalogTestBase.create_model_schema(),
             properties={"key": "value"},
             comment="some comment")
 
