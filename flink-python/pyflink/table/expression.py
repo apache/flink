@@ -1532,9 +1532,9 @@ class Expression(Generic[T]):
 
     def add_months(self, num_months) -> 'Expression':
         """
-        Returns the date numMonths after startDate.
-        If numMonths is negative, -numMonths are subtracted from startDate.
-        If the resulting month has fewer days than the day component of startDate, then the result
+        Returns the date num_months after start_date.
+        If num_months is negative, -num_months are subtracted from start_date.
+        If the resulting month has fewer days than the day component of start_date, then the result
         is the last day of the resulting month.
 
         null if any of the arguments are null or result overflows or date string invalid.
