@@ -54,10 +54,10 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        //                        extractTestCases(),
-                        //                        temporalOverlapsTestCases(),
-                        //                        ceilTestCases(),
-                        //                        floorTestCases(),
+                        extractTestCases(),
+                        temporalOverlapsTestCases(),
+                        ceilTestCases(),
+                        floorTestCases(),
                         addMonthsTestCases())
                 .flatMap(s -> s);
     }
