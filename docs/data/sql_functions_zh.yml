@@ -69,14 +69,14 @@ comparison:
       `12 NOT BETWEEN 15 AND NULL` 返回 `TRUE`；
       `12 NOT BETWEEN SYMMETRIC 12 AND NULL` 返回 `UNKNOWN`。
   - sql: string1 LIKE string2 [ ESCAPE char ]
-    table: string1.like(string2)
+    table: string1.like(string2[, char])
     description: |
       如果 string1 匹配 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要可以定义转义字符。尚不支持转义字符。
+      如果需要可以定义包含单个字符的转义字符，默认为 '\'。
   - sql: string1 NOT LIKE string2 [ ESCAPE char ]
     description: |
       如果 string1 与 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要可以定义转义字符。尚不支持转义字符。
+      如果需要可以定义包含单个字符的转义字符，默认为 '\'。
   - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
     table: string1.similar(string2)
     description: |

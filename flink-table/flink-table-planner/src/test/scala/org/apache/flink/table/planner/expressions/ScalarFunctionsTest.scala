@@ -387,55 +387,153 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testLike(): Unit = {
+    // true
     testAllApis('f0.like("Th_s%"), "f0 LIKE 'Th_s%'", "TRUE")
-
     testAllApis('f0.like("%is a%"), "f0 LIKE '%is a%'", "TRUE")
-
-    testSqlApi("'abcxxxdef' LIKE 'abcx%'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%%def'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE 'abcxxxdef'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%xdef'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%def%'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%def'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%def%'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%def'", "TRUE")
+    testAllApis("abcxxxdef".like("abcx%"), "'abcxxxdef' LIKE 'abcx%'", "TRUE")
+    testAllApis("abcxxxdef".like("%%def"), "'abcxxxdef' LIKE '%%def'", "TRUE")
+    testAllApis("abcxxxdef".like("abcxxxdef"), "'abcxxxdef' LIKE 'abcxxxdef'", "TRUE")
+    testAllApis("abcxxxdef".like("%xdef"), "'abcxxxdef' LIKE '%xdef'", "TRUE")
+    testAllApis("abcxxxdef".like("abc%def%"), "'abcxxxdef' LIKE 'abc%def%'", "TRUE")
+    testAllApis("abcxxxdef".like("%abc%def"), "'abcxxxdef' LIKE '%abc%def'", "TRUE")
+    testAllApis("abcxxxdef".like("%abc%def%"), "'abcxxxdef' LIKE '%abc%def%'", "TRUE")
+    testAllApis("abcxxxdef".like("abc%def"), "'abcxxxdef' LIKE 'abc%def'", "TRUE")
 
     // false
-    testSqlApi("'abcxxxdef' LIKE 'abdxxxdef'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE '%xqef'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%qef%'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%qef'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%qef%'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%qef'", "FALSE")
+    testAllApis("abcxxxdef".like("abdxxxdef"), "'abcxxxdef' LIKE 'abdxxxdef'", "FALSE")
+    testAllApis("abcxxxdef".like("%xqef"), "'abcxxxdef' LIKE '%xqef'", "FALSE")
+    testAllApis("abcxxxdef".like("abc%qef%"), "'abcxxxdef' LIKE 'abc%qef%'", "FALSE")
+    testAllApis("abcxxxdef".like("%abc%qef"), "'abcxxxdef' LIKE '%abc%qef'", "FALSE")
+    testAllApis("abcxxxdef".like("%abc%qef%"), "'abcxxxdef' LIKE '%abc%qef%'", "FALSE")
+    testAllApis("abcxxxdef".like("abc%qef"), "'abcxxxdef' LIKE 'abc%qef'", "FALSE")
+
+    // reported in FLINK-36100
+    testAllApis("TE_ST".like("%E_S%"), "'TE_ST' LIKE '%E_S%'", "TRUE")
+    testAllApis("TE-ST".like("%E_S%"), "'TE-ST' LIKE '%E_S%'", "TRUE")
+    testAllApis("TE_ST".like("%E\\_S%"), "'TE_ST' LIKE '%E\\_S%'", "TRUE")
+    testAllApis("TE-ST".like("%E\\_S%"), "'TE-ST' LIKE '%E\\_S%'", "FALSE")
   }
 
   @Test
   def testNotLike(): Unit = {
     testAllApis(!'f0.like("Th_s%"), "f0 NOT LIKE 'Th_s%'", "FALSE")
-
     testAllApis(!'f0.like("%is a%"), "f0 NOT LIKE '%is a%'", "FALSE")
+
+    // reported in FLINK-36100
+    testSqlApi("'TE_ST' NOT LIKE '%E_S%'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E_S%'", "FALSE")
+    testSqlApi("'TE_ST' NOT LIKE '%E\\_S%'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E\\_S%'", "TRUE")
   }
 
   @Test
   def testLikeWithEscape(): Unit = {
-    testSqlApi("f23 LIKE '&%Th_s%' ESCAPE '&'", "TRUE")
+    testAllApis('f23.like("&%Th_s%", "&"), "f23 LIKE '&%Th_s%' ESCAPE '&'", "TRUE")
+    testAllApis('f23.like("&%%is a%", "&"), "f23 LIKE '&%%is a%' ESCAPE '&'", "TRUE")
+    testAllApis('f0.like("Th_s%", "&"), "f0 LIKE 'Th_s%' ESCAPE '&'", "TRUE")
+    testAllApis('f0.like("%is a%", "&"), "f0 LIKE '%is a%' ESCAPE '&'", "TRUE")
 
-    testSqlApi("f23 LIKE '&%%is a%' ESCAPE '&'", "TRUE")
+    // normal escape character
+    testAllApis("TE-ST".like("%E#_S%", "#"), "'TE-ST' LIKE '%E#_S%' ESCAPE '#'", "FALSE")
+    testAllApis("TE_ST".like("%E#_S%", "#"), "'TE_ST' LIKE '%E#_S%' ESCAPE '#'", "TRUE")
 
-    testSqlApi("f0 LIKE 'Th_s%' ESCAPE '&'", "TRUE")
+    // special character in SQL
+    testAllApis("TE-ST".like("%E__S%", "_"), "'TE-ST' LIKE '%E__S%' ESCAPE '_'", "FALSE")
+    testAllApis("TE_ST".like("%E__S%", "_"), "'TE_ST' LIKE '%E__S%' ESCAPE '_'", "TRUE")
+    testAllApis("TE-ST".like("TE%_ST", "%"), "'TE-ST' LIKE 'TE%_ST' ESCAPE '%'", "FALSE")
+    testAllApis("TE_ST".like("TE%_ST", "%"), "'TE_ST' LIKE 'TE%_ST' ESCAPE '%'", "TRUE")
 
-    testSqlApi("f0 LIKE '%is a%' ESCAPE '&'", "TRUE")
+    // special character in Java Regex
+    testAllApis("TE-ST".like("%E\\_S%", "\\"), "'TE-ST' LIKE '%E\\_S%' ESCAPE '\\'", "FALSE")
+    testAllApis("TE_ST".like("%E\\_S%", "\\"), "'TE_ST' LIKE '%E\\_S%' ESCAPE '\\'", "TRUE")
+    testAllApis("TE-ST".like("%E._S%", "."), "'TE-ST' LIKE '%E._S%' ESCAPE '.'", "FALSE")
+    testAllApis("TE_ST".like("%E._S%", "."), "'TE_ST' LIKE '%E._S%' ESCAPE '.'", "TRUE")
+
+    // invalid escape character
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%", "ab"),
+      "'TE-ST' LIKE '%E_S%' ESCAPE 'ab'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%", "\\c"),
+      "'TE-ST' LIKE '%E_S%' ESCAPE '\\c'",
+      "Invalid escape",
+      classOf[RuntimeException])
+
+    // escape character at the end
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%&", "&"),
+      "'TE-ST' LIKE '%E_S%&' ESCAPE '&'",
+      "",
+      classOf[RuntimeException])
+
+    // invalid character after escape character
+    testExpectedAllApisException(
+      "TE-ST".like("%E&-S%", "&"),
+      "'TE-ST' LIKE '%E&-S%' ESCAPE '&'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%", "_"),
+      "'TE-ST' LIKE '%E_S%' ESCAPE '_'",
+      "Invalid escape",
+      classOf[RuntimeException])
   }
 
   @Test
   def testNotLikeWithEscape(): Unit = {
     testSqlApi("f23 NOT LIKE '&%Th_s%' ESCAPE '&'", "FALSE")
-
     testSqlApi("f23 NOT LIKE '&%%is a%' ESCAPE '&'", "FALSE")
-
     testSqlApi("f0 NOT LIKE 'Th_s%' ESCAPE '&'", "FALSE")
-
     testSqlApi("f0 NOT LIKE '%is a%' ESCAPE '&'", "FALSE")
+
+    // normal escape character
+    testSqlApi("'TE-ST' NOT LIKE '%E#_S%' ESCAPE '#'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E#_S%' ESCAPE '#'", "FALSE")
+
+    // special character in SQL
+    testSqlApi("'TE-ST' NOT LIKE '%E__S%' ESCAPE '_'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E__S%' ESCAPE '_'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE 'TE%_ST' ESCAPE '%'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE 'TE%_ST' ESCAPE '%'", "FALSE")
+
+    // special character in Java Regex
+    testSqlApi("'TE-ST' NOT LIKE '%E\\_S%' ESCAPE '\\'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E\\_S%' ESCAPE '\\'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E._S%' ESCAPE '.'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E._S%' ESCAPE '.'", "FALSE")
+
+    // invalid character
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%", "ab"),
+      "'TE-ST' NOT LIKE '%E_S%' ESCAPE 'ab'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%", "\\c"),
+      "'TE-ST' NOT LIKE '%E_S%' ESCAPE '\\c'",
+      "Invalid escape",
+      classOf[RuntimeException])
+
+    // escape character at the end
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%&", "&"),
+      "'TE-ST' NOT LIKE '%E_S%&' ESCAPE '&'",
+      "",
+      classOf[RuntimeException])
+
+    // invalid character after escape character
+    testExpectedAllApisException(
+      !"TE-ST".like("%E&-S%", "&"),
+      "'TE-ST' NOT LIKE '%E&-S%' ESCAPE '&'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%", "_"),
+      "'TE-ST' NOT LIKE '%E_S%' ESCAPE '_'",
+      "Invalid escape",
+      classOf[RuntimeException])
   }
 
   @Test

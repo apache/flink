@@ -1035,12 +1035,25 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns true, if a string matches the specified LIKE pattern.
+     * Returns true, if a string matches the specified LIKE pattern with default escape character
+     * '/'.
      *
      * <p>e.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n"
      */
     public OutType like(InType pattern) {
         return toApiSpecificExpression(unresolvedCall(LIKE, toExpr(), objectToExpression(pattern)));
+    }
+
+    /**
+     * Returns true, if a string matches the specified LIKE pattern with specified escape character
+     * consisting of a single char.
+     *
+     * <p>e.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n"
+     */
+    public OutType like(InType pattern, InType escape) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        LIKE, toExpr(), objectToExpression(pattern), objectToExpression(escape)));
     }
 
     /**
