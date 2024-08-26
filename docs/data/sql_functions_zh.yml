@@ -715,6 +715,15 @@ temporal:
     table: dateFormat(TIMESTAMP, STRING)
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
+  - sql: DATEDIFF(endDate, startDate)
+    table: endDate.dateDiff(startDate)
+    description: |
+      返回从 startDate 到 endDate 的天数。
+      如果 endDate 早于 startDate，结果为负数。
+      
+      `endDate <DATE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE | CHAR | VARCHAR>, startDate <DATE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE | CHAR | VARCHAR>`
+
+      返回一个 `INTEGER`。如果任意参数为 `NULL` 或日期字符串非法，则返回 `NULL`。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)

@@ -220,6 +220,7 @@ temporal functions
     Expression.to_time
     Expression.to_timestamp
     Expression.extract
+    Expression.datediff
     Expression.floor
     Expression.ceil
 

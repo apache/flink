@@ -87,6 +87,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DATEDIFF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
@@ -1510,6 +1511,19 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType extract(TimeIntervalUnit timeIntervalUnit) {
         return toApiSpecificExpression(
                 unresolvedCall(EXTRACT, valueLiteral(timeIntervalUnit), toExpr()));
+    }
+
+    /**
+     * Returns the number of days from {@code startDate} to {@code endDate}. <br>
+     * If {@code endDate} is before {@code startDate}, the result is negative.<br>
+     * null if any of the arguments are null or date string invalid.
+     *
+     * @param startDate A DATE expression.
+     * @return An INTEGER.
+     */
+    public OutType datediff(InType startDate) {
+        return toApiSpecificExpression(
+                unresolvedCall(DATEDIFF, toExpr(), objectToExpression(startDate)));
     }
 
     /**

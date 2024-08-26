@@ -599,6 +599,15 @@ temporal:
   - sql: DATE_FORMAT(timestamp, string)
     table: dateFormat(TIMESTAMP, STRING)
     description: Converts timestamp to a value of string in the format specified by the date format string. The format string is compatible with Java's SimpleDateFormat.
+  - sql: DATEDIFF(endDate, startDate)
+    table: endDate.dateDiff(startDate)
+    description: |
+      Returns the number of days from startDate to endDate.
+      If endDate is before startDate, the result is negative.
+      
+      `endDate <DATE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE | CHAR | VARCHAR>, startDate <DATE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE | CHAR | VARCHAR>`
+
+      Returns an `INTEGER`, `NULL` if any of the arguments are `NULL` or date string invalid.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)

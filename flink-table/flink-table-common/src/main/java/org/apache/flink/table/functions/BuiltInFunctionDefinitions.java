@@ -2130,6 +2130,37 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition DATEDIFF =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATEDIFF")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("endDate", "startDate"),
+                                    Arrays.asList(
+                                            or(
+                                                    logical(LogicalTypeRoot.DATE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITHOUT_TIME_ZONE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                            or(
+                                                    logical(LogicalTypeRoot.DATE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITHOUT_TIME_ZONE),
+                                                    logical(
+                                                            LogicalTypeRoot
+                                                                    .TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING)))))
+                    .outputTypeStrategy(explicit(DataTypes.INT()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.DatediffFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")

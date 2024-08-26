@@ -1530,6 +1530,18 @@ class Expression(Generic[T]):
         return _binary_op("extract")(
             self, time_interval_unit._to_j_time_interval_unit())
 
+    def datediff(self, start_date) -> 'Expression':
+        """
+        Returns the number of days from start_date to end_date.
+        If end_date is before start_date, the result is negative.
+
+        null if any of the arguments are null or date string invalid.
+
+        :param start_date: A DATE expression.
+        :return: An INTEGER.
+        """
+        return _binary_op("datediff")(self, start_date)
+
     def floor(self, time_interval_unit: TimeIntervalUnit = None) -> 'Expression':
         """
         If time_interval_unit is specified, it rounds down a time point to the given
