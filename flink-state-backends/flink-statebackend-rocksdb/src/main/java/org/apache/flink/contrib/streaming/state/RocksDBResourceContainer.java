@@ -48,6 +48,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -179,6 +180,18 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         }
 
         return sharedResources.getResourceHandle().getWriteBufferManagerCapacity();
+    }
+
+    /** Gets the "queryTimeAfterNumEntries" parameter from the configuration. */
+    public Long getQueryTimeAfterNumEntries() {
+        return internalGetOption(
+                RocksDBConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES);
+    }
+
+    /** Gets the "getPeriodicCompactionTime" parameter from the configuration. */
+    public Duration getPeriodicCompactionTime() {
+        return internalGetOption(
+                RocksDBConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME);
     }
 
     /** Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances. */

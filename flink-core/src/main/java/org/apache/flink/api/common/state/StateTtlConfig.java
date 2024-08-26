@@ -32,7 +32,6 @@ import java.util.EnumMap;
 
 import static org.apache.flink.api.common.state.StateTtlConfig.CleanupStrategies.EMPTY_STRATEGY;
 import static org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrategy.DEFAULT_INCREMENTAL_CLEANUP_STRATEGY;
-import static org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy.DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY;
 import static org.apache.flink.api.common.state.StateTtlConfig.StateVisibility.NeverReturnExpired;
 import static org.apache.flink.api.common.state.StateTtlConfig.TtlTimeCharacteristic.ProcessingTime;
 import static org.apache.flink.api.common.state.StateTtlConfig.UpdateType.OnCreateAndWrite;
@@ -444,15 +443,13 @@ public class StateTtlConfig implements Serializable {
         }
 
         public boolean inRocksdbCompactFilter() {
-            return getRocksdbCompactFilterCleanupStrategy() != null;
+            return isCleanupInBackground || getRocksdbCompactFilterCleanupStrategy() != null;
         }
 
         @Nullable
         public RocksdbCompactFilterCleanupStrategy getRocksdbCompactFilterCleanupStrategy() {
-            RocksdbCompactFilterCleanupStrategy defaultStrategy =
-                    isCleanupInBackground ? DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY : null;
             return (RocksdbCompactFilterCleanupStrategy)
-                    strategies.getOrDefault(Strategies.ROCKSDB_COMPACTION_FILTER, defaultStrategy);
+                    strategies.get(Strategies.ROCKSDB_COMPACTION_FILTER);
         }
     }
 
@@ -494,11 +491,18 @@ public class StateTtlConfig implements Serializable {
         private static final long serialVersionUID = 3109278796506988980L;
 
         /**
-         * Default value is 30 days so that every file goes through the compaction process at least
-         * once every 30 days if not compacted sooner.
+         * @deprecated Use {@link
+         *     org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions#COMPACT_FILTER_PERIODIC_COMPACTION_TIME}
+         *     instead.
          */
-        static final Duration DEFAULT_PERIODIC_COMPACTION_TIME = Duration.ofDays(30);
+        @Deprecated static final Duration DEFAULT_PERIODIC_COMPACTION_TIME = Duration.ofDays(30);
 
+        /**
+         * @deprecated Use {@link
+         *     org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions#COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES}
+         *     instead.
+         */
+        @Deprecated
         static final RocksdbCompactFilterCleanupStrategy
                 DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
                         new RocksdbCompactFilterCleanupStrategy(1000L);
