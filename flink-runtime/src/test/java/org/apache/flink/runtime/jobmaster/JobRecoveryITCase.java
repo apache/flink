@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -30,6 +28,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
@@ -96,14 +95,15 @@ class JobRecoveryITCase {
         receiver.connectNewDataSetAsInput(
                 sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(sender, receiver))
+                        .setJobName(getClass().getSimpleName())
+                        .build();
 
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertices(Arrays.asList(sender, receiver))
-                .setJobName(getClass().getSimpleName())
-                .setExecutionConfig(executionConfig)
-                .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, 0L);
+
+        return jobGraph;
     }
 
     /** Receiver which fails once before successfully completing. */

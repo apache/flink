@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -59,6 +58,7 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Collector;
@@ -163,8 +163,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
-
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
         DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
         ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState =
@@ -267,7 +266,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
@@ -343,7 +342,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -391,7 +390,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         // Custom serializer is not needed, it's used just to check if serialization works.
         env.getConfig()
@@ -458,7 +457,7 @@ public abstract class AbstractQueryableStateTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -552,7 +551,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because clusterClient is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -613,7 +612,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -682,7 +681,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -732,7 +731,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -809,7 +808,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -912,7 +911,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -1016,7 +1015,7 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));

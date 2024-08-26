@@ -17,7 +17,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CollectionSink;
 import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CountFunction;
 import org.apache.flink.test.util.InfiniteIntegerSource;
@@ -163,8 +163,8 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(checkpointInterval);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.setStateBackend(stateBackend)
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
+        env.setStateBackend(stateBackend);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 3, 10L);
         env.configure(new Configuration().set(LOCAL_RECOVERY, true));
 
         env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());

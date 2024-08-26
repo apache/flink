@@ -22,7 +22,6 @@ import org.apache.flink.api.common.{ExecutionConfig, RuntimeExecutionMode}
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.operators.SlotSharingGroup
-import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.{Source, SourceSplit}
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource
@@ -434,54 +433,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    */
   @PublicEvolving
   def getDefaultSavepointDirectory: Path = javaEnv.getDefaultSavepointDirectory
-
-  /**
-   * Sets the restart strategy configuration. The configuration specifies which restart strategy
-   * will be used for the execution graph in case of a restart.
-   *
-   * @param restartStrategyConfiguration
-   *   Restart strategy configuration to be set
-   */
-  @PublicEvolving
-  def setRestartStrategy(restartStrategyConfiguration: RestartStrategyConfiguration): Unit = {
-    javaEnv.setRestartStrategy(restartStrategyConfiguration)
-  }
-
-  /**
-   * Returns the specified restart strategy configuration.
-   *
-   * @return
-   *   The restart strategy configuration to be used
-   */
-  @PublicEvolving
-  def getRestartStrategy: RestartStrategyConfiguration = {
-    javaEnv.getRestartStrategy()
-  }
-
-  /**
-   * Sets the number of times that failed tasks are re-executed. A value of zero effectively
-   * disables fault tolerance. A value of "-1" indicates that the system default value (as defined
-   * in the configuration) should be used.
-   *
-   * @deprecated
-   *   This method will be replaced by [[setRestartStrategy()]]. The
-   *   FixedDelayRestartStrategyConfiguration contains the number of execution retries.
-   */
-  @PublicEvolving
-  def setNumberOfExecutionRetries(numRetries: Int): Unit = {
-    javaEnv.setNumberOfExecutionRetries(numRetries)
-  }
-
-  /**
-   * Gets the number of times the system will try to re-execute failed tasks. A value of "-1"
-   * indicates that the system default value (as defined in the configuration) should be used.
-   *
-   * @deprecated
-   *   This method will be replaced by [[getRestartStrategy]]. The
-   *   FixedDelayRestartStrategyConfiguration contains the number of execution retries.
-   */
-  @PublicEvolving
-  def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   // --------------------------------------------------------------------------------------------
   // Registry for types and serializers

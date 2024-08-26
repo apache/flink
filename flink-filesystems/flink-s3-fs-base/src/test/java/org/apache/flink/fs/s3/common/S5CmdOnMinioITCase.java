@@ -19,7 +19,6 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.CloseableIterator;
@@ -212,7 +212,7 @@ public abstract class S5CmdOnMinioITCase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
         env.enableCheckpointing(CHECKPOINT_INTERVAL);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         env.setStateBackend(new EmbeddedRocksDBStateBackend());
         // Disable changelog, to make sure state is stored in the RocksDB, not in changelog, as
         // currently only RocksDB is using s5cmd.

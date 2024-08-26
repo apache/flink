@@ -18,10 +18,8 @@
 
 package org.apache.flink.test.scheduling;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -58,6 +56,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -181,7 +180,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     public void testStopWithSavepointFailOnCheckpoint() throws Exception {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -206,7 +205,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     public void testStopWithSavepointFailOnStop() throws Throwable {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -235,7 +234,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     @Test
     public void testStopWithSavepointFailOnFirstSavepointSucceedOnSecond() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         env.setParallelism(PARALLELISM);
 
@@ -312,15 +311,11 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                         new FailingCoordinatorProvider(OperatorID.fromJobVertexID(jobVertexId))));
         jobVertex.setParallelism(1);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(1, Duration.ofHours(1)));
-
         final JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .addJobVertices(Collections.singletonList(jobVertex))
-                        .setExecutionConfig(executionConfig)
                         .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, Duration.ofHours(1L));
         miniCluster.submitJob(jobGraph).join();
 
         // We rely on waiting in restarting state (see the restart strategy above)

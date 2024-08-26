@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -30,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
@@ -69,7 +69,7 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
                         1337, // not needed since we use ZooKeeper
                         configuration);
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 1000L);
         env.enableCheckpointing(200);
 
         env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));

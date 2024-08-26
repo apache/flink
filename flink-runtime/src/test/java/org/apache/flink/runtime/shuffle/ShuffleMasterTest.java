@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.shuffle;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -121,9 +120,7 @@ class ShuffleMasterTest {
                 source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
-        ExecutionConfig config = new ExecutionConfig();
-        config.setRestartStrategy(fixedDelayRestart(2, Duration.ofSeconds(2)));
-        jobGraph.setExecutionConfig(config);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 2, Duration.ofSeconds(2));
         return jobGraph;
     }
 

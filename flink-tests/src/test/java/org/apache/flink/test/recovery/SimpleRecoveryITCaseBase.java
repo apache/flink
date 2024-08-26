@@ -20,8 +20,9 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -59,7 +60,9 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
                 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
                 env.setParallelism(4);
-                env.setRestartStrategy(RestartStrategies.noRestart());
+                Configuration configuration = new Configuration();
+                configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 try {
                     env.generateSequence(1, 10)
@@ -78,7 +81,9 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
                 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
                 env.setParallelism(4);
-                env.setRestartStrategy(RestartStrategies.noRestart());
+                Configuration configuration = new Configuration();
+                configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 List<Long> resultCollection =
                         env.generateSequence(1, 10)

@@ -21,7 +21,6 @@ package org.apache.flink.api.datastream;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -53,6 +52,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
@@ -61,7 +61,6 @@ import org.apache.flink.util.Collector;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -555,7 +554,7 @@ public class DataStreamBatchExecutionITCase {
         // trick the collecting sink into working even in the face of failures 🙏
         env.enableCheckpointing(42);
 
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Duration.ofMillis(1)));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 10, 1L);
 
         return env;
     }

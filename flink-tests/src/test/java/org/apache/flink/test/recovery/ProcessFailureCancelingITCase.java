@@ -19,7 +19,6 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -28,6 +27,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -180,7 +180,11 @@ class ProcessFailureCancelingITCase {
                                         ExecutionEnvironment.createRemoteEnvironment(
                                                 "localhost", 1337, config);
                                 env.setParallelism(2);
-                                env.setRestartStrategy(RestartStrategies.noRestart());
+                                Configuration configuration = new Configuration();
+                                configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                                env.configure(
+                                        configuration,
+                                        Thread.currentThread().getContextClassLoader());
 
                                 env.generateSequence(0, Long.MAX_VALUE)
                                         .map(

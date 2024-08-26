@@ -17,21 +17,19 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
-import java.time.ZoneId
+import java.time.{Duration, ZoneId}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -48,7 +46,13 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     // enable checkpoint, we are using failing source to force have a complete checkpoint
     // and cover restore path
     env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
-    env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
+    val configuration = new Configuration()
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay")
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Int.box(1))
+    configuration.set(
+      RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+      Duration.ofMillis(0))
+    env.configure(configuration, Thread.currentThread.getContextClassLoader)
     FailingCollectionSource.reset()
 
     val dataId1 = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)

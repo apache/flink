@@ -18,9 +18,7 @@
 
 package org.apache.flink.test.runtime.leaderelection;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -38,6 +36,7 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -199,14 +198,13 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         // is undefined behavior. By allowing restarts we prevent the job from reaching a globally
         // terminal state,
         // causing it to be recovered by the next Dispatcher.
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(10, Duration.ofSeconds(10).toMillis()));
+        JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(vertex).build();
 
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertex(vertex)
-                .setExecutionConfig(executionConfig)
-                .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                jobGraph, 10, Duration.ofSeconds(10L));
+
+        return jobGraph;
     }
 
     /** Blocking invokable which is controlled by a static field. */

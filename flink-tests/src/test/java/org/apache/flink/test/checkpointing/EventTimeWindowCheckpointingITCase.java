@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -50,6 +49,7 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindow
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
@@ -283,7 +283,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
@@ -374,7 +374,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.setMaxParallelism(maxParallelism);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
@@ -463,7 +463,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             env.setMaxParallelism(2 * PARALLELISM);
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
@@ -545,7 +545,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
@@ -629,7 +629,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 

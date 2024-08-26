@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -122,6 +121,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -1076,14 +1076,9 @@ class JobMasterTest {
         source.setInputSplitSource(inputSplitSource);
         source.setInvokableClass(AbstractInvokable.class);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
-
         final JobGraph inputSplitJobGraph =
-                JobGraphBuilder.newStreamingJobGraphBuilder()
-                        .addJobVertex(source)
-                        .setExecutionConfig(executionConfig)
-                        .build();
+                JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(source).build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(inputSplitJobGraph, 100, 0L);
 
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(inputSplitJobGraph, rpcService)
@@ -2555,10 +2550,7 @@ class JobMasterTest {
     private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
-        jobGraph.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, Integer.MAX_VALUE, 0L);
 
         return jobGraph;
     }

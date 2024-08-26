@@ -24,7 +24,7 @@ import tempfile
 import time
 import uuid
 
-from pyflink.common import Configuration, ExecutionConfig, RestartStrategies
+from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend,
@@ -76,13 +76,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         parallelism = self.env.get_default_local_parallelism()
 
         self.assertEqual(parallelism, 8)
-
-    def test_set_get_restart_strategy(self):
-        self.env.set_restart_strategy(RestartStrategies.no_restart())
-
-        restart_strategy = self.env.get_restart_strategy()
-
-        self.assertEqual(restart_strategy, RestartStrategies.no_restart())
 
     def test_add_default_kryo_serializer(self):
         self.env.add_default_kryo_serializer(

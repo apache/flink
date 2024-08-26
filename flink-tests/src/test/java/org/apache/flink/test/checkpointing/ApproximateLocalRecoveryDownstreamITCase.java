@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.TestLogger;
@@ -78,11 +78,8 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
     public void localTaskFailureRecoveryThreeTasks() throws Exception {
         final int failAfterElements = 150;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1)
-                .setBufferTimeout(0)
-                .setMaxParallelism(128)
-                .disableOperatorChaining()
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        env.setParallelism(1).setBufferTimeout(0).setMaxParallelism(128).disableOperatorChaining();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         env.getCheckpointConfig().enableApproximateLocalRecovery(true);
 
         env.addSource(new AppSourceFunction())
@@ -112,11 +109,8 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
         final int failAfterElements = 20;
         final int keyByChannelNumber = 2;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1)
-                .setBufferTimeout(0)
-                .disableOperatorChaining()
-                .setMaxParallelism(128)
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        env.setParallelism(1).setBufferTimeout(0).disableOperatorChaining().setMaxParallelism(128);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         env.getCheckpointConfig().enableApproximateLocalRecovery(true);
 
         env.addSource(

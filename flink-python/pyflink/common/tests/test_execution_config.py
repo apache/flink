@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode, Configuration)
+from pyflink.common import (ExecutionConfig, ExecutionMode, Configuration)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.java_utils import get_j_env_configuration
@@ -90,29 +90,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.execution_config.set_task_cancellation_timeout(3000)
 
         self.assertEqual(self.execution_config.get_task_cancellation_timeout(), 3000)
-
-    def test_get_set_restart_strategy(self):
-
-        self.execution_config.set_restart_strategy(RestartStrategies.no_restart())
-
-        self.assertEqual(self.execution_config.get_restart_strategy(),
-                         RestartStrategies.no_restart())
-
-        self.execution_config.set_restart_strategy(
-            RestartStrategies.failure_rate_restart(5, 10000, 5000))
-
-        self.assertIsInstance(self.execution_config.get_restart_strategy(),
-                              RestartStrategies.FailureRateRestartStrategyConfiguration)
-
-        self.execution_config.set_restart_strategy(RestartStrategies.fixed_delay_restart(4, 10000))
-
-        self.assertIsInstance(self.execution_config.get_restart_strategy(),
-                              RestartStrategies.FixedDelayRestartStrategyConfiguration)
-
-        self.execution_config.set_restart_strategy(RestartStrategies.fall_back_restart())
-
-        self.assertEqual(self.execution_config.get_restart_strategy(),
-                         RestartStrategies.fall_back_restart())
 
     def test_get_set_execution_mode(self):
 

@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -45,7 +46,6 @@ import java.util.Map;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.noRestart;
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 
 /** Helper to build {@link TestJobWithDescription}. */
@@ -265,7 +265,7 @@ public class TestJobBuilders {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(4);
-        env.setRestartStrategy(noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.enableCheckpointing(200); // shouldn't matter
         env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getConfig().setAutoWatermarkInterval(50);

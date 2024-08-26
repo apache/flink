@@ -34,7 +34,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -849,72 +848,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     public Path getDefaultSavepointDirectory() {
         String path = this.configuration.get(CheckpointingOptions.SAVEPOINT_DIRECTORY);
         return path == null ? null : new Path(path);
-    }
-
-    /**
-     * Sets the restart strategy configuration. The configuration specifies which restart strategy
-     * will be used for the execution graph in case of a restart.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
-     *     restart strategies.
-     * @param restartStrategyConfiguration Restart strategy configuration to be set
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setRestartStrategy(
-            RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-        config.setRestartStrategy(restartStrategyConfiguration);
-    }
-
-    /**
-     * Returns the specified restart strategy configuration.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
-     *     restart strategies.
-     * @return The restart strategy configuration to be used
-     */
-    @Deprecated
-    @PublicEvolving
-    public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
-        return config.getRestartStrategy();
-    }
-
-    /**
-     * Sets the number of times that failed tasks are re-executed. A value of zero effectively
-     * disables fault tolerance. A value of {@code -1} indicates that the system default value (as
-     * defined in the configuration) should be used.
-     *
-     * @param numberOfExecutionRetries The number of times the system will try to re-execute failed
-     *     tasks.
-     * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies#fixedDelayRestart(int, Duration)} contains the number of execution
-     *     retries.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-        config.setNumberOfExecutionRetries(numberOfExecutionRetries);
-    }
-
-    /**
-     * Gets the number of times the system will try to re-execute failed tasks. A value of {@code
-     * -1} indicates that the system default value (as defined in the configuration) should be used.
-     *
-     * @return The number of times the system will try to re-execute failed tasks.
-     * @deprecated This method will be replaced by {@link #getRestartStrategy}.
-     */
-    @Deprecated
-    @PublicEvolving
-    public int getNumberOfExecutionRetries() {
-        return config.getNumberOfExecutionRetries();
     }
 
     // --------------------------------------------------------------------------------------------

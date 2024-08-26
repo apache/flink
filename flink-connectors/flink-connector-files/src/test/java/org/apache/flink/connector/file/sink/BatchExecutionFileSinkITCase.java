@@ -20,7 +20,6 @@ package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
@@ -32,8 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
-
-import java.time.Duration;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 /** Tests the functionality of the {@link FileSink} in BATCH mode. */
 class BatchExecutionFileSinkITCase extends FileSinkITBase {
@@ -50,9 +48,9 @@ class BatchExecutionFileSinkITCase extends FileSinkITBase {
         env.configure(config, getClass().getClassLoader());
 
         if (triggerFailover) {
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Duration.ofMillis(100)));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 100);
         } else {
-            env.setRestartStrategy(RestartStrategies.noRestart());
+            RestartStrategyUtils.configureNoRestartStrategy(env);
         }
 
         // Create a testing job with a bounded legacy source in a bit hacky way.
