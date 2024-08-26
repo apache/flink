@@ -20,7 +20,6 @@ package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -35,6 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -175,7 +175,7 @@ public class ReactiveModeITCase extends TestLogger {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // configure exactly one restart to avoid restart loops in error cases
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         final DataStream<String> input = env.addSource(new DummySource());
         input.sinkTo(new DiscardingSink<>());
 

@@ -17,9 +17,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -33,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.types.IntValue;
 
 import org.assertj.core.api.Assertions;
@@ -136,9 +135,7 @@ class JobIntermediateDatasetReuseTest {
             miniCluster.startTaskManager();
 
             final JobGraph secondJobGraph = createSecondJobGraph(1, intermediateDataSetID);
-            final ExecutionConfig executionConfig = new ExecutionConfig();
-            executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1024, 1000));
-            secondJobGraph.setExecutionConfig(executionConfig);
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(secondJobGraph, 1024, 1000L);
             miniCluster.submitJob(secondJobGraph).get();
             jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
             jobResult = jobResultFuture.get();

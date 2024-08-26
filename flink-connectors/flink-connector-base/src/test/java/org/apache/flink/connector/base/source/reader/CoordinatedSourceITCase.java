@@ -21,7 +21,6 @@ package org.apache.flink.connector.base.source.reader;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SplitEnumerator;
@@ -32,6 +31,7 @@ import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -74,7 +74,7 @@ public class CoordinatedSourceITCase extends AbstractTestBaseJUnit4 {
         OnceFailingToCreateEnumeratorSource.reset();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
         final Source<Integer, ?, ?> source =
                 new OnceFailingToCreateEnumeratorSource(2, 10, Boundedness.BOUNDED);
         final DataStream<Integer> stream =
@@ -87,7 +87,7 @@ public class CoordinatedSourceITCase extends AbstractTestBaseJUnit4 {
         OnceFailingToRestoreEnumeratorSource.reset();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
         env.enableCheckpointing(10);
 
         final Source<Integer, ?, ?> source =

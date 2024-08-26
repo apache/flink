@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.execution.Environment;
@@ -40,6 +38,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
@@ -165,9 +164,7 @@ class TaskExecutorITCase {
 
     private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
         final JobGraph jobGraph = createJobGraph(parallelism);
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
-        jobGraph.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 2, 0L);
 
         return jobGraph;
     }

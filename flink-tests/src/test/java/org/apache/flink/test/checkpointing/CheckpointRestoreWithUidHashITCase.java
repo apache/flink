@@ -19,7 +19,6 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -38,6 +37,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 
@@ -140,7 +140,7 @@ public class CheckpointRestoreWithUidHashITCase {
         final int maxNumber = 100;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 500));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 2, 500L);
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
 
         JobGraph jobGraph =

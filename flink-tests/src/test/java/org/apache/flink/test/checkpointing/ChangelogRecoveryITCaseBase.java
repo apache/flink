@@ -21,7 +21,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -58,6 +57,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.AbstractID;
@@ -161,8 +161,8 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableCheckpointing(checkpointInterval).enableChangelogStateBackend(true);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.setStateBackend(stateBackend)
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(restartAttempts, 0));
+        env.setStateBackend(stateBackend);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, restartAttempts, 0);
         if (materializationInterval >= 0) {
             env.configure(
                     new Configuration()

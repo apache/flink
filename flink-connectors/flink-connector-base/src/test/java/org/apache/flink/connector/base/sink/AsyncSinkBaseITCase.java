@@ -17,18 +17,16 @@
 
 package org.apache.flink.connector.base.sink;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
-
-import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -67,7 +65,7 @@ public class AsyncSinkBaseITCase {
     @Test
     public void testThatNoIssuesOccurWhenCheckpointingIsEnabled() throws Exception {
         env.enableCheckpointing(20);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Duration.ofMillis(200)));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 200);
         env.fromSequence(1, 10_000).map(Object::toString).sinkTo(new ArrayListAsyncSink());
         env.execute("Integration Test: AsyncSinkBaseITCase");
     }

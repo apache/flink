@@ -18,9 +18,7 @@
 
 package org.apache.flink.test.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -39,6 +37,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -144,13 +143,13 @@ public class SchedulingITCase extends TestLogger {
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, delay));
+        JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(source, sink))
+                        .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, delay);
 
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertices(Arrays.asList(source, sink))
-                .setExecutionConfig(executionConfig)
-                .build();
+        return jobGraph;
     }
 
     /** Invokable which fails exactly once (one sub task of it). */

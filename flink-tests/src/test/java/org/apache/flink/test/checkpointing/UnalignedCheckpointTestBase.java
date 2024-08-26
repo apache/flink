@@ -25,7 +25,6 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -61,6 +60,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
@@ -753,10 +753,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             env.getCheckpointConfig()
                     .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);
             env.setParallelism(parallelism);
-            env.setRestartStrategy(
-                    RestartStrategies.fixedDelayRestart(
-                            generateCheckpoint ? expectedFailures / 2 : expectedFailures,
-                            Duration.ofMillis(100)));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                    env, generateCheckpoint ? expectedFailures / 2 : expectedFailures, 100L);
             env.getCheckpointConfig().enableUnalignedCheckpoints(true);
             // for custom partitioner
             env.getCheckpointConfig().setForceUnalignedCheckpoints(true);

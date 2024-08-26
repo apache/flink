@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -48,6 +47,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
@@ -301,7 +301,7 @@ class UnalignedCheckpointStressITCase {
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(CHECKPOINT_INTERVAL);
         env.getCheckpointConfig().enableUnalignedCheckpoints();
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);

@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -35,6 +34,7 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeW
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
@@ -87,7 +87,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 1);
@@ -150,7 +150,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))
@@ -213,7 +213,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 1);
             env.addSource(new FailingSource(new Generator(), numElements, true))
@@ -256,7 +256,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))

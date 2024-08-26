@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -51,7 +52,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
@@ -125,7 +125,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointIdOfIgnoredInFlightData(1);
-        env.setRestartStrategy(fixedDelayRestart(1, 0));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         env.addSource(new NumberSource(lastCheckpointValue))
                 // map for having parallel execution.

@@ -18,7 +18,6 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.AccumulatingIntegerSink;
 import org.apache.flink.test.checkpointing.utils.CancellingIntegerSource;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -197,7 +197,7 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
     private StreamExecutionEnvironment env(boolean isAligned, int checkpointingInterval) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.getCheckpointConfig().enableUnalignedCheckpoints(!isAligned);
         env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().setExternalizedCheckpointRetention(RETAIN_ON_CANCELLATION);

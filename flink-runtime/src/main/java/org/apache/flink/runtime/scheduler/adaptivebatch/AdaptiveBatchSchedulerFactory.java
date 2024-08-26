@@ -138,7 +138,6 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                                executionConfig.getRestartStrategy(),
                                 jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())

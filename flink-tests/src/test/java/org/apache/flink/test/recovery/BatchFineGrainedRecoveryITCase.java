@@ -21,12 +21,12 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -235,6 +235,12 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         configuration.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 PIPELINED_REGION_RESTART_STRATEGY_NAME);
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                MAX_JOB_RESTART_ATTEMPTS);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(10));
         return configuration;
     }
 
@@ -259,9 +265,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
     private static ExecutionEnvironment createExecutionEnvironment() {
         @SuppressWarnings("StaticVariableUsedBeforeInitialization")
         ExecutionEnvironment env = new TestEnvironment(miniCluster, 1, true);
-        env.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(
-                        MAX_JOB_RESTART_ATTEMPTS, Duration.ofMillis(10)));
+
         env.getConfig()
                 .setExecutionMode(
                         ExecutionMode.BATCH_FORCED); // forces all partitions to be blocking

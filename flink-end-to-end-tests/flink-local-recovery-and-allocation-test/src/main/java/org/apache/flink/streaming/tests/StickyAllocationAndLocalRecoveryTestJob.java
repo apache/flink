@@ -20,7 +20,6 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,7 +27,9 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -45,6 +46,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -88,9 +90,16 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         env.setParallelism(pt.getInt("parallelism", 1));
         env.setMaxParallelism(pt.getInt("maxParallelism", pt.getInt("parallelism", 1)));
         env.enableCheckpointing(pt.getInt("checkpointInterval", 1000));
-        env.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(
-                        Integer.MAX_VALUE, pt.getInt("restartDelay", 0)));
+
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                Duration.ofMillis(pt.getInt("restartDelay", 0)));
+
+        env.configure(configuration);
         if (pt.getBoolean("externalizedCheckpoints", false)) {
             env.getCheckpointConfig()
                     .setExternalizedCheckpointRetention(
