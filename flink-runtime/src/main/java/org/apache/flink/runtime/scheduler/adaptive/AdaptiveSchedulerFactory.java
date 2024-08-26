@@ -89,9 +89,6 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                                                 "The AdaptiveScheduler requires a DeclarativeSlotPool."));
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                                jobGraph.getSerializedExecutionConfig()
-                                        .deserializeValue(userCodeLoader)
-                                        .getRestartStrategy(),
                                 jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())

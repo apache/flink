@@ -22,7 +22,8 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -92,7 +93,9 @@ public class ArchivedExecutionGraphTest {
 
         ExecutionConfig config = new ExecutionConfig();
 
-        config.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        config.configure(configuration, Thread.currentThread().getContextClassLoader());
         config.setParallelism(4);
         config.enableObjectReuse();
         config.setGlobalJobParameters(new TestJobParameters());

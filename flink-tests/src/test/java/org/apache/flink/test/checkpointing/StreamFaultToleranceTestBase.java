@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -127,7 +127,15 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(500);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                    Integer.MAX_VALUE);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             testProgram(env);
 

@@ -44,11 +44,10 @@ public class ArchivedExecutionConfig implements Serializable {
 
     public ArchivedExecutionConfig(ExecutionConfig ec) {
         executionMode = ec.getExecutionMode().name();
-        if (ec.getRestartStrategy() != null) {
-            restartStrategyDescription = ec.getRestartStrategy().getDescription();
-        } else {
-            restartStrategyDescription = "default";
-        }
+        // After remove restart strategy public API, we should set the restart strategy description
+        // is always "Cluster level default restart strategy" for backward compatibility
+        restartStrategyDescription = "Cluster level default restart strategy";
+
         maxParallelism = ec.getMaxParallelism();
         parallelism = ec.getParallelism();
         objectReuseEnabled = ec.isObjectReuseEnabled();

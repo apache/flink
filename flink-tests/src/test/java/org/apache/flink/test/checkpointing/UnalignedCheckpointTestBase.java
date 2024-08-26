@@ -25,12 +25,10 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
@@ -47,6 +45,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
@@ -754,10 +753,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             env.getCheckpointConfig()
                     .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);
             env.setParallelism(parallelism);
-            env.setRestartStrategy(
-                    RestartStrategies.fixedDelayRestart(
-                            generateCheckpoint ? expectedFailures / 2 : expectedFailures,
-                            Time.milliseconds(100)));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                    generateCheckpoint ? expectedFailures / 2 : expectedFailures);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(100));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
             env.getCheckpointConfig().enableUnalignedCheckpoints(true);
             // for custom partitioner
             env.getCheckpointConfig().setForceUnalignedCheckpoints(true);

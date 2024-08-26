@@ -20,11 +20,11 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -89,7 +89,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             env.addSource(
                             new FailingSource(
@@ -166,7 +172,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             env.addSource(
                             new FailingSource(
@@ -244,7 +256,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             env.addSource(
                             new FailingSource(
@@ -325,7 +343,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             env.addSource(
                             new FailingSource(

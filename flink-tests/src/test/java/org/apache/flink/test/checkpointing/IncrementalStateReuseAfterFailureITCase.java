@@ -17,10 +17,10 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.operators.lifecycle.TestJobExecutor;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
@@ -101,7 +101,13 @@ public class IncrementalStateReuseAfterFailureITCase {
 
         // reliably fails Changelog with FLINK-25395, but might affect any incremental backend
         env.enableChangelogStateBackend(true);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.setMaxParallelism(1); // simplify debugging
         env.setParallelism(1); // simplify debugging
 

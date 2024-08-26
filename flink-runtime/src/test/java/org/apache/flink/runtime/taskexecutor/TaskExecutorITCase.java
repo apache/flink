@@ -20,7 +20,8 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.execution.Environment;
@@ -47,6 +48,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
@@ -166,9 +168,14 @@ class TaskExecutorITCase {
     private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
         final JobGraph jobGraph = createJobGraph(parallelism);
         final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
+        Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 2);
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        executionConfig.configure(jobConfiguration, Thread.currentThread().getContextClassLoader());
         jobGraph.setExecutionConfig(executionConfig);
-
+        jobGraph.setJobConfiguration(jobConfiguration);
         return jobGraph;
     }
 

@@ -20,10 +20,10 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -705,8 +705,14 @@ class MiniClusterITCase {
         final JobGraph jg = JobGraphTestUtils.streamingJobGraph(task);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+        Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        executionConfig.configure(jobConfiguration, Thread.currentThread().getContextClassLoader());
+        jg.setJobConfiguration(jobConfiguration);
         jg.setExecutionConfig(executionConfig);
 
         return jg;

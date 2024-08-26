@@ -21,12 +21,13 @@ package org.apache.flink.connector.base.source.reader;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -40,6 +41,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
@@ -74,7 +76,14 @@ public class CoordinatedSourceITCase extends AbstractTestBaseJUnit4 {
         OnceFailingToCreateEnumeratorSource.reset();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         final Source<Integer, ?, ?> source =
                 new OnceFailingToCreateEnumeratorSource(2, 10, Boundedness.BOUNDED);
         final DataStream<Integer> stream =
@@ -87,7 +96,14 @@ public class CoordinatedSourceITCase extends AbstractTestBaseJUnit4 {
         OnceFailingToRestoreEnumeratorSource.reset();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.enableCheckpointing(10);
 
         final Source<Integer, ?, ?> source =

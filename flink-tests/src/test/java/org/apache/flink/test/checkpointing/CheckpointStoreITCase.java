@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
@@ -41,10 +42,10 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
@@ -78,7 +79,15 @@ public class CheckpointStoreITCase extends TestLogger {
             throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10);
-        env.setRestartStrategy(fixedDelayRestart(2 /* failure on processing + on recovery */, 0));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                2 /* failure on processing + on recovery */);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.addSource(emitUntil(() -> FailingMapper.failedAndProcessed))
                 .map(new FailingMapper())
                 .sinkTo(new DiscardingSink<>());

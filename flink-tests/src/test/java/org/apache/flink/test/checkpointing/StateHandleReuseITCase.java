@@ -17,7 +17,8 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.operators.lifecycle.TestJobExecutor;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
@@ -74,7 +75,9 @@ public class StateHandleReuseITCase extends AbstractTestBaseJUnit4 {
                 env -> {
                     env.setParallelism(1);
                     env.enableCheckpointing(10);
-                    env.setRestartStrategy(RestartStrategies.noRestart());
+                    Configuration configuration = new Configuration();
+                    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                    env.configure(configuration, Thread.currentThread().getContextClassLoader());
                     env.setStateBackend(new MockStateBackend(new SingleHandleSnapshotSupplier()));
                     // changelog backend doesn't work with the mock backend
                     env.enableChangelogStateBackend(false);

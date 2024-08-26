@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.ConfigOption;
@@ -109,8 +108,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     public static final int PARALLELISM_UNKNOWN = -2;
 
-    private static final long DEFAULT_RESTART_DELAY = 10000L;
-
     /**
      * Internal {@link ConfigOption}s, that are not exposed and it's not possible to configure them
      * via config files. We are defining them here, so that we can store them in the {@link
@@ -127,17 +124,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                     .defaultValue(ExecutionMode.PIPELINED)
                     .withDescription("Defines how data exchange happens - batch or pipelined");
 
-    /**
-     * Use {@link
-     * org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration}
-     */
-    @Deprecated
-    private static final ConfigOption<Integer> EXECUTION_RETRIES =
-            key("hidden.execution.retries")
-                    .intType()
-                    .defaultValue(-1)
-                    .withDescription(
-                            "Should no longer be used because it is subsumed by RestartStrategyConfiguration");
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -152,23 +138,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     public SerializerConfig getSerializerConfig() {
         return serializerConfig;
     }
-
-    /**
-     * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
-     */
-    @Deprecated private long executionRetryDelay = DEFAULT_RESTART_DELAY;
-
-    /**
-     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
-     *     restart strategies.
-     */
-    @Deprecated
-    private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
-            new RestartStrategies.FallbackRestartStrategyConfiguration();
 
     public ExecutionConfig() {
         this(new Configuration());
@@ -438,129 +407,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return this;
     }
 
-    /**
-     * Sets the restart strategy to be used for recovery.
-     *
-     * <pre>{@code
-     * ExecutionConfig config = env.getConfig();
-     *
-     * config.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-     * 	10,  // number of retries
-     * 	1000 // delay between retries));
-     * }</pre>
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
-     *     restart strategies.
-     * @param restartStrategyConfiguration Configuration defining the restart strategy to use
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setRestartStrategy(
-            RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-        this.restartStrategyConfiguration =
-                Preconditions.checkNotNull(restartStrategyConfiguration);
-    }
-
-    /**
-     * Returns the restart strategy which has been set for the current job.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
-     *     restart strategies.
-     * @return The specified restart configuration
-     */
-    @Deprecated
-    @PublicEvolving
-    public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
-        if (restartStrategyConfiguration
-                instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
-            // support the old API calls by creating a restart strategy from them
-            if (getNumberOfExecutionRetries() > 0 && getExecutionRetryDelay() >= 0) {
-                return RestartStrategies.fixedDelayRestart(
-                        getNumberOfExecutionRetries(), getExecutionRetryDelay());
-            } else if (getNumberOfExecutionRetries() == 0) {
-                return RestartStrategies.noRestart();
-            } else {
-                return restartStrategyConfiguration;
-            }
-        } else {
-            return restartStrategyConfiguration;
-        }
-    }
-
     @Internal
     public Optional<SchedulerType> getSchedulerType() {
         return configuration.getOptional(JobManagerOptions.SCHEDULER);
-    }
-
-    /**
-     * Gets the number of times the system will try to re-execute failed tasks. A value of {@code
-     * -1} indicates that the system default value (as defined in the configuration) should be used.
-     *
-     * @return The number of times the system will try to re-execute failed tasks.
-     * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
-     */
-    @Deprecated
-    public int getNumberOfExecutionRetries() {
-        return configuration.get(EXECUTION_RETRIES);
-    }
-
-    /**
-     * Returns the delay between execution retries.
-     *
-     * @return The delay between successive execution retries in milliseconds.
-     * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
-     */
-    @Deprecated
-    public long getExecutionRetryDelay() {
-        return executionRetryDelay;
-    }
-
-    /**
-     * Sets the number of times that failed tasks are re-executed. A value of zero effectively
-     * disables fault tolerance. A value of {@code -1} indicates that the system default value (as
-     * defined in the configuration) should be used.
-     *
-     * @param numberOfExecutionRetries The number of times the system will try to re-execute failed
-     *     tasks.
-     * @return The current execution configuration
-     * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
-     *     execution retries.
-     */
-    @Deprecated
-    public ExecutionConfig setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-        if (numberOfExecutionRetries < -1) {
-            throw new IllegalArgumentException(
-                    "The number of execution retries must be non-negative, or -1 (use system default)");
-        }
-        configuration.set(EXECUTION_RETRIES, numberOfExecutionRetries);
-        return this;
-    }
-
-    /**
-     * Sets the delay between executions.
-     *
-     * @param executionRetryDelay The number of milliseconds the system will wait to retry.
-     * @return The current execution configuration
-     * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the delay between
-     *     successive execution attempts.
-     */
-    @Deprecated
-    public ExecutionConfig setExecutionRetryDelay(long executionRetryDelay) {
-        if (executionRetryDelay < 0) {
-            throw new IllegalArgumentException("The delay between retries must be non-negative.");
-        }
-        this.executionRetryDelay = executionRetryDelay;
-        return this;
     }
 
     /**
@@ -1130,13 +979,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
             ExecutionConfig other = (ExecutionConfig) obj;
 
             return Objects.equals(configuration, other.configuration)
-                    && Objects.equals(serializerConfig, other.serializerConfig)
-                    && ((restartStrategyConfiguration == null
-                                    && other.restartStrategyConfiguration == null)
-                            || (null != restartStrategyConfiguration
-                                    && restartStrategyConfiguration.equals(
-                                            other.restartStrategyConfiguration)));
-
+                    && Objects.equals(serializerConfig, other.serializerConfig);
         } else {
             return false;
         }
@@ -1144,7 +987,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     @Override
     public int hashCode() {
-        return Objects.hash(configuration, serializerConfig, restartStrategyConfiguration);
+        return Objects.hash(configuration, serializerConfig);
     }
 
     @Override
@@ -1154,10 +997,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + configuration
                 + ", serializerConfig="
                 + serializerConfig
-                + ", executionRetryDelay="
-                + executionRetryDelay
-                + ", restartStrategyConfiguration="
-                + restartStrategyConfiguration
                 + '}';
     }
 
@@ -1317,13 +1156,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 .ifPresent(this::setUseSnapshotCompression);
         configuration
                 .getOptional(RestartStrategyOptions.RESTART_STRATEGY)
-                .ifPresent(
-                        s -> {
-                            this.setRestartStrategy(configuration);
-                            // reset RestartStrategies for backward compatibility
-                            this.setRestartStrategy(
-                                    new RestartStrategies.FallbackRestartStrategyConfiguration());
-                        });
+                .ifPresent(s -> this.setRestartStrategy(configuration));
 
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)

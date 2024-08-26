@@ -22,9 +22,10 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -90,7 +92,15 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
             assertEquals("test setup broken", PARALLELISM, env.getParallelism());
 
             env.enableCheckpointing(500);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                    Integer.MAX_VALUE);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             final int numElements = 10000;
             final int numTaskTotal = PARALLELISM * 5;

@@ -19,11 +19,11 @@
 package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -63,6 +63,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -212,7 +213,13 @@ public abstract class S5CmdOnMinioITCase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
         env.enableCheckpointing(CHECKPOINT_INTERVAL);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.setStateBackend(new EmbeddedRocksDBStateBackend());
         // Disable changelog, to make sure state is stored in the RocksDB, not in changelog, as
         // currently only RocksDB is using s5cmd.

@@ -20,9 +20,9 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -38,6 +38,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -78,11 +79,13 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
     public void localTaskFailureRecoveryThreeTasks() throws Exception {
         final int failAfterElements = 150;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1)
-                .setBufferTimeout(0)
-                .setMaxParallelism(128)
-                .disableOperatorChaining()
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        env.setParallelism(1).setBufferTimeout(0).setMaxParallelism(128).disableOperatorChaining();
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.getCheckpointConfig().enableApproximateLocalRecovery(true);
 
         env.addSource(new AppSourceFunction())
@@ -112,11 +115,14 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
         final int failAfterElements = 20;
         final int keyByChannelNumber = 2;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1)
-                .setBufferTimeout(0)
-                .disableOperatorChaining()
-                .setMaxParallelism(128)
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        env.setParallelism(1).setBufferTimeout(0).disableOperatorChaining().setMaxParallelism(128);
+
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.getCheckpointConfig().enableApproximateLocalRecovery(true);
 
         env.addSource(

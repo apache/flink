@@ -24,13 +24,13 @@ import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.execution.RestoreMode;
@@ -454,7 +454,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                         retainCheckpoints
                                 ? ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION
                                 : ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         env.addSource(new NotifyingInfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())

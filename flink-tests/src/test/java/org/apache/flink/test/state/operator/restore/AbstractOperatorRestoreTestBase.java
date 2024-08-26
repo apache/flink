@@ -20,9 +20,10 @@ package org.apache.flink.test.state.operator.restore;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -258,7 +259,9 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
     private JobGraph createJobGraph(ExecutionMode mode) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.setStateBackend((StateBackend) new MemoryStateBackend());
 
         switch (mode) {

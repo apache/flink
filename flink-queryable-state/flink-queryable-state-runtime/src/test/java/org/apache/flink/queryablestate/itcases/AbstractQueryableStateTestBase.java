@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -44,6 +43,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
@@ -163,7 +164,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
@@ -267,7 +274,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
@@ -343,7 +356,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -391,7 +410,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         // Custom serializer is not needed, it's used just to check if serialization works.
         env.getConfig()
@@ -458,7 +483,13 @@ public abstract class AbstractQueryableStateTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -552,7 +583,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because clusterClient is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -613,7 +650,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -682,7 +725,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -732,7 +781,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -809,7 +864,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -912,7 +973,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -1016,7 +1083,13 @@ public abstract class AbstractQueryableStateTestBase {
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));

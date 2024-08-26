@@ -19,11 +19,11 @@
 package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.file.sink.FileSink.DefaultRowFormatBuilder;
 import org.apache.flink.connector.file.sink.compactor.DecoderBasedReader;
@@ -222,7 +222,9 @@ public class FileSinkCompactionSwitchITCase {
         env.configure(config, getClass().getClassLoader());
 
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage(cpPath));
         env.setStateBackend(new HashMapStateBackend());
 

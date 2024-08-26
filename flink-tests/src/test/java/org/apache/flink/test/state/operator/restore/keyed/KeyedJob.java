@@ -20,7 +20,6 @@ package org.apache.flink.test.state.operator.restore.keyed;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -28,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -67,7 +67,9 @@ public class KeyedJob {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         env.setStateBackend(new MemoryStateBackend());
 

@@ -28,7 +28,6 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.io import InputFormat
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
-from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.datastream import SlotSharingGroup
 from pyflink.datastream.checkpoint_config import CheckpointConfig
@@ -430,38 +429,6 @@ class StreamExecutionEnvironment(object):
             return None
         else:
             return j_path.toString()
-
-    def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
-        """
-        Sets the restart strategy configuration. The configuration specifies which restart strategy
-        will be used for the execution graph in case of a restart.
-
-        Example:
-        ::
-
-            >>> env.set_restart_strategy(RestartStrategies.no_restart())
-
-        :param restart_strategy_configuration: Restart strategy configuration to be set.
-        :return:
-
-        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
-                  future FLINK major version. Use `stream_execution_environment.configure` method
-                  instead to set the restart strategy.
-        """
-        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
-                      " in future FLINK major version. Use `stream_execution_environment.configure`"
-                      " method instead to set the restart strategy.", DeprecationWarning)
-        self._j_stream_execution_environment.setRestartStrategy(
-            restart_strategy_configuration._j_restart_strategy_configuration)
-
-    def get_restart_strategy(self) -> RestartStrategyConfiguration:
-        """
-        Returns the specified restart strategy configuration.
-
-        :return: The restart strategy configuration to be used.
-        """
-        return RestartStrategies._from_j_restart_strategy(
-            self._j_stream_execution_environment.getRestartStrategy())
 
     def add_default_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
         """

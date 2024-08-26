@@ -19,7 +19,8 @@
 package org.apache.flink.api.connector.source.lib;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -77,7 +78,9 @@ public class NumberSequenceSourceITCase extends TestLogger {
     public void testCheckpointingWithDelayedAssignment() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
         final SingleOutputStreamOperator<Long> stream =
                 env.fromSequence(0, 100)

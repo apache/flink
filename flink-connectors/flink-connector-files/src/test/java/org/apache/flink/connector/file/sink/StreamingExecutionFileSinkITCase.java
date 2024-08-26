@@ -19,12 +19,11 @@
 package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -39,6 +38,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -82,9 +82,18 @@ class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
 
         if (triggerFailover) {
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(100)));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(100));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         } else {
-            env.setRestartStrategy(RestartStrategies.noRestart());
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
         }
 
         DataStreamSink<Integer> sink =

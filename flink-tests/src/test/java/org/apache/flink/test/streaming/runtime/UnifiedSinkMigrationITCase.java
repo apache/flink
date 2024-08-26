@@ -20,12 +20,12 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -136,7 +136,11 @@ class UnifiedSinkMigrationITCase {
 
         env.enableCheckpointing(100);
         env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.fromSequence(1, Long.MAX_VALUE)
                 .map(
                         (MapFunction<Long, Long>)

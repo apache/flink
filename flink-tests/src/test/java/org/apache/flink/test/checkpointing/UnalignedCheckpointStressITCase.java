@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,6 +27,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -301,7 +301,8 @@ class UnalignedCheckpointStressITCase {
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(CHECKPOINT_INTERVAL);
         env.getCheckpointConfig().enableUnalignedCheckpoints();
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);

@@ -20,9 +20,10 @@ package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -38,6 +39,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -122,10 +124,17 @@ public class HybridSourceITCase extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(
-                FailoverType.NONE == failoverType
-                        ? RestartStrategies.noRestart()
-                        : RestartStrategies.fixedDelayRestart(1, 0));
+        Configuration configuration = new Configuration();
+        if (FailoverType.NONE == failoverType) {
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        } else {
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofSeconds(0));
+        }
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         final DataStream<Integer> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "hybrid-source")

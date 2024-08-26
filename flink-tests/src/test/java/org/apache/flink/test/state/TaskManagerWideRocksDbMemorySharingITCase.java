@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBMemoryControllerUtils.RocksDBMemoryFactory;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
@@ -51,7 +52,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.noRestart;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 
 /**
@@ -126,7 +126,8 @@ public class TaskManagerWideRocksDbMemorySharingITCase extends TestLogger {
 
         // don't flush memtables by checkpoints
         env.enableCheckpointing(24 * 60 * 60 * 1000, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(noRestart());
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStreamSource<Long> src = env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE);
         src.keyBy(number -> number)

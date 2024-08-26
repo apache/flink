@@ -21,11 +21,11 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,6 +45,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Map;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
@@ -87,7 +88,13 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 1);
@@ -150,7 +157,14 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))
@@ -213,7 +227,14 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 1);
             env.addSource(new FailingSource(new Generator(), numElements, true))
@@ -256,7 +277,14 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            Configuration configuration = new Configuration();
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+            configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+            configuration.set(
+                    RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                    Duration.ofMillis(0));
+            env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))

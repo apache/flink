@@ -22,11 +22,11 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
@@ -238,7 +238,9 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                         TestEnvironmentSettings.builder()
                                 .setConnectorJarPaths(externalContext.getConnectorJarPaths())
                                 .build());
-        execEnv.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        execEnv.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         // Step 2: Generate test data
         final List<T> testRecords = generateTestData(sinkSettings, externalContext);

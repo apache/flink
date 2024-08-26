@@ -21,16 +21,15 @@ package org.apache.flink.test.scheduling;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -182,7 +181,13 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     public void testStopWithSavepointFailOnCheckpoint() throws Exception {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -207,7 +212,13 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     public void testStopWithSavepointFailOnStop() throws Throwable {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -236,7 +247,12 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     @Test
     public void testStopWithSavepointFailOnFirstSavepointSucceedOnSecond() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         env.setParallelism(PARALLELISM);
 
@@ -314,7 +330,12 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         jobVertex.setParallelism(1);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.hours(1)));
+        Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofHours(1));
+        executionConfig.configure(jobConfiguration, Thread.currentThread().getContextClassLoader());
 
         final JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()

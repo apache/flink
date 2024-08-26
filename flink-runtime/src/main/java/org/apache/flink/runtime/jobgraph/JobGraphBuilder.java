@@ -49,9 +49,9 @@ public class JobGraphBuilder {
 
     private String jobName = "Unnamed job";
 
-    @Nullable private JobID jobId = null;
+    @Nullable private ExecutionConfig executionConfig = null;
 
-    @Nullable private SerializedValue<ExecutionConfig> serializedExecutionConfig = null;
+    @Nullable private JobID jobId = null;
 
     @Nullable private JobCheckpointingSettings jobCheckpointingSettings = null;
 
@@ -82,7 +82,7 @@ public class JobGraphBuilder {
 
     public JobGraphBuilder setExecutionConfig(ExecutionConfig newExecutionConfig)
             throws IOException {
-        this.serializedExecutionConfig = new SerializedValue<ExecutionConfig>(newExecutionConfig);
+        this.executionConfig = newExecutionConfig;
         return this;
     }
 
@@ -115,8 +115,13 @@ public class JobGraphBuilder {
 
         jobGraph.setJobType(jobType);
 
-        if (serializedExecutionConfig != null) {
-            jobGraph.setSerializedExecutionConfig(serializedExecutionConfig);
+        if (executionConfig != null) {
+            try {
+                jobGraph.setSerializedExecutionConfig(new SerializedValue<>(executionConfig));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            jobGraph.setJobConfiguration(executionConfig.toConfiguration());
         }
 
         for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :

@@ -17,8 +17,8 @@
 
 package org.apache.flink.connector.base.sink;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,6 +28,8 @@ import org.apache.flink.util.TestLoggerExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -66,7 +68,13 @@ public class AsyncSinkBaseITCase {
     @Test
     public void testThatNoIssuesOccurWhenCheckpointingIsEnabled() throws Exception {
         env.enableCheckpointing(20);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(200)));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(200));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.fromSequence(1, 10_000).map(Object::toString).sinkTo(new ArrayListAsyncSink());
         env.execute("Integration Test: AsyncSinkBaseITCase");
     }

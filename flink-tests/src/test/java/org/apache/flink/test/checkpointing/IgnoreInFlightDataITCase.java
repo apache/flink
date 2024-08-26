@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -51,7 +52,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
@@ -125,7 +125,12 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointIdOfIgnoredInFlightData(1);
-        env.setRestartStrategy(fixedDelayRestart(1, 0));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         env.addSource(new NumberSource(lastCheckpointValue))
                 // map for having parallel execution.

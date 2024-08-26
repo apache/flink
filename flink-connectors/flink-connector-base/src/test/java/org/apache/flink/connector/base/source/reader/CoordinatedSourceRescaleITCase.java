@@ -18,12 +18,12 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -124,7 +124,9 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Long> stream = env.fromSequence(0, Long.MAX_VALUE);
         stream.map(new FailingMapFunction(restoreCheckpoint == null)).addSink(new SleepySink());

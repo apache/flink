@@ -19,10 +19,11 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -89,7 +90,9 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         env.enableCheckpointing(10);
         env.getCheckpointConfig().setCheckpointStorage(new FailingFinalizationCheckpointStorage());
         env.getCheckpointConfig().setTolerableCheckpointFailureNumber(0);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         try {
@@ -112,7 +115,9 @@ public class CheckpointFailureManagerITCase extends TestLogger {
     public void testAsyncCheckpointFailureTriggerJobFailed() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.setStateBackend(new AsyncFailureStateBackend());
         env.addSource(new StringGeneratingSourceFunction()).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());

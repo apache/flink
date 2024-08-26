@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -36,6 +35,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -586,7 +586,9 @@ public class AutoRescalingITCase extends TestLogger {
         configureCheckpointing(env.getCheckpointConfig());
         env.setParallelism(parallelism);
         env.getConfig().setMaxParallelism(maxParallelism);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         StateSourceBase.workStartedLatch = new CountDownLatch(parallelism);
 
@@ -627,7 +629,8 @@ public class AutoRescalingITCase extends TestLogger {
         }
 
         configureCheckpointing(env.getCheckpointConfig());
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
         env.getConfig().setUseSnapshotCompression(true);
 
         DataStream<Integer> input =
@@ -665,7 +668,9 @@ public class AutoRescalingITCase extends TestLogger {
         env.setParallelism(parallelism);
         env.getConfig().setMaxParallelism(maxParallelism);
         configureCheckpointing(env.getCheckpointConfig());
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Integer> input =
                 env.addSource(

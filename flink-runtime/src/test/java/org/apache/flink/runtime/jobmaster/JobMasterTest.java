@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -1078,7 +1077,12 @@ class JobMasterTest {
         source.setInvokableClass(AbstractInvokable.class);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
+        Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 100);
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        executionConfig.configure(jobConfiguration, Thread.currentThread().getContextClassLoader());
 
         final JobGraph inputSplitJobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()
@@ -2557,9 +2561,15 @@ class JobMasterTest {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        executionConfig.configure(jobConfiguration, Thread.currentThread().getContextClassLoader());
         jobGraph.setExecutionConfig(executionConfig);
+        jobGraph.setJobConfiguration(jobConfiguration);
 
         return jobGraph;
     }

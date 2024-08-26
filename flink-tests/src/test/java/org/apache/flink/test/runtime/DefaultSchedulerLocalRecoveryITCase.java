@@ -20,11 +20,11 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -173,7 +173,12 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
         source.setParallelism(parallelism);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10));
+        Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        jobConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        jobConfiguration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(10));
+        executionConfig.configure(jobConfiguration, Thread.currentThread().getContextClassLoader());
 
         return JobGraphBuilder.newStreamingJobGraphBuilder()
                 .addJobVertices(Arrays.asList(source))

@@ -20,8 +20,9 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -30,6 +31,7 @@ import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test program with very fast failure rate. */
@@ -47,7 +49,12 @@ public class FastFailuresITCase extends AbstractTestBaseJUnit4 {
 
         env.setParallelism(parallelism);
         env.enableCheckpointing(1000);
-        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(210, 0));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 210);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         DataStream<Tuple2<Integer, Integer>> input =
                 env.addSource(

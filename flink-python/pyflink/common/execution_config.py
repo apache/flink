@@ -21,7 +21,6 @@ from typing import Dict, List
 
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
-from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import load_java_class
 
@@ -249,42 +248,6 @@ class ExecutionConfig(object):
         """
         self._j_execution_config = self._j_execution_config.setTaskCancellationTimeout(timeout)
         return self
-
-    def set_restart_strategy(
-            self,
-            restart_strategy_configuration: RestartStrategyConfiguration) -> 'ExecutionConfig':
-        """
-        Sets the restart strategy to be used for recovery.
-        ::
-
-            >>> config = env.get_config()
-            >>> config.set_restart_strategy(RestartStrategies.fixed_delay_restart(10, 1000))
-
-        The restart strategy configurations are all created from :class:`RestartStrategies`.
-
-        :param restart_strategy_configuration: Configuration defining the restart strategy to use.
-
-        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
-                  future FLINK major version. Use `stream_execution_environment.configure` method
-                  instead to set the restart strategy.
-        """
-        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
-                      " in future FLINK major version. Use `stream_execution_environment.configure`"
-                      " method instead to set the restart strategy.", DeprecationWarning)
-        self._j_execution_config.setRestartStrategy(
-            restart_strategy_configuration._j_restart_strategy_configuration)
-        return self
-
-    def get_restart_strategy(self) -> RestartStrategyConfiguration:
-        """
-        Returns the restart strategy which has been set for the current job.
-
-        .. seealso:: :func:`set_restart_strategy`
-
-        :return: The specified restart configuration.
-        """
-        return RestartStrategies._from_j_restart_strategy(
-            self._j_execution_config.getRestartStrategy())
 
     def set_execution_mode(self, execution_mode: ExecutionMode) -> 'ExecutionConfig':
         """

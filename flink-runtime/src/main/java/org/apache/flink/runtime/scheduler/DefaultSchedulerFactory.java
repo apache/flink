@@ -98,9 +98,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                         slotRequestTimeout);
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                                jobGraph.getSerializedExecutionConfig()
-                                        .deserializeValue(userCodeLoader)
-                                        .getRestartStrategy(),
                                 jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())

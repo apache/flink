@@ -18,8 +18,9 @@
 
 package org.apache.flink.test.runtime.entrypoint;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.ObjectOutputStream;
+import java.time.Duration;
 
 /**
  * A program to generate a job graph for entrypoint testing purposes.
@@ -45,7 +47,13 @@ public class StreamingNoop {
         // define the dataflow
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 1000));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 10);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.readFileStream("input/", 60000, FileMonitoringFunction.WatchType.ONLY_NEW_FILES)
                 .sinkTo(new DiscardingSink<>());
 

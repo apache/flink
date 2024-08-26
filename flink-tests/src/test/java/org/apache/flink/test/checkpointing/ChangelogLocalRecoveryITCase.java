@@ -17,11 +17,11 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -163,8 +163,15 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(checkpointInterval);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.setStateBackend(stateBackend)
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
+        env.setStateBackend(stateBackend);
+
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(10));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.configure(new Configuration().set(LOCAL_RECOVERY, true));
 
         env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());
@@ -178,7 +185,6 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         env.configure(configuration);
         return env;
