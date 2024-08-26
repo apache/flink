@@ -84,7 +84,7 @@ public class JoinConditionTypeCoerceRule
                                 filter -> {
                                     if (filter instanceof RexCall) {
                                         RexCall c = (RexCall) filter;
-                                        if (c.getKind().equals(SqlKind.EQUALS)) {
+                                        if (c.getKind() == SqlKind.EQUALS) {
                                             RexNode leftOp = c.getOperands().get(0);
                                             RexNode rightOp = c.getOperands().get(1);
                                             if (leftOp instanceof RexInputRef
