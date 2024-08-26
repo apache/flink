@@ -317,7 +317,7 @@ public class RocksDBResourceContainerTest {
             assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
             assertThat(actual.partitionFilters(), is(true));
             assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
-            assertThat(actual.filterPolicy(), not(blockBasedFilter));
+            assertFalse(actual.filterPolicy() == blockBasedFilter);
         }
         assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
     }
