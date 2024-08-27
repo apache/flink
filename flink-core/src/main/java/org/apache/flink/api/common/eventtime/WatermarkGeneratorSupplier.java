@@ -21,6 +21,7 @@ package org.apache.flink.api.common.eventtime;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.clock.RelativeClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.io.Serializable;
 
@@ -61,8 +62,13 @@ public interface WatermarkGeneratorSupplier<T> extends Serializable {
          * WatermarkGenerator} could not have been executed due to execution being blocked by the
          * runtime. For example a backpressure or watermark alignment blocking the progress.
          *
+         * <p>The default implementation that returns {@link SystemClock} is only for 1.19 and 1.20
+         * release to keep binary compatibility of the user's code.
+         *
          * @see RelativeClock
          */
-        RelativeClock getInputActivityClock();
+        default RelativeClock getInputActivityClock() {
+            return SystemClock.getInstance();
+        }
     }
 }
