@@ -20,12 +20,17 @@ package org.apache.flink.api.watermark;
 
 import org.apache.flink.annotation.Experimental;
 
+/**
+ * The {@link WatermarkManager} interface provides a mechanism to emit watermarks from a process
+ * function.
+ */
 @Experimental
 public interface WatermarkManager {
+
     /**
-     * Emit a watermark from process function.
+     * Emits a watermark from the process function.
      *
-     * @param watermark the watermark to emit.
+     * @param watermark the {@link GeneralizedWatermark} to emit.
      */
     void emitWatermark(GeneralizedWatermark watermark);
 }

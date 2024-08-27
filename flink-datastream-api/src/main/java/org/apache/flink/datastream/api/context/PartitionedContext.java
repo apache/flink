@@ -27,5 +27,6 @@ import org.apache.flink.datastream.watermark.AbstractPartitionedContext;
  */
 @Experimental
 public interface PartitionedContext extends AbstractPartitionedContext {
+    /** Represents the context associated with all operations must be applied to all partitions. */
     NonPartitionedContext<?> getNonPartitionedContext();
 }

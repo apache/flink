@@ -34,5 +34,6 @@ public interface NonPartitionedContext<OUT> extends RuntimeContext {
      */
     void applyToAllPartitions(ApplyPartitionFunction<OUT> applyPartitionFunction) throws Exception;
 
+    /** Emits a watermark from the process function. */
     WatermarkManager getWatermarkManager();
 }
