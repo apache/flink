@@ -296,7 +296,7 @@ function relocate_rocksdb_logs {
   # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
   # this would make e2e tests' artifacts containing too many log files.
   # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
-  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+  set_config_key "state.backend.rocksdb.log.dir" "/dev/null/rocksdb_log"
 }
 
 function wait_dispatcher_running {
