@@ -55,7 +55,7 @@ public class ConfigurationOptionLocator {
                 new OptionsClassLocation(
                         "flink-runtime", "org.apache.flink.runtime.highavailability"),
                 new OptionsClassLocation(
-                        "flink-streaming-java", "org.apache.flink.streaming.api.environment"),
+                        "flink-runtime", "org.apache.flink.streaming.api.environment"),
                 new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
                 new OptionsClassLocation(
                         "flink-metrics/flink-metrics-prometheus",
