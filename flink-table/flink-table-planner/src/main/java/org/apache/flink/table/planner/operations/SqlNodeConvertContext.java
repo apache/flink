@@ -73,6 +73,11 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     }
 
     @Override
+    public FlinkPlannerImpl getFlinkPlanner() {
+        return flinkPlanner;
+    }
+
+    @Override
     public RelRoot toRelRoot(SqlNode sqlNode) {
         return flinkPlanner.rel(sqlNode);
     }

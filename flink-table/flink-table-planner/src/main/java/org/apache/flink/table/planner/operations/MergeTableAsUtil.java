@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.operations;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
@@ -28,22 +27,39 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.SqlRewriterUtils;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 
@@ -53,7 +69,7 @@ public class MergeTableAsUtil {
     private final Function<SqlNode, String> escapeExpression;
     private final DataTypeFactory dataTypeFactory;
 
-    MergeTableAsUtil(
+    public MergeTableAsUtil(
             SqlValidator validator,
             Function<SqlNode, String> escapeExpression,
             DataTypeFactory dataTypeFactory) {
@@ -63,9 +79,90 @@ public class MergeTableAsUtil {
     }
 
     /**
-     * Merges the schema part of the {@code sqlCreateTableAs} with the {@code sourceSchema}.
+     * Rewrites the query operation to include only the fields that may be persisted in the sink.
+     */
+    public PlannerQueryOperation maybeRewriteQuery(
+            CatalogManager catalogManager,
+            FlinkPlannerImpl flinkPlanner,
+            PlannerQueryOperation origQueryOperation,
+            SqlNode origQueryNode,
+            ResolvedCatalogTable sinkTable) {
+        FlinkCalciteSqlValidator sqlValidator = flinkPlanner.getOrCreateSqlValidator();
+        SqlRewriterUtils rewriterUtils = new SqlRewriterUtils(sqlValidator);
+        FlinkTypeFactory typeFactory = (FlinkTypeFactory) sqlValidator.getTypeFactory();
+
+        // Only fields that may be persisted will be included in the select query
+        RowType sinkRowType =
+                ((RowType) sinkTable.getResolvedSchema().toSinkRowDataType().getLogicalType());
+
+        Map<String, Integer> sourceFields =
+                IntStream.range(0, origQueryOperation.getResolvedSchema().getColumnNames().size())
+                        .boxed()
+                        .collect(
+                                Collectors.toMap(
+                                        origQueryOperation.getResolvedSchema().getColumnNames()
+                                                ::get,
+                                        Function.identity()));
+
+        // assignedFields contains the new sink fields that are not present in the source
+        // and that will be included in the select query
+        LinkedHashMap<Integer, SqlNode> assignedFields = new LinkedHashMap<>();
+
+        // targetPositions contains the positions of the source fields that will be
+        // included in the select query
+        List<Object> targetPositions = new ArrayList<>();
+
+        int pos = -1;
+        for (RowType.RowField targetField : sinkRowType.getFields()) {
+            pos++;
+
+            if (!sourceFields.containsKey(targetField.getName())) {
+                if (!targetField.getType().isNullable()) {
+                    throw new ValidationException(
+                            "Column '"
+                                    + targetField.getName()
+                                    + "' has no default value and does not allow NULLs.");
+                }
+
+                assignedFields.put(
+                        pos,
+                        rewriterUtils.maybeCast(
+                                SqlLiteral.createNull(SqlParserPos.ZERO),
+                                typeFactory.createUnknownType(),
+                                typeFactory.createFieldTypeFromLogicalType(targetField.getType()),
+                                typeFactory));
+            } else {
+                targetPositions.add(sourceFields.get(targetField.getName()));
+            }
+        }
+
+        // if there are no new sink fields to include, then return the original query
+        if (assignedFields.isEmpty()) {
+            return origQueryOperation;
+        }
+
+        // rewrite query
+        SqlCall newSelect =
+                rewriterUtils.rewriteSelect(
+                        (SqlSelect) origQueryNode,
+                        typeFactory.buildRelNodeRowType(sinkRowType),
+                        assignedFields,
+                        targetPositions);
+
+        return (PlannerQueryOperation)
+                SqlNodeToOperationConversion.convert(flinkPlanner, catalogManager, newSelect)
+                        .orElseThrow(
+                                () ->
+                                        new TableException(
+                                                "Unsupported node type "
+                                                        + newSelect.getClass().getSimpleName()));
+    }
+
+    /**
+     * Merges the specified schema with columns, watermark, and constraints with the {@code
+     * sourceSchema}.
      *
-     * <p>The schema part of the {@code CREATE TABLE} statement merged includes:
+     * <p>The resulted schema will contain the following elements:
      *
      * <ul>
      *   <li>columns
@@ -75,16 +172,19 @@ public class MergeTableAsUtil {
      *   <li>primary key
      * </ul>
      *
-     * <p>It is expected that the {@code sourceSchema} contains only physical/regular columns, which
-     * is behavior of the CTAS statement to generate such schema.
+     * <p>It is expected that the {@code sourceSchema} contains only physical/regular columns.
      *
-     * <p>Columns of {@code sourceSchema} are appended to the schema of {@code sqlCreateTableAs}. If
-     * a column in the {@code sqlCreateTableAs} is already defined in {@code sourceSchema}, then the
-     * types of the columns are implicit cast and must be compatible based on the implicit cast
-     * rules. If they're compatible, then the column position in the schema stays the same as
-     * defined in the appended {@code sourceSchema}.
+     * <p>Columns of the {@code sourceSchema} are appended to the schema columns defined in the
+     * {@code sqlColumnList}. If a column in the {@code sqlColumnList} is already defined in the
+     * {@code sourceSchema}, then the types of the columns are implicit cast and must be compatible
+     * based on the implicit cast rules. If they're compatible, then the column position in the
+     * schema stays the same as defined in the appended {@code sourceSchema}.
      */
-    public Schema mergeSchemas(SqlCreateTableAs sqlCreateTableAs, ResolvedSchema sourceSchema) {
+    public Schema mergeSchemas(
+            SqlNodeList sqlColumnList,
+            @Nullable SqlWatermark sqlWatermark,
+            List<SqlTableConstraint> sqlTableConstraints,
+            ResolvedSchema sourceSchema) {
         SchemaBuilder schemaBuilder =
                 new SchemaBuilder(
                         (FlinkTypeFactory) validator.getTypeFactory(),
@@ -93,19 +193,17 @@ public class MergeTableAsUtil {
                         escapeExpression);
 
         schemaBuilder.mergeColumns(
-                sqlCreateTableAs.getColumnList(),
+                sqlColumnList,
                 Schema.newBuilder().fromResolvedSchema(sourceSchema).build().getColumns());
 
-        if (sqlCreateTableAs.getWatermark().isPresent()) {
-            schemaBuilder.setWatermark(sqlCreateTableAs.getWatermark().get());
+        if (sqlWatermark != null) {
+            schemaBuilder.setWatermark(sqlWatermark);
         }
 
         // It is assumed only a primary key constraint may be defined in the table. The
         // SqlCreateTableAs has validations to ensure this before the object is created.
         Optional<SqlTableConstraint> primaryKey =
-                sqlCreateTableAs.getFullConstraints().stream()
-                        .filter(SqlTableConstraint::isPrimaryKey)
-                        .findAny();
+                sqlTableConstraints.stream().filter(SqlTableConstraint::isPrimaryKey).findAny();
 
         if (primaryKey.isPresent()) {
             schemaBuilder.setPrimaryKey(primaryKey.get());

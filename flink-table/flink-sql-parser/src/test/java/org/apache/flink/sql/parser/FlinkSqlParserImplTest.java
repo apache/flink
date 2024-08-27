@@ -2944,17 +2944,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test replace table as select with explicit columns
         sql("REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
 
         // test replace table as select with watermark
         sql("REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+                .node(new ValidationMatcher().ok());
 
         // test replace table as select with constraints
         sql("REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
@@ -2973,17 +2967,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test replace table as select with partition key
         sql("REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
 
         // test replace table as select with distribution
         sql("REPLACE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support creating distributed tables yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
@@ -3010,17 +2998,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test create or replace table as select with explicit columns
         sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
 
         // test create or replace table as select with watermark
         sql("CREATE OR REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+                .node(new ValidationMatcher().ok());
+
         // test create or replace table as select with constraints
         sql("CREATE OR REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
@@ -3038,16 +3021,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test create or replace table as select with partition key
         sql("CREATE OR REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
 
         sql("CREATE OR REPLACE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support creating distributed tables yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
