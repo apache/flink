@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
+
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -148,7 +151,7 @@ public class HiveCatalogTest {
     @Test
     public void testCreateHiveConf() {
         // hive-conf-dir not specified, should read hive-site from classpath
-        HiveConf hiveConf = HiveCatalog.createHiveConf(null, null);
+        HiveConf hiveConf = HiveCatalog.createHiveConf(null, null, null);
         assertThat(hiveConf.get("common-key")).isEqualTo("common-val");
         // hive-conf-dir specified, shouldn't read hive-site from classpath
         String hiveConfDir =
@@ -156,8 +159,16 @@ public class HiveCatalogTest {
                         .getContextClassLoader()
                         .getResource("test-catalog-factory-conf")
                         .getPath();
-        hiveConf = HiveCatalog.createHiveConf(hiveConfDir, null);
+        hiveConf = HiveCatalog.createHiveConf(hiveConfDir, null, null);
         assertThat(hiveConf.get("common-key")).isNull();
+        // flink configuration specified
+        final Configuration configuration = new Configuration();
+        configuration.setString("flink.hive.hadoop.dfs.client.socket-timeout", "5000");
+        configuration.setString("flink.hive.hive.metastore.client.socket.timeout", "10s");
+        hiveConf = HiveCatalog.createHiveConf(null, null, configuration);
+        assertThat(hiveConf.get("dfs.client.socket-timeout")).isEqualTo("5000");
+        assertThat(hiveConf.getVar(HiveConf.ConfVars.METASTORE_CLIENT_SOCKET_TIMEOUT))
+                .isEqualTo("10s");
     }
 
     @Test

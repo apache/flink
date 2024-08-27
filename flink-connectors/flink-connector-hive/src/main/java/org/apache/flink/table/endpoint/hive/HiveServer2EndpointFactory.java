@@ -68,7 +68,7 @@ public class HiveServer2EndpointFactory implements SqlGatewayEndpointFactory {
                 configuration.get(THRIFT_WORKER_THREADS_MAX),
                 configuration.get(THRIFT_WORKER_KEEPALIVE_TIME),
                 configuration.get(CATALOG_NAME),
-                HiveCatalog.createHiveConf(configuration.get(CATALOG_HIVE_CONF_DIR), null),
+                HiveCatalog.createHiveConf(configuration.get(CATALOG_HIVE_CONF_DIR), null, null),
                 configuration.get(CATALOG_DEFAULT_DATABASE),
                 configuration.get(MODULE_NAME));
     }

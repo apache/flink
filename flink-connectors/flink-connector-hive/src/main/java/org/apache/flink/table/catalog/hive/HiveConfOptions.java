@@ -44,4 +44,7 @@ public class HiveConfOptions {
                     .durationType()
                     .defaultValue(Duration.ofMinutes(8))
                     .withDescription("The maximum time to wait for acquiring the lock.");
+
+    /** The prefixes that Flink adds to the Hive config. */
+    public static final String FLINK_HIVE_CONFIG_PREFIXES = "flink.hive.";
 }
