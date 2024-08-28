@@ -305,7 +305,7 @@ function wait_dispatcher_running {
 }
 
 function start_cluster {
-#  relocate_rocksdb_logs
+  relocate_rocksdb_logs
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
