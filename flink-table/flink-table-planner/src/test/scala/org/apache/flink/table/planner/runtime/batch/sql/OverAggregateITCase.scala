@@ -533,6 +533,33 @@ class OverAggregateITCase extends BatchTestBase {
   }
 
   @Test
+  def testWindowAggregationSumWithQualify(): Unit = {
+    checkResult(
+      "SELECT d, e FROM Table5 QUALIFY sum(e) OVER (PARTITION BY d ORDER BY e) > 20",
+      Seq(
+        row(4, 9),
+        row(4, 10),
+        row(5, 12),
+        row(5, 13),
+        row(5, 14),
+        row(5, 15)
+      )
+    )
+  }
+
+  @Test
+  def testWindowAggregationCountWithQualify(): Unit = {
+    checkResult(
+      "SELECT d, e FROM Table5 QUALIFY count(*) OVER (PARTITION BY d ORDER BY e) = 3",
+      Seq(
+        row(3, 6),
+        row(4, 9),
+        row(5, 13)
+      )
+    )
+  }
+
+  @Test
   def testWindowAggregationCountWithOrderBy(): Unit = {
 
     checkResult(

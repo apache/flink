@@ -2288,7 +2288,7 @@ public class RelBuilder {
             @Nullable Iterable<? extends @Nullable String> fieldNames,
             boolean force,
             Iterable<CorrelationId> variablesSet) {
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({"unchecked", "rawtypes"})
         final List<? extends RexNode> nodeList =
                 nodes instanceof List ? (List) nodes : ImmutableList.copyOf(nodes);
         final List<@Nullable String> fieldNameList =
