@@ -23,7 +23,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +33,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Tests for {@link ProcTimeDeduplicateKeepLastRowFunction}. */
-public class ProcTimeDeduplicateKeepLastRowFunctionTest
-        extends ProcTimeDeduplicateFunctionTestBase {
+class ProcTimeDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
     private ProcTimeDeduplicateKeepLastRowFunction createFunctionWithoutStateTtl(
             boolean generateUpdateBefore, boolean generateInsert) {
         return new ProcTimeDeduplicateKeepLastRowFunction(
@@ -60,7 +59,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithoutGenerateUpdateBefore() throws Exception {
+    void testWithoutGenerateUpdateBefore() throws Exception {
         ProcTimeDeduplicateKeepLastRowFunction func = createFunction(false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
@@ -78,7 +77,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
+    void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
         ProcTimeDeduplicateKeepLastRowFunction func = createFunction(false, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
@@ -96,7 +95,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithGenerateUpdateBefore() throws Exception {
+    void testWithGenerateUpdateBefore() throws Exception {
         ProcTimeDeduplicateKeepLastRowFunction func = createFunction(true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
@@ -115,7 +114,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithStateTtlDisabled() throws Exception {
+    void testWithStateTtlDisabled() throws Exception {
         ProcTimeDeduplicateKeepLastRowFunction func = createFunctionWithoutStateTtl(true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
@@ -132,7 +131,7 @@ public class ProcTimeDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+    void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
         ProcTimeDeduplicateKeepLastRowFunction func = createFunction(true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();

@@ -35,7 +35,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 
 /** Harness tests for {@link StreamingJoinOperator}. */
-public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
+class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
 
     @Override
     protected StreamingJoinOperator createJoinOperator(TestInfo testInfo) {
@@ -76,7 +76,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
     @Test
-    public void testInnerJoinWithDifferentStateRetentionTime() throws Exception {
+    void testInnerJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -142,7 +142,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * only difference is that the state retention is disabled.
      */
     @Test
-    public void testInnerJoinWithStateRetentionDisabled() throws Exception {
+    void testInnerJoinWithStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -231,7 +231,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=4000")
     @Test
-    public void testInnerJoinWithSameStateRetentionTime() throws Exception {
+    void testInnerJoinWithSameStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -300,7 +300,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
     @Test
-    public void testLeftOuterJoinWithDifferentStateRetentionTime() throws Exception {
+    void testLeftOuterJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -412,7 +412,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * retention is disabled.
      */
     @Test
-    public void testLeftOuterJoinWithStateRetentionDisabled() throws Exception {
+    void testLeftOuterJoinWithStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -523,7 +523,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
     @Test
-    public void testRightOuterJoinWithDifferentStateRetentionTime() throws Exception {
+    void testRightOuterJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -594,7 +594,7 @@ public class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * retention is disabled.
      */
     @Test
-    public void testRightOuterJoinWithDStateRetentionDisabled() throws Exception {
+    void testRightOuterJoinWithDStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));

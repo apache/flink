@@ -30,10 +30,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SinkOperator}. */
-public class SinkOperatorTest {
+class SinkOperatorTest {
 
     @Test
-    public void testSinkOperatorWithOutputFormat() {
+    void testSinkOperatorWithOutputFormat() {
         SinkOperator operator =
                 new SinkOperator(
                         new OutputFormatSinkFunction<>(

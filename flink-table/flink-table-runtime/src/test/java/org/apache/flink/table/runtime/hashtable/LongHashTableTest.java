@@ -52,7 +52,7 @@ import static org.assertj.core.api.Fail.fail;
 
 /** Test for {@link LongHashPartition}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class LongHashTableTest {
+class LongHashTableTest {
 
     private static final int PAGE_SIZE = 32 * 1024;
     private IOManager ioManager;
@@ -73,7 +73,7 @@ public class LongHashTableTest {
     }
 
     @BeforeEach
-    public void init() {
+    void init() {
         TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
         this.buildSideSerializer = new BinaryRowDataSerializer(types.length);
         this.probeSideSerializer = new BinaryRowDataSerializer(types.length);

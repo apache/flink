@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.hashtable.BinaryHashTableTest;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build first inner join -----------------------------------------
     // ------------------- fallback to sort merge join in build or probe phase ---------------
     @Test
-    public void testBuildFirstHashInnerJoinFallbackToSMJ() throws Exception {
+    void testBuildFirstHashInnerJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 405590;
@@ -117,7 +117,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build first right out join -----------------------------------------
     // --------------------- fallback to sort merge join in build or probe phase -----------------
     @Test
-    public void testBuildFirstHashRightOutJoinFallbackToSMJ() throws Exception {
+    void testBuildFirstHashRightOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -199,7 +199,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
     // ---------------------- build second left out join -----------------------------------------
     // ---------------------- switch to sort merge join in build or probe phase ------------------
     @Test
-    public void testBuildSecondHashLeftOutJoinFallbackToSMJ() throws Exception {
+    void testBuildSecondHashLeftOutJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -276,7 +276,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
 
     // ---------------------- switch to sort merge join in build or probe phase ------------------
     @Test
-    public void testSemiJoinFallbackToSMJ() throws Exception {
+    void testSemiJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;
@@ -316,7 +316,7 @@ public class Int2AdaptiveHashJoinOperatorTest extends Int2HashJoinOperatorTestBa
 
     // ---------------------- fallback to sort merge join in build or probe phase ------------------
     @Test
-    public void testAntiJoinFallbackToSMJ() throws Exception {
+    void testAntiJoinFallbackToSMJ() throws Exception {
         // the following two values are known to have a hash-code collision on the first recursion
         // level. we use them to make sure one partition grows over-proportionally large
         final int repeatedValue1 = 40559;

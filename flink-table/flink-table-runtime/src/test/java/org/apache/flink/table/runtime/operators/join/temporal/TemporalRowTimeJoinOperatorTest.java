@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,10 +36,10 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link TemporalRowTimeJoinOperatorTest}. */
-public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
+class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     /** Test rowtime temporal join. */
     @Test
-    public void testRowTimeTemporalJoin() throws Exception {
+    void testRowTimeTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
         expectedOutput.add(new Watermark(2));
@@ -56,7 +56,7 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
     /** Test rowtime left temporal join. */
     @Test
-    public void testRowTimeLeftTemporalJoin() throws Exception {
+    void testRowTimeLeftTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
@@ -121,7 +121,7 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
     /** Test rowtime temporal join when set idle state retention. */
     @Test
-    public void testRowTimeTemporalJoinWithStateRetention() throws Exception {
+    void testRowTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 4;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
         TemporalRowTimeJoinOperator joinOperator =
@@ -194,7 +194,7 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
     }
 
     @Test
-    public void testRowTimeTemporalJoinOnUpsertSource() throws Exception {
+    void testRowTimeTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
         expectedOutput.add(new Watermark(2));
@@ -210,7 +210,7 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
     }
 
     @Test
-    public void testRowTimeLeftTemporalJoinOnUpsertSource() throws Exception {
+    void testRowTimeLeftTemporalJoinOnUpsertSource() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));

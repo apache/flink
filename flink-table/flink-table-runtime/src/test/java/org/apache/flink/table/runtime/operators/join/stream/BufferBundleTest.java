@@ -55,7 +55,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test for MiniBatch buffer only which verify the logic of folding in MiniBatch. */
-public class BufferBundleTest {
+class BufferBundleTest {
 
     private BufferBundle<?> buffer;
 
@@ -88,13 +88,13 @@ public class BufferBundleTest {
             JoinInputSideSpec.withUniqueKey(inputTypeInfo, uniqueKeySelector);
 
     @AfterEach
-    public void cleanup() {
+    void cleanup() {
         buffer.clear();
     }
 
     @ParameterizedTest(name = "joinKeyContainsUniqueKey: {0}")
     @ValueSource(booleans = {true, false})
-    public void testAccumulateAccumulatePattern(boolean joinKeyContainsUniqueKey) throws Exception {
+    void testAccumulateAccumulatePattern(boolean joinKeyContainsUniqueKey) throws Exception {
         buffer =
                 joinKeyContainsUniqueKey
                         ? new JoinKeyContainsUniqueKeyBundle()
@@ -104,7 +104,7 @@ public class BufferBundleTest {
 
     @ParameterizedTest(name = "joinKeyContainsUniqueKey: {0}")
     @ValueSource(booleans = {true, false})
-    public void testAccumulateRetractPattern(boolean joinKeyContainsUniqueKey) throws Exception {
+    void testAccumulateRetractPattern(boolean joinKeyContainsUniqueKey) throws Exception {
         buffer =
                 joinKeyContainsUniqueKey
                         ? new JoinKeyContainsUniqueKeyBundle()
@@ -114,7 +114,7 @@ public class BufferBundleTest {
 
     @ParameterizedTest(name = "joinKeyContainsUniqueKey: {0}")
     @ValueSource(booleans = {true, false})
-    public void testRetractAccumulatePattern(boolean joinKeyContainsUniqueKey) throws Exception {
+    void testRetractAccumulatePattern(boolean joinKeyContainsUniqueKey) throws Exception {
         buffer =
                 joinKeyContainsUniqueKey
                         ? new JoinKeyContainsUniqueKeyBundle()
@@ -124,7 +124,7 @@ public class BufferBundleTest {
 
     @ParameterizedTest(name = "joinKeyContainsUniqueKey: {0}")
     @ValueSource(booleans = {true, false})
-    public void testRetractRetractPattern(boolean joinKeyContainsUniqueKey) throws Exception {
+    void testRetractRetractPattern(boolean joinKeyContainsUniqueKey) throws Exception {
         buffer =
                 joinKeyContainsUniqueKey
                         ? new JoinKeyContainsUniqueKeyBundle()
@@ -134,7 +134,7 @@ public class BufferBundleTest {
 
     @ParameterizedTest(name = "joinKeyContainsUniqueKey: {0}")
     @ValueSource(booleans = {true, false})
-    public void testPatternCombination(boolean joinKeyContainsUniqueKey) throws Exception {
+    void testPatternCombination(boolean joinKeyContainsUniqueKey) throws Exception {
         buffer =
                 joinKeyContainsUniqueKey
                         ? new JoinKeyContainsUniqueKeyBundle()
@@ -143,7 +143,7 @@ public class BufferBundleTest {
     }
 
     @Test
-    public void testInputSideHasNoUniqueKey() throws Exception {
+    void testInputSideHasNoUniqueKey() throws Exception {
         // +--------------------------+----------------------------+----------------------------+
         // |   Before the last        |       Last record          |          Result            |
         // |--------------------------|----------------------------|----------------------------|

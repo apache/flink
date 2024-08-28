@@ -50,14 +50,14 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Test for StreamingMiniBatchJoinOperatorTest. */
-public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTestBase {
+final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTestBase {
 
     private RowDataKeySelector leftUniqueKeySelector;
     private RowDataKeySelector rightUniqueKeySelector;
 
     @Tag("miniBatchSize=3")
     @Test
-    public void testLeftJoinWithLeftArriveFirst() throws Exception {
+    void testLeftJoinWithLeftArriveFirst() throws Exception {
         // joinKey is LineOrd
         testHarness.processElement1(
                 insertRecord(
@@ -92,7 +92,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=1")
     @Test
-    public void testLeftJoinWithLeftArriveFirstNoMiniBatch() throws Exception {
+    void testLeftJoinWithLeftArriveFirstNoMiniBatch() throws Exception {
         // joinKey is LineOrd
         testHarness.processElement1(
                 insertRecord(
@@ -143,7 +143,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=3")
     @Test
-    public void testRightJoinWithRightArriveFirst() throws Exception {
+    void testRightJoinWithRightArriveFirst() throws Exception {
         // joinKey is LineOrd
         testHarness.processElement2(insertRecord("Ord#X", "LineOrd#2", "AIR")); // right
 
@@ -171,7 +171,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=1")
     @Test
-    public void testRightJoinWithRightArriveFirstWithNoMiniBatch() throws Exception {
+    void testRightJoinWithRightArriveFirstWithNoMiniBatch() throws Exception {
         // joinKey is LineOrd
         testHarness.processElement2(insertRecord("Ord#X", "LineOrd#2", "AIR")); // right
 
@@ -200,7 +200,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=3")
     @Test
-    public void testFullJoinWithRightArriveFirst() throws Exception {
+    void testFullJoinWithRightArriveFirst() throws Exception {
         // joinKey is LineOrd
         testHarness.processElement2(insertRecord("Ord#X", "LineOrd#2", "AIR")); // right
 
@@ -238,7 +238,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=1")
     @Test
-    public void testFullJoinWithRightArriveFirstWithNoMiniBatch() throws Exception {
+    void testFullJoinWithRightArriveFirstWithNoMiniBatch() throws Exception {
         // joinKey is LineOrd
         testHarness.processElement2(insertRecord("Ord#X", "LineOrd#2", "AIR")); // right
 
@@ -275,7 +275,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=4")
     @Test
-    public void testInnerJoinJoinKeyContainsUniqueKeyWithoutFold() throws Exception {
+    void testInnerJoinJoinKeyContainsUniqueKeyWithoutFold() throws Exception {
         // joinKey is LineOrd
         testHarness.setStateTtlProcessingTime(1);
         // basic test for that the mini-batch process could be triggerred normally
@@ -320,7 +320,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=18")
     @Test
-    public void testInnerJoinWithJoinKeyContainsUniqueKeyWithinBatch() throws Exception {
+    void testInnerJoinWithJoinKeyContainsUniqueKeyWithinBatch() throws Exception {
         // joinKey is LineOrd
         // left fold  || right fold
         // +I +U / +U +U / +U -D ||  +I -D / +U -U / +I -U
@@ -407,7 +407,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=10")
     @Test
-    public void testInnerJoinWithJoinKeyContainsUniqueKeyCrossBatches() throws Exception {
+    void testInnerJoinWithJoinKeyContainsUniqueKeyCrossBatches() throws Exception {
         // joinKey is LineOrd
 
         testHarness.processElement1(
@@ -566,7 +566,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=13")
     @Test
-    public void testInnerJoinWithHasUniqueKeyWithinBatch() throws Exception {
+    void testInnerJoinWithHasUniqueKeyWithinBatch() throws Exception {
         // joinKey is LineOrd and uniqueKey is Ord
         // +I +U / +I -U / +I -D / +U -D /+U +U
         List<StreamRecord<RowData>> records =
@@ -646,7 +646,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=8")
     @Test
-    public void testInnerJoinWithHasUniqueKeyCrossBatches() throws Exception {
+    void testInnerJoinWithHasUniqueKeyCrossBatches() throws Exception {
         // joinKey is LineOrd and uniqueKey is Ord
         // fold +I/+U +U (same and different jks)
         testHarness.processElement1(
@@ -743,7 +743,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=20")
     @Test
-    public void testInnerJoinWithNoUniqueKeyWithinBatch() throws Exception {
+    void testInnerJoinWithNoUniqueKeyWithinBatch() throws Exception {
         // joinKey is LineOrd
         // +I -U / +I -D / -U +U / -D +I
         List<StreamRecord<RowData>> records =
@@ -830,7 +830,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=4")
     @Test
-    public void testInnerJoinWithNoUniqueKeyHashCollisionSimpleSchema() throws Exception {
+    void testInnerJoinWithNoUniqueKeyHashCollisionSimpleSchema() throws Exception {
         testHarness.processElement2(insertRecord("1", 1L));
         testHarness.processElement1(insertRecord("1", 4294967296L));
         testHarness.processElement2(insertRecord("1", 4294967296L));
@@ -841,7 +841,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=6")
     @Test
-    public void testInnerJoinWithNoUniqueKeyCrossBatches() throws Exception {
+    void testInnerJoinWithNoUniqueKeyCrossBatches() throws Exception {
         // joinKey is LineOrd
         // completely duplicate records
         testHarness.processElement1(
@@ -931,7 +931,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
     /** Outer join only emits INSERT or DELETE Msg. */
     @Tag("miniBatchSize=10")
     @Test
-    public void testLeftJoinWithJoinKeyContainsUniqueKey() throws Exception {
+    void testLeftJoinWithJoinKeyContainsUniqueKey() throws Exception {
         // joinKey is LineOrd
         // left fold  || right fold
         // +I +U / +U +U / +U -D ||  +I -D / +U -U / +I -U
@@ -1056,7 +1056,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
     /** Outer join only emits INSERT or DELETE Msg. */
     @Tag("miniBatchSize=4")
     @Test
-    public void testLeftJoinWithHasUniqueKey() throws Exception {
+    void testLeftJoinWithHasUniqueKey() throws Exception {
         // joinKey is LineOrd and uniqueKey is Ord
         // +I +U / +I -U / +I -D /+U +U
         List<StreamRecord<RowData>> records =
@@ -1205,63 +1205,63 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=2")
     @Test
-    public void testLeftJoinHasUniqueKeyRetAndAcc() throws Exception {
+    void testLeftJoinHasUniqueKeyRetAndAcc() throws Exception {
         // this case would create buffer of JoinHasUniqueKey
         testLeftJoinWithUpdate();
     }
 
     @Tag("miniBatchSize=2")
     @Test
-    public void testLeftJoinJoinKeyContainsUniqueKeyRetAndAcc() throws Exception {
+    void testLeftJoinJoinKeyContainsUniqueKeyRetAndAcc() throws Exception {
         // this case would create buffer of JoinKeyContainsUniqueKey
         testLeftJoinWithUpdate();
     }
 
     @Tag("miniBatchSize=2")
     @Test
-    public void testLeftJoinHasUniqueKeyWithoutRetract() throws Exception {
+    void testLeftJoinHasUniqueKeyWithoutRetract() throws Exception {
         // this case would create buffer of JoinHasUniqueKey
         testLeftJoinWithoutRetract();
     }
 
     @Tag("miniBatchSize=2")
     @Test
-    public void testLeftJoinJoinKeyContainsUniqueKeyWithoutRetract() throws Exception {
+    void testLeftJoinJoinKeyContainsUniqueKeyWithoutRetract() throws Exception {
         // this case would create buffer of JoinKeyContainsUniqueKey
         testLeftJoinWithoutRetract();
     }
 
     @Tag("miniBatchSize=2")
     @Test
-    public void testLeftJoinJoinKeyContainsUniqueKeyWithoutAcc() throws Exception {
+    void testLeftJoinJoinKeyContainsUniqueKeyWithoutAcc() throws Exception {
         // this case would create buffer of JoinKeyContainsUniqueKey
         testLeftJoinWithoutAcc();
     }
 
     @Tag("miniBatchSize=2")
     @Test
-    public void testLeftJoinHasUniqueKeyWithoutAcc() throws Exception {
+    void testLeftJoinHasUniqueKeyWithoutAcc() throws Exception {
         // this case would create buffer of JoinKeyContainsUniqueKey
         testLeftJoinWithoutAcc();
     }
 
     @Tag("miniBatchSize=4")
     @Test
-    public void testLeftJoinHasUniqueKeyWithUpdateMultipleCases() throws Exception {
+    void testLeftJoinHasUniqueKeyWithUpdateMultipleCases() throws Exception {
         // this case would create buffer of JoinKeyContainsUniqueKey
         testLeftJoinWithUpdateRecordsMultipleCases();
     }
 
     @Tag("miniBatchSize=4")
     @Test
-    public void testLeftJoinJoinKeyContainsUniqueKeyWithUpdateMultipleCases() throws Exception {
+    void testLeftJoinJoinKeyContainsUniqueKeyWithUpdateMultipleCases() throws Exception {
         // this case would create buffer of JoinKeyContainsUniqueKey
         testLeftJoinWithUpdateRecordsMultipleCases();
     }
 
     @Tag("miniBatchSize=4")
     @Test
-    public void testRightJoinWithHasUniqueKey() throws Exception {
+    void testRightJoinWithHasUniqueKey() throws Exception {
         List<StreamRecord<RowData>> records =
                 Arrays.asList(
                         insertRecord(
@@ -1336,7 +1336,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=4")
     @Test
-    public void testFullJoinWithHasUniqueKey() throws Exception {
+    void testFullJoinWithHasUniqueKey() throws Exception {
         List<StreamRecord<RowData>> records =
                 Arrays.asList(
                         insertRecord(
@@ -1469,7 +1469,7 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Tag("miniBatchSize=15")
     @Test
-    public void testLeftJoinWithNoUniqueKey() throws Exception {
+    void testLeftJoinWithNoUniqueKey() throws Exception {
         // joinKey is LineOrd
         // +I -U / +I -D / -U +U / -D +I
         List<StreamRecord<RowData>> records =

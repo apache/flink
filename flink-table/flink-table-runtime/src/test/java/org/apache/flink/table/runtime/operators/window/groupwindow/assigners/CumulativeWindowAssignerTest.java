@@ -24,7 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
@@ -34,12 +34,12 @@ import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
 
 /** Tests for {@link CumulativeWindowAssigner}. */
-public class CumulativeWindowAssignerTest {
+class CumulativeWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of(StringData.fromString("String"));
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 
@@ -89,7 +89,7 @@ public class CumulativeWindowAssignerTest {
     }
 
     @Test
-    public void testWindowAssignmentWithOffset() {
+    void testWindowAssignmentWithOffset() {
         CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000))
                         .withOffset(Duration.ofMillis(100));
@@ -140,7 +140,7 @@ public class CumulativeWindowAssignerTest {
     }
 
     @Test
-    public void testInvalidParameters1() {
+    void testInvalidParameters1() {
         assertThatThrownBy(
                         () ->
                                 CumulativeWindowAssigner.of(
@@ -150,7 +150,7 @@ public class CumulativeWindowAssignerTest {
     }
 
     @Test
-    public void testInvalidParameters2() {
+    void testInvalidParameters2() {
         assertThatThrownBy(
                         () ->
                                 CumulativeWindowAssigner.of(
@@ -160,7 +160,7 @@ public class CumulativeWindowAssignerTest {
     }
 
     @Test
-    public void testInvalidParameters3() {
+    void testInvalidParameters3() {
         assertThatThrownBy(
                         () ->
                                 CumulativeWindowAssigner.of(
@@ -170,7 +170,7 @@ public class CumulativeWindowAssignerTest {
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 

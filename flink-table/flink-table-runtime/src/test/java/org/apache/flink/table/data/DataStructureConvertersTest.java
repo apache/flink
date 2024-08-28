@@ -30,11 +30,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -89,11 +86,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DataStructureConverters}. */
-@RunWith(Parameterized.class)
-public class DataStructureConvertersTest {
+class DataStructureConvertersTest {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
+    static List<TestSpec> testData() {
         // ordered by definition in DataStructureConverters
         return asList(
                 TestSpec.forDataType(CHAR(5))
@@ -363,10 +358,9 @@ public class DataStructureConvertersTest {
                                 GenericPojo.class, new GenericPojo<>(LocalDate.ofEpochDay(123))));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testConversions() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversions(final TestSpec testSpec) {
         for (Map.Entry<Class<?>, Object> from : testSpec.conversions.entrySet()) {
             final DataType fromDataType = testSpec.dataType.bridgedTo(from.getKey());
 

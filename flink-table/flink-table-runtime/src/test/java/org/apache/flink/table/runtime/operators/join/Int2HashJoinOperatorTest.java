@@ -22,7 +22,7 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Random test for {@link HashJoinOperator}. */
 public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {

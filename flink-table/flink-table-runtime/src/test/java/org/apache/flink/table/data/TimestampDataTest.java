@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.data;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -27,10 +27,10 @@ import java.util.TimeZone;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TimestampData}. */
-public class TimestampDataTest {
+class TimestampDataTest {
 
     @Test
-    public void testNormal() {
+    void testNormal() {
         // From long to TimestampData and vice versa
         assertThat(TimestampData.fromEpochMillis(1123L).getMillisecond()).isEqualTo(1123L);
         assertThat(TimestampData.fromEpochMillis(-1123L).getMillisecond()).isEqualTo(-1123L);
@@ -93,7 +93,7 @@ public class TimestampDataTest {
     }
 
     @Test
-    public void testDaylightSavingTime() {
+    void testDaylightSavingTime() {
         TimeZone tz = TimeZone.getDefault();
         TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
 
@@ -107,7 +107,7 @@ public class TimestampDataTest {
     }
 
     @Test
-    public void testToString() {
+    void testToString() {
 
         java.sql.Timestamp t = java.sql.Timestamp.valueOf("1969-01-02 00:00:00.123456789");
         assertThat(TimestampData.fromTimestamp(t).toString())

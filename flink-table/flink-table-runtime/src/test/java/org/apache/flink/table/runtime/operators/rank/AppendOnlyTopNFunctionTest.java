@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +30,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Tests for {@link AppendOnlyTopNFunction}. */
-public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
+class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     protected AbstractTopNFunction createFunction(
@@ -51,7 +51,7 @@ public class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
     }
 
     @Test
-    public void testVariableRankRange() throws Exception {
+    void testVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);

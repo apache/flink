@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Tests for {@link StreamSortOperator}. */
-public class StreamSortOperatorTest {
+class StreamSortOperatorTest {
 
     private InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType());
@@ -58,7 +58,7 @@ public class StreamSortOperatorTest {
             new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         StreamSortOperator operator = createSortOperator();
         OneInputStreamOperatorTestHarness<RowData, BinaryRowData> testHarness =
                 createTestHarness(operator);
