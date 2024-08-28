@@ -73,14 +73,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>This source has built-in support for rate limiting. The following code will produce an
  * effectively unbounded (Long.MAX_VALUE from practical perspective will never be reached) stream of
- * Long values at the overall source rate (across all source subtasks) of 100 events per second.
+ * String values at the overall source rate (across all source subtasks) of 100 events per second.
  *
  * <pre>{@code
- * GeneratorFunction<Long, Long> generatorFunction = index -> index;
+ * GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
  *
  * DataGeneratorSource<String> source =
  *         new DataGeneratorSource<>(
- *              generatorFunctionStateless,
+ *              generatorFunction,
  *              Long.MAX_VALUE,
  *              RateLimiterStrategy.perSecond(100),
  *              Types.STRING);
