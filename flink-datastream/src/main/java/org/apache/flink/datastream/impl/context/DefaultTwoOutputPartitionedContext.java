@@ -30,10 +30,10 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** The default implementation of {@link PartitionedContext}. */
-public class DefaultTwoOutputPartitionedContext extends DefaultAbstractPartitionedContext
+public class DefaultTwoOutputPartitionedContext extends DefaultBasePartitionedContext
         implements TwoOutputPartitionedContext {
 
-    protected final TwoOutputNonPartitionedContext<?, ?> nonPartitionedContext;
+    protected TwoOutputNonPartitionedContext<?, ?> nonPartitionedContext;
 
     public DefaultTwoOutputPartitionedContext(
             RuntimeContext context,
@@ -41,8 +41,7 @@ public class DefaultTwoOutputPartitionedContext extends DefaultAbstractPartition
             Consumer<Object> currentKeySetter,
             ProcessingTimeManager processingTimeManager,
             StreamingRuntimeContext operatorContext,
-            OperatorStateStore operatorStateStore,
-            TwoOutputNonPartitionedContext<?, ?> nonPartitionedContext) {
+            OperatorStateStore operatorStateStore) {
         super(
                 context,
                 currentKeySupplier,
@@ -50,6 +49,10 @@ public class DefaultTwoOutputPartitionedContext extends DefaultAbstractPartition
                 processingTimeManager,
                 operatorContext,
                 operatorStateStore);
+    }
+
+    public void setNonPartitionedContext(
+            TwoOutputNonPartitionedContext<?, ?> nonPartitionedContext) {
         this.nonPartitionedContext = nonPartitionedContext;
     }
 

@@ -71,7 +71,7 @@ public class ProcessOperator<IN, OUT>
                         taskInfo.getTaskName(),
                         operatorContext.getMetricGroup());
         outputCollector = getOutputCollector();
-        nonPartitionedContext = getNonPartitionedContext();
+
         partitionedContext =
                 new DefaultPartitionedContext(
                         context,
@@ -79,8 +79,9 @@ public class ProcessOperator<IN, OUT>
                         this::setCurrentKey,
                         getProcessingTimeManager(),
                         operatorContext,
-                        getOperatorStateBackend(),
-                        nonPartitionedContext);
+                        getOperatorStateBackend());
+        nonPartitionedContext = getNonPartitionedContext();
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
     }
 
     @Override

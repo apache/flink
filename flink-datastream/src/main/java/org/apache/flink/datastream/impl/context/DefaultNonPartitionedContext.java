@@ -34,7 +34,7 @@ import java.util.Set;
 public class DefaultNonPartitionedContext<OUT> implements NonPartitionedContext<OUT> {
     private final DefaultRuntimeContext context;
 
-    private final DefaultPartitionedContext partitionedContext;
+    public final DefaultPartitionedContext partitionedContext;
 
     private final Collector<OUT> collector;
 

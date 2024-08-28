@@ -32,9 +32,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** The default implementation of {@link PartitionedContext}. */
-public class DefaultPartitionedContext extends DefaultAbstractPartitionedContext
+public class DefaultPartitionedContext extends DefaultBasePartitionedContext
         implements PartitionedContext {
-    protected final NonPartitionedContext<?> nonPartitionedContext;
+    protected NonPartitionedContext<?> nonPartitionedContext;
 
     public DefaultPartitionedContext(
             RuntimeContext context,
@@ -42,8 +42,7 @@ public class DefaultPartitionedContext extends DefaultAbstractPartitionedContext
             Consumer<Object> currentKeySetter,
             ProcessingTimeManager processingTimeManager,
             StreamingRuntimeContext operatorContext,
-            OperatorStateStore operatorStateStore,
-            NonPartitionedContext<?> nonPartitionedContext) {
+            OperatorStateStore operatorStateStore) {
         super(
                 context,
                 currentKeySupplier,
@@ -51,6 +50,9 @@ public class DefaultPartitionedContext extends DefaultAbstractPartitionedContext
                 processingTimeManager,
                 operatorContext,
                 operatorStateStore);
+    }
+
+    public void setNonPartitionedContext(NonPartitionedContext<?> nonPartitionedContext) {
         this.nonPartitionedContext = nonPartitionedContext;
     }
 

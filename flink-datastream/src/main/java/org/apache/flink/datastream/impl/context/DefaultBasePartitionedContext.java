@@ -20,26 +20,25 @@ package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.datastream.api.context.JobInfo;
-import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TaskInfo;
-import org.apache.flink.datastream.watermark.AbstractPartitionedContext;
+import org.apache.flink.datastream.watermark.BasePartitionedContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** The default implementation of {@link PartitionedContext}. */
-public class DefaultAbstractPartitionedContext implements AbstractPartitionedContext {
+/** The default implementation of {@link BasePartitionedContext}. */
+public class DefaultBasePartitionedContext implements BasePartitionedContext {
     protected final RuntimeContext context;
 
     protected final DefaultStateManager stateManager;
 
     protected final ProcessingTimeManager processingTimeManager;
 
-    public DefaultAbstractPartitionedContext(
+    public DefaultBasePartitionedContext(
             RuntimeContext context,
             Supplier<Object> currentKeySupplier,
             Consumer<Object> currentKeySetter,

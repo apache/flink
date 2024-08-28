@@ -83,7 +83,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName(),
                         operatorContext.getMetricGroup());
-        this.nonPartitionedContext = getNonPartitionedContext();
+
         this.partitionedContext =
                 new DefaultTwoOutputPartitionedContext(
                         context,
@@ -91,8 +91,9 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         this::setCurrentKey,
                         getProcessingTimeManager(),
                         operatorContext,
-                        operatorStateStore,
-                        this.nonPartitionedContext);
+                        operatorStateStore);
+        nonPartitionedContext = getNonPartitionedContext();
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
     }
 
     @Override

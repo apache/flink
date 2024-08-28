@@ -23,10 +23,10 @@ import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.StateManager;
 
 /**
- * On the base of {@link RuntimeContext}, {@link AbstractPartitionedContext} also contains all
+ * On the base of {@link RuntimeContext}, {@link BasePartitionedContext} also contains all
  * partition-wise execution information, such as getting state, registering timer, etc.
  */
-public interface AbstractPartitionedContext extends RuntimeContext {
+public interface BasePartitionedContext extends RuntimeContext {
     /** Get the {@link StateManager} of this process function. */
     StateManager getStateManager();
 
