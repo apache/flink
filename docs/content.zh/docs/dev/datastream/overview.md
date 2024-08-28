@@ -198,7 +198,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 import org.apache.flink.util.Collector;
 
 public class WindowWordCount {
@@ -211,7 +211,7 @@ public class WindowWordCount {
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
                 .keyBy(value -> value.f0)
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                 .sum(1);
 
         dataStream.print();
@@ -236,7 +236,7 @@ public class WindowWordCount {
 ```scala
 
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.windowing.time.Time
+import java.time.Duration
 
 object WindowWordCount {
   def main(args: Array[String]) {
@@ -247,7 +247,7 @@ object WindowWordCount {
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
       .keyBy(_._1)
-      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+      .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
       .sum(1)
 
     counts.print()

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink}
@@ -33,6 +32,7 @@ import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.sql.Timestamp
+import java.time.Duration
 
 import scala.collection.mutable
 
@@ -310,7 +310,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 }
 
 class TimestampExtractor[T <: Product]
-  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10)) {
+  extends BoundedOutOfOrdernessTimestampExtractor[T](Duration.ofSeconds(10)) {
   override def extractTimestamp(element: T): Long = element match {
     case (_, _, ts: Timestamp) => ts.getTime
     case (_, _, _, ts: Timestamp) => ts.getTime

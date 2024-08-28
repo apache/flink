@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -37,6 +36,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -104,10 +104,10 @@ public class SessionWindowITCase extends AbstractTestBaseJUnit4 {
                         .keyBy("sessionKey")
                         .window(
                                 EventTimeSessionWindows.withGap(
-                                        Time.milliseconds(MAX_SESSION_EVENT_GAP_MS)));
+                                        Duration.ofMillis(MAX_SESSION_EVENT_GAP_MS)));
 
         if (ALLOWED_LATENESS_MS != Long.MAX_VALUE) {
-            windowedStream = windowedStream.allowedLateness(Time.milliseconds(ALLOWED_LATENESS_MS));
+            windowedStream = windowedStream.allowedLateness(Duration.ofMillis(ALLOWED_LATENESS_MS));
         }
 
         if (PURGE_WINDOW_ON_FIRE) {

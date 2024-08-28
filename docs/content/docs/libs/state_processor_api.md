@@ -270,7 +270,7 @@ DataStream<Click> clicks = ...;
 
 clicks
     .keyBy(click -> click.userId)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .aggregate(new ClickCounter())
     .uid("click-window")
     .addSink(new Sink());
@@ -314,7 +314,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 SavepointReader savepoint = SavepointReader.read(env, "hdfs://checkpoint-dir", new HashMapStateBackend());
 
 savepoint
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
     .print();
 
@@ -478,7 +478,7 @@ DataStream<Account> accountDataSet = env.fromCollection(accounts);
 StateBootstrapTransformation<Account> transformation = OperatorTransformation
     .bootstrapWith(accountDataSet)
     .keyBy(acc -> acc.id)
-    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
     .reduce((left, right) -> left + right);
 ```
 

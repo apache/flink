@@ -200,15 +200,15 @@ Some examples of what these window assigners might be used for, and how to speci
 
 * Tumbling time windows
   * _page views per minute_
-  * `TumblingEventTimeWindows.of(Time.minutes(1))`
+  * `TumblingEventTimeWindows.of(Duration.ofMinutes(1))`
 * Sliding time windows
   * _page views per minute computed every 10 seconds_
-  * `SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10))`
+  * `SlidingEventTimeWindows.of(Duration.ofMinutes(1), Duration.ofSeconds(10))`
 * Session windows 
   * _page views per session, where sessions are defined by a gap of at least 30 minutes between sessions_
-  * `EventTimeSessionWindows.withGap(Time.minutes(30))`
+  * `EventTimeSessionWindows.withGap(Duration.ofMinutes(30))`
 
-Durations can be specified using one of `Time.milliseconds(n)`, `Time.seconds(n)`, `Time.minutes(n)`, `Time.hours(n)`, and `Time.days(n)`.
+Durations can be specified using one of `Duration.ofMillis(n)`, `Duration.ofSeconds(n)`, `Duration.ofMinutes(n)`, `Duration.ofHours(n)`, and `Duration.ofDays(n)`.
 
 The time-based window assigners (including session windows) come in both event time and processing
 time flavors. There are significant tradeoffs between these two types of time windows. With
@@ -248,7 +248,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .process(new MyWastefulMax());
 
 public static class MyWastefulMax extends ProcessWindowFunction<
@@ -302,7 +302,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .reduce(new MyReducingMax(), new MyWindowFunction());
 
 private static class MyReducingMax implements ReduceFunction<SensorReading> {
@@ -362,7 +362,7 @@ For example:
 stream
     .keyBy(...)
     .window(...)
-    .allowedLateness(Time.seconds(10))
+    .allowedLateness(Duration.ofSeconds(10))
     .process(...);
 ```
 

@@ -20,9 +20,10 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,12 +32,12 @@ class BoundedOutOfOrdernessTimestampExtractorTest {
 
     @Test
     void testInitializationAndRuntime() {
-        Time maxAllowedLateness = Time.milliseconds(10L);
+        Duration maxAllowedLateness = Duration.ofMillis(10L);
         BoundedOutOfOrdernessTimestampExtractor<Long> extractor =
                 new LongExtractor(maxAllowedLateness);
 
         assertThat(extractor.getMaxOutOfOrdernessInMillis())
-                .isEqualTo(maxAllowedLateness.toMilliseconds());
+                .isEqualTo(maxAllowedLateness.toMillis());
 
         runValidTests(extractor);
     }
@@ -44,7 +45,7 @@ class BoundedOutOfOrdernessTimestampExtractorTest {
     @Test
     void testInitialFinalAndWatermarkUnderflow() {
         BoundedOutOfOrdernessTimestampExtractor<Long> extractor =
-                new LongExtractor(Time.milliseconds(10L));
+                new LongExtractor(Duration.ofMillis(10L));
         assertThat(extractor.getCurrentWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
 
         extractor.extractTimestamp(Long.MIN_VALUE, -1L);
@@ -90,7 +91,7 @@ class BoundedOutOfOrdernessTimestampExtractorTest {
     private static class LongExtractor extends BoundedOutOfOrdernessTimestampExtractor<Long> {
         private static final long serialVersionUID = 1L;
 
-        public LongExtractor(Time maxAllowedLateness) {
+        public LongExtractor(Duration maxAllowedLateness) {
             super(maxAllowedLateness);
         }
 

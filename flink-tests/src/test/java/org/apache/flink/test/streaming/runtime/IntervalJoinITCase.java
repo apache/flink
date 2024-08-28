@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.streaming.runtime.TimestampITCase.AscendingRecordTimestampsWatermarkStrategy;
 import org.apache.flink.util.Collector;
 
@@ -38,6 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -83,7 +83,7 @@ public class IntervalJoinITCase {
 
         streamOne
                 .intervalJoin(streamTwo)
-                .between(Time.milliseconds(0), Time.milliseconds(0))
+                .between(Duration.ofMillis(0), Duration.ofMillis(0))
                 .process(
                         new ProcessJoinFunction<
                                 Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
@@ -142,7 +142,7 @@ public class IntervalJoinITCase {
                 // if it were not keyed then the boundaries [0; 1] would lead to the pairs (1, 1),
                 // (1, 2), (2, 2), (2, 3)..., so that this is not happening is what we are testing
                 // here
-                .between(Time.milliseconds(0), Time.milliseconds(1))
+                .between(Duration.ofMillis(0), Duration.ofMillis(1))
                 .process(new CombineToStringJoinFunction())
                 .addSink(new ResultSink());
 
@@ -234,7 +234,7 @@ public class IntervalJoinITCase {
         streamOne
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(-1), Time.milliseconds(1))
+                .between(Duration.ofMillis(-1), Duration.ofMillis(1))
                 .process(new CombineToStringJoinFunction())
                 .addSink(new ResultSink());
 
@@ -279,7 +279,7 @@ public class IntervalJoinITCase {
         streamOne
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(0), null);
+                .between(Duration.ofMillis(0), null);
     }
 
     @Test(expected = NullPointerException.class)
@@ -293,7 +293,7 @@ public class IntervalJoinITCase {
         streamOne
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(null, Time.milliseconds(1));
+                .between(null, Duration.ofMillis(1));
     }
 
     @Test
@@ -312,7 +312,7 @@ public class IntervalJoinITCase {
         streamOne
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(0), Time.milliseconds(2))
+                .between(Duration.ofMillis(0), Duration.ofMillis(2))
                 .upperBoundExclusive()
                 .lowerBoundExclusive()
                 .process(new CombineToStringJoinFunction())
@@ -339,7 +339,7 @@ public class IntervalJoinITCase {
         streamOne
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(0), Time.milliseconds(2))
+                .between(Duration.ofMillis(0), Duration.ofMillis(2))
                 .process(new CombineToStringJoinFunction())
                 .addSink(new ResultSink());
 
@@ -370,7 +370,7 @@ public class IntervalJoinITCase {
         streamOne
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(0), Time.milliseconds(2))
+                .between(Duration.ofMillis(0), Duration.ofMillis(2))
                 .process(new CombineToStringJoinFunction())
                 .addSink(new ResultSink());
 
@@ -397,7 +397,7 @@ public class IntervalJoinITCase {
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
                 .inProcessingTime()
-                .between(Time.milliseconds(0), Time.milliseconds(0))
+                .between(Duration.ofMillis(0), Duration.ofMillis(0))
                 .process(
                         new ProcessJoinFunction<
                                 Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {

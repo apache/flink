@@ -33,7 +33,6 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
@@ -233,7 +232,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
 
         final Pattern<RowData, RowData> cepPattern;
         if (matchSpec.getInterval().isPresent()) {
-            Duration interval = translateTimeBound(matchSpec.getInterval().get()).toDuration();
+            Duration interval = translateTimeBound(matchSpec.getInterval().get());
             cepPattern = matchSpec.getPattern().accept(patternVisitor).within(interval);
         } else {
             cepPattern = matchSpec.getPattern().accept(patternVisitor);
@@ -241,11 +240,11 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         return new Tuple2<>(cepPattern, new ArrayList<>(patternVisitor.names));
     }
 
-    private static Time translateTimeBound(RexNode interval) {
+    private static Duration translateTimeBound(RexNode interval) {
         if (interval instanceof RexLiteral) {
             final RexLiteral l = (RexLiteral) interval;
             if (l.getTypeName().getFamily() == SqlTypeFamily.INTERVAL_DAY_TIME) {
-                return Time.milliseconds(l.getValueAs(Long.class));
+                return Duration.ofMillis(l.getValueAs(Long.class));
             }
         }
         throw new TableException(

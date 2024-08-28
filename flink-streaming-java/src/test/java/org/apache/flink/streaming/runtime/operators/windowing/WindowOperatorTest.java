@@ -48,7 +48,6 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeW
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
@@ -76,11 +75,11 @@ import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -230,8 +229,8 @@ class WindowOperatorTest {
                 operator =
                         new WindowOperator<>(
                                 SlidingEventTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS),
-                                        Time.of(windowSlide, TimeUnit.SECONDS)),
+                                        Duration.ofSeconds(windowSize),
+                                        Duration.ofSeconds(windowSlide)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -268,8 +267,8 @@ class WindowOperatorTest {
                 operator =
                         new WindowOperator<>(
                                 SlidingEventTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS),
-                                        Time.of(windowSlide, TimeUnit.SECONDS)),
+                                        Duration.ofSeconds(windowSize),
+                                        Duration.ofSeconds(windowSlide)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -411,7 +410,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -447,7 +446,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -485,7 +484,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -578,7 +577,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -673,7 +672,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -760,7 +759,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -846,7 +845,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -937,14 +936,14 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
                                         new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
-                                ContinuousEventTimeTrigger.of(Time.seconds(2)),
+                                ContinuousEventTimeTrigger.of(Duration.ofSeconds(2)),
                                 0,
                                 null /* late data output tag */);
 
@@ -1121,8 +1120,7 @@ class WindowOperatorTest {
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
                                                 String, GlobalWindow, Tuple2<String, Integer>>()),
-                                ContinuousEventTimeTrigger.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS)),
+                                ContinuousEventTimeTrigger.of(Duration.ofSeconds(windowSize)),
                                 0,
                                 null /* late data output tag */);
 
@@ -1416,8 +1414,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingProcessingTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingProcessingTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -1495,8 +1492,8 @@ class WindowOperatorTest {
                 operator =
                         new WindowOperator<>(
                                 SlidingProcessingTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS),
-                                        Time.of(windowSlide, TimeUnit.SECONDS)),
+                                        Duration.ofSeconds(windowSize),
+                                        Duration.ofSeconds(windowSlide)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -1594,8 +1591,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                ProcessingTimeSessionWindows.withGap(
-                                        Time.of(windowGap, TimeUnit.SECONDS)),
+                                ProcessingTimeSessionWindows.withGap(Duration.ofSeconds(windowGap)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -1884,7 +1880,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -1960,7 +1956,7 @@ class WindowOperatorTest {
                         STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         TumblingEventTimeWindows windowAssigner =
-                TumblingEventTimeWindows.of(Time.milliseconds(windowSize));
+                TumblingEventTimeWindows.of(Duration.ofMillis(windowSize));
 
         final WindowOperator<
                         String,
@@ -2053,7 +2049,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2136,8 +2132,8 @@ class WindowOperatorTest {
                 operator =
                         new WindowOperator<>(
                                 SlidingEventTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS),
-                                        Time.of(windowSlide, TimeUnit.SECONDS)),
+                                        Duration.ofSeconds(windowSize),
+                                        Duration.ofSeconds(windowSlide)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2233,7 +2229,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2339,7 +2335,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2442,7 +2438,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2539,7 +2535,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2650,7 +2646,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2752,7 +2748,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2855,7 +2851,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2927,7 +2923,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -2985,7 +2981,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -3044,7 +3040,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -3097,7 +3093,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(gapSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(gapSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -3149,7 +3145,7 @@ class WindowOperatorTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(

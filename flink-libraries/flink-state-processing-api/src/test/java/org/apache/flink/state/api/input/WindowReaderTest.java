@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -62,6 +61,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -83,7 +83,7 @@ public class WindowReaderTest {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
-                                stream.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                                stream.window(TumblingEventTimeWindows.of(Duration.ofMillis(1)))
                                         .reduce(new ReduceSum()));
 
         OperatorState operatorState = getOperatorState(operator);
@@ -110,7 +110,7 @@ public class WindowReaderTest {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
-                                stream.window(EventTimeSessionWindows.withGap(Time.milliseconds(3)))
+                                stream.window(EventTimeSessionWindows.withGap(Duration.ofMillis(3)))
                                         .reduce(new ReduceSum()));
 
         OperatorState operatorState = getOperatorState(operator);
@@ -137,7 +137,7 @@ public class WindowReaderTest {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
-                                stream.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                                stream.window(TumblingEventTimeWindows.of(Duration.ofMillis(1)))
                                         .aggregate(new AggregateSum()));
 
         OperatorState operatorState = getOperatorState(operator);
@@ -164,7 +164,7 @@ public class WindowReaderTest {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
-                                stream.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                                stream.window(TumblingEventTimeWindows.of(Duration.ofMillis(1)))
                                         .process(mockProcessWindowFunction(), Types.INT));
 
         OperatorState operatorState = getOperatorState(operator);
@@ -190,7 +190,7 @@ public class WindowReaderTest {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
-                                stream.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                                stream.window(TumblingEventTimeWindows.of(Duration.ofMillis(1)))
                                         .trigger(new AlwaysFireTrigger<>())
                                         .process(new MultiFireWindow(), Types.INT));
 

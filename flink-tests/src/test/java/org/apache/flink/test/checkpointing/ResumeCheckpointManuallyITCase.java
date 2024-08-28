@@ -40,7 +40,6 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -464,7 +463,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         env.addSource(new NotifyingInfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
                 .keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
                 .reduce((value1, value2) -> Tuple2.of(value1.f0, value1.f1 + value2.f1))
                 .filter(value -> value.f0.startsWith("Tuple 0"));
 

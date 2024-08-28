@@ -30,7 +30,6 @@ import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
@@ -328,8 +327,8 @@ public class NFACompilerTest extends TestLogger {
         factory.compileFactory();
 
         Map<String, Long> expectedWindowTimes = new HashMap<>();
-        expectedWindowTimes.put("middle", Time.seconds(10).toMilliseconds());
-        expectedWindowTimes.put("then", Time.seconds(20).toMilliseconds());
+        expectedWindowTimes.put("middle", Duration.ofSeconds(10).toMillis());
+        expectedWindowTimes.put("then", Duration.ofSeconds(20).toMillis());
         assertEquals(expectedWindowTimes, factory.getWindowTimes());
     }
 

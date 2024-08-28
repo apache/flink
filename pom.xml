@@ -2398,7 +2398,6 @@ under the License.
 								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.SourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.windowing.WindowFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.windowing.time.Time</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.RichSourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.ParallelSourceFunction</exclude>
