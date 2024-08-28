@@ -35,7 +35,6 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
@@ -54,17 +53,11 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -498,27 +491,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
          *
          * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
          * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
-         * @deprecated Use {@link #between(Duration, Duration)}
-         */
-        @Deprecated
-        @PublicEvolving
-        public IntervalJoined<T1, T2, KEY> between(Time lowerBound, Time upperBound) {
-            return between(lowerBound.toDuration(), upperBound.toDuration());
-        }
-
-        /**
-         * Specifies the time boundaries over which the join operation works, so that
-         *
-         * <pre>
-         * leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound
-         * </pre>
-         *
-         * <p>By default both the lower and the upper bound are inclusive. This can be configured
-         * with {@link IntervalJoined#lowerBoundExclusive()} and {@link
-         * IntervalJoined#upperBoundExclusive()}
-         *
-         * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
-         * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
          */
         @PublicEvolving
         public IntervalJoined<T1, T2, KEY> between(Duration lowerBound, Duration upperBound) {
@@ -692,50 +664,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     // ------------------------------------------------------------------------
     //  Windowing
     // ------------------------------------------------------------------------
-
-    /**
-     * Windows this {@code KeyedStream} into tumbling time windows.
-     *
-     * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or {@code
-     * .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic set
-     * using {@link
-     * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
-     *
-     * @param size The size of the window.
-     * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
-     *     TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
-     *     see the deprecation notice on {@link TimeCharacteristic}
-     */
-    @Deprecated
-    public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size) {
-        if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
-            return window(TumblingProcessingTimeWindows.of(size));
-        } else {
-            return window(TumblingEventTimeWindows.of(size));
-        }
-    }
-
-    /**
-     * Windows this {@code KeyedStream} into sliding time windows.
-     *
-     * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
-     * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time
-     * characteristic set using {@link
-     * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
-     *
-     * @param size The size of the window.
-     * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
-     *     SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
-     *     see the deprecation notice on {@link TimeCharacteristic}
-     */
-    @Deprecated
-    public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size, Time slide) {
-        if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
-            return window(SlidingProcessingTimeWindows.of(size, slide));
-        } else {
-            return window(SlidingEventTimeWindows.of(size, slide));
-        }
-    }
 
     /**
      * Windows this {@code KeyedStream} into tumbling count windows.

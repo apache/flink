@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
@@ -42,11 +41,11 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /** Integration tests for windowed join / coGroup operators. */
 @SuppressWarnings("serial")
@@ -119,7 +118,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         source1.coGroup(source2)
                 .where(new Tuple2KeyExtractor())
                 .equalTo(new Tuple2KeyExtractor())
-                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                 .apply(
                         new CoGroupFunction<
                                 Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
@@ -229,7 +228,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         source1.join(source2)
                 .where(new Tuple3KeyExtractor())
                 .equalTo(new Tuple3KeyExtractor())
-                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                 .apply(
                         new JoinFunction<
                                 Tuple3<String, String, Integer>,
@@ -318,7 +317,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         source1.join(source1)
                 .where(new Tuple3KeyExtractor())
                 .equalTo(new Tuple3KeyExtractor())
-                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                 .apply(
                         new JoinFunction<
                                 Tuple3<String, String, Integer>,
@@ -395,7 +394,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
                 source1.coGroup(source2)
                         .where(new Tuple2KeyExtractor())
                         .equalTo(new Tuple2KeyExtractor())
-                        .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                         .apply(
                                 new CoGroupFunction<
                                         Tuple2<String, Integer>,

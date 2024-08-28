@@ -55,7 +55,6 @@ import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -82,17 +81,11 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
 import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
@@ -746,58 +739,6 @@ public class DataStream<T> {
      */
     public <T2> JoinedStreams<T, T2> join(DataStream<T2> otherStream) {
         return new JoinedStreams<>(this, otherStream);
-    }
-
-    /**
-     * Windows this {@code DataStream} into tumbling time windows.
-     *
-     * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or {@code
-     * .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic set
-     * using
-     *
-     * <p>Note: This operation is inherently non-parallel since all elements have to pass through
-     * the same operator instance.
-     *
-     * <p>{@link
-     * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
-     *
-     * @param size The size of the window.
-     * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
-     *     TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
-     *     see the deprecation notice on {@link TimeCharacteristic}
-     */
-    @Deprecated
-    public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
-        if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
-            return windowAll(TumblingProcessingTimeWindows.of(size));
-        } else {
-            return windowAll(TumblingEventTimeWindows.of(size));
-        }
-    }
-
-    /**
-     * Windows this {@code DataStream} into sliding time windows.
-     *
-     * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
-     * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time
-     * characteristic set using {@link
-     * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
-     *
-     * <p>Note: This operation is inherently non-parallel since all elements have to pass through
-     * the same operator instance.
-     *
-     * @param size The size of the window.
-     * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
-     *     SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
-     *     see the deprecation notice on {@link TimeCharacteristic}
-     */
-    @Deprecated
-    public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
-        if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
-            return windowAll(SlidingProcessingTimeWindows.of(size, slide));
-        } else {
-            return windowAll(SlidingEventTimeWindows.of(size, slide));
-        }
     }
 
     /**

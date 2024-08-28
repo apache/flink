@@ -32,11 +32,11 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -83,7 +83,7 @@ public class NFA<T> {
 
     /**
      * The lengths of a windowed pattern, as specified using the {@link
-     * org.apache.flink.cep.pattern.Pattern#within(Time, WithinType)} Pattern.within(Time,
+     * org.apache.flink.cep.pattern.Pattern#within(Duration, WithinType)} Pattern.within(Time,
      * WithinType)} method with {@code WithinType.PREVIOUS_AND_CURRENT}.
      */
     private final Map<String, Long> windowTimes;

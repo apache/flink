@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorBuilder;
@@ -97,21 +96,6 @@ public class WindowedStream<T, K, W extends Window> {
     public WindowedStream<T, K, W> trigger(Trigger<? super T, ? super W> trigger) {
         builder.trigger(trigger);
         return this;
-    }
-
-    /**
-     * Sets the time by which elements are allowed to be late. Elements that arrive behind the
-     * watermark by more than the specified time will be dropped. By default, the allowed lateness
-     * is {@code 0L}.
-     *
-     * <p>Setting an allowed lateness is only valid for event-time windows.
-     *
-     * @deprecated Use {@link #allowedLateness(Duration)}
-     */
-    @Deprecated
-    @PublicEvolving
-    public WindowedStream<T, K, W> allowedLateness(Time lateness) {
-        return allowedLateness(lateness.toDuration());
     }
 
     /**

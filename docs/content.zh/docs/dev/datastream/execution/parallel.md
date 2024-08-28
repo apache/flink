@@ -50,7 +50,7 @@ DataStream<String> text = [...];
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .sum(1).setParallelism(5);
 
 wordCounts.print();
@@ -66,7 +66,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .sum(1).setParallelism(5)
 wordCounts.print()
 
@@ -82,7 +82,7 @@ word_counts = text
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1])) \
     .set_parallelism(5)
 word_counts.print()
@@ -121,7 +121,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .sum(1)
 wordCounts.print()
 
@@ -138,7 +138,7 @@ word_counts = text
     .flat_map(lambda x: x.split(" ")) \
     .map(lambda i: (i, 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
     .key_by(lambda i: i[0]) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(lambda i, j: (i[0], i[1] + j[1]))
 word_counts.print()
 

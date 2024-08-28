@@ -35,8 +35,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
+import java.time.Duration;
 import java.util.Collections;
 
 /**
@@ -68,7 +68,7 @@ public class PeriodicStreamingJob {
 
         DataStream<Tuple> result =
                 rows.keyBy(tuple -> tuple.getField(1))
-                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                         .sum(0);
 
         result.writeAsText(outputPath + "/result.txt", FileSystem.WriteMode.OVERWRITE)

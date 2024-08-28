@@ -32,10 +32,9 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
  *     event-time mode. If you need to disable watermarks, please use {@link
  *     ExecutionConfig#setAutoWatermarkInterval(long)}. If you are using {@link
  *     TimeCharacteristic#IngestionTime}, please manually set an appropriate {@link
- *     WatermarkStrategy}. If you are using generic "time window" operations (for example {@link
- *     org.apache.flink.streaming.api.datastream.KeyedStream#timeWindow(org.apache.flink.streaming.api.windowing.time.Time)}
- *     that change behaviour based on the time characteristic, please use equivalent operations that
- *     explicitly specify processing time or event time.
+ *     WatermarkStrategy}. If you are using generic "time window" operations that change behaviour
+ *     based on the time characteristic, please use equivalent operations that explicitly specify
+ *     processing time or event time.
  */
 @PublicEvolving
 @Deprecated

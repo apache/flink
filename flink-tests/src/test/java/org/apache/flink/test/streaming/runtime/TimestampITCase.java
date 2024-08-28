@@ -53,7 +53,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -65,6 +64,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -704,7 +704,7 @@ public class TimestampITCase extends TestLogger {
                 env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
         source1.keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             @Override
@@ -734,7 +734,7 @@ public class TimestampITCase extends TestLogger {
                 env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
         source1.keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             @Override

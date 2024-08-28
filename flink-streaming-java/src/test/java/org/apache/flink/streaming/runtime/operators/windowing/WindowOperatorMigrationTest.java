@@ -40,7 +40,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
@@ -62,10 +61,10 @@ import org.apache.flink.util.Collector;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -112,7 +111,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -170,7 +169,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -244,7 +243,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -296,7 +295,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
+                                EventTimeSessionWindows.withGap(Duration.ofSeconds(sessionSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -381,7 +380,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -461,7 +460,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -532,7 +531,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -610,7 +609,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -681,8 +680,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingProcessingTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingProcessingTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -751,8 +749,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingProcessingTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingProcessingTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -818,8 +815,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingProcessingTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingProcessingTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -886,8 +882,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingProcessingTimeWindows.of(
-                                        Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingProcessingTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
@@ -960,7 +955,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 keySerializer,
@@ -1055,7 +1050,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                         TimeWindow>
                 operator =
                         new WindowOperator<>(
-                                TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 keySerializer,

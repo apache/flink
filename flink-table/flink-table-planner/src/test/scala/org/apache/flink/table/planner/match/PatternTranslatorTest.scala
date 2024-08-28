@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.`match`
 
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy._
 import org.apache.flink.cep.pattern.Pattern
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.TableException
 
 import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}

@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
@@ -38,6 +37,7 @@ import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.stream.StreamSupport;
@@ -99,7 +99,7 @@ class ContinuousProcessingTimeTriggerTest {
     @Test
     void testProcessingTimeWindowFiring() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
-                ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
+                ContinuousProcessingTimeTrigger.of(Duration.ofMillis(5));
 
         assertThat(trigger.canMerge()).isTrue();
 
@@ -110,7 +110,7 @@ class ContinuousProcessingTimeTriggerTest {
 
         WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
                 new WindowOperator<>(
-                        TumblingProcessingTimeWindows.of(Time.milliseconds(10)),
+                        TumblingProcessingTimeWindows.of(Duration.ofMillis(10)),
                         new TimeWindow.Serializer(),
                         new NullByteKeySelector<>(),
                         BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
@@ -176,7 +176,7 @@ class ContinuousProcessingTimeTriggerTest {
     @Test
     public void testEventTimeWindowFiring() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
-                ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
+                ContinuousProcessingTimeTrigger.of(Duration.ofMillis(5));
 
         ListStateDescriptor<Integer> stateDesc =
                 new ListStateDescriptor<>(
@@ -185,7 +185,7 @@ class ContinuousProcessingTimeTriggerTest {
 
         WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
                 new WindowOperator<>(
-                        TumblingEventTimeWindows.of(Time.milliseconds(10)),
+                        TumblingEventTimeWindows.of(Duration.ofMillis(10)),
                         new TimeWindow.Serializer(),
                         new NullByteKeySelector<>(),
                         BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
@@ -234,7 +234,7 @@ class ContinuousProcessingTimeTriggerTest {
     @Test
     void testMergingWindows() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
-                ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
+                ContinuousProcessingTimeTrigger.of(Duration.ofMillis(5));
 
         assertThat(trigger.canMerge()).isTrue();
 
@@ -245,7 +245,7 @@ class ContinuousProcessingTimeTriggerTest {
 
         WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
                 new WindowOperator<>(
-                        ProcessingTimeSessionWindows.withGap(Time.milliseconds(10)),
+                        ProcessingTimeSessionWindows.withGap(Duration.ofMillis(10)),
                         new TimeWindow.Serializer(),
                         new NullByteKeySelector<>(),
                         BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),

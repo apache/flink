@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
@@ -52,6 +51,7 @@ import org.junit.rules.ExpectedException;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -895,7 +895,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         .assignTimestampsAndWatermarks(new TestWatermarkAssigner())
                         .windowAll(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
                         .sideOutputLateData(lateDataTag)
                         .apply(
                                 new AllWindowFunction<Integer, Integer, TimeWindow>() {
@@ -949,8 +949,8 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         .keyBy(new TestKeySelector())
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
-                        .allowedLateness(Time.milliseconds(2))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
+                        .allowedLateness(Duration.ofMillis(2))
                         .sideOutputLateData(lateDataTag)
                         .apply(
                                 new WindowFunction<Integer, String, Integer, TimeWindow>() {
@@ -999,7 +999,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         .keyBy(new TestKeySelector())
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
                         .process(
                                 new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
                                     private static final long serialVersionUID = 1L;
@@ -1045,7 +1045,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         .assignTimestampsAndWatermarks(new TestWatermarkAssigner())
                         .windowAll(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
                         .process(
                                 new ProcessAllWindowFunction<Integer, Integer, TimeWindow>() {
                                     private static final long serialVersionUID = 1L;

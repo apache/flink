@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
@@ -97,7 +96,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                             numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .windowAll(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .apply(
                             new RichAllWindowFunction<
                                     Tuple2<Long, IntType>,
@@ -176,7 +175,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                     .rebalance()
                     .windowAll(
                             SlidingEventTimeWindows.of(
-                                    Time.milliseconds(windowSize), Time.milliseconds(windowSlide)))
+                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
                     .apply(
                             new RichAllWindowFunction<
                                     Tuple2<Long, IntType>,
@@ -252,7 +251,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                             numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .windowAll(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -335,7 +334,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                     .rebalance()
                     .windowAll(
                             SlidingEventTimeWindows.of(
-                                    Time.milliseconds(windowSize), Time.milliseconds(windowSlide)))
+                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 

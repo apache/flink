@@ -22,11 +22,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowStagger;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,7 +43,7 @@ class TumblingProcessingTimeWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingProcessingTimeWindows assigner =
-                TumblingProcessingTimeWindows.of(Time.milliseconds(5000));
+                TumblingProcessingTimeWindows.of(Duration.ofMillis(5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -64,7 +65,7 @@ class TumblingProcessingTimeWindowsTest {
 
         TumblingProcessingTimeWindows assigner =
                 TumblingProcessingTimeWindows.of(
-                        Time.milliseconds(5000), Time.milliseconds(0), WindowStagger.NATURAL);
+                        Duration.ofMillis(5000), Duration.ofMillis(0), WindowStagger.NATURAL);
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(150L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -85,7 +86,7 @@ class TumblingProcessingTimeWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingProcessingTimeWindows assigner =
-                TumblingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(100));
+                TumblingProcessingTimeWindows.of(Duration.ofMillis(5000), Duration.ofMillis(100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -106,7 +107,7 @@ class TumblingProcessingTimeWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingProcessingTimeWindows assigner =
-                TumblingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
+                TumblingProcessingTimeWindows.of(Duration.ofMillis(5000), Duration.ofMillis(-100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -129,7 +130,7 @@ class TumblingProcessingTimeWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingProcessingTimeWindows assigner =
-                TumblingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1));
+                TumblingProcessingTimeWindows.of(Duration.ofSeconds(5), Duration.ofSeconds(1));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(1000L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -147,17 +148,21 @@ class TumblingProcessingTimeWindowsTest {
     @Test
     void testInvalidParameters() {
 
-        assertThatThrownBy(() -> TumblingProcessingTimeWindows.of(Time.seconds(-1)))
+        assertThatThrownBy(() -> TumblingProcessingTimeWindows.of(Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < size");
 
         assertThatThrownBy(
-                        () -> TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(20)))
+                        () ->
+                                TumblingProcessingTimeWindows.of(
+                                        Duration.ofSeconds(10), Duration.ofSeconds(20)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < size");
 
         assertThatThrownBy(
-                        () -> TumblingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(-11)))
+                        () ->
+                                TumblingProcessingTimeWindows.of(
+                                        Duration.ofSeconds(10), Duration.ofSeconds(-11)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < size");
     }
@@ -165,7 +170,7 @@ class TumblingProcessingTimeWindowsTest {
     @Test
     void testProperties() {
         TumblingProcessingTimeWindows assigner =
-                TumblingProcessingTimeWindows.of(Time.seconds(5), Time.milliseconds(100));
+                TumblingProcessingTimeWindows.of(Duration.ofSeconds(5), Duration.ofMillis(100));
 
         assertThat(assigner.isEventTime()).isFalse();
         assertThat(assigner.getWindowSerializer(new ExecutionConfig()))

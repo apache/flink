@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.util.Collector;
@@ -47,6 +46,7 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,7 +82,7 @@ class StateDescriptorPassingTest {
                                         return null;
                                     }
                                 })
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .reduce(
                                 new ReduceFunction<File>() {
 
@@ -119,7 +119,7 @@ class StateDescriptorPassingTest {
                                         return null;
                                     }
                                 })
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .apply(
                                 new WindowFunction<File, String, String, TimeWindow>() {
                                     @Override
@@ -157,7 +157,7 @@ class StateDescriptorPassingTest {
                                         return null;
                                     }
                                 })
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .process(
                                 new ProcessWindowFunction<File, String, String, TimeWindow>() {
                                     @Override
@@ -189,7 +189,7 @@ class StateDescriptorPassingTest {
                                                 (file, ts) -> System.currentTimeMillis()));
 
         SingleOutputStreamOperator<?> result =
-                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                src.windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .process(
                                 new ProcessAllWindowFunction<File, String, TimeWindow>() {
                                     @Override
@@ -220,7 +220,7 @@ class StateDescriptorPassingTest {
                                                 (file, ts) -> System.currentTimeMillis()));
 
         SingleOutputStreamOperator<?> result =
-                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                src.windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .reduce(
                                 new ReduceFunction<File>() {
 
@@ -251,7 +251,7 @@ class StateDescriptorPassingTest {
                                                 (file, ts) -> System.currentTimeMillis()));
 
         SingleOutputStreamOperator<?> result =
-                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                src.windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .apply(
                                 new AllWindowFunction<File, String, TimeWindow>() {
                                     @Override

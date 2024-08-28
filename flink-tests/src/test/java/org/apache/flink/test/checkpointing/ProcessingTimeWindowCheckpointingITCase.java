@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
@@ -45,6 +44,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Map;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
@@ -95,7 +95,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.addSource(new FailingSource(new Generator(), numElements, true))
                     .rebalance()
                     .keyBy(0)
-                    .window(TumblingProcessingTimeWindows.of(Time.milliseconds(100)))
+                    .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
@@ -158,7 +158,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                     .keyBy(0)
                     .window(
                             SlidingProcessingTimeWindows.of(
-                                    Time.milliseconds(150), Time.milliseconds(50)))
+                                    Duration.ofMillis(150), Duration.ofMillis(50)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
@@ -227,7 +227,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                             })
                     .rebalance()
                     .keyBy(0)
-                    .window(TumblingProcessingTimeWindows.of(Time.milliseconds(100)))
+                    .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -272,7 +272,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                     .keyBy(0)
                     .window(
                             SlidingProcessingTimeWindows.of(
-                                    Time.milliseconds(150), Time.milliseconds(50)))
+                                    Duration.ofMillis(150), Duration.ofMillis(50)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
                                 @Override

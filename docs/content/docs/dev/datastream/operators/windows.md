@@ -182,19 +182,19 @@ DataStream<T> input = ...;
 // tumbling event-time windows
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // tumbling processing-time windows
 input
     .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // daily tumbling event-time windows offset by -8 hours.
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
 ```
 {{< /tab >}}
@@ -205,19 +205,19 @@ val input: DataStream[T] = ...
 // tumbling event-time windows
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // tumbling processing-time windows
 input
     .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // daily tumbling event-time windows offset by -8 hours.
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -228,26 +228,26 @@ input = ...  # type: DataStream
 # tumbling event-time windows
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # tumbling processing-time windows
 input \
     .key_by(<key selector>) \
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # daily tumbling event-time windows offset by -8 hours.
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
-`Time.minutes(x)`, and so on.
+Time intervals can be specified by using one of `Duration.ofMillis(x)`, `Duration.ofSeconds(x)`,
+`Duration.ofMinutes(x)`, and so on.
 
 As shown in the last example, tumbling window assigners also take an optional `offset`
 parameter that can be used to change the alignment of windows. For example, without offsets
@@ -256,7 +256,7 @@ hourly tumbling windows are aligned with epoch, that is you will get windows suc
 that you can give an offset. With an offset of 15 minutes you would, for example, get
 `1:15:00.000 - 2:14:59.999`, `2:15:00.000 - 3:14:59.999` etc.
 An important use case for offsets is to adjust windows to timezones other than UTC-0.
-For example, in China you would have to specify an offset of `Time.hours(-8)`.
+For example, in China you would have to specify an offset of `Duration.ofHours(-8)`.
 
 ### Sliding Windows
 
@@ -282,19 +282,19 @@ DataStream<T> input = ...;
 // sliding event-time windows
 input
     .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // sliding processing-time windows
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // sliding processing-time windows offset by -8 hours
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
 ```
 {{< /tab >}}
@@ -305,19 +305,19 @@ val input: DataStream[T] = ...
 // sliding event-time windows
 input
     .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // sliding processing-time windows
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // sliding processing-time windows offset by -8 hours
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -328,26 +328,26 @@ input = ...  # type: DataStream
 # sliding event-time windows
 input \
     .key_by(<key selector>) \
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # sliding processing-time windows
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # sliding processing-time windows offset by -8 hours
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
-`Time.minutes(x)`, and so on.
+Time intervals can be specified by using one of `Duration.ofMillis(x)`, `Duration.ofSeconds(x)`,
+`Duration.ofMinutes(x)`, and so on.
 
 As shown in the last example, sliding window assigners also take an optional `offset` parameter
 that can be used to change the alignment of windows. For example, without offsets hourly windows
@@ -356,7 +356,7 @@ sliding by 30 minutes are aligned with epoch, that is you will get windows such 
 you can give an offset. With an offset of 15 minutes you would, for example, get
 `1:15:00.000 - 2:14:59.999`, `1:45:00.000 - 2:44:59.999` etc.
 An important use case for offsets is to adjust windows to timezones other than UTC-0.
-For example, in China you would have to specify an offset of `Time.hours(-8)`.
+For example, in China you would have to specify an offset of `Duration.ofHours(-8)`.
 
 ### Session Windows
 
@@ -379,7 +379,7 @@ DataStream<T> input = ...;
 // event-time session windows with static gap
 input
     .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // event-time session windows with dynamic gap
@@ -393,7 +393,7 @@ input
 // processing-time session windows with static gap
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // processing-time session windows with dynamic gap
@@ -412,7 +412,7 @@ val input: DataStream[T] = ...
 // event-time session windows with static gap
 input
     .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>)
 
 // event-time session windows with dynamic gap
@@ -428,7 +428,7 @@ input
 // processing-time session windows with static gap
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>)
 
 
@@ -455,7 +455,7 @@ class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
 # event-time session windows with static gap
 input \
     .key_by(<key selector>) \
-    .window(EventTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(EventTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # event-time session windows with dynamic gap
@@ -467,7 +467,7 @@ input \
 # processing-time session windows with static gap
 input \
     .key_by(<key selector>) \
-    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(ProcessingTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # processing-time session windows with dynamic gap
@@ -479,8 +479,8 @@ input \
 {{< /tab >}}
 {{< /tabs >}}
 
-Static gaps can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
-`Time.minutes(x)`, and so on.
+Static gaps can be specified by using one of `Duration.ofMillis(x)`, `Duration.ofSeconds(x)`,
+`Duration.ofMinutes(x)`, and so on.
 
 Dynamic gaps are specified by implementing the `SessionWindowTimeGapExtractor` interface.
 
@@ -947,7 +947,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(t -> t.f0)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+  .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
   .process(new MyProcessWindowFunction());
 
 /* ... */
@@ -973,7 +973,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+  .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
   .process(new MyProcessWindowFunction())
 
 /* ... */
@@ -996,7 +996,7 @@ input = ...  # type: DataStream
 
 input \
     .key_by(lambda v: v[0]) \
-    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5))) \
     .process(MyProcessWindowFunction())
 
 # ...
@@ -1681,11 +1681,11 @@ DataStream<Integer> input = ...;
 
 DataStream<Integer> resultsPerKey = input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .reduce(new Summer());
 
 DataStream<Integer> globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .process(new TopKWindowFunction());
 
 ```
@@ -1696,11 +1696,11 @@ val input: DataStream[Int] = ...
 
 val resultsPerKey = input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .reduce(new Summer())
 
 val globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .process(new TopKWindowFunction())
 ```
 {{< /tab >}}
@@ -1710,11 +1710,11 @@ input = ...  # type: DataStream
 
 results_per_key = input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(Summer())
 
 global_results = results_per_key \
-    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window_all(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .process(TopKWindowFunction())
 ```
 {{< /tab >}}

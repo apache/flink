@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.functions.timestamps;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.time.Duration;
 
@@ -48,15 +47,6 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T>
      * watermark to be emitted.
      */
     private final long maxOutOfOrderness;
-
-    /**
-     * @deprecated Use {@link
-     *     BoundedOutOfOrdernessTimestampExtractor#BoundedOutOfOrdernessTimestampExtractor(Duration)}
-     */
-    @Deprecated
-    public BoundedOutOfOrdernessTimestampExtractor(Time maxOutOfOrderness) {
-        this(maxOutOfOrderness.toDuration());
-    }
 
     public BoundedOutOfOrdernessTimestampExtractor(Duration maxOutOfOrderness) {
         if (maxOutOfOrderness.isNegative()) {

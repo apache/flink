@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -165,7 +166,7 @@ public final class DataStructureConverters {
         putConverter(LogicalTypeRoot.INTERVAL_YEAR_MONTH, int.class, identity());
         putConverter(
                 LogicalTypeRoot.INTERVAL_DAY_TIME,
-                java.time.Duration.class,
+                Duration.class,
                 constructor(DayTimeIntervalDurationConverter::new));
         putConverter(LogicalTypeRoot.INTERVAL_DAY_TIME, Long.class, identity());
         putConverter(LogicalTypeRoot.INTERVAL_DAY_TIME, long.class, identity());
