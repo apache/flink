@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.math.BigDecimal;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
@@ -43,6 +44,8 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 
 /** Tests for built-in {@link InputTypeStrategies}. */
 class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
@@ -751,7 +754,104 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 "Index must be an integer starting from '0', but was '-1'."),
                 TestSpec.forStrategy("IndexArgumentTypeStrategy index type", sequence(INDEX))
                         .calledWithArgumentTypes(DataTypes.DECIMAL(10, 5))
-                        .expectErrorMessage("Index can only be an INTEGER NUMERIC type."));
+                        .expectErrorMessage("Index can only be an INTEGER NUMERIC type."),
+
+                // Percentage ArgumentStrategy
+                TestSpec.forStrategy("normal", sequence(percentage(true)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE())
+                        .expectSignature("f(<NUMERIC>)")
+                        .expectArgumentTypes(DataTypes.DOUBLE()),
+                TestSpec.forStrategy("implicit cast", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(5, 2).notNull())
+                        .expectSignature("f(<NUMERIC NOT NULL>)")
+                        .expectArgumentTypes(DataTypes.DOUBLE().notNull()),
+                TestSpec.forStrategy("literal", sequence(percentage(true)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 2))
+                        .calledWithLiteralAt(0, BigDecimal.valueOf(45, 2))
+                        .expectArgumentTypes(DataTypes.DOUBLE()),
+                TestSpec.forStrategy("literal", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, 1)
+                        .expectArgumentTypes(DataTypes.DOUBLE().notNull()),
+                TestSpec.forStrategy("invalid type", sequence(percentage(true)))
+                        .calledWithArgumentTypes(DataTypes.STRING())
+                        .expectErrorMessage("Percentage must be of NUMERIC type."),
+                TestSpec.forStrategy("invalid nullability", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE())
+                        .expectErrorMessage("Percentage must be of NOT NULL type."),
+                TestSpec.forStrategy("invalid literal value", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 1).notNull())
+                        .calledWithLiteralAt(0, BigDecimal.valueOf(20, 1))
+                        .expectErrorMessage(
+                                "Percentage must be between [0.0, 1.0], but was '2.0'."),
+                TestSpec.forStrategy("invalid literal value", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 1).notNull())
+                        .calledWithLiteralAt(0, BigDecimal.valueOf(-5, 1))
+                        .expectErrorMessage(
+                                "Percentage must be between [0.0, 1.0], but was '-0.5'."),
+
+                // Percentage Array ArgumentStrategy
+                TestSpec.forStrategy("normal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .expectSignature("f(ARRAY<NUMERIC>)")
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("implicit cast", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DECIMAL(5, 2).notNull()).notNull())
+                        .expectSignature("f(ARRAY<NUMERIC NOT NULL> NOT NULL)")
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DOUBLE().notNull()).notNull()),
+                TestSpec.forStrategy("literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .calledWithLiteralAt(0, new Double[] {0.45, 0.55})
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("literal", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DECIMAL(2, 2).notNull()).notNull())
+                        .calledWithLiteralAt(
+                                0,
+                                new BigDecimal[] {
+                                    BigDecimal.valueOf(45, 2), BigDecimal.valueOf(55, 2)
+                                })
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DOUBLE().notNull()).notNull()),
+                TestSpec.forStrategy("literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.INT()))
+                        .calledWithLiteralAt(0, new Integer[] {0, 1})
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("empty literal array", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .calledWithLiteralAt(0, new Double[0])
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("not array", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE())
+                        .expectErrorMessage("Percentage must be an array."),
+                TestSpec.forStrategy("invalid array nullability", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.STRING().notNull()))
+                        .expectErrorMessage("Percentage must be a non-null array."),
+                TestSpec.forStrategy("invalid element type", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.STRING()))
+                        .expectErrorMessage(
+                                "Value in the percentage array must be of NUMERIC type."),
+                TestSpec.forStrategy(
+                                "invalid element nullability", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()).notNull())
+                        .expectErrorMessage(
+                                "Value in the percentage array must be of NOT NULL type."),
+                TestSpec.forStrategy("invalid literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .calledWithLiteralAt(0, new Double[] {0.5, 1.5})
+                        .expectErrorMessage(
+                                "Value in the percentage array must be between [0.0, 1.0], but was '1.5'."),
+                TestSpec.forStrategy("invalid literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DECIMAL(3, 2)))
+                        .calledWithLiteralAt(
+                                0,
+                                new BigDecimal[] {
+                                    BigDecimal.valueOf(-1, 1), BigDecimal.valueOf(5, 1)
+                                })
+                        .expectErrorMessage(
+                                "Value in the percentage array must be between [0.0, 1.0], but was '-0.1'."));
     }
 
     private static DataType timeIndicatorType(TimestampKind timestampKind) {
