@@ -665,7 +665,7 @@ public class CheckpointingOptions {
                                             "Feature toggle for enabling checkpointing even if some of tasks"
                                                     + " have finished. Before you enable it, please take a look at %s ",
                                             link(
-                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta",
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished",
                                                     "the important considerations"))
                                     .build());
 
