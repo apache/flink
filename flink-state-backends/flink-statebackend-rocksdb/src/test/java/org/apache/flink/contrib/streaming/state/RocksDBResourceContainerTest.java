@@ -45,7 +45,6 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -317,7 +316,7 @@ public class RocksDBResourceContainerTest {
             assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
             assertThat(actual.partitionFilters(), is(true));
             assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
-            assertThat(actual.filterPolicy(), not(blockBasedFilter));
+            assertFalse(actual.filterPolicy() == blockBasedFilter);
         }
         assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
     }
