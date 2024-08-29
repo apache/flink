@@ -57,6 +57,7 @@ import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -948,9 +949,9 @@ class AllWindowTranslationTest {
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
+                source.windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(1)))
                         .trigger(CountTrigger.of(1))
-                        .evictor(TimeEvictor.of(Time.of(100, TimeUnit.MILLISECONDS)))
+                        .evictor(TimeEvictor.of(Duration.ofMillis(100)))
                         .process(
                                 new ProcessAllWindowFunction<
                                         Tuple2<String, Integer>,

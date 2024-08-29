@@ -64,7 +64,6 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -906,43 +905,6 @@ class DataStreamTest {
                                 });
 
         assertThat(flatten.getType()).isEqualTo(TypeExtractor.getForClass(CustomPOJO.class));
-    }
-
-    /**
-     * Verify that a {@link KeyedStream#process(ProcessFunction)} call is correctly translated to an
-     * operator.
-     */
-    @Test
-    @Deprecated
-    void testKeyedStreamProcessTranslation() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.fromSequence(0, 0);
-
-        ProcessFunction<Long, Integer> processFunction =
-                new ProcessFunction<Long, Integer>() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public void processElement(Long value, Context ctx, Collector<Integer> out)
-                            throws Exception {
-                        // Do nothing
-                    }
-
-                    @Override
-                    public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out)
-                            throws Exception {
-                        // Do nothing
-                    }
-                };
-
-        DataStream<Integer> processed =
-                src.keyBy(new IdentityKeySelector<Long>()).process(processFunction);
-
-        processed.sinkTo(new DiscardingSink<Integer>());
-
-        assertThat(getFunctionForDataStream(processed)).isEqualTo(processFunction);
-        assertThat(getOperatorForDataStream(processed))
-                .isInstanceOf(LegacyKeyedProcessOperator.class);
     }
 
     /**
