@@ -23,16 +23,16 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -135,11 +135,12 @@ public class HybridSourceITCase extends TestLogger {
         final DataStream<Integer> streamFailingInTheMiddleOfReading =
                 RecordCounterToFail.wrapWithFailureAfter(stream, EXPECTED_RESULT.size() / 2);
 
-        final ClientAndIterator<Integer> client =
-                DataStreamUtils.collectWithClient(
-                        streamFailingInTheMiddleOfReading,
+        CloseableIterator<Integer> iterator = streamFailingInTheMiddleOfReading.collectAsync();
+        JobClient client =
+                env.executeAsync(
                         HybridSourceITCase.class.getSimpleName() + '-' + failoverType.name());
-        final JobID jobId = client.client.getJobID();
+
+        final JobID jobId = client.getJobID();
 
         RecordCounterToFail.waitToFail();
         triggerFailover(
@@ -149,8 +150,8 @@ public class HybridSourceITCase extends TestLogger {
                 miniClusterResource.getMiniCluster());
 
         final List<Integer> result = new ArrayList<>();
-        while (result.size() < EXPECTED_RESULT.size() && client.iterator.hasNext()) {
-            result.add(client.iterator.next());
+        while (result.size() < EXPECTED_RESULT.size() && iterator.hasNext()) {
+            result.add(iterator.next());
         }
 
         verifyResult(result);

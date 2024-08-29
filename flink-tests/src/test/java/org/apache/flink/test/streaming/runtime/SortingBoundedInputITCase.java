@@ -37,7 +37,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -87,7 +86,7 @@ import static org.junit.Assert.assertTrue;
 public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
 
     @Test
-    public void testOneInputOperator() {
+    public void testOneInputOperator() throws Exception {
         long numberOfRecords = 1_000_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -110,7 +109,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
                                 new AssertingOperator());
 
         long sum =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(counts)).stream()
+                CollectionUtil.iteratorToList(counts.executeAndCollect()).stream()
                         .mapToLong(l -> l)
                         .sum();
 
@@ -118,7 +117,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testTwoInputOperator() {
+    public void testTwoInputOperator() throws Exception {
         long numberOfRecords = 500_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -149,7 +148,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
                                 new AssertingTwoInputOperator());
 
         long sum =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(counts)).stream()
+                CollectionUtil.iteratorToList(counts.executeAndCollect()).stream()
                         .mapToLong(l -> l)
                         .sum();
 
@@ -157,7 +156,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testThreeInputOperator() {
+    public void testThreeInputOperator() throws Exception {
         long numberOfRecords = 500_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -204,7 +203,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
         DataStream<Long> counts = new DataStream<>(env, assertingTransformation);
 
         long sum =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(counts)).stream()
+                CollectionUtil.iteratorToList(counts.executeAndCollect()).stream()
                         .mapToLong(l -> l)
                         .sum();
 
@@ -212,7 +211,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testBatchExecutionWithTimersOneInput() {
+    public void testBatchExecutionWithTimersOneInput() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // set parallelism to 1 to have consistent order of results
 
@@ -324,9 +323,9 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
 
         DataStream<Integer> lateStream = sums.getSideOutput(lateElements);
         List<Integer> lateRecordsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(lateStream));
+                CollectionUtil.iteratorToList(lateStream.executeAndCollect());
         List<Tuple3<Long, Integer, Integer>> sumsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(sums));
+                CollectionUtil.iteratorToList(sums.executeAndCollect());
 
         assertTrue(lateRecordsCollected.isEmpty());
         assertThat(
@@ -340,7 +339,7 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testBatchExecutionWithTimersTwoInput() {
+    public void testBatchExecutionWithTimersTwoInput() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // set parallelism to 1 to have consistent order of results
 
@@ -487,9 +486,9 @@ public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
 
         DataStream<Integer> lateStream = sums.getSideOutput(lateElements);
         List<Integer> lateRecordsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(lateStream));
+                CollectionUtil.iteratorToList(lateStream.executeAndCollect());
         List<Tuple3<Long, Integer, Integer>> sumsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(sums));
+                CollectionUtil.iteratorToList(sums.executeAndCollect());
 
         assertTrue(lateRecordsCollected.isEmpty());
         assertThat(

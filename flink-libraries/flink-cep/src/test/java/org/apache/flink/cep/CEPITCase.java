@@ -39,7 +39,6 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -134,7 +133,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         assertEquals(Arrays.asList("2,6,8"), resultList);
     }
@@ -198,7 +197,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(String::compareTo);
 
@@ -274,7 +273,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(String::compareTo);
 
@@ -363,7 +362,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(String::compareTo);
 
@@ -399,7 +398,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<Tuple2<Integer, Integer>> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         assertEquals(Arrays.asList(new Tuple2<>(0, 1)), resultList);
     }
@@ -441,7 +440,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<Integer> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         assertEquals(Arrays.asList(3), resultList);
     }
@@ -522,7 +521,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<Either<String, String>> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(Comparator.comparing(Object::toString));
 
@@ -612,7 +611,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<Either<String, String>> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(Comparator.comparing(Object::toString));
 
@@ -676,7 +675,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         List<String> expected = Arrays.asList("1,5,6", "1,2,3", "4,5,6", "1,2,6");
 
@@ -764,7 +763,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         List<String> expected = Arrays.asList("1,6,4", "1,5,4");
 
@@ -817,7 +816,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<Tuple2<Integer, String>> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(Comparator.comparing(tuple2 -> tuple2.toString()));
 
@@ -904,7 +903,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         assertEquals(Arrays.asList("2,6,8"), resultList);
     }
@@ -998,7 +997,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
 
         List<String> resultList = new ArrayList<>();
 
-        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+        result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(String::compareTo);
 

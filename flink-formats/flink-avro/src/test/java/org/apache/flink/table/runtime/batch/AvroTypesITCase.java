@@ -24,13 +24,11 @@ import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.util.Utf8;
@@ -154,7 +152,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
                     .build();
 
     @Test
-    public void testAvroToRow() {
+    public void testAvroToRow() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -162,11 +160,10 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
         Table t = tEnv.fromDataStream(ds);
         Table result = t.select($("*"));
 
-        List<Row> results =
+        List<Object> results =
                 CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(
-                                tEnv.toDataStream(
-                                        result, t.getResolvedSchema().toSourceRowDataType())));
+                        tEnv.toDataStream(result, t.getResolvedSchema().toSourceRowDataType())
+                                .executeAndCollect());
         String expected =
                 "+I[Charlie, null, blue, 1337, 1.337, null, false, [], [], null, RED, {}, null, null, "
                         + "{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": \"Berlin\", \"zip\": \"12049\"}, "
@@ -201,7 +198,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testAvroObjectAccess() {
+    public void testAvroObjectAccess() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -214,13 +211,13 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
 
         List<Address> results =
                 CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(tEnv.toDataStream(result, Address.class)));
+                        tEnv.toDataStream(result, Address.class).executeAndCollect());
         String expected = USER_1.getTypeNested().toString();
         TestBaseUtils.compareResultAsText(results, expected);
     }
 
     @Test
-    public void testAvroToAvro() {
+    public void testAvroToAvro() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -230,7 +227,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
 
         List<User> results =
                 CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(tEnv.toDataStream(result, User.class)));
+                        tEnv.toDataStream(result, User.class).executeAndCollect());
         List<User> expected = Arrays.asList(USER_1, USER_2, USER_3);
         assertThat(results).isEqualTo(expected);
     }
