@@ -140,6 +140,9 @@ trait BatchPhysicalJoinRuleBase {
       case JoinStrategy.NEST_LOOP =>
         checkNestLoopJoin(join, tableConfig, withHint)
 
+      case JoinStrategy.LOOKUP =>
+        (false, false)
+
       case _ =>
         throw new ValidationException("Unknown join strategy : " + triedJoinStrategy)
     }

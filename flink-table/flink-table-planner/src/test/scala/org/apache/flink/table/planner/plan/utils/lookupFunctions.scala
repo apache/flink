@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.streaming.api.functions.async.ResultFuture
-import org.apache.flink.table.data.{RowData, StringData}
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
+import org.apache.flink.table.data.{GenericRowData, RowData, StringData}
+import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext, TableFunction}
 import org.apache.flink.types.Row
 
 import _root_.java.lang.{Long => JLong}
@@ -85,4 +85,19 @@ class AsyncTableFunctionWithRowDataVarArg extends AsyncTableFunction[RowData] {
 class AsyncTableFunctionWithRow extends AsyncTableFunction[Row] {
   @varargs
   def eval(obj: AnyRef*): Unit = {}
+}
+
+@SerialVersionUID(1L)
+class SingleSubTaskBoundTableFunction extends TableFunction[RowData] {
+  private var subtaskId: Int = _
+
+  override def open(context: FunctionContext): Unit = {
+    subtaskId = context.getTaskInfo.getIndexOfThisSubtask
+  }
+
+  def eval(a: Int, b: Long, c: StringData): Unit = {
+    if (subtaskId == 0) {
+      this.collect(GenericRowData.of(java.lang.Integer.valueOf(a), java.lang.Long.valueOf(b), c))
+    };
+  }
 }

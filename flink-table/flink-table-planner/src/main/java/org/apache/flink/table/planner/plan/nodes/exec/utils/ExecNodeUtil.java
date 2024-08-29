@@ -28,7 +28,9 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -389,5 +391,16 @@ public class ExecNodeUtil {
             ((LegacySourceTransformation<?>) transformation).setBoundedness(Boundedness.BOUNDED);
         }
         transformation.getInputs().forEach(ExecNodeUtil::makeLegacySourceTransformationsBounded);
+    }
+
+    /** Create a {@link PartitionTransformation}. */
+    public static <I> Transformation<I> createPartitionTransformation(
+            Transformation<I> input,
+            TransformationMetadata transformationMeta,
+            StreamPartitioner<I> streamPartitioner) {
+        PartitionTransformation<I> transformation =
+                new PartitionTransformation<>(input, streamPartitioner);
+        transformationMeta.fill(transformation);
+        return transformation;
     }
 }
