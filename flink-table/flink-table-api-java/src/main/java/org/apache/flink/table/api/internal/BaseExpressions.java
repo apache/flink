@@ -145,6 +145,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
@@ -530,6 +531,15 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns the last value of field across all input values. */
     public OutType lastValue() {
         return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
+    }
+
+    /**
+     * Returns the most frequent value in a group of values. If there are multiple values that
+     * appear the same number of times, one of them will be returned. NULL values are ignored. If
+     * there is no non-null value, the function returns NULL.
+     */
+    public OutType mode() {
+        return toApiSpecificExpression(unresolvedCall(MODE, toExpr()));
     }
 
     /**
