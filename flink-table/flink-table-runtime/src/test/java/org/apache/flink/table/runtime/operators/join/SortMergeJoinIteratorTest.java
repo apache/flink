@@ -63,12 +63,12 @@ class SortMergeJoinIteratorTest {
     private IOManager ioManager;
     private BinaryRowDataSerializer serializer;
 
-    public SortMergeJoinIteratorTest(boolean leftIsSmall) throws Exception {
+    SortMergeJoinIteratorTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;
     }
 
     @Parameters(name = "leftIsSmall = {0}")
-    static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 

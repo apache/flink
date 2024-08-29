@@ -91,7 +91,7 @@ class WindowOperatorTest {
     private final ZoneId shiftTimeZone;
 
     @Parameters(name = "isTableAggregate = {0}, TimeZone = {1}")
-    static Collection<Object[]> runMode() {
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(
                 new Object[] {false, UTC_ZONE_ID},
                 new Object[] {true, UTC_ZONE_ID},

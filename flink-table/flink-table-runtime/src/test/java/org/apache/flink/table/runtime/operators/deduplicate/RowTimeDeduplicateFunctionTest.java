@@ -54,7 +54,7 @@ class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase 
     }
 
     @Parameters(name = "miniBatchEnable = {0}")
-    static Collection<Boolean[]> runMode() {
+    private static Collection<Boolean[]> runMode() {
         return Arrays.asList(new Boolean[] {false}, new Boolean[] {true});
     }
 

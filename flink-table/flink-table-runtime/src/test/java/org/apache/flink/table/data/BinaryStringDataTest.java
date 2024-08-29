@@ -76,7 +76,7 @@ class BinaryStringDataTest {
     }
 
     @Parameters(name = "mode-{0}")
-    public static List<Mode> getVarSeg() {
+    private static List<Mode> getVarSeg() {
         return Arrays.asList(Mode.ONE_SEG, Mode.MULTI_SEGS, Mode.STRING, Mode.RANDOM);
     }
 

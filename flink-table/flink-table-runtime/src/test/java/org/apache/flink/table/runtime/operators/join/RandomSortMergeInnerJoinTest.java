@@ -77,12 +77,12 @@ class RandomSortMergeInnerJoinTest {
     private TypeComparator<Tuple2<Integer, String>> comparator1;
     private TypeComparator<Tuple2<Integer, String>> comparator2;
 
-    public RandomSortMergeInnerJoinTest(boolean leftIsSmall) {
+    RandomSortMergeInnerJoinTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;
     }
 
     @Parameters(name = "leftIsSmaller={0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 

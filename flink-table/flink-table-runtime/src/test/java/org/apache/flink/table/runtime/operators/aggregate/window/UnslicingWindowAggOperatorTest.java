@@ -62,7 +62,7 @@ class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
     }
 
     @Parameters(name = "TimeZone = {0}")
-    static Collection<Object[]> runMode() {
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 

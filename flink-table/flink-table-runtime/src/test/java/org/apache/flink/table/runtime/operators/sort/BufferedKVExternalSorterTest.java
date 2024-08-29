@@ -66,8 +66,7 @@ class BufferedKVExternalSorterTest {
 
     private Configuration conf;
 
-    public BufferedKVExternalSorterTest(
-            int spillNumber, int recordNumberPerFile, boolean spillCompress) {
+    BufferedKVExternalSorterTest(int spillNumber, int recordNumberPerFile, boolean spillCompress) {
         ioManager = new IOManagerAsync();
         conf = new Configuration();
         conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 5);
@@ -79,7 +78,7 @@ class BufferedKVExternalSorterTest {
     }
 
     @Parameters(name = "spillNumber-{0} recordNumberPerFile-{1} spillCompress-{2}")
-    static List<Object[]> getDataSize() {
+    private static List<Object[]> getDataSize() {
         List<Object[]> paras = new ArrayList<>();
         paras.add(new Object[] {3, 1000, true});
         paras.add(new Object[] {3, 1000, false});

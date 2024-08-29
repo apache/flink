@@ -36,10 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(ParameterizedTestExtension.class)
 class WindowedSliceAssignerTest extends SliceAssignerTestBase {
 
-    public ZoneId shiftTimeZone;
+    private ZoneId shiftTimeZone;
 
     @Parameters(name = "timezone = {0}")
-    static Collection<ZoneId> parameters() {
+    private static Collection<ZoneId> parameters() {
         return Arrays.asList(ZoneId.of("America/Los_Angeles"), ZoneId.of("Asia/Shanghai"));
     }
 

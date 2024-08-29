@@ -82,10 +82,10 @@ class AsyncLookupJoinHarnessTest {
     private static final int ASYNC_BUFFER_CAPACITY = 100;
     private static final int ASYNC_TIMEOUT_MS = 3000;
 
-    public boolean orderedResult;
+    private boolean orderedResult;
 
     @Parameters(name = "ordered result = {0}")
-    static Object[] parameters() {
+    private static Object[] parameters() {
         return new Object[][] {new Object[] {true}, new Object[] {false}};
     }
 

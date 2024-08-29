@@ -33,11 +33,11 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.join.HashJoinType;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.util.ConstantsKeyValuePairsIterator;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-import org.apache.flink.types.IntValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.jupiter.api.AfterEach;
@@ -58,7 +58,7 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Hash table it case for binary row. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class BinaryHashTableTest {
+class BinaryHashTableTest {
 
     private static final int PAGE_SIZE = 32 * 1024;
     private IOManager ioManager;
@@ -67,12 +67,12 @@ public class BinaryHashTableTest {
 
     private boolean useCompress;
 
-    public BinaryHashTableTest(boolean useCompress) {
+    BinaryHashTableTest(boolean useCompress) {
         this.useCompress = useCompress;
     }
 
     @Parameters(name = "useCompress-{0}")
-    public static List<Boolean> getVarSeg() {
+    private static List<Boolean> getVarSeg() {
         return Arrays.asList(true, false);
     }
 
@@ -774,7 +774,7 @@ public class BinaryHashTableTest {
      * during an insert into the same.
      */
     @TestTemplate
-    public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
+    void validateSpillingDuringInsertion() throws IOException {
         final int numBuildKeys = 500000;
         final int numBuildVals = 1;
         final int numProbeKeys = 10;
@@ -987,7 +987,7 @@ public class BinaryHashTableTest {
                     }
 
                     @Override
-                    public BinaryRowData next() throws IOException {
+                    public BinaryRowData next() {
                         cnt++;
                         if (cnt > numKeys) {
                             return null;
@@ -1122,44 +1122,6 @@ public class BinaryHashTableTest {
     }
 
     // ============================================================================================
-
-    /**
-     * An iterator that returns the Key/Value pairs with identical value a given number of times.
-     */
-    public static final class ConstantsKeyValuePairsIterator
-            implements MutableObjectIterator<BinaryRowData> {
-
-        private final IntValue key;
-        private final IntValue value;
-
-        private int numLeft;
-
-        public ConstantsKeyValuePairsIterator(int key, int value, int count) {
-            this.key = new IntValue(key);
-            this.value = new IntValue(value);
-            this.numLeft = count;
-        }
-
-        @Override
-        public BinaryRowData next(BinaryRowData reuse) {
-            if (this.numLeft > 0) {
-                this.numLeft--;
-
-                BinaryRowWriter writer = new BinaryRowWriter(reuse);
-                writer.writeInt(0, this.key.getValue());
-                writer.writeInt(1, this.value.getValue());
-                writer.complete();
-                return reuse;
-            } else {
-                return null;
-            }
-        }
-
-        @Override
-        public BinaryRowData next() {
-            return next(new BinaryRowData(2));
-        }
-    }
 
     private BinaryHashTable newBinaryHashTable(
             BinaryRowDataSerializer buildSideSerializer,

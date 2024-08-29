@@ -47,7 +47,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for both {@link BytesHashMap} and {@link WindowBytesHashMap}. */
-public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
+abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
     private static final int NUM_REWRITES = 10;
 

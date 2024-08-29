@@ -66,7 +66,7 @@ class Int2SortMergeJoinOperatorTest {
     }
 
     @Parameters(name = "leftIsSmaller={0}")
-    static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 

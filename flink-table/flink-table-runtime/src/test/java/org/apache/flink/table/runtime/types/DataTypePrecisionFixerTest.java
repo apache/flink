@@ -113,7 +113,7 @@ public class DataTypePrecisionFixerTest {
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
     @MethodSource("testData")
-    public void testPrecisionFixing(final TestSpec testSpec) {
+    void testPrecisionFixing(final TestSpec testSpec) {
         DataType dataType = fromLegacyInfoToDataType(testSpec.typeInfo);
         DataType newDataType = dataType.accept(new DataTypePrecisionFixer(testSpec.logicalType));
         assertThat(newDataType).isEqualTo(testSpec.expectedType);

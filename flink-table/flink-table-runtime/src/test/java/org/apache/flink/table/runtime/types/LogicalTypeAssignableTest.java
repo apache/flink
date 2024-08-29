@@ -60,9 +60,9 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PlannerTypeUtils#isAssignable(LogicalType, LogicalType)}. */
-public class LogicalTypeAssignableTest {
+class LogicalTypeAssignableTest {
 
-    public static List<Object[]> testData() {
+    private static List<Object[]> testData() {
         return Arrays.asList(
                 new Object[][] {
                     {new CharType(), new CharType(5), true},
@@ -203,7 +203,7 @@ public class LogicalTypeAssignableTest {
 
     @ParameterizedTest(name = "{index}: [{0} COMPATIBLE {1} => {2}")
     @MethodSource("testData")
-    public void testAreTypesCompatible(
+    void testAreTypesCompatible(
             final LogicalType sourceType, final LogicalType targetType, final boolean equals) {
         assertThat(PlannerTypeUtils.isAssignable(sourceType, targetType)).isEqualTo(equals);
         assertThat(PlannerTypeUtils.isAssignable(sourceType, sourceType.copy())).isTrue();

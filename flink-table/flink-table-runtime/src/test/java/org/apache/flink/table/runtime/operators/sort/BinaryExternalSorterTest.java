@@ -74,7 +74,7 @@ class BinaryExternalSorterTest {
     }
 
     @Parameters(name = "spillCompress-{0} asyncMerge-{1}")
-    public static Collection<Boolean[]> parameters() {
+    private static Collection<Boolean[]> parameters() {
         return Arrays.asList(
                 new Boolean[] {false, false},
                 new Boolean[] {false, true},

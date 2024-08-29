@@ -91,12 +91,12 @@ class RowTimeWindowDeduplicateOperatorTest {
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final ZoneId shiftTimeZone;
 
-    public RowTimeWindowDeduplicateOperatorTest(ZoneId shiftTimeZone) {
+    RowTimeWindowDeduplicateOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 
     @Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 
