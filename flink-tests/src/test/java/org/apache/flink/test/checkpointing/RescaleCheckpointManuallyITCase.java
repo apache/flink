@@ -232,13 +232,16 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             int checkpointingInterval,
             MiniCluster miniCluster)
             throws IOException {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        conf.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                temporaryFolder.newFolder().toURI().toString());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(parallelism);
         if (0 < maxParallelism) {
             env.getConfig().setMaxParallelism(maxParallelism);
         }
         env.enableCheckpointing(checkpointingInterval);
-        env.getCheckpointConfig().setCheckpointStorage(temporaryFolder.newFolder().toURI());
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);

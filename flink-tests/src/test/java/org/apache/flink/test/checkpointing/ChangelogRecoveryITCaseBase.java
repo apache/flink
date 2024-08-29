@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
@@ -198,7 +199,10 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                         restartAttempts,
                         materializationInterval,
                         materializationMaxFailure);
-        env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());
+        Configuration configuration = new Configuration();
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointFile.toURI().toString());
+        env.configure(configuration);
         return env;
     }
 

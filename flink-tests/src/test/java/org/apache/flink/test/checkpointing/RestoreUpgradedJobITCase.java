@@ -171,13 +171,14 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         Configuration conf = new Configuration();
         // TODO: remove this after FLINK-32081
         conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
+        conf.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                "file://" + temporaryFolder.getRoot().getAbsolutePath());
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.getCheckpointConfig()
-                .setCheckpointStorage("file://" + temporaryFolder.getRoot().getAbsolutePath());
         env.setParallelism(PARALLELISM);
         // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
         env.enableCheckpointing(Integer.MAX_VALUE);

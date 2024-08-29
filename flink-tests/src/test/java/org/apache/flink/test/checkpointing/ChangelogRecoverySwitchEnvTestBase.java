@@ -18,6 +18,8 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -44,11 +46,15 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
     protected void testSwitchEnv(
             StreamExecutionEnvironment firstEnv, StreamExecutionEnvironment secondEnv)
             throws Exception {
+        Configuration conf = new Configuration();
         File firstCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        firstEnv.getCheckpointConfig().setCheckpointStorage(firstCheckpointFolder.toURI());
+        conf.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                firstCheckpointFolder.toURI().toString());
+        firstEnv.configure(conf);
         JobGraph firstJobGraph =
                 firstNormalJobGraph(firstEnv, miniCluster, currentMaterializationId);
 
@@ -61,7 +67,10 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
         }
 
         File secondCheckpointFolder = TEMPORARY_FOLDER.newFolder();
-        secondEnv.getCheckpointConfig().setCheckpointStorage(secondCheckpointFolder.toURI());
+        conf.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                secondCheckpointFolder.toURI().toString());
+        secondEnv.configure(conf);
         JobGraph jobGraph = nextNormalJobGraph(secondEnv, miniCluster, currentMaterializationId);
         File checkpointFile = getMostRecentCompletedCheckpoint(firstCheckpointFolder);
         jobGraph.setSavepointRestoreSettings(

@@ -78,9 +78,6 @@ The default limit of concurrently happening checkpoints: one.
     CheckpointConfig.get_alignment_timeout
     CheckpointConfig.set_force_unaligned_checkpoints
     CheckpointConfig.is_force_unaligned_checkpoints
-    CheckpointConfig.set_checkpoint_storage
-    CheckpointConfig.set_checkpoint_storage_dir
-    CheckpointConfig.get_checkpoint_storage
     ExternalizedCheckpointCleanup
     ExternalizedCheckpointRetention
 

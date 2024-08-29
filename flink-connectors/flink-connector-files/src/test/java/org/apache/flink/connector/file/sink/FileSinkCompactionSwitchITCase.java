@@ -21,6 +21,7 @@ package org.apache.flink.connector.file.sink;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -219,13 +219,13 @@ public class FileSinkCompactionSwitchITCase {
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
         // disable changelog state in case it's randomly enabled, since it will fail the savepoint
         config.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, cpPath);
         env.configure(config, getClass().getClassLoader());
 
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
         Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
-        env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage(cpPath));
         env.setStateBackend(new HashMapStateBackend());
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))

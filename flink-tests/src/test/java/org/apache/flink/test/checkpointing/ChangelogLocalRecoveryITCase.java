@@ -170,11 +170,12 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3);
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(10));
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointFile.toURI().toString());
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         env.configure(new Configuration().set(LOCAL_RECOVERY, true));
 
-        env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());
         env.enableChangelogStateBackend(changelogEnabled);
         env.configure(
                 new Configuration()

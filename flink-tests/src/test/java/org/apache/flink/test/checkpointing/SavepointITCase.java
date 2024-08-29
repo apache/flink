@@ -472,12 +472,15 @@ public class SavepointITCase extends TestLogger {
         final int numSlotsPerTaskManager = 2;
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
 
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration configuration = new Configuration();
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, folder.newFolder().toURI().toString());
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setStateBackend(new EmbeddedRocksDBStateBackend(true));
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        env.getCheckpointConfig().setCheckpointStorage(folder.newFolder().toURI());
         env.setParallelism(parallelism);
 
         final SharedReference<CountDownLatch> counter =

@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.operators.lifecycle;
 
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.WatermarkReceivedEvent;
@@ -115,9 +117,14 @@ public class StopWithSavepointITCase extends AbstractTestBaseJUnit4 {
                         sharedObjects,
                         cfg -> {},
                         env ->
-                                env.getCheckpointConfig()
-                                        .setCheckpointStorage(
-                                                TEMPORARY_FOLDER.newFolder().toURI()));
+                                env.configure(
+                                        new Configuration()
+                                                .set(
+                                                        CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                                                        TEMPORARY_FOLDER
+                                                                .newFolder()
+                                                                .toURI()
+                                                                .toString())));
 
         TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
                 .waitForEvent(WatermarkReceivedEvent.class)

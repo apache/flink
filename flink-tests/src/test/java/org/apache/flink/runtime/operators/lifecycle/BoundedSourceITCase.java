@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.operators.lifecycle;
 
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
 import org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.TestingGraphBuilder;
@@ -101,9 +102,14 @@ public class BoundedSourceITCase extends TestLogger {
                         sharedObjects,
                         cfg -> {},
                         env ->
-                                env.getCheckpointConfig()
-                                        .setCheckpointStorage(
-                                                TEMPORARY_FOLDER.newFolder().toURI()));
+                                env.configure(
+                                        new Configuration()
+                                                .set(
+                                                        CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                                                        TEMPORARY_FOLDER
+                                                                .newFolder()
+                                                                .toURI()
+                                                                .toString())));
 
         TestJobExecutor.execute(testJob, miniClusterResource)
                 .waitForEvent(CheckpointCompletedEvent.class)
