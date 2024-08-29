@@ -48,9 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataTypePrecisionFixer}. */
-public class DataTypePrecisionFixerTest {
+class DataTypePrecisionFixerTest {
 
-    public static List<TestSpec> testData() {
+    private static List<TestSpec> testData() {
         return Arrays.asList(
                 TestSpecs.fix(Types.BIG_DEC)
                         .logicalType(new DecimalType(10, 5))
