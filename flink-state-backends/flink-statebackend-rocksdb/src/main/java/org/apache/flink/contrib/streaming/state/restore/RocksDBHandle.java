@@ -29,11 +29,13 @@ import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ExportImportFilesMetaData;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,7 +200,6 @@ class RocksDBHandle implements AutoCloseable {
      * @param stateMetaInfo info about the state to create.
      * @param cfMetaDataList the data to import.
      */
-    /*
     void registerStateColumnFamilyHandleWithImport(
             RegisteredStateMetaInfoBase stateMetaInfo,
             List<ExportImportFilesMetaData> cfMetaDataList,
@@ -213,15 +214,14 @@ class RocksDBHandle implements AutoCloseable {
                         columnFamilyOptionsFactory,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity,
-                        cfMetaDataList,
-                        cancelStreamRegistryForRestore);
+                        cancelStreamRegistryForRestore,
+                        cfMetaDataList);
 
         RocksDBOperationUtils.registerKvStateInformation(
                 kvStateInformation, nativeMetricMonitor, stateMetaInfo.getName(), stateInfo);
 
         columnFamilyHandles.add(stateInfo.columnFamilyHandle);
     }
-    */
 
     /**
      * This recreates the new working directory of the recovered RocksDB instance and links/copies
