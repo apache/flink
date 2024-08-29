@@ -194,8 +194,6 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.register_function
     TableEnvironment.register_java_function
     TableEnvironment.register_table
-    TableEnvironment.register_table_sink
-    TableEnvironment.register_table_source
     TableEnvironment.scan
     TableEnvironment.set_python_requirements
     TableEnvironment.sql_query
@@ -257,8 +255,6 @@ StreamTableEnvironment
     StreamTableEnvironment.register_function
     StreamTableEnvironment.register_java_function
     StreamTableEnvironment.register_table
-    StreamTableEnvironment.register_table_sink
-    StreamTableEnvironment.register_table_source
     StreamTableEnvironment.scan
     StreamTableEnvironment.set_python_requirements
     StreamTableEnvironment.sql_query

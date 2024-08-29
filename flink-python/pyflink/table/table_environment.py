@@ -499,52 +499,6 @@ class TableEnvironment(object):
         warnings.warn("Deprecated in 1.10. Use create_temporary_view instead.", DeprecationWarning)
         self._j_tenv.registerTable(name, table._j_table)
 
-    def register_table_source(self, name: str, table_source: TableSource):
-        """
-        Registers an external :class:`~pyflink.table.TableSource` in this
-        :class:`~pyflink.table.TableEnvironment`'s catalog. Registered tables can be referenced in
-        SQL queries.
-
-        Example:
-        ::
-
-            >>> table_env.register_table_source("source",
-            ...                                 CsvTableSource("./1.csv",
-            ...                                                ["a", "b"],
-            ...                                                [DataTypes.INT(),
-            ...                                                 DataTypes.STRING()]))
-
-        :param name: The name under which the table source is registered.
-        :param table_source: The table source to register.
-
-        .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
-        self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
-
-    def register_table_sink(self, name: str, table_sink: TableSink):
-        """
-        Registers an external :class:`~pyflink.table.TableSink` with given field names and types in
-        this :class:`~pyflink.table.TableEnvironment`'s catalog. Registered sink tables can be
-        referenced in SQL DML statements.
-
-        Example:
-        ::
-
-            >>> table_env.register_table_sink("sink",
-            ...                               CsvTableSink(["a", "b"],
-            ...                                            [DataTypes.INT(),
-            ...                                             DataTypes.STRING()],
-            ...                                            "./2.csv"))
-
-        :param name: The name under which the table sink is registered.
-        :param table_sink: The table sink to register.
-
-        .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
-        self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
-
     def scan(self, *table_path: str) -> Table:
         """
         Scans a registered table and returns the resulting :class:`~pyflink.table.Table`.
