@@ -52,7 +52,7 @@ mvn clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
 # build java/scala docs
 mkdir -p docs/target/api
 mvn javadoc:aggregate -B \
-    -Dmaven.javadoc.failOnError=false \
+    -Dmaven.javadoc.failOnError=true \
     -Dcheckstyle.skip=true \
     -Dspotless.check.skip=true \
     -Denforcer.skip=true \
