@@ -35,13 +35,26 @@ public final class LookupRuntimeProviderContext implements LookupTableSource.Loo
 
     private final int[][] lookupKeys;
 
+    private final boolean preferCustomShuffle;
+
     public LookupRuntimeProviderContext(int[][] lookupKeys) {
         this.lookupKeys = lookupKeys;
+        this.preferCustomShuffle = false;
+    }
+
+    public LookupRuntimeProviderContext(int[][] lookupKeys, boolean preferCustomShuffle) {
+        this.lookupKeys = lookupKeys;
+        this.preferCustomShuffle = preferCustomShuffle;
     }
 
     @Override
     public int[][] getKeys() {
         return lookupKeys;
+    }
+
+    @Override
+    public boolean preferCustomShuffle() {
+        return preferCustomShuffle;
     }
 
     @Override
