@@ -520,7 +520,7 @@ The legacy `FsStateBackend` is equivalent to using [`HashMapStateBackend`](#the-
 #### Configuration using Flink configuration file
 
 ```yaml
-state.backend: hashmap
+state.backend.type: hashmap
 execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
