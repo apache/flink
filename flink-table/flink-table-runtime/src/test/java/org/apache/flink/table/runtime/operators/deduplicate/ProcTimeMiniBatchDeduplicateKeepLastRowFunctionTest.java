@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +38,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcTimeMiniBatchDeduplicateKeepLastRowFunction}. */
-public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
+class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         extends ProcTimeDeduplicateFunctionTestBase {
 
     private TypeSerializer<RowData> typeSerializer =
@@ -66,7 +66,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithoutGenerateUpdateBefore() throws Exception {
+    void testWithoutGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
                 createFunction(false, true, minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -95,7 +95,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
+    void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
                 createFunction(false, false, minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -124,7 +124,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithGenerateUpdateBefore() throws Exception {
+    void testWithGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
                 createFunction(true, true, minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -156,7 +156,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+    void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
                 createFunction(true, true, minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);

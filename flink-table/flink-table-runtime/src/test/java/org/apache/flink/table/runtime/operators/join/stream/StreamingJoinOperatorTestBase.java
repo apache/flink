@@ -100,7 +100,7 @@ public abstract class StreamingJoinOperatorTestBase {
             testHarness;
 
     @BeforeEach
-    public void beforeEach(TestInfo testInfo) throws Exception {
+    void beforeEach(TestInfo testInfo) throws Exception {
         testHarness =
                 new KeyedTwoInputStreamOperatorTestHarness<>(
                         createJoinOperator(testInfo),
@@ -115,7 +115,7 @@ public abstract class StreamingJoinOperatorTestBase {
     }
 
     @AfterEach
-    public void afterEach() throws Exception {
+    void afterEach() throws Exception {
         testHarness.close();
     }
 

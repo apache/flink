@@ -39,10 +39,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -54,8 +55,8 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampM
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for window rank operators created by {@link WindowRankOperatorBuilder}. */
-@RunWith(Parameterized.class)
-public class WindowRankOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowRankOperatorTest {
 
     private static final RowType INPUT_ROW_TYPE =
             new RowType(
@@ -123,12 +124,12 @@ public class WindowRankOperatorTest {
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final ZoneId shiftTimeZone;
 
-    public WindowRankOperatorTest(ZoneId shiftTimeZone) {
+    WindowRankOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 
-    @Parameterized.Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
+    @Parameters(name = "TimeZone = {0}")
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 
@@ -138,8 +139,8 @@ public class WindowRankOperatorTest {
                 operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
     }
 
-    @Test
-    public void testTop2Windows() throws Exception {
+    @TestTemplate
+    void testTop2Windows() throws Exception {
         WindowAggOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
@@ -245,8 +246,8 @@ public class WindowRankOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testTop2WindowsWithOffset() throws Exception {
+    @TestTemplate
+    void testTop2WindowsWithOffset() throws Exception {
         WindowAggOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
@@ -335,8 +336,8 @@ public class WindowRankOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testTop2WindowsWithoutRankNumber() throws Exception {
+    @TestTemplate
+    void testTop2WindowsWithoutRankNumber() throws Exception {
         WindowAggOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)

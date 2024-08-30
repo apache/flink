@@ -35,7 +35,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +44,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ProcTimeRangeBoundedPrecedingFunction}. */
-public class ProcTimeUnboundedPrecedingFunctionTest {
+class ProcTimeUnboundedPrecedingFunctionTest {
     StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(2_000);
 
     private static GeneratedAggsHandleFunction aggsHandleFunction =
@@ -73,7 +73,7 @@ public class ProcTimeUnboundedPrecedingFunctionTest {
     private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputFieldTypes);
 
     @Test
-    public void testStateTtl() throws Exception {
+    void testStateTtl() throws Exception {
         ProcTimeUnboundedPrecedingFunction<RowData> function =
                 new ProcTimeUnboundedPrecedingFunction<>(ttlConfig, aggsHandleFunction, accTypes);
         KeyedProcessOperator<RowData, RowData, RowData> operator =

@@ -51,14 +51,14 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampM
 import static org.assertj.core.api.Assertions.fail;
 
 /** A test base for window aggregate operator. */
-public abstract class WindowAggOperatorTestBase {
+abstract class WindowAggOperatorTestBase {
 
     protected static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     protected static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
 
     protected final ZoneId shiftTimeZone;
 
-    public WindowAggOperatorTestBase(ZoneId shiftTimeZone) {
+    WindowAggOperatorTestBase(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 

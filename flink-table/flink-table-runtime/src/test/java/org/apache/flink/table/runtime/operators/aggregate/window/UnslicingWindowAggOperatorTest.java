@@ -35,11 +35,12 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -53,15 +54,20 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for unslicing window aggregate operators created by {@link WindowAggOperatorBuilder}. */
-@RunWith(Parameterized.class)
-public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
-    public UnslicingWindowAggOperatorTest(ZoneId shiftTimeZone) {
+    UnslicingWindowAggOperatorTest(ZoneId shiftTimeZone) {
         super(shiftTimeZone);
     }
 
-    @Test
-    public void testEventTimeSessionWindows() throws Exception {
+    @Parameters(name = "TimeZone = {0}")
+    private static Collection<Object[]> runMode() {
+        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
+    }
+
+    @TestTemplate
+    void testEventTimeSessionWindows() throws Exception {
         final UnsliceAssigner<TimeWindow> assigner =
                 UnsliceAssigners.session(2, shiftTimeZone, Duration.ofSeconds(3));
 
@@ -167,8 +173,8 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testEventTimeSessionWindowsWithChangelog() throws Exception {
+    @TestTemplate
+    void testEventTimeSessionWindowsWithChangelog() throws Exception {
         final UnsliceAssigner<TimeWindow> assigner =
                 UnsliceAssigners.session(2, shiftTimeZone, Duration.ofSeconds(3));
 
@@ -296,8 +302,8 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeSessionWindows() throws Exception {
+    @TestTemplate
+    void testProcessingTimeSessionWindows() throws Exception {
         final UnsliceAssigner<TimeWindow> assigner =
                 UnsliceAssigners.session(-1, shiftTimeZone, Duration.ofSeconds(3));
 
@@ -388,8 +394,8 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeSessionWindowsWithChangelog() throws Exception {
+    @TestTemplate
+    void testProcessingTimeSessionWindowsWithChangelog() throws Exception {
         final UnsliceAssigner<TimeWindow> assigner =
                 UnsliceAssigners.session(-1, shiftTimeZone, Duration.ofSeconds(3));
 
@@ -521,8 +527,8 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testSessionWindowsWithoutPartitionKey() throws Exception {
+    @TestTemplate
+    void testSessionWindowsWithoutPartitionKey() throws Exception {
         // there is no key (type string) in the output
         final LogicalType[] outputTypes =
                 new LogicalType[] {
@@ -614,10 +620,5 @@ public class UnslicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         protected long getWindowEnd(TimeWindow window) {
             return window.getEnd();
         }
-    }
-
-    @Parameterized.Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
-        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 }

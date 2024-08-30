@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper.Edge;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
@@ -30,10 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableOperatorWrapper}. */
-public class TableOperatorWrapperTest extends MultipleInputTestBase {
+class TableOperatorWrapperTest extends MultipleInputTestBase {
 
     @Test
-    public void testBasicInfo() {
+    void testBasicInfo() {
         TestingOneInputStreamOperator inOperator1 = new TestingOneInputStreamOperator();
         TestingOneInputStreamOperator inOperator2 = new TestingOneInputStreamOperator();
         TestingTwoInputStreamOperator outOperator = new TestingTwoInputStreamOperator();
@@ -68,7 +68,7 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testCreateOperator() throws Exception {
+    void testCreateOperator() throws Exception {
         TestingOneInputStreamOperator operator = new TestingOneInputStreamOperator();
         TableOperatorWrapper<TestingOneInputStreamOperator> wrapper =
                 createOneInputOperatorWrapper(operator, "test");
@@ -83,7 +83,7 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testEndInput() throws Exception {
+    void testEndInput() throws Exception {
         StreamOperatorParameters<RowData> parameters = createStreamOperatorParameters();
         TestingOneInputStreamOperator inOperator1 = new TestingOneInputStreamOperator();
         TestingOneInputStreamOperator inOperator2 = new TestingOneInputStreamOperator();
@@ -127,7 +127,7 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testClose() throws Exception {
+    void testClose() throws Exception {
         TestingOneInputStreamOperator operator = new TestingOneInputStreamOperator();
         TableOperatorWrapper<TestingOneInputStreamOperator> wrapper =
                 createOneInputOperatorWrapper(operator, "test");

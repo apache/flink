@@ -30,27 +30,27 @@ import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestB
 import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the sub-classes of {@link Input}. */
-public class InputTest extends MultipleInputTestBase {
+class InputTest extends MultipleInputTestBase {
 
     private StreamRecord<RowData> element;
     private Watermark watermark;
     private LatencyMarker latencyMarker;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         element = new StreamRecord<>(GenericRowData.of(StringData.fromString("123")), 456);
         watermark = new Watermark(1223456789);
         latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
     }
 
     @Test
-    public void testOneInput() throws Exception {
+    void testOneInput() throws Exception {
         TestingOneInputStreamOperator op = createOneInputStreamOperator();
         OneInput input = new OneInput(op);
 
@@ -65,7 +65,7 @@ public class InputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testFirstInputOfTwoInput() throws Exception {
+    void testFirstInputOfTwoInput() throws Exception {
         TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
         FirstInputOfTwoInput input = new FirstInputOfTwoInput(op);
 
@@ -83,7 +83,7 @@ public class InputTest extends MultipleInputTestBase {
     }
 
     @Test
-    public void testSecondInputOfTwoInput() throws Exception {
+    void testSecondInputOfTwoInput() throws Exception {
         TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
         SecondInputOfTwoInput input = new SecondInputOfTwoInput(op);
 

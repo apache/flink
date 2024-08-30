@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +29,7 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Tests for {@link AppendOnlyFirstNFunction}. */
-public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
+class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
     @Override
     AbstractTopNFunction createFunction(
             RankType rankType,
@@ -49,7 +49,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     @Test
-    public void testDisableGenerateUpdateBefore() throws Exception {
+    void testDisableGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -73,7 +73,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     @Test
-    public void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
+    void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -97,7 +97,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     @Test
-    public void testOutputRankNumberWithConstantRankRange() throws Exception {
+    void testOutputRankNumberWithConstantRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -121,7 +121,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     @Test
-    public void testConstantRankRangeWithOffset() throws Exception {
+    void testConstantRankRangeWithOffset() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -143,7 +143,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     @Test
-    public void testConstantRankRangeWithoutOffset() throws Exception {
+    void testConstantRankRangeWithoutOffset() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -167,7 +167,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
     @Test
-    public void testOutputRankNumberWithVariableRankRange() throws Exception {
+    void testOutputRankNumberWithVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);

@@ -43,7 +43,7 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,7 +56,7 @@ import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
-public class LookupJoinHarnessTest {
+class LookupJoinHarnessTest {
 
     private final TypeSerializer<RowData> inSerializer =
             new RowDataSerializer(
@@ -72,7 +72,7 @@ public class LookupJoinHarnessTest {
                     });
 
     @Test
-    public void testTemporalInnerJoin() throws Exception {
+    void testTemporalInnerJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER);
 
@@ -96,7 +96,7 @@ public class LookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithFilter() throws Exception {
+    void testTemporalInnerJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER);
 
@@ -118,7 +118,7 @@ public class LookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoin() throws Exception {
+    void testTemporalLeftJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER);
 
@@ -145,7 +145,7 @@ public class LookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithFilter() throws Exception {
+    void testTemporalLeftJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER);
 
@@ -171,7 +171,7 @@ public class LookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithPreFilter() throws Exception {
+    void testTemporalLeftJoinWithPreFilter() throws Exception {
         ProcessFunction<RowData, RowData> joinRunner =
                 new LookupJoinRunner(
                         new GeneratedFunctionWrapper<>(new TestingFetcherFunction()),

@@ -46,14 +46,14 @@ import org.apache.flink.table.runtime.util.JoinUtil;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /** Test for {@link HashJoinOperator}. */
-public class String2HashJoinOperatorTest implements Serializable {
+class String2HashJoinOperatorTest implements Serializable {
 
     private InternalTypeInfo<RowData> typeInfo =
             InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE);
@@ -116,7 +116,7 @@ public class String2HashJoinOperatorTest implements Serializable {
     }
 
     @Test
-    public void testInnerHashJoin() throws Exception {
+    void testInnerHashJoin() throws Exception {
 
         init(false, false, true);
 
@@ -162,7 +162,7 @@ public class String2HashJoinOperatorTest implements Serializable {
     }
 
     @Test
-    public void testProbeOuterHashJoin() throws Exception {
+    void testProbeOuterHashJoin() throws Exception {
 
         init(true, false, false);
 
@@ -209,7 +209,7 @@ public class String2HashJoinOperatorTest implements Serializable {
     }
 
     @Test
-    public void testBuildOuterHashJoin() throws Exception {
+    void testBuildOuterHashJoin() throws Exception {
 
         init(false, true, false);
 
@@ -256,7 +256,7 @@ public class String2HashJoinOperatorTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterHashJoin() throws Exception {
+    void testFullOuterHashJoin() throws Exception {
 
         init(true, true, true);
 

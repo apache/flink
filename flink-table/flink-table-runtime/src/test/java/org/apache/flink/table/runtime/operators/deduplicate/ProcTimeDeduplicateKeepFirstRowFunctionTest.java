@@ -23,7 +23,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,8 +31,7 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Tests for {@link ProcTimeDeduplicateKeepFirstRowFunction}. */
-public class ProcTimeDeduplicateKeepFirstRowFunctionTest
-        extends ProcTimeDeduplicateFunctionTestBase {
+class ProcTimeDeduplicateKeepFirstRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
             ProcTimeDeduplicateKeepFirstRowFunction func) throws Exception {
@@ -42,7 +41,7 @@ public class ProcTimeDeduplicateKeepFirstRowFunctionTest
     }
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         ProcTimeDeduplicateKeepFirstRowFunction func =
                 new ProcTimeDeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -60,7 +59,7 @@ public class ProcTimeDeduplicateKeepFirstRowFunctionTest
     }
 
     @Test
-    public void testWithStateTtl() throws Exception {
+    void testWithStateTtl() throws Exception {
         ProcTimeDeduplicateKeepFirstRowFunction func =
                 new ProcTimeDeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);

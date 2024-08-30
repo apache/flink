@@ -18,67 +18,57 @@
 
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.TimeZone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SliceAssigners.CumulativeSliceAssigner}. */
-@RunWith(Parameterized.class)
-public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
+class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
 
-    @Parameterized.Parameter public ZoneId shiftTimeZone;
-
-    @Parameterized.Parameters(name = "timezone = {0}")
-    public static Collection<ZoneId> parameters() {
-        return Arrays.asList(ZoneId.of("America/Los_Angeles"), ZoneId.of("Asia/Shanghai"));
-    }
-
-    @Test
-    public void testSliceAssignment() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testSliceAssignment(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofDays(1), Duration.ofHours(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofDays(1), Duration.ofHours(1));
 
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T01:00:00"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-02T22:59:59.999")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-02T22:59:59.999", zoneId)))
                 .isEqualTo(utcMills("1970-01-02T23:00:00"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-02T23:00:00")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-02T23:00:00", zoneId)))
                 .isEqualTo(utcMills("1970-01-03T00:00:00"));
     }
 
-    @Test
-    public void testSliceAssignmentWithOffset() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testSliceAssignmentWithOffset(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.cumulative(
-                                0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1))
+                SliceAssigners.cumulative(0, zoneId, Duration.ofHours(5), Duration.ofHours(1))
                         .withOffset(Duration.ofMillis(100));
 
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00.100")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T00:00:00.100", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T01:00:00.100"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.099")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.099", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T05:00:00.100"));
-        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.1")))
+        assertThat(assignSliceEnd(assigner, localMills("1970-01-01T05:00:00.1", zoneId)))
                 .isEqualTo(utcMills("1970-01-01T06:00:00.100"));
     }
 
-    @Test
-    public void testDstSaving() {
-        if (!TimeZone.getTimeZone(shiftTimeZone).useDaylightTime()) {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testDstSaving(final ZoneId zoneId) {
+        if (!TimeZone.getTimeZone(zoneId).useDaylightTime()) {
             return;
         }
         SliceAssigner assigner =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofHours(4), Duration.ofHours(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofHours(4), Duration.ofHours(1));
 
         // Los_Angeles local time in epoch mills.
         // The DaylightTime in Los_Angele start at time 2021-03-14 02:00:00
@@ -109,11 +99,11 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
         assertSliceStartEnd("2021-11-07T04:00", "2021-11-07T05:00", epoch10, assigner);
     }
 
-    @Test
-    public void testGetWindowStart() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testGetWindowStart(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         assertThat(assigner.getWindowStart(utcMills("1970-01-01T00:00:00")))
                 .isEqualTo(utcMills("1969-12-31T19:00:00"));
@@ -133,11 +123,11 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(utcMills("1970-01-01T05:00:00"));
     }
 
-    @Test
-    public void testExpiredSlices() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testExpiredSlices(final ZoneId zoneId) {
         SliceAssigner assigner =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         // reuse the first slice, skip to cleanup it
         assertThat(expiredSlices(assigner, utcMills("1970-01-01T01:00:00"))).isEmpty();
@@ -166,11 +156,11 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
                                 utcMills("1970-01-01T00:00:00"), utcMills("1969-12-31T20:00:00")));
     }
 
-    @Test
-    public void testMerge() throws Exception {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testMerge(final ZoneId zoneId) throws Exception {
         SliceAssigners.CumulativeSliceAssigner assigner =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         assertThat(mergeResultSlice(assigner, utcMills("1970-01-01T01:00:00")))
                 .isEqualTo(Long.valueOf(utcMills("1970-01-01T01:00:00")));
@@ -218,11 +208,11 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
                 .containsExactly(utcMills("1970-01-01T00:00:00"));
     }
 
-    @Test
-    public void testNextTriggerWindow() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testNextTriggerWindow(final ZoneId zoneId) {
         SliceAssigners.CumulativeSliceAssigner assigner =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofHours(5), Duration.ofHours(1));
 
         assertThat(assigner.nextTriggerWindow(utcMills("1970-01-01T00:00:00"), () -> false))
                 .isEqualTo(Optional.empty());
@@ -255,48 +245,44 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
                 .isEqualTo(Optional.of(utcMills("1970-01-01T07:00:00")));
     }
 
-    @Test
-    public void testEventTime() {
-        if (shiftTimeZone.equals("Asia/Shanghai")) {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testEventTime(final ZoneId zoneId) {
+        if (zoneId.equals("Asia/Shanghai")) {
             return;
         }
         SliceAssigner assigner1 =
-                SliceAssigners.cumulative(
-                        0, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(1));
+                SliceAssigners.cumulative(0, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(1));
         assertThat(assigner1.isEventTime()).isTrue();
 
         SliceAssigner assigner2 =
-                SliceAssigners.cumulative(
-                        -1, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(1));
+                SliceAssigners.cumulative(-1, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(1));
         assertThat(assigner2.isEventTime()).isFalse();
     }
 
-    @Test
-    public void testInvalidParameters() {
+    @ParameterizedTest(name = "timezone = {0}")
+    @MethodSource("zoneIds")
+    void testInvalidParameters(final ZoneId zoneId) {
         assertErrorMessage(
                 () ->
                         SliceAssigners.cumulative(
-                                0, shiftTimeZone, Duration.ofSeconds(-5), Duration.ofSeconds(1)),
+                                0, zoneId, Duration.ofSeconds(-5), Duration.ofSeconds(1)),
                 "Cumulative Window parameters must satisfy maxSize > 0 and step > 0, but got maxSize -5000ms and step 1000ms.");
 
         assertErrorMessage(
                 () ->
                         SliceAssigners.cumulative(
-                                0, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(-1)),
+                                0, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(-1)),
                 "Cumulative Window parameters must satisfy maxSize > 0 and step > 0, but got maxSize 5000ms and step -1000ms.");
 
         assertErrorMessage(
                 () ->
                         SliceAssigners.cumulative(
-                                0, shiftTimeZone, Duration.ofSeconds(5), Duration.ofSeconds(2)),
+                                0, zoneId, Duration.ofSeconds(5), Duration.ofSeconds(2)),
                 "Cumulative Window requires maxSize must be an integral multiple of step, but got maxSize 5000ms and step 2000ms.");
 
         // should pass
-        SliceAssigners.hopping(0, shiftTimeZone, Duration.ofSeconds(10), Duration.ofSeconds(2))
+        SliceAssigners.hopping(0, zoneId, Duration.ofSeconds(10), Duration.ofSeconds(2))
                 .withOffset(Duration.ofSeconds(-1));
-    }
-
-    private long localMills(String timestampStr) {
-        return localMills(timestampStr, shiftTimeZone);
     }
 }

@@ -24,9 +24,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatcher;
-import org.mockito.Matchers;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -35,22 +34,22 @@ import java.util.TreeSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.mockito.Matchers.anyCollection;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyObject;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /** Tests for {@link SessionWindowAssigner}. */
-public class SessionWindowAssignerTest {
+class SessionWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of("String");
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         final int sessionGap = 5000;
 
         SessionWindowAssigner assigner =
@@ -65,18 +64,18 @@ public class SessionWindowAssignerTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testMergeEmptyWindow() throws Exception {
+    void testMergeEmptyWindow() throws Exception {
         MergeCallback<TimeWindow, Collection<TimeWindow>> callback = mock(MergeCallback.class);
         SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofMillis(5000));
 
         assigner.mergeWindows(TimeWindow.of(0, 1), new TreeSet<>(), callback);
 
-        verify(callback, never()).merge(anyObject(), Matchers.anyCollection());
+        verify(callback, never()).merge(anyObject(), anyCollection());
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testMergeSingleWindow() throws Exception {
+    void testMergeSingleWindow() throws Exception {
         MergeCallback<TimeWindow, Collection<TimeWindow>> callback = mock(MergeCallback.class);
         SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofMillis(5000));
 
@@ -89,7 +88,7 @@ public class SessionWindowAssignerTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testMergeConsecutiveWindows() throws Exception {
+    void testMergeConsecutiveWindows() throws Exception {
         MergeCallback<TimeWindow, Collection<TimeWindow>> callback = mock(MergeCallback.class);
         SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofMillis(5000));
 
@@ -117,7 +116,7 @@ public class SessionWindowAssignerTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testMergeCoveringWindow() throws Exception {
+    void testMergeCoveringWindow() throws Exception {
         MergeCallback<TimeWindow, Collection<TimeWindow>> callback = mock(MergeCallback.class);
         SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofMillis(5000));
 
@@ -140,7 +139,7 @@ public class SessionWindowAssignerTest {
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         SessionWindowAssigner assigner = SessionWindowAssigner.withGap(Duration.ofMillis(5000));
 
         assertThat(assigner.isEventTime()).isTrue();

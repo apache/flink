@@ -41,7 +41,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
 
