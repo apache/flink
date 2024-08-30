@@ -132,8 +132,8 @@ public class RocksDBOperationUtils {
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nullable Long writeBufferManagerCapacity,
-            ICloseableRegistry cancelStreamRegistryForRestore,
-            List<ExportImportFilesMetaData> importFilesMetaData) {
+            List<ExportImportFilesMetaData> importFilesMetaData,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
 
         ColumnFamilyDescriptor columnFamilyDescriptor =
                 createColumnFamilyDescriptor(
@@ -171,8 +171,8 @@ public class RocksDBOperationUtils {
                 columnFamilyOptionsFactory,
                 ttlCompactFiltersManager,
                 writeBufferManagerCapacity,
-                cancelStreamRegistryForRestore,
-                Collections.emptyList());
+                Collections.emptyList(),
+                cancelStreamRegistryForRestore);
     }
 
     /**

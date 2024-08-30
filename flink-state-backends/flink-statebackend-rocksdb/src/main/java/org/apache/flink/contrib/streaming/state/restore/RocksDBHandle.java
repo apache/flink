@@ -214,8 +214,8 @@ class RocksDBHandle implements AutoCloseable {
                         columnFamilyOptionsFactory,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity,
-                        cancelStreamRegistryForRestore,
-                        cfMetaDataList);
+                        cfMetaDataList,
+                        cancelStreamRegistryForRestore);
 
         RocksDBOperationUtils.registerKvStateInformation(
                 kvStateInformation, nativeMetricMonitor, stateMetaInfo.getName(), stateInfo);
