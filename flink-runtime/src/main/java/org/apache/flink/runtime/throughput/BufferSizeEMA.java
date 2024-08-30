@@ -30,10 +30,15 @@ public class BufferSizeEMA {
     private int lastBufferSize;
 
     public BufferSizeEMA(int maxBufferSize, int minBufferSize, long numberOfSamples) {
+        this(maxBufferSize, maxBufferSize, minBufferSize, numberOfSamples);
+    }
+
+    public BufferSizeEMA(
+            int startingBufferSize, int maxBufferSize, int minBufferSize, long numberOfSamples) {
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
         alpha = 2.0 / (numberOfSamples + 1);
-        this.lastBufferSize = maxBufferSize;
+        this.lastBufferSize = startingBufferSize;
     }
 
     /**

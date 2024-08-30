@@ -215,6 +215,16 @@ public class TaskManagerOptions {
                             "Minimum possible size of memory buffers used by the network stack and the memory manager. "
                                     + "ex. can be used for automatic buffer size adjustment.");
 
+    /** Starting size of memory buffers used by the network stack and the memory manager. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> STARTING_MEMORY_SEGMENT_SIZE =
+            key("taskmanager.memory.starting-segment-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("1024"))
+                    .withDescription(
+                            "Starting size of memory buffers used by the network stack and the memory manager, "
+                                    + "when using automatic buffer size adjustment.");
+
     /**
      * The config parameter for automatically defining the TaskManager's binding address, if {@link
      * #HOST} configuration option is not set.
