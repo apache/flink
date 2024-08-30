@@ -59,6 +59,7 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ExportImportFilesMetaData;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -72,9 +73,11 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -85,6 +88,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
 import static org.apache.flink.runtime.metrics.MetricNames.DOWNLOAD_STATE_DURATION;
@@ -183,10 +187,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.keySerializerProvider = keySerializerProvider;
         this.userCodeClassLoader = userCodeClassLoader;
-        //        this.useIngestDbRestoreMode = useIngestDbRestoreMode;
-        //        this.asyncCompactAfterRescale = asyncCompactAfterRescale;
-        this.useIngestDbRestoreMode = false;
-        this.asyncCompactAfterRescale = false;
+        this.useIngestDbRestoreMode = useIngestDbRestoreMode;
+        this.asyncCompactAfterRescale = asyncCompactAfterRescale;
         this.useDeleteFilesInRange = useDeleteFilesInRange;
         this.ioExecutor = ioExecutor;
     }
@@ -453,7 +455,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             byte[] stopKeyGroupPrefixBytes)
             throws Exception {
 
-        /*
         final Path absolutInstanceBasePath = instanceBasePath.getAbsoluteFile().toPath();
         final Path exportCfBasePath = absolutInstanceBasePath.resolve("export-cfs");
         Files.createDirectories(exportCfBasePath);
@@ -493,7 +494,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             // Cleanup export base directory
             cleanUpPathQuietly(exportCfBasePath);
         }
-        */
     }
 
     /**
@@ -509,7 +509,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * @return the total key-groups range of the exported data.
      * @throws Exception on any export error.
      */
-    /*
     private KeyGroupRange exportColumnFamiliesWithSstDataInKeyGroupsRange(
             Path exportCfBasePath,
             List<IncrementalLocalKeyedStateHandle> localKeyedStateHandles,
@@ -590,7 +589,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 ? new KeyGroupRange(minExportKeyGroup, maxExportKeyGroup)
                 : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
     }
-     */
 
     /**
      * Helper method that merges the data from multiple state handles into the restoring base DB by
@@ -640,7 +638,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * @param exportKeyGroupRange the total key-groups range of the exported data.
      * @throws Exception on import error.
      */
-    /*
     private void initBaseDBFromColumnFamilyImports(
             Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
                     exportedColumnFamilyMetaData,
@@ -653,10 +650,10 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 keyGroupRange,
                 operatorIdentifier);
         rocksHandle.openDB();
-        for (Map.Entry<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> entry :
+        for (Map.Entry<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>> entry :
                 exportedColumnFamilyMetaData.entrySet()) {
             rocksHandle.registerStateColumnFamilyHandleWithImport(
-                    entry.getKey(), entry.getValue(), cancelStreamRegistryForRestore);
+                    entry.getKey(), entry.getValue(), cancelStreamRegistry);
         }
 
         // Use Range delete to clip the temp db to the target range of the backend
@@ -665,14 +662,14 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 rocksHandle.getColumnFamilyHandles(),
                 keyGroupRange,
                 exportKeyGroupRange,
-                keyGroupPrefixBytes);
+                keyGroupPrefixBytes,
+                useDeleteFilesInRange);
 
         logger.info(
                 "Completed importing exported state handles for backend with range {} in operator {} using Clip/Ingest DB.",
                 keyGroupRange,
                 operatorIdentifier);
     }
-    */
 
     /**
      * Restores the checkpointing status and state for this backend. This can only be done if the
