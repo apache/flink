@@ -69,9 +69,9 @@ public class OrcFormatStatisticsReportTest extends StatisticsReportTestBase {
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(1);
+        assertThat(folder.listFiles()).hasSize(1);
         File[] files = folder.listFiles();
-        assert files != null;
+        assertThat(files).isNotNull();
         TableStats tableStats =
                 orcBulkDecodingFormat.reportStatistics(
                         Collections.singletonList(new Path(files[0].toURI().toString())), dataType);
