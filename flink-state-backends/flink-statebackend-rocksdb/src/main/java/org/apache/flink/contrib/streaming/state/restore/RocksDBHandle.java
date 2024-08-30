@@ -58,7 +58,8 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
 
 /**
  * Utility for creating a RocksDB instance either from scratch or from restored local state. This
- * will also register {@link RocksDbKvStateInfo} when using {@link #openDB(List, List, Path, ICloseableRegistry)}.
+ * will also register {@link RocksDbKvStateInfo} when using {@link #openDB(List, List, Path,
+ * ICloseableRegistry)}.
  */
 class RocksDBHandle implements AutoCloseable {
 
