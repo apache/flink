@@ -170,7 +170,7 @@ A sample section in the configuration file could look as follows:
 
 ```yaml
 # The backend that will be used to store operator state checkpoints
-state.backend: hashmap
+state.backend.type: hashmap
 
 # Directory for storing checkpoints
 execution.checkpointing.dir: hdfs://namenode:40010/flink/checkpoints
@@ -520,7 +520,7 @@ The legacy `FsStateBackend` is equivalent to using [`HashMapStateBackend`](#the-
 #### Configuration using Flink configuration file
 
 ```yaml
-state.backend.type: hashmap
+state.backend: hashmap
 execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
