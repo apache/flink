@@ -20,7 +20,6 @@ package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
@@ -178,17 +177,6 @@ public interface RuntimeContext {
     default String getTaskNameWithSubtasks() {
         return getTaskInfo().getTaskNameWithSubtasks();
     }
-
-    /**
-     * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
-     * job.
-     *
-     * @deprecated This method has been deprecated and will be removed in the upcoming FLINK major
-     *     version FLINK-2.0. Users relying on this method should migrate to alternative getter
-     *     methods, such as {@link #getGlobalJobParameters()} or {@link #isObjectReuseEnabled()}.
-     */
-    @Deprecated
-    ExecutionConfig getExecutionConfig();
 
     /**
      * Create a serializer for a given type.
