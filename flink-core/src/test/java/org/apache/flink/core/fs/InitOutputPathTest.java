@@ -77,17 +77,6 @@ class InitOutputPathTest {
         runTest(false);
     }
 
-    // Line 82~ Line 191 are copied from
-    // https://github.com/powermock/powermock/blob/release/2.x/powermock-reflect/src/main/java/org/powermock/reflect/internal/WhiteboxImpl.java
-    private static void setField(Object object, Object value, Field foundField) {
-        boolean isStatic = (foundField.getModifiers() & Modifier.STATIC) == Modifier.STATIC;
-        if (isStatic) {
-            setStaticFieldUsingUnsafe(foundField, value);
-        } else {
-            setFieldUsingUnsafe(foundField, object, value);
-        }
-    }
-
     private static void setStaticFieldUsingUnsafe(final Field field, final Object newValue) {
         try {
             field.setAccessible(true);
