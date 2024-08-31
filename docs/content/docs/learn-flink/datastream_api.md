@@ -108,7 +108,7 @@ public class Example {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Person> flintstones = env.fromElements(
+        DataStream<Person> flintstones = env.fromData(
                 new Person("Fred", 35),
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2));
