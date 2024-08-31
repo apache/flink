@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests of a baseline generic sink that implements the AsyncSinkBase. */
 @ExtendWith(TestLoggerExtension.class)
-public class AsyncSinkBaseITCase {
+class AsyncSinkBaseITCase {
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
@@ -45,13 +45,13 @@ public class AsyncSinkBaseITCase {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     @Test
-    public void testWriteTwentyThousandRecordsToGenericSink() throws Exception {
+    void testWriteTwentyThousandRecordsToGenericSink() throws Exception {
         env.fromSequence(1, 20000).map(Object::toString).sinkTo(new ArrayListAsyncSink());
         env.execute("Integration Test: AsyncSinkBaseITCase").getJobExecutionResult();
     }
 
     @Test
-    public void testFailuresOnPersistingToDestinationAreCaughtAndRaised() {
+    void testFailuresOnPersistingToDestinationAreCaughtAndRaised() {
         env.fromSequence(999_999, 1_000_100)
                 .map(Object::toString)
                 .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000, 10));
@@ -63,7 +63,7 @@ public class AsyncSinkBaseITCase {
     }
 
     @Test
-    public void testThatNoIssuesOccurWhenCheckpointingIsEnabled() throws Exception {
+    void testThatNoIssuesOccurWhenCheckpointingIsEnabled() throws Exception {
         env.enableCheckpointing(20);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 200);
         env.fromSequence(1, 10_000).map(Object::toString).sinkTo(new ArrayListAsyncSink());
