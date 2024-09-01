@@ -32,6 +32,10 @@ nz-slider {
   margin-top: -100px;
 }
 
+.checkbox {
+  margin: 10px;
+}
+
 .graph {
   user-select: none;
 
@@ -54,6 +58,14 @@ nz-slider {
     &.focused {
       stroke: @primary-color;
       animation: circle-draw 0.3s linear infinite;
+      stroke-dasharray: 10;
+      stroke-dashoffset: 0;
+      stroke-linecap: round;
+      stroke-opacity: 1;
+    }
+
+    &.pending {
+      stroke: @text-color;
       stroke-dasharray: 10;
       stroke-dashoffset: 0;
       stroke-linecap: round;
