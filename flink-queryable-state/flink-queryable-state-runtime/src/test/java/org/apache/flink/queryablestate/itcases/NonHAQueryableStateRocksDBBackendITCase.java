@@ -26,8 +26,10 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
@@ -62,8 +64,12 @@ public class NonHAQueryableStateRocksDBBackendITCase extends AbstractQueryableSt
                                     .build());
 
     @Override
-    protected StateBackend createStateBackend() throws Exception {
-        return new RocksDBStateBackend(tmpStateBackendDir.toUri().toString());
+    protected StreamExecutionEnvironment createEnv() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StateBackendUtils.configureRocksDBStateBackend(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                env, tmpStateBackendDir.toUri().toString());
+        return env;
     }
 
     @BeforeAll

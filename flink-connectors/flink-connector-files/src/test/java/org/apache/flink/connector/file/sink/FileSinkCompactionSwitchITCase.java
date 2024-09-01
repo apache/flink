@@ -45,7 +45,6 @@ import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -78,6 +77,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+import static org.apache.flink.streaming.util.StateBackendUtils.configureHashMapStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -224,7 +224,7 @@ public class FileSinkCompactionSwitchITCase {
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
         RestartStrategyUtils.configureNoRestartStrategy(env);
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, cpPath);
-        env.setStateBackend(new HashMapStateBackend());
+        configureHashMapStateBackend(env);
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))
                 .setParallelism(NUM_SOURCES)

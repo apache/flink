@@ -24,13 +24,14 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
 import org.junit.Assert;
@@ -61,7 +62,8 @@ public class NonKeyedJob {
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
         RestartStrategyUtils.configureNoRestartStrategy(env);
 
-        env.setStateBackend(new MemoryStateBackend());
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
 
         /** Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3) */
         DataStream<Integer> source = createSource(env, ExecutionMode.GENERATE);

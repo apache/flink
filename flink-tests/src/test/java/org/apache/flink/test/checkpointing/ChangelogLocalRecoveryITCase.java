@@ -21,13 +21,10 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
@@ -75,14 +72,18 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-    @Parameterized.Parameter public AbstractStateBackend delegatedStateBackend;
+    @Parameterized.Parameter public Configuration configuration;
 
     @Parameterized.Parameters(name = "delegated state backend type = {0}")
-    public static Collection<AbstractStateBackend> parameter() {
+    public static Collection<Configuration> parameter() {
         return Arrays.asList(
-                new HashMapStateBackend(),
-                new EmbeddedRocksDBStateBackend(false),
-                new EmbeddedRocksDBStateBackend(true));
+                new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"),
+                new Configuration()
+                        .set(StateBackendOptions.STATE_BACKEND, "rocksdb")
+                        .set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, false),
+                new Configuration()
+                        .set(StateBackendOptions.STATE_BACKEND, "rocksdb")
+                        .set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true));
     }
 
     private MiniClusterWithClientResource cluster;
@@ -134,8 +135,7 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
     public void testRestartTM() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
         MiniCluster miniCluster = cluster.getMiniCluster();
-        StreamExecutionEnvironment env1 =
-                getEnv(delegatedStateBackend, checkpointFolder, true, 200, 800);
+        StreamExecutionEnvironment env1 = getEnv(configuration, checkpointFolder, true, 200, 800);
         JobGraph firstJobGraph = buildJobGraph(env1);
 
         miniCluster.submitJob(firstJobGraph).get();
@@ -156,15 +156,16 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
     }
 
     private StreamExecutionEnvironment getEnv(
-            StateBackend stateBackend,
+            Configuration configuration,
             File checkpointFile,
             boolean changelogEnabled,
             long checkpointInterval,
             long materializationInterval) {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.enableCheckpointing(checkpointInterval);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.setStateBackend(stateBackend);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 3, 10L);
         env.configure(new Configuration().set(LOCAL_RECOVERY, true));
 
@@ -179,9 +180,6 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        Configuration configuration = new Configuration();
-        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
-        env.configure(configuration);
         return env;
     }
 }

@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -120,9 +121,9 @@ public class TaskManagerWideRocksDbMemorySharingITCase extends TestLogger {
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(PARALLELISM);
 
+        // currently we could not use config option to replace RocksDBMemoryFactory
         EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);
         backend.setRocksDBMemoryFactory(memoryFactory);
-        env.setStateBackend(backend);
 
         // don't flush memtables by checkpoints
         env.enableCheckpointing(24 * 60 * 60 * 1000, CheckpointingMode.EXACTLY_ONCE);
@@ -157,7 +158,7 @@ public class TaskManagerWideRocksDbMemorySharingITCase extends TestLogger {
                             }
                         })
                 .sinkTo(new DiscardingSink<>());
-        return env.getStreamGraph().getJobGraph();
+        return StateBackendUtils.configureStateBackendAndGetJobGraph(env, backend);
     }
 
     private static Configuration getConfiguration() {
