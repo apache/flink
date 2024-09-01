@@ -23,7 +23,13 @@
   nzMessage="Job is not running yet."
 ></nz-alert>
 <div class="container" [style.height.px]="top">
-  <flink-dagre (nodeClick)="onNodeClick($event)" [xCenter]="4"></flink-dagre>
+  <flink-dagre
+    (nodeClick)="onNodeClick($event)"
+    [xCenter]="4"
+    [showGraphSwitch]="jobType === 'BATCH'"
+    [pendingOperatorsCount]="nodes.length - initializedNodes.length"
+    (graphTypeChanged)="refreshGraph($event)"
+  ></flink-dagre>
   <router-outlet></router-outlet>
 </div>
 
@@ -31,7 +37,7 @@
   <flink-job-overview-list
     (nodeClick)="onNodeClick($event)"
     (rescale)="onRescale($event)"
-    [nodes]="nodes"
+    [nodes]="initializedNodes"
     [selectedNode]="selectedNode"
   ></flink-job-overview-list>
   <flink-resize
