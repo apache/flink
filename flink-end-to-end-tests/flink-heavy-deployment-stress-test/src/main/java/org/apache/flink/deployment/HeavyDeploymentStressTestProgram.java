@@ -31,9 +31,11 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupStateBackend;
 
 /**
  * End-to-end test for heavy deployment descriptors. This test creates a heavy deployment by
@@ -74,7 +76,10 @@ public class HeavyDeploymentStressTestProgram {
                 .sinkTo(new DiscardingSink<>())
                 .setParallelism(1);
 
-        env.execute("HeavyDeploymentStressTestProgram");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setupStateBackend(streamGraph, pt);
+        streamGraph.setJobName("HeavyDeploymentStressTestProgram");
+        env.execute(streamGraph);
     }
 
     /**

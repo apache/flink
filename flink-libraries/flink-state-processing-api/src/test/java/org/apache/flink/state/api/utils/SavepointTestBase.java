@@ -27,9 +27,11 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.AbstractID;
@@ -48,11 +50,14 @@ import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 /** A test base that includes utilities for taking a savepoint. */
 public abstract class SavepointTestBase extends AbstractTestBaseJUnit4 {
 
-    public String takeSavepoint(StreamExecutionEnvironment executionEnvironment) {
+    public String takeSavepoint(
+            StreamExecutionEnvironment executionEnvironment, StateBackend stateBackend) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().disableClosureCleaner();
 
-        JobGraph jobGraph = executionEnvironment.getStreamGraph().getJobGraph();
+        StreamGraph streamGraph = executionEnvironment.getStreamGraph();
+        streamGraph.setStateBackend(stateBackend);
+        JobGraph jobGraph = streamGraph.getJobGraph();
 
         JobID jobId = jobGraph.getJobID();
 

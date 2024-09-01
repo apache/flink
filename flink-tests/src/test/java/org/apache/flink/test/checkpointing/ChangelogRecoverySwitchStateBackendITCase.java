@@ -27,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -92,8 +91,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
     public void testSwitchFromDisablingToEnablingInClaimMode() throws Exception {
         File firstCheckpointFolder = TEMPORARY_FOLDER.newFolder();
         MiniCluster miniCluster = cluster.getMiniCluster();
-        StreamExecutionEnvironment env1 =
-                getEnv(delegatedStateBackend, firstCheckpointFolder, false, 100, -1);
+        StreamExecutionEnvironment env1 = getEnv(firstCheckpointFolder, false, 100, -1);
         SharedReference<MiniCluster> miniClusterRef = sharedObjects.add(miniCluster);
 
         JobGraph firstJobGraph =
@@ -112,8 +110,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
 
         // 1st restore, switch from disable to enable.
         File secondCheckpointFolder = TEMPORARY_FOLDER.newFolder();
-        StreamExecutionEnvironment env2 =
-                getEnv(delegatedStateBackend, secondCheckpointFolder, true, 100, -1);
+        StreamExecutionEnvironment env2 = getEnv(secondCheckpointFolder, true, 100, -1);
         JobGraph secondJobGraph =
                 buildJobGraph(env2, TOTAL_ELEMENTS / 3, TOTAL_ELEMENTS / 2, miniClusterRef);
         setSavepointRestoreSettings(secondJobGraph, firstRestorePath);
@@ -130,8 +127,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
 
         // 2nd restore, private state of first restore checkpoint still exist.
         File thirdCheckpointFolder = TEMPORARY_FOLDER.newFolder();
-        StreamExecutionEnvironment env3 =
-                getEnv(delegatedStateBackend, thirdCheckpointFolder, true, 100, 1000);
+        StreamExecutionEnvironment env3 = getEnv(thirdCheckpointFolder, true, 100, 1000);
         JobGraph thirdJobGraph =
                 buildJobGraph(env3, TOTAL_ELEMENTS, TOTAL_ELEMENTS * 2 / 3, miniClusterRef);
         setSavepointRestoreSettings(thirdJobGraph, secondRestorePath);
@@ -144,7 +140,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
     }
 
     private StreamExecutionEnvironment getEnv(boolean enableChangelog, int parallelism) {
-        StreamExecutionEnvironment env = getEnv(delegatedStateBackend, 100, 0, 500, 0);
+        StreamExecutionEnvironment env = getEnv(100, 0, 500, 0);
         env.enableChangelogStateBackend(enableChangelog);
         env.setParallelism(parallelism);
         env.getCheckpointConfig()
@@ -154,19 +150,12 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
     }
 
     private StreamExecutionEnvironment getEnv(
-            StateBackend stateBackend,
             File checkpointFile,
             boolean changelogEnabled,
             long checkpointInterval,
             long materializationInterval) {
         StreamExecutionEnvironment env =
-                getEnv(
-                        stateBackend,
-                        checkpointFile,
-                        checkpointInterval,
-                        0,
-                        materializationInterval,
-                        0);
+                getEnv(checkpointFile, checkpointInterval, 0, materializationInterval, 0);
         env.enableChangelogStateBackend(changelogEnabled);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(

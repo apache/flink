@@ -51,8 +51,6 @@ access).
     StreamExecutionEnvironment.enable_checkpointing
     StreamExecutionEnvironment.get_checkpoint_interval
     StreamExecutionEnvironment.get_checkpointing_mode
-    StreamExecutionEnvironment.get_state_backend
-    StreamExecutionEnvironment.set_state_backend
     StreamExecutionEnvironment.enable_changelog_state_backend
     StreamExecutionEnvironment.is_changelog_state_backend_enabled
     StreamExecutionEnvironment.set_default_savepoint_directory

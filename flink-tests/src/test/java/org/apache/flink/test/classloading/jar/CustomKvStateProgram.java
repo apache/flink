@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.InfiniteIntegerSource;
 import org.apache.flink.util.Collector;
 
@@ -55,7 +56,6 @@ public class CustomKvStateProgram {
         env.enableCheckpointing(checkpointingInterval);
         unalignedCheckpoints.ifPresent(
                 value -> env.getCheckpointConfig().enableUnalignedCheckpoints(value));
-        env.setStateBackend(new FsStateBackend(checkpointPath));
 
         DataStream<Integer> source = env.addSource(new InfiniteIntegerSource());
         source.map(
@@ -80,7 +80,9 @@ public class CustomKvStateProgram {
                 .flatMap(new ReducingStateFlatMap())
                 .writeAsText(outputPath);
 
-        env.execute();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new FsStateBackend(checkpointPath));
+        env.execute(streamGraph);
     }
 
     private static class ReducingStateFlatMap

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -57,7 +58,6 @@ public class StateBackendITCase extends AbstractTestBaseJUnit4 {
         Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         see.configure(configuration, Thread.currentThread().getContextClassLoader());
-        see.setStateBackend(new FailingStateBackend());
 
         see.fromData(new Tuple2<>("Hello", 1))
                 .keyBy(0)
@@ -81,7 +81,9 @@ public class StateBackendITCase extends AbstractTestBaseJUnit4 {
                 .print();
 
         try {
-            see.execute();
+            StreamGraph streamGraph = see.getStreamGraph();
+            streamGraph.setStateBackend(new FailingStateBackend());
+            see.execute(streamGraph);
             fail();
         } catch (JobExecutionException e) {
             assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());

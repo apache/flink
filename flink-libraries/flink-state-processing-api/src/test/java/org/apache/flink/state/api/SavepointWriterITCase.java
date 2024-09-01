@@ -136,10 +136,6 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
     private void validateBootstrap(StateBackend backend, String savepointPath) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        if (backend != null) {
-            env.setStateBackend(backend);
-        }
-
         DataStream<Account> stream =
                 env.fromData(accounts)
                         .keyBy(acc -> acc.id)
@@ -157,6 +153,10 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         final StreamGraph streamGraph = env.getStreamGraph();
         streamGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
+
+        if (backend != null) {
+            streamGraph.setStateBackend(backend);
+        }
 
         env.execute(streamGraph);
 
@@ -187,9 +187,6 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
 
     private void validateModification(StateBackend backend, String savepointPath) throws Exception {
         StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        if (backend != null) {
-            sEnv.setStateBackend(backend);
-        }
 
         DataStream<Account> stream =
                 sEnv.fromData(accounts)
@@ -207,6 +204,10 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         final StreamGraph streamGraph = sEnv.getStreamGraph();
         streamGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
+
+        if (backend != null) {
+            streamGraph.setStateBackend(backend);
+        }
 
         sEnv.execute(streamGraph);
 

@@ -58,7 +58,6 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     @Test
     public void testUserKeyedStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(elements))
@@ -69,7 +68,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 

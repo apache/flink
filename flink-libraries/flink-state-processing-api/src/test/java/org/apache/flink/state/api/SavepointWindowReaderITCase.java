@@ -64,7 +64,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testReduceWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -78,7 +77,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -97,7 +96,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testReduceEvictorWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -112,7 +110,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -132,7 +130,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testAggregateWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -146,7 +143,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -166,7 +163,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testAggregateEvictorWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -181,7 +177,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -202,7 +198,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testProcessWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -216,7 +211,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -240,7 +235,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testProcessEvictorWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -255,7 +249,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -280,7 +274,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testApplyWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -294,7 +287,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -318,7 +311,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testApplyEvictorWindowStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -333,7 +325,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
@@ -358,7 +350,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     @Test
     public void testWindowTriggerStateReader() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -370,7 +361,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .uid(uid)
                 .sinkTo(new DiscardingSink<>());
 
-        String savepointPath = takeSavepoint(env);
+        String savepointPath = takeSavepoint(env, getStateBackend());
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 

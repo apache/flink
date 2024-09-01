@@ -36,7 +36,6 @@ from pyflink.datastream.connectors import Source
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
-from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
@@ -299,59 +298,6 @@ class StreamExecutionEnvironment(object):
         j_checkpointing_mode = \
             self._j_stream_execution_environment.getCheckpointingConsistencyMode()
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
-
-    def get_state_backend(self) -> StateBackend:
-        """
-        Gets the state backend that defines how to store and checkpoint state.
-
-        .. seealso:: :func:`set_state_backend`
-
-        :return: The :class:`StateBackend`.
-        """
-        j_state_backend = self._j_stream_execution_environment.getStateBackend()
-        return _from_j_state_backend(j_state_backend)
-
-    def set_state_backend(self, state_backend: StateBackend) -> 'StreamExecutionEnvironment':
-        """
-        Sets the state backend that describes how to store and checkpoint operator state. It
-        defines both which data structures hold state during execution (for example hash tables,
-        RockDB, or other data stores) as well as where checkpointed data will be persisted.
-
-        The :class:`~pyflink.datastream.MemoryStateBackend` for example maintains the state in heap
-        memory, as objects. It is lightweight without extra dependencies, but can checkpoint only
-        small states(some counters).
-
-        In contrast, the :class:`~pyflink.datastream.FsStateBackend` stores checkpoints of the state
-        (also maintained as heap objects) in files. When using a replicated file system (like HDFS,
-        S3, Alluxio, etc) this will guarantee that state is not lost upon failures of
-        individual nodes and that streaming program can be executed highly available and strongly
-        consistent(assuming that Flink is run in high-availability mode).
-
-        The build-in state backend includes:
-            :class:`~pyflink.datastream.MemoryStateBackend`,
-            :class:`~pyflink.datastream.FsStateBackend`
-            and :class:`~pyflink.datastream.RocksDBStateBackend`.
-
-        .. seealso:: :func:`get_state_backend`
-
-        Example:
-        ::
-
-            >>> env.set_state_backend(EmbeddedRocksDBStateBackend())
-
-        :param state_backend: The :class:`StateBackend`.
-        :return: This object.
-
-        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
-                  future FLINK major version. Use `stream_execution_environment.configure` method
-                  instead to set the state backend.
-        """
-        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
-                      " in future FLINK major version. Use `stream_execution_environment.configure`"
-                      " method instead to set the state backend.", DeprecationWarning)
-        self._j_stream_execution_environment = \
-            self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
-        return self
 
     def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
         """

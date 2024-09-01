@@ -26,9 +26,8 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
-import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
+import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackend, StateBackendLoader}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -180,18 +179,19 @@ class StatefulJobWBroadcastStateMigrationITCase(snapshotSpec: SnapshotSpec)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
+    var stateBackend: StateBackend = null
     snapshotSpec.getStateBackendType match {
       case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
-        env.setStateBackend(new EmbeddedRocksDBStateBackend())
+        stateBackend = new EmbeddedRocksDBStateBackend()
 
         if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
           // disable changelog backend for now to ensure determinism in test data generation (see FLINK-31766)
           env.enableChangelogStateBackend(false)
         }
       case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
-        env.setStateBackend(new MemoryStateBackend())
+        stateBackend = new MemoryStateBackend()
       case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME =>
-        env.setStateBackend(new HashMapStateBackend())
+        stateBackend = new HashMapStateBackend()
       case _ => throw new UnsupportedOperationException
     }
 
@@ -242,6 +242,7 @@ class StatefulJobWBroadcastStateMigrationITCase(snapshotSpec: SnapshotSpec)
         s"src/test/resources/"
           + StatefulJobWBroadcastStateMigrationITCase.getSnapshotPath(snapshotSpec),
         snapshotSpec.getSnapshotType(),
+        stateBackend,
         new Tuple2(
           AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
           StatefulJobWBroadcastStateMigrationITCase.NUM_ELEMENTS
@@ -262,6 +263,7 @@ class StatefulJobWBroadcastStateMigrationITCase(snapshotSpec: SnapshotSpec)
         env,
         SnapshotMigrationTestBase.getResourceFilename(
           StatefulJobWBroadcastStateMigrationITCase.getSnapshotPath(snapshotSpec)),
+        stateBackend,
         new Tuple2(
           AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
           StatefulJobWBroadcastStateMigrationITCase.NUM_ELEMENTS)

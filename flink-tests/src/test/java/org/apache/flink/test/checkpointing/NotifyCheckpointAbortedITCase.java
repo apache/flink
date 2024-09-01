@@ -65,6 +65,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -160,7 +161,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         env.setParallelism(1);
 
         final StateBackend failingStateBackend = new DeclineSinkFailingStateBackend(checkpointPath);
-        env.setStateBackend(failingStateBackend);
 
         env.addSource(new NormalSource())
                 .name("NormalSource")
@@ -169,7 +169,10 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                 .transform(DECLINE_SINK_NAME, TypeInformation.of(Object.class), new DeclineSink());
 
         final ClusterClient<?> clusterClient = cluster.getClusterClient();
-        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(failingStateBackend);
+        JobGraph jobGraph = streamGraph.getJobGraph();
         JobID jobID = jobGraph.getJobID();
 
         clusterClient.submitJob(jobGraph).get();

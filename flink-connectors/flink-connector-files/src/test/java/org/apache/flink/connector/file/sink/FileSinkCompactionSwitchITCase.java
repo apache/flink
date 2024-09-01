@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.file.sink.FileSink.DefaultRowFormatBuilder;
 import org.apache.flink.connector.file.sink.compactor.DecoderBasedReader;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -225,8 +225,8 @@ public class FileSinkCompactionSwitchITCase {
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
         Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
-        env.setStateBackend(new HashMapStateBackend());
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))
                 .setParallelism(NUM_SOURCES)

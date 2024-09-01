@@ -29,8 +29,10 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -39,8 +41,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -65,6 +65,7 @@ import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -169,8 +170,12 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private JobGraph createJobGraph(File stateBackendFolder) throws Exception {
         final StreamExecutionEnvironment sEnv =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-        final StateBackend stateBackend = new FsStateBackend(stateBackendFolder.toURI(), 1);
-        sEnv.setStateBackend(stateBackend);
+        sEnv.configure(
+                new Configuration()
+                        .set(
+                                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                                stateBackendFolder.toURI().toString())
+                        .set(FS_SMALL_FILE_THRESHOLD, MemorySize.parse("1 b")));
 
         sEnv.addSource(new InfiniteSourceFunction())
                 .keyBy(e -> e)

@@ -32,12 +32,14 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupStateBackend;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.TIME_WINDOW_OPER;
 
@@ -97,7 +99,10 @@ public class RocksDBStateMemoryControlTestProgram {
                     .uid(TIME_WINDOW_OPER.getUid());
         }
 
-        env.execute("RocksDB test job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setupStateBackend(streamGraph, pt);
+        streamGraph.setJobName("RocksDB test job");
+        env.execute(streamGraph);
     }
 
     private static class ValueStateMapper extends RichMapFunction<Event, Event> {

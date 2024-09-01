@@ -25,14 +25,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -70,8 +69,6 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class KeyedStateCheckpointingITCase extends TestLogger {
 
-    protected static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
-
     protected static final int NUM_STRINGS = 10_000;
     protected static final int NUM_KEYS = 40;
 
@@ -101,66 +98,60 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Test
-    public void testWithMemoryBackendSync() throws Exception {
-        MemoryStateBackend syncMemBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
-        testProgramWithBackend(syncMemBackend);
-    }
-
-    @Test
     public void testWithMemoryBackendAsync() throws Exception {
-        MemoryStateBackend asyncMemBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, true);
-        testProgramWithBackend(asyncMemBackend);
-    }
-
-    @Test
-    public void testWithFsBackendSync() throws Exception {
-        FsStateBackend syncFsBackend =
-                new FsStateBackend(tmpFolder.newFolder().toURI().toString(), false);
-        testProgramWithBackend(syncFsBackend);
+        Configuration configuration = new Configuration();
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        testProgramWithBackend(configuration);
     }
 
     @Test
     public void testWithFsBackendAsync() throws Exception {
-        FsStateBackend asyncFsBackend =
-                new FsStateBackend(tmpFolder.newFolder().toURI().toString(), true);
-        testProgramWithBackend(asyncFsBackend);
+        Configuration configuration = new Configuration();
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                tmpFolder.newFolder().toURI().toString());
+        testProgramWithBackend(configuration);
     }
 
     @Test
     public void testWithRocksDbBackendFull() throws Exception {
-        RocksDBStateBackend fullRocksDbBackend =
-                new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE), false);
-        fullRocksDbBackend.setDbStoragePath(tmpFolder.newFolder().getAbsolutePath());
+        Configuration configuration = new Configuration();
+        configuration.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, false);
 
-        testProgramWithBackend(fullRocksDbBackend);
+        testProgramWithBackend(
+                configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, false));
     }
 
     @Test
     public void testWithRocksDbBackendIncremental() throws Exception {
-        RocksDBStateBackend incRocksDbBackend =
-                new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE), true);
-        incRocksDbBackend.setDbStoragePath(tmpFolder.newFolder().getAbsolutePath());
+        Configuration configuration = new Configuration();
+        configuration.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, false);
+        configuration.set(
+                RocksDBOptions.LOCAL_DIRECTORIES, tmpFolder.newFolder().getAbsolutePath());
 
-        testProgramWithBackend(incRocksDbBackend);
+        testProgramWithBackend(configuration);
     }
 
     // ------------------------------------------------------------------------
 
-    protected void testProgramWithBackend(AbstractStateBackend stateBackend) throws Exception {
+    protected void testProgramWithBackend(Configuration configuration) throws Exception {
         assertEquals("Broken test setup", 0, (NUM_STRINGS / 2) % NUM_KEYS);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(500);
-        Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
-
-        env.setStateBackend(stateBackend);
 
         // compute when (randomly) the failure should happen
         final int failurePosMin = (int) (0.6 * NUM_STRINGS / PARALLELISM);

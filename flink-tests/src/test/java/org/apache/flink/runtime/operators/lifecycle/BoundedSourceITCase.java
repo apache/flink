@@ -109,7 +109,8 @@ public class BoundedSourceITCase extends TestLogger {
                                                         TEMPORARY_FOLDER
                                                                 .newFolder()
                                                                 .toURI()
-                                                                .toString())));
+                                                                .toString())),
+                        null);
 
         TestJobExecutor.execute(testJob, miniClusterResource)
                 .waitForEvent(CheckpointCompletedEvent.class)

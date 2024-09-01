@@ -23,8 +23,10 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupStateBackend;
 
 /**
  * A test job for State TTL feature.
@@ -56,8 +58,6 @@ public class DataStreamStateTTLTestProgram {
 
         setupEnvironment(env, pt);
 
-        setBackendWithCustomTTLTimeProvider(env);
-
         TtlTestConfig config = TtlTestConfig.fromArgs(pt);
         StateTtlConfig ttlConfig =
                 StateTtlConfig.newBuilder(config.ttl).cleanupFullSnapshot().build();
@@ -72,20 +72,25 @@ public class DataStreamStateTTLTestProgram {
                 .addSink(new PrintSinkFunction<>())
                 .name("PrintFailedVerifications");
 
-        env.execute("State TTL test job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setupStateBackend(streamGraph, pt);
+        setBackendWithCustomTTLTimeProvider(streamGraph);
+        streamGraph.setJobName("State TTL test job");
+
+        env.execute(streamGraph);
     }
 
     /**
      * Sets the state backend to a new {@link StubStateBackend} which has a {@link
      * MonotonicTTLTimeProvider}.
      *
-     * @param env The {@link StreamExecutionEnvironment} of the job.
+     * @param streamGraph The {@link StreamGraph} of the job.
      */
-    private static void setBackendWithCustomTTLTimeProvider(StreamExecutionEnvironment env) {
+    private static void setBackendWithCustomTTLTimeProvider(StreamGraph streamGraph) {
         final MonotonicTTLTimeProvider ttlTimeProvider = new MonotonicTTLTimeProvider();
 
-        final StateBackend configuredBackend = env.getStateBackend();
+        final StateBackend configuredBackend = streamGraph.getStateBackend();
         final StateBackend stubBackend = new StubStateBackend(configuredBackend, ttlTimeProvider);
-        env.setStateBackend(stubBackend);
+        streamGraph.setStateBackend(stubBackend);
     }
 }

@@ -142,9 +142,9 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
     public void testTumbleWindow() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
+        // There is no need to set a state backend, as the job will be executed in batch mode.
         DataStream<Tuple2<String, Integer>> bootstrapData =
                 env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
@@ -186,9 +186,9 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
     public void testTumbleWindowWithEvictor() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
+        // There is no need to set a state backend, as the job will be executed in batch mode.
         DataStream<Tuple2<String, Integer>> bootstrapData =
                 env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
@@ -232,9 +232,9 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
     public void testSlideWindow() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
+        // There is no need to set a state backend, as the job will be executed in batch mode.
         DataStream<Tuple2<String, Integer>> bootstrapData =
                 env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1), TUPLE_TYPE_INFO)
@@ -279,9 +279,9 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
     public void testSlideWindowWithEvictor() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
+        // There is no need to set a state backend, as the job will be executed in batch mode.
         DataStream<Tuple2<String, Integer>> bootstrapData =
                 env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))

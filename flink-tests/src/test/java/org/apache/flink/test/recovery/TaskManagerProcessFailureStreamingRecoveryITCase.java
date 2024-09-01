@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
@@ -78,8 +79,6 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
 
         env.enableCheckpointing(200);
 
-        env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
-
         DataStream<Long> result =
                 env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
                         // add a non-chained no-op map to test the chain state restore logic
@@ -99,7 +98,10 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
         result.addSink(new CheckpointedSink(DATA_COUNT));
 
         // blocking call until execution is done
-        env.execute();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(
+                new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
+        env.execute(streamGraph);
     }
 
     private static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>

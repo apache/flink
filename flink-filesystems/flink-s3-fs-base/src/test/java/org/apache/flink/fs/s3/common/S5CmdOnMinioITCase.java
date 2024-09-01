@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.TestContainerExtension;
@@ -218,9 +218,9 @@ public abstract class S5CmdOnMinioITCase {
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        configuration.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-        env.setStateBackend(new EmbeddedRocksDBStateBackend());
         // Disable changelog, to make sure state is stored in the RocksDB, not in changelog, as
         // currently only RocksDB is using s5cmd.
         env.enableChangelogStateBackend(false);

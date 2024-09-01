@@ -57,6 +57,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
@@ -125,9 +126,10 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
-        env.setStateBackend(new AsyncFailureStateBackend());
         env.addSource(new StringGeneratingSourceFunction()).sinkTo(new DiscardingSink<>());
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new AsyncFailureStateBackend());
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
         try {
             // assert that the job only execute checkpoint once and only failed once.
             TestUtils.submitJobAndWaitForResult(

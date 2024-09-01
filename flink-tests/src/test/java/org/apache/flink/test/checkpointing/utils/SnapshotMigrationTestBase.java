@@ -33,9 +33,11 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -260,6 +262,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             StreamExecutionEnvironment env,
             String snapshotPath,
             SnapshotType snapshotType,
+            StateBackend stateBackend,
             Tuple2<String, Integer>... expectedAccumulators)
             throws Exception {
 
@@ -268,7 +271,9 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         ClusterClient<?> client = miniClusterResource.getClusterClient();
 
         // Submit the job
-        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(stateBackend);
+        JobGraph jobGraph = streamGraph.getJobGraph();
 
         JobID jobID = client.submitJob(jobGraph).get();
 
@@ -338,6 +343,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
     protected final void restoreAndExecute(
             StreamExecutionEnvironment env,
             String snapshotPath,
+            StateBackend stateBackend,
             Tuple2<String, Integer>... expectedAccumulators)
             throws Exception {
 
@@ -346,7 +352,9 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         ClusterClient<?> client = miniClusterResource.getClusterClient();
 
         // Submit the job
-        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(stateBackend);
+        JobGraph jobGraph = streamGraph.getJobGraph();
 
         jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(snapshotPath));
 

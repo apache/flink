@@ -124,7 +124,8 @@ public class StopWithSavepointITCase extends AbstractTestBaseJUnit4 {
                                                         TEMPORARY_FOLDER
                                                                 .newFolder()
                                                                 .toURI()
-                                                                .toString())));
+                                                                .toString())),
+                        null);
 
         TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
                 .waitForEvent(WatermarkReceivedEvent.class)

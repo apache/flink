@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 
@@ -69,8 +70,6 @@ public class CheckpointingCustomKvStateProgram {
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(1000));
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-        env.setStateBackend(new FsStateBackend(checkpointPath));
-
         DataStream<Integer> source = env.addSource(new InfiniteIntegerSource());
         source.map(
                         new MapFunction<Integer, Tuple2<Integer, Integer>>() {
@@ -94,7 +93,9 @@ public class CheckpointingCustomKvStateProgram {
                 .flatMap(new ReducingStateFlatMap())
                 .writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE);
 
-        env.execute();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new FsStateBackend(checkpointPath));
+        env.execute(streamGraph);
     }
 
     private static class InfiniteIntegerSource

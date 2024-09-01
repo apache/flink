@@ -45,6 +45,7 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -291,7 +292,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     Duration.ofMillis(0));
             env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-            env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
             env.addSource(
@@ -354,7 +354,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSize)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            StreamGraph streamGraph = env.getStreamGraph();
+            streamGraph.setStateBackend(this.stateBackend);
+            streamGraph.setJobName("Tumbling Window Test");
+            env.execute(streamGraph);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -389,7 +392,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     Duration.ofMillis(0));
             env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-            env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
             env.addSource(
@@ -458,7 +460,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSize)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            StreamGraph streamGraph = env.getStreamGraph();
+            streamGraph.setStateBackend(this.stateBackend);
+            streamGraph.setJobName("Tumbling Window Test");
+            env.execute(streamGraph);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -485,7 +490,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     Duration.ofMillis(0));
             env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-            env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
             env.addSource(
@@ -549,7 +553,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSlide)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            StreamGraph streamGraph = env.getStreamGraph();
+            streamGraph.setStateBackend(this.stateBackend);
+            streamGraph.setJobName("Tumbling Window Test");
+            env.execute(streamGraph);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -574,7 +581,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     Duration.ofMillis(0));
             env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-            env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
             env.addSource(
@@ -639,7 +645,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSize)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            StreamGraph streamGraph = env.getStreamGraph();
+            streamGraph.setStateBackend(this.stateBackend);
+            streamGraph.setJobName("Tumbling Window Test");
+            env.execute(streamGraph);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -665,7 +674,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                     Duration.ofMillis(0));
             env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-            env.setStateBackend(this.stateBackend);
             env.getConfig().setUseSnapshotCompression(true);
 
             env.addSource(
@@ -733,7 +741,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                             numKeys, numElementsPerKey, windowSlide)))
                     .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
+            StreamGraph streamGraph = env.getStreamGraph();
+            streamGraph.setStateBackend(this.stateBackend);
+            streamGraph.setJobName("Tumbling Window Test");
+            env.execute(streamGraph);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

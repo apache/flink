@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
@@ -66,7 +67,6 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
         env.setParallelism(1);
 
         String checkpoints = tempFolder.newFolder().toURI().toString();
-        env.setStateBackend(new FsStateBackend(checkpoints));
 
         env.addSource(new InfiniteTupleSource(1_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
@@ -94,7 +94,9 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
                         })
                 .print();
 
-        env.execute();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new FsStateBackend(checkpoints));
+        env.execute(streamGraph);
     }
 
     @Test
@@ -104,7 +106,6 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
         env.setParallelism(1);
 
         String checkpoints = tempFolder.newFolder().toURI().toString();
-        env.setStateBackend(new FsStateBackend(checkpoints));
 
         env.addSource(new InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
@@ -133,6 +134,8 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
                         })
                 .print();
 
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new FsStateBackend(checkpoints));
         env.execute();
     }
 
@@ -142,8 +145,6 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.setParallelism(1);
 
-        env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
-
         env.addSource(new InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
                 .keyBy(0)
@@ -170,7 +171,9 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
                         })
                 .print();
 
-        env.execute();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
+        env.execute(streamGraph);
     }
 
     @Test
@@ -178,8 +181,6 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
-
-        env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
         env.addSource(new InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
@@ -208,7 +209,9 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
                         })
                 .print();
 
-        env.execute();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
+        env.execute(streamGraph);
     }
 
     /**

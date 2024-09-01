@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
@@ -71,8 +72,6 @@ public class KeyedJob {
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-        env.setStateBackend(new MemoryStateBackend());
-
         /** Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2) */
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> source =
                 createIntegerTupleSource(env, ExecutionMode.GENERATE);
@@ -86,7 +85,10 @@ public class KeyedJob {
         SingleOutputStreamOperator<Integer> second =
                 createSecondStatefulMap(ExecutionMode.GENERATE, first);
 
-        env.execute("job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new MemoryStateBackend());
+        streamGraph.setJobName("job");
+        env.execute(streamGraph);
     }
 
     public static SingleOutputStreamOperator<Tuple2<Integer, Integer>> createIntegerTupleSource(

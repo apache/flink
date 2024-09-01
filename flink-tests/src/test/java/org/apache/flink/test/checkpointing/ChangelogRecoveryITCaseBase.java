@@ -56,6 +56,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -151,7 +152,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     }
 
     protected StreamExecutionEnvironment getEnv(
-            StateBackend stateBackend,
             long checkpointInterval,
             int restartAttempts,
             long materializationInterval,
@@ -165,7 +165,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableCheckpointing(checkpointInterval).enableChangelogStateBackend(true);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.setStateBackend(stateBackend);
 
         if (materializationInterval >= 0) {
             env.configure(
@@ -186,7 +185,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     }
 
     protected StreamExecutionEnvironment getEnv(
-            StateBackend stateBackend,
             File checkpointFile,
             long checkpointInterval,
             int restartAttempts,
@@ -194,7 +192,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
             int materializationMaxFailure) {
         StreamExecutionEnvironment env =
                 getEnv(
-                        stateBackend,
                         checkpointInterval,
                         restartAttempts,
                         materializationInterval,
@@ -208,6 +205,14 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
 
     protected JobGraph buildJobGraph(
             StreamExecutionEnvironment env, ControlledSource controlledSource, JobID jobId) {
+        return buildJobGraph(delegatedStateBackend, env, controlledSource, jobId);
+    }
+
+    protected JobGraph buildJobGraph(
+            StateBackend stateBackend,
+            StreamExecutionEnvironment env,
+            ControlledSource controlledSource,
+            JobID jobId) {
         KeyedStream<Integer, Integer> keyedStream =
                 env.addSource(controlledSource)
                         .assignTimestampsAndWatermarks(WatermarkStrategy.forMonotonousTimestamps())
@@ -225,7 +230,10 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                                     Collector<Integer> out) {}
                         })
                 .sinkTo(new DiscardingSink<>());
-        return env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), jobId);
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(stateBackend);
+
+        return streamGraph.getJobGraph(env.getClass().getClassLoader(), jobId);
     }
 
     protected void waitAndAssert(JobGraph jobGraph) throws Exception {

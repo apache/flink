@@ -477,7 +477,6 @@ public class SavepointITCase extends TestLogger {
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, folder.newFolder().toURI().toString());
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setStateBackend(new EmbeddedRocksDBStateBackend(true));
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
@@ -523,7 +522,9 @@ public class SavepointITCase extends TestLogger {
                         })
                 .setParallelism(1);
 
-        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new EmbeddedRocksDBStateBackend(true));
+        final JobGraph jobGraph = streamGraph.getJobGraph();
 
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(

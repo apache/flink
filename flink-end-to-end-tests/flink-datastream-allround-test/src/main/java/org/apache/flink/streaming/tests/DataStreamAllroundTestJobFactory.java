@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -272,7 +273,6 @@ public class DataStreamAllroundTestJobFactory {
         setupCheckpointing(env, pt);
         setupParallelism(env, pt);
         setupRestartStrategy(env, pt);
-        setupStateBackend(env, pt);
 
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(pt);
@@ -375,19 +375,19 @@ public class DataStreamAllroundTestJobFactory {
         }
     }
 
-    private static void setupStateBackend(
-            final StreamExecutionEnvironment env, final ParameterTool pt) throws IOException {
+    public static void setupStateBackend(final StreamGraph streamGraph, final ParameterTool pt)
+            throws IOException {
         final String stateBackend = pt.get(STATE_BACKEND.key(), STATE_BACKEND.defaultValue());
 
         if ("hashmap".equalsIgnoreCase(stateBackend)) {
-            env.setStateBackend(new HashMapStateBackend());
+            streamGraph.setStateBackend(new HashMapStateBackend());
         } else if ("rocks".equalsIgnoreCase(stateBackend)) {
             boolean incrementalCheckpoints =
                     pt.getBoolean(
                             STATE_BACKEND_ROCKS_INCREMENTAL.key(),
                             STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
 
-            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
+            streamGraph.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
         }

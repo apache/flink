@@ -189,7 +189,8 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                             .setTolerableCheckpointFailureNumber(Integer.MAX_VALUE);
                     // explicitly set to one to ease avoiding race conditions
                     env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-                });
+                },
+                null);
     }
 
     private JobVertexID findJobVertexID(

@@ -56,7 +56,6 @@ import org.junit.rules.TemporaryFolder;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -220,28 +219,17 @@ public class ChangelogStateBackendLoadingTest {
     public void testEnableChangelogStateBackendInStreamExecutionEnvironment() throws Exception {
         StreamExecutionEnvironment env = getEnvironment();
         assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.UNDEFINED, null);
+                env, TernaryBoolean.UNDEFINED);
 
         // set back and force
-        env.setStateBackend(new MemoryStateBackend());
-        assertTrue(env.getStateBackend() instanceof MemoryStateBackend);
         assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.UNDEFINED, MemoryStateBackend.class);
+                env, TernaryBoolean.UNDEFINED);
         env.enableChangelogStateBackend(true);
         assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.TRUE, MemoryStateBackend.class);
+                env, TernaryBoolean.TRUE);
         env.enableChangelogStateBackend(false);
         assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.FALSE, MemoryStateBackend.class);
-
-        // enable changelog before set statebackend
-        env = getEnvironment();
-        env.enableChangelogStateBackend(true);
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.TRUE, null);
-        env.setStateBackend(new MemoryStateBackend());
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.TRUE, MemoryStateBackend.class);
+                env, TernaryBoolean.FALSE);
     }
 
     private Configuration config(String stateBackend, boolean enableChangelogStateBackend) {
@@ -339,16 +327,8 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     private void assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-            StreamExecutionEnvironment env,
-            TernaryBoolean isChangelogEnabled,
-            Class<?> rootStateBackendClass)
-            throws Exception {
+            StreamExecutionEnvironment env, TernaryBoolean isChangelogEnabled) throws Exception {
         assertEquals(isChangelogEnabled, env.isChangelogStateBackendEnabled());
-        if (rootStateBackendClass == null) {
-            assertNull(env.getStateBackend());
-        } else {
-            assertSame(rootStateBackendClass, env.getStateBackend().getClass());
-        }
 
         StreamGraph streamGraph = env.getStreamGraph(false);
         assertEquals(
@@ -358,36 +338,10 @@ public class ChangelogStateBackendLoadingTest {
                         .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
                         .map(TernaryBoolean::fromBoolean)
                         .orElse(TernaryBoolean.UNDEFINED));
-        if (rootStateBackendClass == null) {
-            assertNull(streamGraph.getStateBackend());
-        } else {
-            assertSame(rootStateBackendClass, streamGraph.getStateBackend().getClass());
-        }
+
         JobCheckpointingSettings checkpointingSettings =
                 streamGraph.getJobGraph().getCheckpointingSettings();
         assertEquals(isChangelogEnabled, checkpointingSettings.isChangelogStateBackendEnabled());
-        if (rootStateBackendClass == null) {
-            assertNull(checkpointingSettings.getDefaultStateBackend());
-        } else {
-            assertSame(
-                    rootStateBackendClass,
-                    checkpointingSettings.getDefaultStateBackend().deserializeValue(cl).getClass());
-            assertSame(
-                    rootStateBackendClass,
-                    unwrapFromDelegatingStateBackend(
-                                    checkpointingSettings
-                                            .getDefaultStateBackend()
-                                            .deserializeValue(cl))
-                            .getClass());
-        }
-    }
-
-    private StateBackend unwrapFromDelegatingStateBackend(StateBackend backend) {
-        if (backend instanceof DelegatingStateBackend) {
-            return ((DelegatingStateBackend) backend).getDelegatedStateBackend();
-        } else {
-            return backend;
-        }
     }
 
     private static class MockStateBackend extends AbstractStateBackend

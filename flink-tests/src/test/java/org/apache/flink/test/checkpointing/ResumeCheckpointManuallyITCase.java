@@ -447,7 +447,6 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                 StreamExecutionEnvironment.getExecutionEnvironment(jobConfig);
 
         env.enableCheckpointing(500);
-        env.setStateBackend(backend);
         env.setParallelism(PARALLELISM);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
@@ -466,6 +465,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                 .filter(value -> value.f0.startsWith("Tuple 0"));
 
         StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(backend);
 
         JobGraph jobGraph = streamGraph.getJobGraph();
 

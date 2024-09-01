@@ -29,11 +29,13 @@ import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEventQueue;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.testutils.junit.SharedObjects;
@@ -57,7 +59,8 @@ public class TestJobBuilders {
         TestJobWithDescription build(
                 SharedObjects shared,
                 ThrowingConsumer<Configuration, Exception> modifyConfig,
-                ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment)
+                ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment,
+                StateBackend stateBackend)
                 throws Exception;
     }
 
@@ -69,7 +72,8 @@ public class TestJobBuilders {
                 public TestJobWithDescription build(
                         SharedObjects shared,
                         ThrowingConsumer<Configuration, Exception> confConsumer,
-                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer,
+                        StateBackend stateBackend)
                         throws Exception {
 
                     TestEventQueue eventQueue = TestEventQueue.createShared(shared);
@@ -100,8 +104,10 @@ public class TestJobBuilders {
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);
 
+                    StreamGraph streamGraph = env.getStreamGraph();
+                    streamGraph.setStateBackend(stateBackend);
                     return new TestJobWithDescription(
-                            env.getStreamGraph().getJobGraph(),
+                            streamGraph.getJobGraph(),
                             singleton(unitedSourceLeft),
                             new HashSet<>(singletonList(mapForward)),
                             new HashSet<>(asList(unitedSourceLeft, mapForward)),
@@ -122,7 +128,8 @@ public class TestJobBuilders {
                 public TestJobWithDescription build(
                         SharedObjects shared,
                         ThrowingConsumer<Configuration, Exception> confConsumer,
-                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer,
+                        StateBackend stateBackend)
                         throws Exception {
 
                     TestEventQueue eventQueue = TestEventQueue.createShared(shared);

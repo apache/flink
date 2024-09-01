@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 import org.apache.flink.streaming.tests.artificialstate.StatefulComplexPayloadSerializer;
@@ -52,6 +53,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupStateBackend;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.FAILURE_MAPPER_NAME;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.KEYED_STATE_OPER_WITH_AVRO_SER;
@@ -286,7 +288,10 @@ public class DataStreamAllroundTestProgram {
                 .name(SLIDING_WINDOW_CHECK_PRINT_SINK.getName())
                 .uid(SLIDING_WINDOW_CHECK_PRINT_SINK.getUid());
 
-        env.execute("General purpose test job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setupStateBackend(streamGraph, pt);
+        streamGraph.setJobName("General purpose test job");
+        env.execute(streamGraph);
     }
 
     private static void throwIncorrectRestoredStateException(

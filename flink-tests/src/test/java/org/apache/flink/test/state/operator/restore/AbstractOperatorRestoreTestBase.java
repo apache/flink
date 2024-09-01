@@ -29,10 +29,10 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -262,7 +262,6 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
-        env.setStateBackend((StateBackend) new MemoryStateBackend());
 
         switch (mode) {
             case MIGRATE:
@@ -273,7 +272,9 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                 break;
         }
 
-        return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setStateBackend(new MemoryStateBackend());
+        return StreamingJobGraphGenerator.createJobGraph(streamGraph);
     }
 
     private Path getSavepointPath(FlinkVersion version) {

@@ -44,7 +44,7 @@ public class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTe
     }
 
     private StreamExecutionEnvironment getEnv(int parallelism) {
-        StreamExecutionEnvironment env = getEnv(delegatedStateBackend, 50, 0, 20, 0);
+        StreamExecutionEnvironment env = getEnv(50, 0, 20, 0);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);

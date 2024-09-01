@@ -28,6 +28,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 
 import java.util.Collections;
@@ -38,6 +39,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupStateBackend;
 
 /**
  * Test upgrade of generic stateful job for Flink's DataStream API operators and primitives.
@@ -110,7 +112,10 @@ public class StatefulStreamJobUpgradeTestProgram {
                 .name("SemanticsCheckMapper")
                 .addSink(new PrintSinkFunction<>());
 
-        env.execute("General purpose test job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setupStateBackend(streamGraph, pt);
+        streamGraph.setJobName("General purpose test job");
+        env.execute(streamGraph);
     }
 
     private static void executeUpgradedVariant(StreamExecutionEnvironment env, ParameterTool pt)
@@ -138,7 +143,10 @@ public class StatefulStreamJobUpgradeTestProgram {
                 .name("SemanticsCheckMapper")
                 .addSink(new PrintSinkFunction<>());
 
-        env.execute("General purpose test job");
+        StreamGraph streamGraph = env.getStreamGraph();
+        setupStateBackend(streamGraph, pt);
+        streamGraph.setJobName("General purpose test job");
+        env.execute(streamGraph);
     }
 
     private static boolean isOriginalJobVariant(final ParameterTool pt) {
