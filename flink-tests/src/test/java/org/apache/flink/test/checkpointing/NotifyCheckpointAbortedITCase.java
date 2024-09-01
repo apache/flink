@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -58,7 +59,7 @@ import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -67,6 +68,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -80,6 +82,7 @@ import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -159,8 +162,9 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         env.disableOperatorChaining();
         env.setParallelism(1);
 
-        final StateBackend failingStateBackend = new DeclineSinkFailingStateBackend(checkpointPath);
-        env.setStateBackend(failingStateBackend);
+        StateBackendUtils.configureStateBackendWithFactory(
+                env,
+                "org.apache.flink.test.checkpointing.NotifyCheckpointAbortedITCase$DeclineSinkFailingStateBackendFactory");
 
         env.addSource(new NormalSource())
                 .name("NormalSource")
@@ -374,6 +378,16 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                     new HashMap<>(),
                     new HashMap<>(),
                     snapshotStrategyRunner);
+        }
+    }
+
+    public static class DeclineSinkFailingStateBackendFactory
+            implements StateBackendFactory<DeclineSinkFailingStateBackend> {
+        @Override
+        public DeclineSinkFailingStateBackend createFromConfig(
+                ReadableConfig config, ClassLoader classLoader)
+                throws IllegalConfigurationException, IOException {
+            return new DeclineSinkFailingStateBackend(checkpointPath);
         }
     }
 

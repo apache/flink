@@ -25,7 +25,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -194,17 +193,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     @Override
     public CheckpointingMode getCheckpointingConsistencyMode() {
         return realExecEnv.getCheckpointingConsistencyMode();
-    }
-
-    @Override
-    public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
-    }
-
-    @Override
-    public StateBackend getStateBackend() {
-        return realExecEnv.getStateBackend();
     }
 
     @Override

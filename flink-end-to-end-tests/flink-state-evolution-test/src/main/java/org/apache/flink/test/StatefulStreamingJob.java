@@ -27,10 +27,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.avro.generated.Address;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -159,7 +160,8 @@ public class StatefulStreamingJob {
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setStateBackend(new FsStateBackend(checkpointDir));
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         env.enableCheckpointing(1000L);
 
         env.addSource(new MySource())

@@ -18,13 +18,19 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 
 /** IT Case for reading keyed state from a memory state backend. */
 public class EmbeddedRocksDBStateBackendReaderKeyedStateITCase
         extends SavepointReaderKeyedStateITCase<EmbeddedRocksDBStateBackend> {
+
     @Override
-    protected EmbeddedRocksDBStateBackend getStateBackend() {
-        return new EmbeddedRocksDBStateBackend();
+    protected Tuple2<Configuration, EmbeddedRocksDBStateBackend> getStateBackendTuple() {
+        return Tuple2.of(
+                new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb"),
+                new EmbeddedRocksDBStateBackend());
     }
 }

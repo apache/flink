@@ -34,12 +34,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 
@@ -61,7 +62,8 @@ public class CheckpointingCustomKvStateProgram {
         env.setParallelism(parallelism);
         env.enableCheckpointing(100);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 1000L);
-        env.setStateBackend(new FsStateBackend(checkpointPath));
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpointPath);
 
         DataStream<Integer> source = env.addSource(new InfiniteIntegerSource());
         source.map(

@@ -24,6 +24,8 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.utils.AggregateSum;
@@ -59,12 +61,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     private static final Integer[] numbers = {1, 2, 3};
 
-    protected abstract B getStateBackend();
+    protected abstract Tuple2<Configuration, B> getStateBackendTuple();
 
     @Test
     public void testReduceWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -80,7 +83,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -96,8 +99,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testReduceEvictorWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -114,7 +118,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -131,8 +135,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testAggregateWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -148,7 +153,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -165,8 +170,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testAggregateEvictorWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -183,7 +189,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -201,8 +207,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testProcessWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -218,7 +225,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -239,8 +246,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testProcessEvictorWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -257,7 +265,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -279,8 +287,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testApplyWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -296,7 +305,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -317,8 +326,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testApplyEvictorWindowStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -335,7 +345,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Integer> results =
                 JobResultRetriever.collect(
@@ -357,8 +367,9 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testWindowTriggerStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(numbers))
@@ -372,7 +383,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Long> results =
                 JobResultRetriever.collect(

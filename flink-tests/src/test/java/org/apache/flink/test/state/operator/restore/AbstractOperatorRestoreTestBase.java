@@ -27,12 +27,12 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.TestingUtils;
@@ -259,7 +259,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
         RestartStrategyUtils.configureNoRestartStrategy(env);
-        env.setStateBackend((StateBackend) new MemoryStateBackend());
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
 
         switch (mode) {
             case MIGRATE:

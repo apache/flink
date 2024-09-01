@@ -27,10 +27,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -40,7 +37,9 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.test.util.MigrationTest;
@@ -169,7 +168,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
 
         switch (snapshotSpec.getStateBackendType()) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-                env.setStateBackend(new EmbeddedRocksDBStateBackend());
+                StateBackendUtils.configureRocksDBStateBackend(env);
 
                 if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
                     // disable changelog backend for now to ensure determinism in test data
@@ -178,10 +177,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 }
                 break;
             case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                env.setStateBackend(new MemoryStateBackend());
+                StateBackendUtils.configureHashMapStateBackend(env);
+                CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
                 break;
             case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
-                env.setStateBackend(new HashMapStateBackend());
+                StateBackendUtils.configureHashMapStateBackend(env);
                 break;
             default:
                 throw new UnsupportedOperationException();
