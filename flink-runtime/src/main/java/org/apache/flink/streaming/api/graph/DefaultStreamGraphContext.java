@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
@@ -69,16 +70,34 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     // as they reuse some attributes.
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches;
 
+    @Nullable private final StreamGraphUpdateListener streamGraphUpdateListener;
+
+    @VisibleForTesting
     public DefaultStreamGraphContext(
             StreamGraph streamGraph,
             Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
             Map<Integer, Integer> frozenNodeToStartNodeMap,
             Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches) {
+        this(
+                streamGraph,
+                steamNodeIdToForwardGroupMap,
+                frozenNodeToStartNodeMap,
+                opIntermediateOutputsCaches,
+                null);
+    }
+
+    public DefaultStreamGraphContext(
+            StreamGraph streamGraph,
+            Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
+            Map<Integer, Integer> frozenNodeToStartNodeMap,
+            Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
+            @Nullable StreamGraphUpdateListener streamGraphUpdateListener) {
         this.streamGraph = checkNotNull(streamGraph);
         this.steamNodeIdToForwardGroupMap = checkNotNull(steamNodeIdToForwardGroupMap);
         this.frozenNodeToStartNodeMap = checkNotNull(frozenNodeToStartNodeMap);
         this.opIntermediateOutputsCaches = checkNotNull(opIntermediateOutputsCaches);
         this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph);
+        this.streamGraphUpdateListener = streamGraphUpdateListener;
     }
 
     @Override
@@ -111,6 +130,11 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             if (newPartitioner != null) {
                 modifyOutputPartitioner(targetEdge, newPartitioner);
             }
+        }
+
+        // Notify the listener that the StreamGraph has been updated.
+        if (streamGraphUpdateListener != null) {
+            streamGraphUpdateListener.onStreamGraphUpdated();
         }
 
         return true;
