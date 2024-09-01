@@ -618,7 +618,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
         sink.name("Data stream collect sink");
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectResultIterator<>(
-                operator.getOperatorIdFuture(),
+                accumulatorName,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig(),

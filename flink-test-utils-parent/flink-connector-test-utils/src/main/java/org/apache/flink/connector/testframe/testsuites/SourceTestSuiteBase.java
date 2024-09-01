@@ -679,7 +679,7 @@ public abstract class SourceTestSuiteBase<T> {
         sink.name("Data stream collect sink");
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectIteratorBuilder<>(
-                operator,
+                accumulatorName,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig());
@@ -775,17 +775,17 @@ public abstract class SourceTestSuiteBase<T> {
     /** Builder class for constructing {@link CollectResultIterator} of collect sink. */
     protected static class CollectIteratorBuilder<T> {
 
-        private final CollectSinkOperator<T> operator;
+        private final String userDefinedOperatorId;
         private final TypeSerializer<T> serializer;
         private final String accumulatorName;
         private final CheckpointConfig checkpointConfig;
 
         protected CollectIteratorBuilder(
-                CollectSinkOperator<T> operator,
+                String userDefinedOperatorId,
                 TypeSerializer<T> serializer,
                 String accumulatorName,
                 CheckpointConfig checkpointConfig) {
-            this.operator = operator;
+            this.userDefinedOperatorId = userDefinedOperatorId;
             this.serializer = serializer;
             this.accumulatorName = accumulatorName;
             this.checkpointConfig = checkpointConfig;
@@ -794,7 +794,7 @@ public abstract class SourceTestSuiteBase<T> {
         protected CollectResultIterator<T> build(JobClient jobClient) {
             CollectResultIterator<T> iterator =
                     new CollectResultIterator<>(
-                            operator.getOperatorIdFuture(),
+                            userDefinedOperatorId,
                             serializer,
                             accumulatorName,
                             checkpointConfig,

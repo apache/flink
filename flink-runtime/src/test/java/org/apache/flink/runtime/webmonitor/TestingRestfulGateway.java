@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
@@ -128,12 +127,12 @@ public class TestingRestfulGateway implements RestfulGateway {
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final TriFunction<
                     JobID,
-                    OperatorID,
+                    String,
                     SerializedValue<CoordinationRequest>,
                     CompletableFuture<CoordinationResponse>>
             DEFAULT_DELIVER_COORDINATION_REQUEST_TO_COORDINATOR_FUNCTION =
                     (JobID jobId,
-                            OperatorID operatorId,
+                            String userDefinedOperatorId,
                             SerializedValue<CoordinationRequest> serializedRequest) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final String LOCALHOST = "localhost";
@@ -198,7 +197,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     protected TriFunction<
                     JobID,
-                    OperatorID,
+                    String,
                     SerializedValue<CoordinationRequest>,
                     CompletableFuture<CoordinationResponse>>
             deliverCoordinationRequestToCoordinatorFunction;
@@ -266,7 +265,7 @@ public class TestingRestfulGateway implements RestfulGateway {
             Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
             TriFunction<
                             JobID,
-                            OperatorID,
+                            String,
                             SerializedValue<CoordinationRequest>,
                             CompletableFuture<CoordinationResponse>>
                     deliverCoordinationRequestToCoordinatorFunction) {
@@ -402,11 +401,11 @@ public class TestingRestfulGateway implements RestfulGateway {
     @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             JobID jobId,
-            OperatorID operatorId,
+            String userDefinedOperatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
             Duration timeout) {
         return deliverCoordinationRequestToCoordinatorFunction.apply(
-                jobId, operatorId, serializedRequest);
+                jobId, userDefinedOperatorId, serializedRequest);
     }
 
     @Override
@@ -466,7 +465,7 @@ public class TestingRestfulGateway implements RestfulGateway {
                 getSavepointStatusFunction;
         protected TriFunction<
                         JobID,
-                        OperatorID,
+                        String,
                         SerializedValue<CoordinationRequest>,
                         CompletableFuture<CoordinationResponse>>
                 deliverCoordinationRequestToCoordinatorFunction;
@@ -626,7 +625,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         public T setDeliverCoordinationRequestToCoordinatorFunction(
                 TriFunction<
                                 JobID,
-                                OperatorID,
+                                String,
                                 SerializedValue<CoordinationRequest>,
                                 CompletableFuture<CoordinationResponse>>
                         deliverCoordinationRequestToCoordinatorFunction) {

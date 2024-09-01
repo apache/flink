@@ -45,7 +45,6 @@ import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilitySe
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -570,11 +569,11 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            JobID jobId, OperatorID operatorId, CoordinationRequest request) {
+            JobID jobId, String userDefinedOperatorId, CoordinationRequest request) {
         ClientCoordinationHeaders headers = ClientCoordinationHeaders.getInstance();
         ClientCoordinationMessageParameters params = new ClientCoordinationMessageParameters();
         params.jobPathParameter.resolve(jobId);
-        params.operatorPathParameter.resolve(operatorId);
+        params.operatorPathParameter.resolve(userDefinedOperatorId);
 
         SerializedValue<CoordinationRequest> serializedRequest;
         try {
