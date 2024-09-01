@@ -48,6 +48,14 @@ public interface AccessExecutionGraph extends JobStatusProvider {
     String getJsonPlan();
 
     /**
+     * Returns the stream graph as a JSON string.
+     *
+     * @return stream graph as a JSON string, or an empty string if the job is submitted with a
+     *     JobGraph or if it's a streaming job.
+     */
+    String getStreamGraphJson();
+
+    /**
      * Returns the {@link JobID} for this execution graph.
      *
      * @return job ID for this execution graph
@@ -199,4 +207,13 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return The changelog storage name, or an empty Optional in the case of batch jobs
      */
     Optional<String> getChangelogStorageName();
+
+    /**
+     * Retrieves the count of pending operators waiting to be transferred to job vertices in the
+     * adaptive execution of batch jobs. This value will be zero if the job is submitted with a
+     * JobGraph or if it's a streaming job.
+     *
+     * @return the number of pending operators.
+     */
+    int getPendingOperatorCount();
 }

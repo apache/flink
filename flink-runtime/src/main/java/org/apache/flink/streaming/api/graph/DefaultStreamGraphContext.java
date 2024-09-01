@@ -69,16 +69,33 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     // as they reuse some attributes.
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches;
 
+    private final StreamGraphUpdateListener streamGraphUpdateListener;
+
     public DefaultStreamGraphContext(
             StreamGraph streamGraph,
             Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
             Map<Integer, Integer> frozenNodeToStartNodeMap,
             Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches) {
+        this(
+                streamGraph,
+                steamNodeIdToForwardGroupMap,
+                frozenNodeToStartNodeMap,
+                opIntermediateOutputsCaches,
+                null);
+    }
+
+    public DefaultStreamGraphContext(
+            StreamGraph streamGraph,
+            Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
+            Map<Integer, Integer> frozenNodeToStartNodeMap,
+            Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
+            StreamGraphUpdateListener streamGraphUpdateListener) {
         this.streamGraph = checkNotNull(streamGraph);
         this.steamNodeIdToForwardGroupMap = checkNotNull(steamNodeIdToForwardGroupMap);
         this.frozenNodeToStartNodeMap = checkNotNull(frozenNodeToStartNodeMap);
         this.opIntermediateOutputsCaches = checkNotNull(opIntermediateOutputsCaches);
         this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph);
+        this.streamGraphUpdateListener = streamGraphUpdateListener;
     }
 
     @Override
@@ -112,6 +129,8 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
                 modifyOutputPartitioner(targetEdge, newPartitioner);
             }
         }
+
+        streamGraphUpdateListener.onStreamGraphUpdated(streamGraph);
 
         return true;
     }
