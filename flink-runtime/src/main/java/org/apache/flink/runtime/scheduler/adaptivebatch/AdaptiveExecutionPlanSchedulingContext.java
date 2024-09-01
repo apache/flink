@@ -22,6 +22,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.streaming.api.graph.AdaptiveGraphManager;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
@@ -116,6 +117,14 @@ public class AdaptiveExecutionPlanSchedulingContext implements ExecutionPlanSche
     @Override
     public int getPendingOperatorCount() {
         return adaptiveGraphManager.getPendingOperatorsCount();
+    }
+
+    @Override
+    public String getJsonStreamGraph() {
+        return JsonPlanGenerator.generateJsonStreamGraph(
+                adaptiveGraphManager.getStreamGraphContext().getStreamGraph(),
+                adaptiveGraphManager.getStreamNodeIdsToJobVertexMap(),
+                getPendingOperatorCount());
     }
 
     private int getParallelism(int streamNodeId) {

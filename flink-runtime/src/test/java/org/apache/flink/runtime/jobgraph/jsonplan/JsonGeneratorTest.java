@@ -25,15 +25,25 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
@@ -150,5 +160,62 @@ public class JsonGeneratorTest {
             }
         }
         fail("could not find vertex with id " + vertexId + " in JobGraph");
+    }
+
+    @Test
+    public void testGenerateJsonStreamGraph() throws JsonProcessingException {
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+        env.fromSequence(0L, 1L).disableChaining().print();
+        StreamGraph streamGraph = env.getStreamGraph();
+        Map<Integer, JobVertexID> jobVertexIdMap = new HashMap<>();
+        String jsonStreamGraph =
+                JsonPlanGenerator.generateJsonStreamGraph(
+                        new ImmutableStreamGraph(streamGraph), jobVertexIdMap, 2);
+
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
+        JsonStreamGraphSchema parsedStreamGraph =
+                mapper.readValue(jsonStreamGraph, JsonStreamGraphSchema.class);
+
+        assertEquals(2, parsedStreamGraph.getPendingOperatorCount());
+
+        List<String> expectedJobVertexIds = new ArrayList<>();
+        expectedJobVertexIds.add(null);
+        expectedJobVertexIds.add(null);
+        validateStreamGraph(streamGraph, parsedStreamGraph, expectedJobVertexIds);
+
+        jobVertexIdMap.put(1, new JobVertexID());
+        jobVertexIdMap.put(2, new JobVertexID());
+        jsonStreamGraph =
+                JsonPlanGenerator.generateJsonStreamGraph(
+                        new ImmutableStreamGraph(streamGraph), jobVertexIdMap, 0);
+
+        parsedStreamGraph = mapper.readValue(jsonStreamGraph, JsonStreamGraphSchema.class);
+        assertEquals(0, parsedStreamGraph.getPendingOperatorCount());
+        validateStreamGraph(
+                streamGraph,
+                parsedStreamGraph,
+                jobVertexIdMap.values().stream()
+                        .map(JobVertexID::toString)
+                        .collect(Collectors.toList()));
+    }
+
+    public static void validateStreamGraph(
+            StreamGraph streamGraph,
+            JsonStreamGraphSchema parsedStreamGraph,
+            List<String> expectedJobVertexIds) {
+        List<String> realJobVertexIds = new ArrayList<>();
+        parsedStreamGraph
+                .getNodes()
+                .forEach(
+                        node -> {
+                            StreamNode streamNode =
+                                    streamGraph.getStreamNode(Integer.parseInt(node.getId()));
+                            assertEquals(node.getOperator(), streamNode.getOperatorName());
+                            assertEquals(
+                                    node.getParallelism(), (Integer) streamNode.getParallelism());
+                            assertEquals(node.getInputs().size(), streamNode.getInEdges().size());
+                            realJobVertexIds.add(node.getJobVertexId());
+                        });
+        assertEquals(expectedJobVertexIds, realJobVertexIds);
     }
 }

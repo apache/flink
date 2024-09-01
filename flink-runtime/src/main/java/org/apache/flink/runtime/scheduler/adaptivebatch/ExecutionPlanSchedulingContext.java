@@ -58,4 +58,11 @@ public interface ExecutionPlanSchedulingContext {
      * @return the number of pending operators.
      */
     int getPendingOperatorCount();
+
+    /**
+     * Retrieves the JSON representation of the stream graph for the original job.
+     *
+     * @return the JSON representation of the stream graph.
+     */
+    String getJsonStreamGraph();
 }

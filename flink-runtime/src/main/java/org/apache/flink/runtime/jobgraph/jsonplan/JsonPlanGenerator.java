@@ -26,6 +26,9 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -34,6 +37,7 @@ import org.apache.commons.text.StringEscapeUtils;
 
 import java.io.StringWriter;
 import java.util.List;
+import java.util.Map;
 
 @Internal
 public class JsonPlanGenerator {
@@ -168,6 +172,60 @@ public class JsonPlanGenerator {
             return writer.toString();
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate plan", e);
+        }
+    }
+
+    public static String generateJsonStreamGraph(
+            ImmutableStreamGraph sg,
+            Map<Integer, JobVertexID> jobVertexIdMap,
+            int pendingOperatorCount) {
+        try (final StringWriter writer = new StringWriter(1024)) {
+            try (final JsonGenerator gen = new JsonFactory().createGenerator(writer)) {
+                // start of everything
+                gen.writeStartObject();
+
+                gen.writeNumberField("pending_operator_count", pendingOperatorCount);
+
+                gen.writeArrayFieldStart("nodes");
+
+                // info per vertex
+                for (ImmutableStreamNode node : sg.getStreamNodes()) {
+                    gen.writeStartObject();
+                    gen.writeStringField("id", String.valueOf(node.getId()));
+                    gen.writeNumberField("parallelism", node.getParallelism());
+                    gen.writeStringField("operator", node.getOperatorName());
+                    gen.writeStringField("description", node.getOperatorDescription());
+                    if (jobVertexIdMap.containsKey(node.getId())) {
+                        gen.writeStringField(
+                                "job_vertex_id", jobVertexIdMap.get(node.getId()).toString());
+                    }
+
+                    // write the input edge properties
+                    gen.writeArrayFieldStart("inputs");
+
+                    List<ImmutableStreamEdge> inEdges = node.getInEdges();
+                    for (int inputNum = 0; inputNum < inEdges.size(); inputNum++) {
+                        ImmutableStreamEdge edge = inEdges.get(inputNum);
+                        gen.writeStartObject();
+                        gen.writeNumberField("num", inputNum);
+                        gen.writeStringField("id", String.valueOf(edge.getSourceId()));
+                        gen.writeStringField("ship_strategy", edge.getPartitioner().toString());
+                        gen.writeStringField("exchange", edge.getExchangeMode().name());
+                        gen.writeEndObject();
+                    }
+
+                    gen.writeEndArray();
+
+                    gen.writeEndObject();
+                }
+
+                // end of everything
+                gen.writeEndArray();
+                gen.writeEndObject();
+            }
+            return writer.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate json stream plan", e);
         }
     }
 }
