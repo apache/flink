@@ -38,15 +38,18 @@ export class NodeComponent {
   backPressuredPercentage: number | undefined = NaN;
   busyPercentage: number | undefined = NaN;
   dataSkewPercentage: number | undefined = NaN;
-  backgroundColor: string | undefined;
-  borderColor: string | undefined;
+  pending: boolean = true;
+  backgroundColor: string;
+  borderColor: string;
   height = 0;
   id: string;
   backgroundBusyColor = '#ee6464';
   backgroundDefaultColor = '#5db1ff';
+  backgroundPendingColor = '#ffffff';
   backgroundBackPressuredColor = '#888888';
   borderBusyColor = '#ee2222';
   borderDefaultColor = '#1890ff';
+  borderPendingColor = '#000000';
   borderBackPressuredColor = '#000000';
 
   decodeHTML(value: string): string | null {
@@ -65,6 +68,11 @@ export class NodeComponent {
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;
     this.lowWatermark = value.lowWatermark;
+    if (value?.job_vertex_id) {
+      this.pending = false;
+    }
+    this.borderColor = this.pending ? this.borderPendingColor : this.borderDefaultColor;
+    this.backgroundColor = this.pending ? this.backgroundPendingColor : this.backgroundDefaultColor;
     if (this.isValid(value.backPressuredPercentage)) {
       this.backPressuredPercentage = value.backPressuredPercentage;
     }
@@ -144,8 +152,6 @@ export class NodeComponent {
    */
   update(node: NodesItemCorrect): void {
     this.node = node;
-    this.backgroundColor = this.backgroundDefaultColor;
-    this.borderColor = this.borderDefaultColor;
     if (node.busyPercentage) {
       this.backgroundColor = this.blend(this.backgroundColor, this.backgroundBusyColor, node.busyPercentage / 100.0);
       this.borderColor = this.blend(this.borderColor, this.borderBusyColor, node.busyPercentage / 100.0);
