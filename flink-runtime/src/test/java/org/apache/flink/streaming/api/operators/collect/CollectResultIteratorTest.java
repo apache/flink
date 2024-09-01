@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.collect.utils.AbstractTestCoordinationRequestHandler;
 import org.apache.flink.streaming.api.operators.collect.utils.TestCheckpointedCoordinationRequestHandler;
 import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
@@ -39,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,7 +48,7 @@ class CollectResultIteratorTest {
 
     private final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
-    private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
+    private static final String uid = UUID.randomUUID().toString();
     private static final JobID TEST_JOB_ID = new JobID();
     private static final String ACCUMULATOR_NAME = "accumulatorName";
 
@@ -148,11 +147,7 @@ class CollectResultIteratorTest {
             AbstractCollectResultBuffer<Integer> buffer,
             AbstractTestCoordinationRequestHandler<Integer> handler) {
         CollectResultIterator<Integer> iterator =
-                new CollectResultIterator<>(
-                        buffer,
-                        CompletableFuture.completedFuture(TEST_OPERATOR_ID),
-                        ACCUMULATOR_NAME,
-                        0);
+                new CollectResultIterator<>(buffer, uid, ACCUMULATOR_NAME, 0);
 
         TestJobClient.JobInfoProvider infoProvider =
                 new TestJobClient.JobInfoProvider() {
@@ -168,8 +163,7 @@ class CollectResultIteratorTest {
                     }
                 };
 
-        TestJobClient jobClient =
-                new TestJobClient(TEST_JOB_ID, TEST_OPERATOR_ID, handler, infoProvider);
+        TestJobClient jobClient = new TestJobClient(TEST_JOB_ID, uid, handler, infoProvider);
         iterator.setJobClient(jobClient);
 
         return Tuple2.of(iterator, jobClient);

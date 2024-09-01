@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper;
 import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
 import org.apache.flink.util.OptionalFailure;
@@ -36,7 +35,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 
 import static org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper.ACCUMULATOR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,7 +48,7 @@ class CollectSinkFunctionRandomITCase {
 
     private static final int MAX_RESULTS_PER_BATCH = 3;
     private static final JobID TEST_JOB_ID = new JobID();
-    private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
+    private static final String UID = UUID.randomUUID().toString();
 
     private static final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
@@ -293,7 +292,7 @@ class CollectSinkFunctionRandomITCase {
             this.iterator =
                     new CollectResultIterator<>(
                             new CheckpointedCollectResultBuffer<>(serializer),
-                            CompletableFuture.completedFuture(TEST_OPERATOR_ID),
+                            UID,
                             ACCUMULATOR_NAME,
                             0);
 
@@ -318,10 +317,7 @@ class CollectSinkFunctionRandomITCase {
 
             TestJobClient jobClient =
                     new TestJobClient(
-                            TEST_JOB_ID,
-                            TEST_OPERATOR_ID,
-                            functionWrapper.getCoordinator(),
-                            infoProvider);
+                            TEST_JOB_ID, UID, functionWrapper.getCoordinator(), infoProvider);
 
             iterator.setJobClient(jobClient);
         }

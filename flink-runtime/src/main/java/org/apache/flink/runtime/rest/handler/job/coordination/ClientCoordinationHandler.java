@@ -27,7 +27,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.OperatorIDPathParameter;
+import org.apache.flink.runtime.rest.messages.UserDefinedOperatorIDParameter;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationResponseBody;
@@ -74,12 +74,13 @@ public class ClientCoordinationHandler
             @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-        OperatorID operatorId = request.getPathParameter(OperatorIDPathParameter.class);
+        String userDefinedOperatorId =
+                request.getPathParameter(UserDefinedOperatorIDParameter.class);
         SerializedValue<CoordinationRequest> serializedRequest =
                 request.getRequestBody().getSerializedCoordinationRequest();
         CompletableFuture<CoordinationResponse> responseFuture =
                 gateway.deliverCoordinationRequestToCoordinator(
-                        jobId, operatorId, serializedRequest, timeout);
+                        jobId, userDefinedOperatorId, serializedRequest, timeout);
         return responseFuture.thenApply(
                 coordinationResponse -> {
                     try {

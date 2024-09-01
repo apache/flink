@@ -131,6 +131,19 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
         return hashes;
     }
 
+    public static byte[] generateUserSpecifiedHash(String userDefinedOperatorId) {
+        final HashFunction hashFunction = Hashing.murmur3_128(0);
+
+        return generateUserSpecifiedHash(userDefinedOperatorId, hashFunction.newHasher());
+    }
+
+    /** Generates a hash from a user-specified ID. */
+    private static byte[] generateUserSpecifiedHash(String userDefinedOperatorId, Hasher hasher) {
+        hasher.putString(userDefinedOperatorId, Charset.forName("UTF-8"));
+
+        return hasher.hash().asBytes();
+    }
+
     /**
      * Generates a hash for the node and returns whether the operation was successful.
      *
@@ -178,7 +191,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
             return true;
         } else {
             Hasher hasher = hashFunction.newHasher();
-            byte[] hash = generateUserSpecifiedHash(node, hasher);
+            byte[] hash = generateUserSpecifiedHash(node.getTransformationUID(), hasher);
 
             for (byte[] previousHash : hashes.values()) {
                 if (Arrays.equals(previousHash, hash)) {
@@ -201,13 +214,6 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 
             return true;
         }
-    }
-
-    /** Generates a hash from a user-specified ID. */
-    private byte[] generateUserSpecifiedHash(StreamNode node, Hasher hasher) {
-        hasher.putString(node.getTransformationUID(), Charset.forName("UTF-8"));
-
-        return hasher.hash().asBytes();
     }
 
     /** Generates a deterministic hash from node-local properties and input and output edges. */

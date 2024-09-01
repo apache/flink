@@ -1892,7 +1892,7 @@
       "pathParameters" : [ {
         "key" : "jobid"
       }, {
-        "key" : "operatorid"
+        "key" : "userDefinedOperatorId"
       } ]
     },
     "query-parameters" : {

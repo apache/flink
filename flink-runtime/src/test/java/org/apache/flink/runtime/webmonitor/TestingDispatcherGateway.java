@@ -31,7 +31,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
@@ -178,7 +177,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     clusterShutdownWithStatusFunction,
             TriFunction<
                             JobID,
-                            OperatorID,
+                            String,
                             SerializedValue<CoordinationRequest>,
                             CompletableFuture<CoordinationResponse>>
                     deliverCoordinationRequestToCoordinatorFunction) {

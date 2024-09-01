@@ -133,9 +133,16 @@ public final class CollectDynamicSink implements DynamicTableSink {
                                 .get(RpcOptions.ASK_TIMEOUT_DURATION)
                                 .toMillis();
 
+                final CollectStreamSink<RowData> sink =
+                        new CollectStreamSink<>(inputStream, factory);
+                String userDefinedOperatorId =
+                        providerContext
+                                .generateUid(COLLECT_TRANSFORMATION)
+                                .orElse("tableCollectSink_" + sink.getTransformation().getId());
+
                 iterator =
                         new CollectResultIterator<>(
-                                operator.getOperatorIdFuture(),
+                                userDefinedOperatorId,
                                 externalSerializer,
                                 accumulatorName,
                                 checkpointConfig,
@@ -143,9 +150,7 @@ public final class CollectDynamicSink implements DynamicTableSink {
                 converter = context.createDataStructureConverter(consumedDataType);
                 converter.open(RuntimeConverter.Context.create(classLoader));
 
-                final CollectStreamSink<RowData> sink =
-                        new CollectStreamSink<>(inputStream, factory);
-                providerContext.generateUid(COLLECT_TRANSFORMATION).ifPresent(sink::uid);
+                sink.uid(userDefinedOperatorId);
                 return sink.name("Collect table sink");
             }
         };

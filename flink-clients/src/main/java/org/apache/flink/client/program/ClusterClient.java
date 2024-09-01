@@ -25,7 +25,6 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -226,12 +225,12 @@ public interface ClusterClient<T> extends AutoCloseable {
      * Sends out a request to a specified coordinator and return the response.
      *
      * @param jobId specifies the job which the coordinator belongs to
-     * @param operatorId specifies which coordinator to receive the request
+     * @param userDefinedOperatorId specifies which coordinator to receive the request
      * @param request the request to send
      * @return the response from the coordinator
      */
     CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            JobID jobId, OperatorID operatorId, CoordinationRequest request);
+            JobID jobId, String userDefinedOperatorId, CoordinationRequest request);
 
     /**
      * Return a set of ids of the completed cluster datasets.
