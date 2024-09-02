@@ -28,13 +28,13 @@ import org.apache.flink.runtime.checkpoint.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -49,8 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link FsMergingCheckpointStorageLocation}. */
-public class FsMergingCheckpointStorageLocationTest {
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+class FsMergingCheckpointStorageLocationTest {
+    @TempDir File tmpFolder;
 
     public static Path checkpointBaseDir;
 
@@ -66,9 +66,9 @@ public class FsMergingCheckpointStorageLocationTest {
     private static final FileMergingSnapshotManager.SubtaskKey SUBTASK_KEY =
             new FileMergingSnapshotManager.SubtaskKey("opId", 1, 1);
 
-    @Before
-    public void prepareDirectories() {
-        checkpointBaseDir = new Path(tmpFolder.toString());
+    @BeforeEach
+    void prepareDirectories() {
+        checkpointBaseDir = new Path(tmpFolder.getAbsolutePath());
         sharedStateDir =
                 new Path(
                         checkpointBaseDir,
@@ -80,7 +80,7 @@ public class FsMergingCheckpointStorageLocationTest {
     }
 
     @Test
-    public void testWriteMultipleStateFilesWithinCheckpoint() throws Exception {
+    void testWriteMultipleStateFilesWithinCheckpoint() throws Exception {
         testWriteMultipleStateFiles();
     }
 
@@ -110,7 +110,7 @@ public class FsMergingCheckpointStorageLocationTest {
     }
 
     @Test
-    public void testCheckpointStreamClosedExceptionally() throws Exception {
+    void testCheckpointStreamClosedExceptionally() throws Exception {
         try (FileMergingSnapshotManager snapshotManager = createFileMergingSnapshotManager()) {
             Path filePath1 = null;
             try (FileMergingCheckpointStateOutputStream stream1 =
@@ -131,7 +131,7 @@ public class FsMergingCheckpointStorageLocationTest {
     }
 
     @Test
-    public void testWritingToClosedStream() {
+    void testWritingToClosedStream() {
         FileMergingSnapshotManager snapshotManager = createFileMergingSnapshotManager();
         FsMergingCheckpointStorageLocation storageLocation =
                 createFsMergingCheckpointStorageLocation(1, snapshotManager);
@@ -147,7 +147,7 @@ public class FsMergingCheckpointStorageLocationTest {
     }
 
     @Test
-    public void testWriteAndReadPositionInformation() throws Exception {
+    void testWriteAndReadPositionInformation() throws Exception {
         long maxFileSize = 128;
         FileMergingSnapshotManager snapshotManager = createFileMergingSnapshotManager(maxFileSize);
         FsMergingCheckpointStorageLocation storageLocation1 =
