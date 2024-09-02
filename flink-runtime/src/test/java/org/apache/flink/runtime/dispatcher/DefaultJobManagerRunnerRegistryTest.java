@@ -154,9 +154,9 @@ class DefaultJobManagerRunnerRegistryTest {
                 .last()
                 .isEqualTo(expectedException);
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
-                .isTrue()
                 .as(
-                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.");
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.")
+                .isTrue();
     }
 
     @Test
@@ -170,7 +170,9 @@ class DefaultJobManagerRunnerRegistryTest {
 
         // Wait for the unregister future to complete
         cleanupResult.get();
-        assertThat(testInstance.isRegistered(jobManagerRunner.getJobID())).isFalse();
+        FlinkAssertions.assertThatFuture(cleanupResult)
+                .as("Wait for the unregistration to complete")
+                .eventuallySucceeds();
     }
 
     @Test
@@ -189,9 +191,9 @@ class DefaultJobManagerRunnerRegistryTest {
                         Executors.directExecutor(),
                         Executors.directExecutor());
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
-                .isTrue()
                 .as(
-                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.");
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.")
+                .isTrue();
         assertThatFuture(cleanupResult)
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
@@ -215,9 +217,9 @@ class DefaultJobManagerRunnerRegistryTest {
                         Executors.directExecutor());
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
-                .isTrue()
                 .as(
-                        "Since the cleanup future hasn't completed yet, the JobManagerRunner is expected to not have been unregistered.");
+                        "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.")
+                .isTrue();
         assertThat(jobManagerRunner.getTerminationFuture()).isNotCompleted();
         assertThat(cleanupFuture).isNotCompleted();
 
@@ -227,8 +229,8 @@ class DefaultJobManagerRunnerRegistryTest {
         // Wait for the unregistration to complete
         cleanupFuture.get();
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
-                .isFalse()
-                .as("The unregister future is complete now.");
+                .as("The unregister future is complete now.")
+                .isFalse();
     }
 
     private TestingJobManagerRunner registerTestingJobManagerRunner() {

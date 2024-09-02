@@ -32,18 +32,20 @@ import java.util.stream.Collectors;
 public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
 
     private final Collection<LocallyCleanableResource> locallyCleanableResources;
-    private Collection<LocallyCleanableInMainThreadResource> locallyCleanableInMainThreadResources;
+    private Collection<LocallyCleanableResourceWithMainThread>
+            locallyCleanableResourceWithMainThreads;
     private final Collection<GloballyCleanableResource> globallyCleanableResources;
 
     private final Executor cleanupExecutor;
 
     private TestingResourceCleanerFactory(
             Collection<LocallyCleanableResource> locallyCleanableResources,
-            Collection<LocallyCleanableInMainThreadResource> locallyCleanableInMainThreadResources,
+            Collection<LocallyCleanableResourceWithMainThread>
+                    locallyCleanableResourceWithMainThreads,
             Collection<GloballyCleanableResource> globallyCleanableResources,
             Executor cleanupExecutor) {
         this.locallyCleanableResources = locallyCleanableResources;
-        this.locallyCleanableInMainThreadResources = locallyCleanableInMainThreadResources;
+        this.locallyCleanableResourceWithMainThreads = locallyCleanableResourceWithMainThreads;
         this.globallyCleanableResources = globallyCleanableResources;
         this.cleanupExecutor = cleanupExecutor;
     }
@@ -55,7 +57,7 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
                 this.locallyCleanableResources;
 
         locallyCleanableResources.addAll(
-                locallyCleanableInMainThreadResources.stream()
+                locallyCleanableResourceWithMainThreads.stream()
                         .map(
                                 r ->
                                         DispatcherResourceCleanerFactory.toLocallyCleanableResource(
@@ -105,16 +107,16 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
     public static class Builder {
 
         private Collection<LocallyCleanableResource> locallyCleanableResource = new ArrayList<>();
-        private Collection<LocallyCleanableInMainThreadResource>
-                locallyCleanableInMainThreadResources = new ArrayList<>();
+        private Collection<LocallyCleanableResourceWithMainThread>
+                locallyCleanableResourceWithMainThreads = new ArrayList<>();
         private Collection<GloballyCleanableResource> globallyCleanableResources =
                 new ArrayList<>();
 
         private Executor cleanupExecutor = Executors.directExecutor();
 
         public Builder setLocallyCleanableInMainThreadResource(
-                Collection<LocallyCleanableInMainThreadResource>
-                        locallyCleanableInMainThreadResource) {
+                Collection<LocallyCleanableResourceWithMainThread>
+                        locallyCleanableResourceWithMainThread) {
             this.locallyCleanableResource = locallyCleanableResource;
             return this;
         }
@@ -126,8 +128,8 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
         }
 
         public Builder withLocallyCleanableInMainThreadResource(
-                LocallyCleanableInMainThreadResource locallyCleanableResource) {
-            this.locallyCleanableInMainThreadResources.add(locallyCleanableResource);
+                LocallyCleanableResourceWithMainThread locallyCleanableResource) {
+            this.locallyCleanableResourceWithMainThreads.add(locallyCleanableResource);
             return this;
         }
 
@@ -151,7 +153,7 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
         public TestingResourceCleanerFactory build() {
             return new TestingResourceCleanerFactory(
                     locallyCleanableResource,
-                    locallyCleanableInMainThreadResources,
+                    locallyCleanableResourceWithMainThreads,
                     globallyCleanableResources,
                     cleanupExecutor);
         }

@@ -131,7 +131,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
      * @return Globally cleanable resource.
      */
     private static GloballyCleanableResource toGloballyCleanableResource(
-            LocallyCleanableInMainThreadResource localResource,
+            LocallyCleanableResourceWithMainThread localResource,
             ComponentMainThreadExecutor mainThreadExecutor) {
         return (jobId, cleanupExecutor) ->
                 localResource.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);
@@ -156,8 +156,9 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
      * @param localResource LocallyCleanableInMainThreadResource that we want to translate.
      * @return A LocallyCleanableResource.
      */
+    @VisibleForTesting
     public static LocallyCleanableResource toLocallyCleanableResource(
-            LocallyCleanableInMainThreadResource localResource,
+            LocallyCleanableResourceWithMainThread localResource,
             ComponentMainThreadExecutor mainThreadExecutor) {
         return (jobId, cleanupExecutor) ->
                 localResource.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);

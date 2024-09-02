@@ -24,19 +24,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code LocallyCleanableInMainThreadResource} is supposed to be implemented by any class that
- * provides artifacts for a given job that need to be cleaned up in the main thread after the job
- * reached a local terminal state. Local cleanups that needs to be triggered for a global terminal
- * state as well, need to be implemented using the {@link GloballyCleanableResource}.
+ * {@code LocallyCleanableResourceWithMainThread} is an extension of the {@link
+ * LocallyCleanableResource} interface. It allows the {@link DispatcherResourceCleanerFactory} to
+ * inject the main thread as part of the cleanup procedure.
  *
- * <p>The {@link DispatcherResourceCleanerFactory} provides a workaround to trigger some {@code
- * LocallyCleanableInMainThreadResource} as globally cleanable. FLINK-26175 is created to cover a
- * refactoring and straighten things out.
+ * <p>See {@code LocallyCleanableResource} for further context on the proper contract of the two
+ * interfaces.
  *
- * @see org.apache.flink.api.common.JobStatus
+ * @see org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource
  */
 @FunctionalInterface
-public interface LocallyCleanableInMainThreadResource {
+public interface LocallyCleanableResourceWithMainThread {
 
     /**
      * {@code localCleanupAsync} is expected to be called from the main thread and uses the passed

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableInMainThreadResource;
+import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResourceWithMainThread;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 
 import java.util.Collection;
@@ -27,7 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 /** {@code JobManagerRunner} collects running jobs represented by {@link JobManagerRunner}. */
-public interface JobManagerRunnerRegistry extends LocallyCleanableInMainThreadResource {
+public interface JobManagerRunnerRegistry extends LocallyCleanableResourceWithMainThread {
 
     /**
      * Checks whether a {@link JobManagerRunner} is registered under the given {@link JobID}.

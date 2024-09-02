@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -201,8 +200,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                 localCleanupAsyncFunction =
                         (ignoredJobId, ignoredExecutor, mainThreadExecutor) ->
                                 FutureUtils.completedVoidFuture();
-        private BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction =
-                (ignoredJobId, ignoredExecutor) -> FutureUtils.completedVoidFuture();
 
         private Builder fromDefaultJobManagerRunnerRegistry(
                 DefaultJobManagerRunnerRegistry jobManagerRunnerRegistry) {

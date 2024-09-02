@@ -85,9 +85,9 @@ public class OnMainThreadJobManagerRunnerRegistry
 
     @Override
     public CompletableFuture<Void> localCleanupAsync(
-            JobID jobId, Executor cleanupExecutor, Executor executor) {
-        mainThreadExecutor.assertRunningInMainThread();
-        return delegate.localCleanupAsync(jobId, cleanupExecutor, executor);
+            JobID jobId, Executor cleanupExecutor, Executor mainThreadExecutor) {
+        this.mainThreadExecutor.assertRunningInMainThread();
+        return delegate.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);
     }
 
     @Override
