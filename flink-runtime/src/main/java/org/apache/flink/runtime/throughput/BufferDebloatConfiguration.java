@@ -47,6 +47,16 @@ public final class BufferDebloatConfiguration {
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             int numberOfSamples) {
+        // Right now the buffer size can not be grater than integer max value according to
+        // MemorySegment and buffer implementation.
+        checkArgument(maxBufferSize > 0);
+        checkArgument(minBufferSize > 0);
+        checkArgument(numberOfSamples > 0);
+        checkArgument(maxBufferSize >= minBufferSize);
+        checkArgument(targetTotalTime.toMillis() > 0.0);
+        checkArgument(maxBufferSize >= startingBufferSize);
+        checkArgument(minBufferSize <= startingBufferSize);
+
         this.targetTotalTime = checkNotNull(targetTotalTime);
         this.startingBufferSize = startingBufferSize;
         this.maxBufferSize = maxBufferSize;
@@ -97,15 +107,6 @@ public final class BufferDebloatConfiguration {
         int bufferDebloatThresholdPercentages = config.get(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES);
         final int numberOfSamples = config.get(BUFFER_DEBLOAT_SAMPLES);
 
-        // Right now the buffer size can not be grater than integer max value according to
-        // MemorySegment and buffer implementation.
-        checkArgument(maxBufferSize > 0);
-        checkArgument(minBufferSize > 0);
-        checkArgument(numberOfSamples > 0);
-        checkArgument(maxBufferSize >= minBufferSize);
-        checkArgument(targetTotalTime.toMillis() > 0.0);
-        checkArgument(maxBufferSize >= startingBufferSize);
-        checkArgument(minBufferSize <= startingBufferSize);
         return new BufferDebloatConfiguration(
                 config.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED),
                 targetTotalTime,
