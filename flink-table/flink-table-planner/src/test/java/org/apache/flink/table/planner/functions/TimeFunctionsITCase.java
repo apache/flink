@@ -821,9 +821,14 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDate.of(2023, 2, 28),
                                 DATE())
                         .testResult(
-                                $("f1").addMonths(7),
-                                "ADD_MONTHS(f1, 7)",
-                                LocalDate.of(2025, 2, 28),
+                                $("f1").addMonths(-293),
+                                "ADD_MONTHS(f1, -293)",
+                                LocalDate.of(2000, 2, 29),
+                                DATE())
+                        .testResult(
+                                $("f1").addMonths(907),
+                                "ADD_MONTHS(f1, 907)",
+                                LocalDate.of(2100, 2, 28),
                                 DATE())
                         .testResult(
                                 $("f1").addMonths(-720),
