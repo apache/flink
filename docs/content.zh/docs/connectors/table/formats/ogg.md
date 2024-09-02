@@ -173,7 +173,7 @@ CREATE TABLE KafkaTable (
   origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
   event_time TIMESTAMP(3) METADATA FROM 'value.event-timestamp' VIRTUAL,
   origin_table STRING METADATA FROM 'value.table' VIRTUAL,
-  primary_keys ARRAY<STRING> METADATA FROM 'value.primary-keys' VIRTUAL,
+  primary_keys ARRAY<STRING> METADATA FROM 'value.primary--keys' VIRTUAL,
   user_id BIGINT,
   item_id BIGINT,
   behavior STRING
