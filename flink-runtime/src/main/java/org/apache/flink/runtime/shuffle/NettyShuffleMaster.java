@@ -44,7 +44,6 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
 import static org.apache.flink.configuration.ExecutionOptions.BATCH_SHUFFLE_MODE;
-import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -83,7 +82,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                 conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
 
-        if (isHybridShuffleNewModeEnabled(conf)) {
+        if (isHybridShuffleEnabled(conf)) {
             tieredInternalShuffleMaster = new TieredInternalShuffleMaster(shuffleMasterContext);
         } else {
             tieredInternalShuffleMaster = null;
@@ -174,10 +173,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         return new MemorySize((long) networkBufferSize * numRequiredNetworkBuffers);
     }
 
-    private boolean isHybridShuffleNewModeEnabled(Configuration conf) {
+    private boolean isHybridShuffleEnabled(Configuration conf) {
         return (conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_FULL
-                        || conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE)
-                && conf.get(NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE);
+                || conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE);
     }
 
     @Override

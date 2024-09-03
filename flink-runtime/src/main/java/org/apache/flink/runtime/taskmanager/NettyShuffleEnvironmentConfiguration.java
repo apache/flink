@@ -49,7 +49,6 @@ import java.util.Optional;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
 import static org.apache.flink.configuration.ExecutionOptions.BATCH_SHUFFLE_MODE;
-import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Configuration object for the network stack. */
@@ -113,10 +112,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int maxOverdraftBuffersPerGate;
 
-    private final int hybridShuffleSpilledIndexRegionGroupSize;
-
-    private final long hybridShuffleNumRetainedInMemoryRegionsMax;
-
     private final TieredStorageConfiguration tieredStorageConfiguration;
 
     public NettyShuffleEnvironmentConfiguration(
@@ -143,8 +138,6 @@ public class NettyShuffleEnvironmentConfiguration {
             int maxNumberOfConnections,
             boolean connectionReuseEnabled,
             int maxOverdraftBuffersPerGate,
-            int hybridShuffleSpilledIndexRegionGroupSize,
-            long hybridShuffleNumRetainedInMemoryRegionsMax,
             @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
 
         this.numNetworkBuffers = numNetworkBuffers;
@@ -170,9 +163,6 @@ public class NettyShuffleEnvironmentConfiguration {
         this.maxNumberOfConnections = maxNumberOfConnections;
         this.connectionReuseEnabled = connectionReuseEnabled;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
-        this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
-        this.hybridShuffleNumRetainedInMemoryRegionsMax =
-                hybridShuffleNumRetainedInMemoryRegionsMax;
         this.tieredStorageConfiguration = tieredStorageConfiguration;
     }
 
@@ -272,14 +262,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int getMaxOverdraftBuffersPerGate() {
         return maxOverdraftBuffersPerGate;
-    }
-
-    public long getHybridShuffleNumRetainedInMemoryRegionsMax() {
-        return hybridShuffleNumRetainedInMemoryRegionsMax;
-    }
-
-    public int getHybridShuffleSpilledIndexRegionGroupSize() {
-        return hybridShuffleSpilledIndexRegionGroupSize;
     }
 
     public TieredStorageConfiguration getTieredStorageConfiguration() {
@@ -400,16 +382,6 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.get(
                         NettyShuffleEnvironmentOptions.TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED);
 
-        int hybridShuffleSpilledIndexSegmentSize =
-                configuration.get(
-                        NettyShuffleEnvironmentOptions
-                                .HYBRID_SHUFFLE_SPILLED_INDEX_REGION_GROUP_SIZE);
-
-        long hybridShuffleNumRetainedInMemoryRegionsMax =
-                configuration.get(
-                        NettyShuffleEnvironmentOptions
-                                .HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX);
-
         checkArgument(buffersPerChannel >= 0, "Must be non-negative.");
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
@@ -425,8 +397,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
         TieredStorageConfiguration tieredStorageConfiguration = null;
         if ((configuration.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_FULL
-                        || configuration.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE)
-                && configuration.get(NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE)) {
+                || configuration.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE)) {
             tieredStorageConfiguration =
                     TieredStorageConfiguration.fromConfiguration(configuration);
         }
@@ -454,8 +425,6 @@ public class NettyShuffleEnvironmentConfiguration {
                 maxNumConnections,
                 connectionReuseEnabled,
                 maxOverdraftBuffersPerGate,
-                hybridShuffleSpilledIndexSegmentSize,
-                hybridShuffleNumRetainedInMemoryRegionsMax,
                 tieredStorageConfiguration);
     }
 
