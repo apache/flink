@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -103,7 +104,9 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getJobID());
 
         final SlotSharingSlotAllocator slotAllocator =
-                createSlotSharingSlotAllocator(declarativeSlotPool);
+                createSlotSharingSlotAllocator(
+                        declarativeSlotPool,
+                        jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY));
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -146,10 +149,11 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
-            DeclarativeSlotPool declarativeSlotPool) {
+            DeclarativeSlotPool declarativeSlotPool, boolean localRecoveryEnabled) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
-                declarativeSlotPool::containsFreeSlot);
+                declarativeSlotPool::containsFreeSlot,
+                localRecoveryEnabled);
     }
 }
