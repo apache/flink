@@ -185,6 +185,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                         stateRequestHandler,
                         columnFamilyHandle,
                         serializedKeyBuilder,
+                        defaultNamespace,
+                        namespaceSerializer::duplicate,
                         valueSerializerView,
                         keyDeserializerView,
                         valueDeserializerView,

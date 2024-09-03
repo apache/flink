@@ -29,8 +29,6 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.InternalMapState;
 import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
@@ -60,6 +58,10 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
     /** The serialized key builder which should be thread-safe. */
     private final ThreadLocal<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder;
 
+    /** The default namespace if not set. * */
+    private final N defaultNamespace;
+
+    private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
     /** The data outputStream used for value serializer, which should be thread-safe. */
     final ThreadLocal<DataOutputSerializer> valueSerializerView;
 
@@ -82,6 +84,8 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
             ColumnFamilyHandle columnFamily,
             MapStateDescriptor<UK, UV> stateDescriptor,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
+            N defaultNamespace,
+            Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> keyDeserializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer,
@@ -89,6 +93,8 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
         super(stateRequestHandler, stateDescriptor);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
+        this.defaultNamespace = defaultNamespace;
+        this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.keyDeserializerView = ThreadLocal.withInitial(keyDeserializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
@@ -112,7 +118,8 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    builder.setNamespace(VoidNamespace.get(), VoidNamespaceSerializer.INSTANCE);
+                    N namespace = contextKey.getNamespace(this);
+                    builder.setNamespace(namespace, namespaceSerializer.get());
                     if (contextKey.getUserKey() == null) { // value get
                         return builder.build();
                     }
@@ -253,11 +260,13 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
                 seekBytes);
     }
 
-    static <UK, UV, K, SV, S extends State> S create(
+    static <N, UK, UV, K, SV, S extends State> S create(
             StateDescriptor<SV> stateDescriptor,
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
+            N defaultNamespace,
+            Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> keyDeserializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer,
@@ -268,6 +277,8 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
                         columnFamily,
                         (MapStateDescriptor<UK, UV>) stateDescriptor,
                         serializedKeyBuilderInitializer,
+                        defaultNamespace,
+                        namespaceSerializerInitializer,
                         valueSerializerViewInitializer,
                         keyDeserializerViewInitializer,
                         valueDeserializerViewInitializer,

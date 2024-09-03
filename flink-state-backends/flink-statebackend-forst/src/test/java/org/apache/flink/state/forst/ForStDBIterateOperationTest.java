@@ -214,6 +214,12 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         }
 
         @Override
+        public <IN, OUT> OUT handleRequestSync(
+                State state, StateRequestType type, @Nullable IN payload) {
+            return null;
+        }
+
+        @Override
         public <N> void setCurrentNamespaceForState(
                 @NotNull InternalPartitionedState<N> state, N namespace) {
             state.setCurrentNamespace(namespace);

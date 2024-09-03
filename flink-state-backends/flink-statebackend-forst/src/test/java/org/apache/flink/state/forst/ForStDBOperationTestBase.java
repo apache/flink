@@ -180,6 +180,8 @@ public class ForStDBOperationTestBase {
                 cf,
                 mapStateDescriptor,
                 serializedKeyBuilder,
+                VoidNamespace.INSTANCE,
+                () -> VoidNamespaceSerializer.INSTANCE,
                 valueSerializerView,
                 keyDeserializerView,
                 valueDeserializerView,
