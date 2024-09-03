@@ -180,6 +180,10 @@ public abstract class FileMergingSnapshotManagerTestBase {
             assertThat(physicalFile1.isDeleted()).isFalse();
             assertThat(physicalFile1.getRefCount()).isZero();
 
+            // duplicated discard takes no effect
+            logicalFile1.discardWithCheckpointId(2);
+            assertThat(physicalFile1.getRefCount()).isZero();
+
             physicalFile1.close();
             assertThat(physicalFile1.isOpen()).isFalse();
             assertThat(physicalFile1.isDeleted()).isTrue();
