@@ -52,22 +52,29 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final ReserveSlotFunction reserveSlotFunction;
     private final FreeSlotFunction freeSlotFunction;
     private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
+    private final boolean localRecoveryEnabled;
 
     private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
-            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
+            boolean localRecoveryEnabled) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
+        this.localRecoveryEnabled = localRecoveryEnabled;
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
             FreeSlotFunction freeSlotFunction,
-            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
+            boolean localRecoveryEnabled) {
         return new SlotSharingSlotAllocator(
-                reserveSlot, freeSlotFunction, isSlotAvailableAndFreeFunction);
+                reserveSlot,
+                freeSlotFunction,
+                isSlotAvailableAndFreeFunction,
+                localRecoveryEnabled);
     }
 
     @Override
@@ -131,9 +138,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                 .map(
                         parallelism -> {
                             SlotAssigner slotAssigner =
-                                    jobAllocationsInformation.isEmpty()
-                                            ? new DefaultSlotAssigner()
-                                            : new StateLocalitySlotAssigner();
+                                    localRecoveryEnabled && !jobAllocationsInformation.isEmpty()
+                                            ? new StateLocalitySlotAssigner()
+                                            : new DefaultSlotAssigner();
                             return new JobSchedulingPlan(
                                     parallelism,
                                     slotAssigner.assignSlots(
