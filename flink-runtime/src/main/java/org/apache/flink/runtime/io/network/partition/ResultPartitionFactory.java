@@ -27,8 +27,6 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
-import org.apache.flink.runtime.io.network.partition.hybrid.HsResultPartition;
-import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
@@ -46,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -85,15 +82,11 @@ public class ResultPartitionFactory {
 
     private final int sortShuffleMinParallelism;
 
-    private final int hybridShuffleSpilledIndexRegionGroupSize;
-
-    private final long hybridShuffleNumRetainedInMemoryRegionsMax;
-
     private final boolean sslEnabled;
 
     private final int maxOverdraftBuffersPerGate;
 
-    private final Optional<TieredResultPartitionFactory> tieredStorage;
+    private final TieredResultPartitionFactory tieredResultPartitionFactory;
 
     public ResultPartitionFactory(
             ResultPartitionManager partitionManager,
@@ -112,9 +105,7 @@ public class ResultPartitionFactory {
             int sortShuffleMinParallelism,
             boolean sslEnabled,
             int maxOverdraftBuffersPerGate,
-            int hybridShuffleSpilledIndexRegionGroupSize,
-            long hybridShuffleNumRetainedInMemoryRegionsMax,
-            Optional<TieredResultPartitionFactory> tieredStorage) {
+            TieredResultPartitionFactory tieredResultPartitionFactory) {
 
         this.partitionManager = partitionManager;
         this.channelManager = channelManager;
@@ -132,10 +123,7 @@ public class ResultPartitionFactory {
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.sslEnabled = sslEnabled;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
-        this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
-        this.hybridShuffleNumRetainedInMemoryRegionsMax =
-                hybridShuffleNumRetainedInMemoryRegionsMax;
-        this.tieredStorage = tieredStorage;
+        this.tieredResultPartitionFactory = tieredResultPartitionFactory;
     }
 
     public ResultPartition create(
@@ -173,7 +161,7 @@ public class ResultPartitionFactory {
         if (type.supportCompression() && batchShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
         }
-        if (tieredStorage.isPresent() && type == ResultPartitionType.BLOCKING) {
+        if (tieredResultPartitionFactory != null && type == ResultPartitionType.BLOCKING) {
             LOG.warn(
                     "When enabling tiered storage, the BLOCKING result partition will be replaced as HYBRID_FULL.");
             type = ResultPartitionType.HYBRID_FULL;
@@ -253,49 +241,27 @@ public class ResultPartitionFactory {
         } else if (type == ResultPartitionType.HYBRID_FULL
                 || type == ResultPartitionType.HYBRID_SELECTIVE) {
             checkState(shuffleDescriptor instanceof NettyShuffleDescriptor);
-            if (tieredStorage.isPresent()) {
-                partition =
-                        tieredStorage
-                                .get()
-                                .createTieredResultPartition(
-                                        taskNameWithSubtaskAndId,
-                                        partitionIndex,
-                                        id,
-                                        type,
-                                        numberOfPartitions,
-                                        subpartitions.length,
-                                        maxParallelism,
-                                        networkBufferSize,
-                                        isBroadcast,
-                                        partitionManager,
-                                        bufferCompressor,
-                                        checkNotNull(
-                                                ((NettyShuffleDescriptor) shuffleDescriptor)
-                                                        .getTierShuffleDescriptors()),
-                                        bufferPoolFactory,
-                                        channelManager,
-                                        batchShuffleReadBufferPool,
-                                        batchShuffleReadIOExecutor,
-                                        isNumberOfPartitionConsumerUndefined);
-            } else {
-                partition =
-                        new HsResultPartition(
-                                taskNameWithSubtaskAndId,
-                                partitionIndex,
-                                id,
-                                type,
-                                subpartitions.length,
-                                maxParallelism,
-                                batchShuffleReadBufferPool,
-                                batchShuffleReadIOExecutor,
-                                partitionManager,
-                                channelManager.createChannel().getPath(),
-                                networkBufferSize,
-                                getHybridShuffleConfiguration(numberOfSubpartitions, type),
-                                bufferCompressor,
-                                isBroadcast,
-                                bufferPoolFactory);
-            }
+            partition =
+                    tieredResultPartitionFactory.createTieredResultPartition(
+                            taskNameWithSubtaskAndId,
+                            partitionIndex,
+                            id,
+                            type,
+                            numberOfPartitions,
+                            subpartitions.length,
+                            maxParallelism,
+                            networkBufferSize,
+                            isBroadcast,
+                            partitionManager,
+                            bufferCompressor,
+                            checkNotNull(
+                                    ((NettyShuffleDescriptor) shuffleDescriptor)
+                                            .getTierShuffleDescriptors()),
+                            bufferPoolFactory,
+                            channelManager,
+                            batchShuffleReadBufferPool,
+                            batchShuffleReadIOExecutor,
+                            isNumberOfPartitionConsumerUndefined);
         } else {
             throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);
         }
@@ -305,19 +271,6 @@ public class ResultPartitionFactory {
         LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
         return partition;
-    }
-
-    private HybridShuffleConfiguration getHybridShuffleConfiguration(
-            int numberOfSubpartitions, ResultPartitionType resultPartitionType) {
-        return HybridShuffleConfiguration.builder(
-                        numberOfSubpartitions, batchShuffleReadBufferPool.getNumBuffersPerRequest())
-                .setSpillingStrategyType(
-                        resultPartitionType == ResultPartitionType.HYBRID_FULL
-                                ? HybridShuffleConfiguration.SpillingStrategyType.FULL
-                                : HybridShuffleConfiguration.SpillingStrategyType.SELECTIVE)
-                .setRegionGroupSizeInBytes(hybridShuffleSpilledIndexRegionGroupSize)
-                .setNumRetainedInMemoryRegionsMax(hybridShuffleNumRetainedInMemoryRegionsMax)
-                .build();
     }
 
     private static void initializeBoundedBlockingPartitions(
@@ -382,6 +335,12 @@ public class ResultPartitionFactory {
     @VisibleForTesting
     SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             int numberOfSubpartitions, ResultPartitionType type) {
+        boolean enableTieredStorage = tieredResultPartitionFactory != null;
+        int tieredStorageExclusiveBuffers =
+                enableTieredStorage
+                        ? ResultPartitionFactory.getNumTotalGuaranteedBuffers(
+                                tieredResultPartitionFactory)
+                        : 0;
         return () -> {
             Pair<Integer, Integer> pair =
                     NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
@@ -390,10 +349,8 @@ public class ResultPartitionFactory {
                             sortShuffleMinParallelism,
                             sortShuffleMinBuffers,
                             numberOfSubpartitions,
-                            tieredStorage.isPresent(),
-                            tieredStorage
-                                    .map(ResultPartitionFactory::getNumTotalGuaranteedBuffers)
-                                    .orElse(0),
+                            enableTieredStorage,
+                            tieredStorageExclusiveBuffers,
                             type);
 
             return bufferPoolFactory.createBufferPool(

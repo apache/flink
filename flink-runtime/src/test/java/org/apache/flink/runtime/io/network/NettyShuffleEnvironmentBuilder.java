@@ -278,8 +278,6 @@ public class NettyShuffleEnvironmentBuilder {
                         maxNumberOfConnections,
                         connectionReuseEnabled,
                         maxOverdraftBuffersPerGate,
-                        hybridShuffleSpilledIndexSegmentSize,
-                        hybridShuffleNumRetainedInMemoryRegionsMax,
                         tieredStorageConfiguration),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
