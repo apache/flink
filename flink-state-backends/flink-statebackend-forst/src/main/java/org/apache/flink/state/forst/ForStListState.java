@@ -18,7 +18,8 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -28,23 +29,29 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalValueState;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.runtime.state.v2.InternalListState;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalValueState} implement for ForStDB.
+ * The {@link InternalListState} implement for ForStDB.
+ *
+ * <p>{@link ForStStateBackend} must ensure that we set the {@link org.rocksdb.StringAppendOperator}
+ * on the column family that we use for our state since we use the {@code merge()} call.
  *
  * @param <K> The type of the key.
+ * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
-        implements ValueState<V>, ForStInnerTable<K, N, V> {
+public class ForStListState<K, N, V> extends InternalListState<K, N, V>
+        implements ListState<V>, ForStInnerTable<K, N, List<V>> {
 
     /** The column family which this internal value state belongs to. */
     private final ColumnFamilyHandle columnFamilyHandle;
@@ -55,7 +62,6 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
     /** The default namespace if not set. * */
     private final N defaultNamespace;
 
-    /** The serializer for namespace. * */
     private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
 
     /** The data outputStream used for value serializer, which should be thread-safe. */
@@ -64,16 +70,16 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
     /** The data inputStream used for value deserializer, which should be thread-safe. */
     private final ThreadLocal<DataInputDeserializer> valueDeserializerView;
 
-    public ForStValueState(
+    public ForStListState(
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
-            ValueStateDescriptor<V> valueStateDescriptor,
+            ListStateDescriptor<V> listStateDescriptor,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
             N defaultNamespace,
             Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer) {
-        super(stateRequestHandler, valueStateDescriptor);
+        super(stateRequestHandler, listStateDescriptor);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
         this.defaultNamespace = defaultNamespace;
@@ -101,43 +107,62 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
     }
 
     @Override
-    public byte[] serializeValue(V value) throws IOException {
+    public byte[] serializeValue(List<V> valueList) throws IOException {
         DataOutputSerializer outputView = valueSerializerView.get();
         outputView.clear();
-        getValueSerializer().serialize(value, outputView);
-        return outputView.getCopyOfBuffer();
+        return ListDelimitedSerializer.serializeList(valueList, getValueSerializer(), outputView);
     }
 
     @Override
-    public V deserializeValue(byte[] valueBytes) throws IOException {
+    public List<V> deserializeValue(byte[] valueBytes) throws IOException {
         DataInputDeserializer inputView = valueDeserializerView.get();
         inputView.setBuffer(valueBytes);
-        return getValueSerializer().deserialize(inputView);
+        return ListDelimitedSerializer.deserializeList(valueBytes, getValueSerializer(), inputView);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBGetRequest<K, N, V, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest) {
-        Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.VALUE_GET);
+    public ForStDBGetRequest<K, N, List<V>, StateIterator<V>> buildDBGetRequest(
+            StateRequest<?, ?, ?> stateRequest) {
+        Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.LIST_GET);
         ContextKey<K, N> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
-        return new ForStDBSingleGetRequest<>(
-                contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
+        return new ForStDBListGetRequest<>(
+                contextKey, this, (InternalStateFuture<StateIterator<V>>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
-        Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.VALUE_UPDATE
-                        || stateRequest.getRequestType() == StateRequestType.CLEAR);
+    public ForStDBPutRequest<K, N, List<V>> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
         ContextKey<K, N> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
-        V value =
-                (stateRequest.getRequestType() == StateRequestType.CLEAR)
-                        ? null // "Delete(key)" is equivalent to "Put(key, null)"
-                        : (V) stateRequest.getPayload();
-        return ForStDBPutRequest.of(
-                contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+        List<V> value;
+        boolean merge = false;
+        switch (stateRequest.getRequestType()) {
+            case CLEAR:
+                value = null;
+                // "Delete(key)" is equivalent to "Put(key, null)"
+                break;
+            case LIST_UPDATE:
+                value = (List<V>) stateRequest.getPayload();
+                break;
+            case LIST_ADD:
+                value = Collections.singletonList((V) stateRequest.getPayload());
+                merge = true;
+                break;
+            case LIST_ADD_ALL:
+                value = (List<V>) stateRequest.getPayload();
+                merge = true;
+                break;
+            default:
+                throw new IllegalArgumentException();
+        }
+        if (merge) {
+            return ForStDBPutRequest.ofMerge(
+                    contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+        } else {
+            return ForStDBPutRequest.of(
+                    contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+        }
     }
 }
