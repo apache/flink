@@ -32,7 +32,6 @@ import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.InternalMapState;
 import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
-import org.apache.flink.state.forst.ForStDBIterRequest.ResultType;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -227,37 +226,38 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
                         || stateRequest.getRequestType() == StateRequestType.MAP_ITER_KEY
                         || stateRequest.getRequestType() == StateRequestType.MAP_ITER_VALUE
                         || stateRequest.getRequestType() == StateRequestType.ITERATOR_LOADING);
+        byte[] seekBytes = null;
+        StateRequestType requestType = stateRequest.getRequestType();
+        if (requestType == StateRequestType.ITERATOR_LOADING) {
+            Tuple2<StateRequestType, byte[]> payload =
+                    (Tuple2<StateRequestType, byte[]>) stateRequest.getPayload();
+            requestType = payload.f0;
+            seekBytes = payload.f1;
+        }
+        return buildDBIterRequest(stateRequest, requestType, seekBytes);
+    }
+
+    private ForStDBIterRequest buildDBIterRequest(
+            StateRequest<?, ?, ?> stateRequest, StateRequestType requestType, byte[] seekBytes) {
         ContextKey<K, N> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext(), null);
-        byte[] seekBytes = null;
-        ResultType resultType;
-        switch (stateRequest.getRequestType()) {
+        switch (requestType) {
             case MAP_ITER:
-                resultType = ResultType.ENTRY;
-                break;
+                return new ForStDBMapEntryIterRequest(
+                        contextKey, this, stateRequestHandler, seekBytes, stateRequest.getFuture());
             case MAP_ITER_KEY:
-                resultType = ResultType.KEY;
-                break;
+                return new ForStDBMapKeyIterRequest(
+                        contextKey, this, stateRequestHandler, seekBytes, stateRequest.getFuture());
             case MAP_ITER_VALUE:
-                resultType = ResultType.VALUE;
-                break;
-            case ITERATOR_LOADING:
-                Tuple2<ResultType, byte[]> payload =
-                        (Tuple2<ResultType, byte[]>) stateRequest.getPayload();
-                resultType = payload.f0;
-                seekBytes = payload.f1;
-                break;
+                return new ForStDBMapValueIterRequest(
+                        contextKey, this, stateRequestHandler, seekBytes, stateRequest.getFuture());
             default:
                 throw new IllegalArgumentException(
-                        "Unknown request type: " + stateRequest.getRequestType());
+                        "Unknown request type: "
+                                + stateRequest
+                                + ", current request type: "
+                                + stateRequest.getRequestType());
         }
-        return new ForStDBIterRequest(
-                resultType,
-                contextKey,
-                this,
-                stateRequestHandler,
-                stateRequest.getFuture(),
-                seekBytes);
     }
 
     static <N, UK, UV, K, SV, S extends State> S create(

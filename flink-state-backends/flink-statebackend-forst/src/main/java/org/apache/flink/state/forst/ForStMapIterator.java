@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.AbstractStateIterator;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
-import org.apache.flink.state.forst.ForStDBIterRequest.ResultType;
 
 import java.util.Collection;
 
@@ -39,18 +38,18 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
     private byte[] nextSeek;
 
     /** The original result type, mainly used for ITERATOR_LOADING. */
-    private ResultType originalResultType;
+    private StateRequestType originalRequestType;
 
     public ForStMapIterator(
             State originalState,
-            ResultType resultType,
+            StateRequestType originalRequestType,
             StateRequestType requestType,
             StateRequestHandler stateHandler,
             Collection<T> partialResult,
             boolean encounterEnd,
             byte[] nextSeek) {
         super(originalState, requestType, stateHandler, partialResult);
-        this.originalResultType = resultType;
+        this.originalRequestType = originalRequestType;
         this.encounterEnd = encounterEnd;
         this.nextSeek = nextSeek;
     }
@@ -62,6 +61,6 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
 
     @Override
     protected Object nextPayloadForContinuousLoading() {
-        return Tuple2.of(originalResultType, nextSeek);
+        return Tuple2.of(originalRequestType, nextSeek);
     }
 }

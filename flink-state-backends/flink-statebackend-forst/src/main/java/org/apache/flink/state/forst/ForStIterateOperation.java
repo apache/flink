@@ -35,11 +35,12 @@ public class ForStIterateOperation implements ForStDBOperation {
 
     private final RocksDB db;
 
-    private final List<ForStDBIterRequest<?>> batchRequest;
+    private final List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest;
 
     private final Executor executor;
 
-    ForStIterateOperation(RocksDB db, List<ForStDBIterRequest<?>> batchRequest, Executor executor) {
+    ForStIterateOperation(
+            RocksDB db, List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest, Executor executor) {
         this.db = db;
         this.batchRequest = batchRequest;
         this.executor = executor;
@@ -52,7 +53,7 @@ public class ForStIterateOperation implements ForStDBOperation {
         AtomicReference<Exception> error = new AtomicReference<>();
         AtomicInteger counter = new AtomicInteger(batchRequest.size());
         for (int i = 0; i < batchRequest.size(); i++) {
-            ForStDBIterRequest<?> request = batchRequest.get(i);
+            ForStDBIterRequest<?, ?, ?, ?, ?> request = batchRequest.get(i);
             executor.execute(
                     () -> {
                         // todo: config read options

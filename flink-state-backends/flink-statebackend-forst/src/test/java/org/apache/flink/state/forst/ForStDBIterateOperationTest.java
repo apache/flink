@@ -26,7 +26,6 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.v2.InternalPartitionedState;
-import org.apache.flink.state.forst.ForStDBIterRequest.ResultType;
 
 import org.junit.jupiter.api.Test;
 import org.rocksdb.RocksDB;
@@ -54,11 +53,10 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
                 buildForStMapState("map-iter");
         prepareData(10, mapState, db);
         TestStateFuture<StateIterator<String>> future = new TestStateFuture<>();
-        List<ForStDBIterRequest<?>> batchIterRequest = new ArrayList<>();
+        List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
-        ForStDBIterRequest<String> request1 =
-                new ForStDBIterRequest<>(
-                        ResultType.VALUE, contextKey, mapState, null, future, null);
+        ForStDBIterRequest<Integer, VoidNamespace, String, String, String> request1 =
+                new ForStDBMapValueIterRequest<>(contextKey, mapState, null, null, future);
         batchIterRequest.add(request1);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -82,10 +80,10 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
                 buildForStMapState("map-iter");
         prepareData(13, mapState, db);
         TestStateFuture<StateIterator<String>> future = new TestStateFuture<>();
-        List<ForStDBIterRequest<?>> batchIterRequest = new ArrayList<>();
+        List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
-        ForStDBIterRequest<String> request1 =
-                new ForStDBIterRequest<>(ResultType.KEY, contextKey, mapState, null, future, null);
+        ForStDBIterRequest<Integer, VoidNamespace, String, String, String> request1 =
+                new ForStDBMapKeyIterRequest<>(contextKey, mapState, null, null, future);
         batchIterRequest.add(request1);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -109,11 +107,11 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
                 buildForStMapState("map-iter");
         prepareData(3, mapState, db);
         TestStateFuture<StateIterator<Map.Entry<String, String>>> future = new TestStateFuture<>();
-        List<ForStDBIterRequest<?>> batchIterRequest = new ArrayList<>();
+        List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
-        ForStDBIterRequest<Map.Entry<String, String>> request1 =
-                new ForStDBIterRequest<>(
-                        ResultType.ENTRY, contextKey, mapState, null, future, null);
+        ForStDBIterRequest<Integer, VoidNamespace, String, String, Map.Entry<String, String>>
+                request1 =
+                        new ForStDBMapEntryIterRequest<>(contextKey, mapState, null, null, future);
         batchIterRequest.add(request1);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -139,12 +137,13 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
                 buildForStMapState("map-iter");
         prepareData(200, mapState, db);
         TestStateFuture<StateIterator<Map.Entry<String, String>>> future = new TestStateFuture<>();
-        List<ForStDBIterRequest<?>> batchIterRequest = new ArrayList<>();
+        List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
         MockStateRequestHandler stateRequestHandler = new MockStateRequestHandler();
-        ForStDBIterRequest<Map.Entry<String, String>> request1 =
-                new ForStDBIterRequest<>(
-                        ResultType.ENTRY, contextKey, mapState, stateRequestHandler, future, null);
+        ForStDBIterRequest<Integer, VoidNamespace, String, String, Map.Entry<String, String>>
+                request1 =
+                        new ForStDBMapEntryIterRequest<>(
+                                contextKey, mapState, stateRequestHandler, null, future);
         batchIterRequest.add(request1);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -165,14 +164,15 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         } catch (NullPointerException npe) {
             assertThat(stateRequestHandler.payload).isNotNull();
             assertThat(count.get()).isEqualTo(CACHE_SIZE_LIMIT);
-            Tuple2<ResultType, byte[]> tuple =
-                    (Tuple2<ResultType, byte[]>) stateRequestHandler.payload;
-            assertThat(tuple.f0).isEqualTo(ResultType.ENTRY);
+            Tuple2<StateRequestType, byte[]> tuple =
+                    (Tuple2<StateRequestType, byte[]>) stateRequestHandler.payload;
+            assertThat(tuple.f0).isEqualTo(StateRequestType.MAP_ITER);
             TestStateFuture<StateIterator<Map.Entry<String, String>>> future2 =
                     new TestStateFuture<>();
-            ForStDBIterRequest<Map.Entry<String, String>> request2 =
-                    new ForStDBIterRequest<>(
-                            tuple.f0, contextKey, mapState, null, future2, tuple.f1);
+            ForStDBIterRequest<Integer, VoidNamespace, String, String, Map.Entry<String, String>>
+                    request2 =
+                            new ForStDBMapEntryIterRequest(
+                                    contextKey, mapState, null, tuple.f1, future2);
             batchIterRequest.clear();
             batchIterRequest.add(request2);
             ForStIterateOperation iterOperation2 =

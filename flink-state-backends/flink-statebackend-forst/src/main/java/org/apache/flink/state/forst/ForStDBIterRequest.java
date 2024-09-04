@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.api.common.state.v2.StateIterator;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
-import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.RocksDB;
@@ -32,60 +30,82 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 /**
- * The Iter access request for ForStDB.
+ * The abstract iterator access request for ForStDB.
  *
- * @param <T> The type of value in iterator returned by get request.
+ * @param <K> The type of key in iterator.
+ * @param <N> The type of namespace in iterator.
+ * @param <UK> The type of user key in iterator.
+ * @param <UV> The type of user value in iterator.
+ * @param <R> The type of result.
  */
-public class ForStDBIterRequest<T> {
-
-    /** The type of result returned by iterator. */
-    public enum ResultType {
-        KEY,
-        VALUE,
-        ENTRY,
-    }
-
-    private final ResultType resultType;
+public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
 
     /**
      * ContextKey that use to calculate prefix bytes. All entries under the same key have the same
      * prefix, hence we can stop iterating once coming across an entry with a different prefix.
      */
-    @Nonnull private final ContextKey contextKey;
+    @Nonnull final ContextKey<K, N> contextKey;
 
     /** The table that generated iter requests. */
-    private final ForStMapState table;
+    final ForStMapState<K, N, UK, UV> table;
 
     /**
      * The state request handler, used for {@link
      * org.apache.flink.runtime.asyncprocessing.StateRequestType#ITERATOR_LOADING}.
      */
-    private final StateRequestHandler stateRequestHandler;
+    final StateRequestHandler stateRequestHandler;
 
-    private final InternalStateFuture<StateIterator<T>> future;
-
-    private final int keyGroupPrefixBytes;
+    final int keyGroupPrefixBytes;
 
     /** The bytes to seek to. If null, seek start from the {@link #getKeyPrefixBytes}. */
-    private final byte[] toSeekBytes;
+    final byte[] toSeekBytes;
 
     public ForStDBIterRequest(
-            ResultType type,
             ContextKey contextKey,
             ForStMapState table,
             StateRequestHandler stateRequestHandler,
-            InternalStateFuture<StateIterator<T>> future,
             byte[] toSeekBytes) {
-        this.resultType = type;
         this.contextKey = contextKey;
         this.table = table;
         this.stateRequestHandler = stateRequestHandler;
-        this.future = future;
         this.keyGroupPrefixBytes = table.getKeyGroupPrefixBytes();
         this.toSeekBytes = toSeekBytes;
+    }
+
+    protected UV deserializeUserValue(byte[] valueBytes) throws IOException {
+        return table.deserializeValue(valueBytes);
+    }
+
+    protected UK deserializeUserKey(byte[] userKeyBytes, int userKeyOffset) throws IOException {
+        return table.deserializeUserKey(userKeyBytes, userKeyOffset);
+    }
+
+    protected byte[] getKeyPrefixBytes() throws IOException {
+        Preconditions.checkState(contextKey.getUserKey() == null);
+        return table.serializeKey(contextKey);
+    }
+
+    /**
+     * Check if the raw key bytes start with the key prefix bytes.
+     *
+     * @param keyPrefixBytes the key prefix bytes.
+     * @param rawKeyBytes the raw key bytes.
+     * @param kgPrefixBytes the number of key group prefix bytes.
+     * @return true if the raw key bytes start with the key prefix bytes.
+     */
+    protected static boolean startWithKeyPrefix(
+            byte[] keyPrefixBytes, byte[] rawKeyBytes, int kgPrefixBytes) {
+        if (rawKeyBytes.length < keyPrefixBytes.length) {
+            return false;
+        }
+        for (int i = keyPrefixBytes.length; --i >= kgPrefixBytes; ) {
+            if (rawKeyBytes[i] != keyPrefixBytes[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void process(RocksDB db, int cacheSizeLimit) throws IOException {
@@ -123,126 +143,20 @@ public class ForStDBIterRequest<T> {
             }
 
             // step 3: deserialize the entries
-            Collection<Object> deserializedEntries = new ArrayList<>(entries.size());
-            switch (resultType) {
-                case KEY:
-                    {
-                        for (RawEntry en : entries) {
-                            deserializedEntries.add(
-                                    deserializeUserKey(en.rawKeyBytes, userKeyOffset));
-                        }
-                        break;
-                    }
-                case VALUE:
-                    {
-                        for (RawEntry en : entries) {
-                            deserializedEntries.add(deserializeUserValue(en.rawValueBytes));
-                        }
-                        break;
-                    }
-                case ENTRY:
-                    {
-                        for (RawEntry en : entries) {
-                            deserializedEntries.add(
-                                    new MapEntry(
-                                            deserializeUserKey(en.rawKeyBytes, userKeyOffset),
-                                            deserializeUserValue(en.rawValueBytes)));
-                        }
-                        break;
-                    }
-                default:
-                    throw new IllegalStateException("Unknown result type: " + resultType);
-            }
+            Collection<R> deserializedEntries = deserializeElement(entries, userKeyOffset);
 
             // step 4: construct a ForStMapIterator.
-            ForStMapIterator stateIterator =
-                    new ForStMapIterator<>(
-                            table,
-                            resultType,
-                            StateRequestType.ITERATOR_LOADING,
-                            stateRequestHandler,
-                            deserializedEntries,
-                            encounterEnd,
-                            nextSeek);
-
-            completeStateFuture(stateIterator);
+            buildIteratorAndCompleteFuture(deserializedEntries, encounterEnd, nextSeek);
         }
     }
 
-    public byte[] getKeyPrefixBytes() throws IOException {
-        Preconditions.checkState(contextKey.getUserKey() == null);
-        return table.serializeKey(contextKey);
-    }
+    public abstract void completeStateFutureExceptionally(String message, Throwable ex);
 
-    public Object deserializeUserValue(byte[] valueBytes) throws IOException {
-        return table.deserializeValue(valueBytes);
-    }
+    public abstract Collection<R> deserializeElement(List<RawEntry> entries, int userKeyOffset)
+            throws IOException;
 
-    public Object deserializeUserKey(byte[] userKeyBytes, int userKeyOffset) throws IOException {
-        Object userKey = table.deserializeUserKey(userKeyBytes, userKeyOffset);
-        return userKey;
-    }
-
-    public void completeStateFuture(StateIterator<T> iterator) {
-        future.complete(iterator);
-    }
-
-    public void completeStateFutureExceptionally(String message, Throwable ex) {
-        future.completeExceptionally(message, ex);
-    }
-
-    /**
-     * Check if the raw key bytes start with the key prefix bytes.
-     *
-     * @param keyPrefixBytes the key prefix bytes.
-     * @param rawKeyBytes the raw key bytes.
-     * @param kgPrefixBytes the number of key group prefix bytes.
-     * @return true if the raw key bytes start with the key prefix bytes.
-     */
-    public static boolean startWithKeyPrefix(
-            byte[] keyPrefixBytes, byte[] rawKeyBytes, int kgPrefixBytes) {
-        if (rawKeyBytes.length < keyPrefixBytes.length) {
-            return false;
-        }
-        for (int i = keyPrefixBytes.length; --i >= kgPrefixBytes; ) {
-            if (rawKeyBytes[i] != keyPrefixBytes[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * The map entry to store the serialized key and value.
-     *
-     * @param <K> The type of key.
-     * @param <V> The type of value.
-     */
-    static class MapEntry<K, V> implements Map.Entry<K, V> {
-        K key;
-        V value;
-
-        public MapEntry(K key, V value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        @Override
-        public K getKey() {
-            return key;
-        }
-
-        @Override
-        public V getValue() {
-            return value;
-        }
-
-        @Override
-        public V setValue(V value) {
-            this.value = value;
-            return value;
-        }
-    }
+    public abstract void buildIteratorAndCompleteFuture(
+            Collection<R> partialResult, boolean encounterEnd, byte[] nextSeek);
 
     /** The entry to store the raw key and value. */
     static class RawEntry {
@@ -250,10 +164,10 @@ public class ForStDBIterRequest<T> {
          * The raw bytes of the key stored in RocksDB. Each user key is stored in RocksDB with the
          * format #KeyGroup#Key#Namespace#UserKey.
          */
-        private final byte[] rawKeyBytes;
+        final byte[] rawKeyBytes;
 
         /** The raw bytes of the value stored in RocksDB. */
-        private final byte[] rawValueBytes;
+        final byte[] rawValueBytes;
 
         public RawEntry(byte[] rawKeyBytes, byte[] rawValueBytes) {
             this.rawKeyBytes = rawKeyBytes;

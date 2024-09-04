@@ -35,7 +35,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
 
     private final List<ForStDBPutRequest<?, ?, ?>> dbPutRequests;
 
-    private final List<ForStDBIterRequest<?>> dbIterRequests;
+    private final List<ForStDBIterRequest<?, ?, ?, ?, ?>> dbIterRequests;
 
     public ForStStateRequestClassifier() {
         this.dbGetRequests = new ArrayList<>();
@@ -142,7 +142,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         return dbPutRequests;
     }
 
-    public List<ForStDBIterRequest<?>> pollDbIterRequests() {
+    public List<ForStDBIterRequest<?, ?, ?, ?, ?>> pollDbIterRequests() {
         return dbIterRequests;
     }
 }

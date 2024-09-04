@@ -100,7 +100,7 @@ public class ForStStateExecutor implements StateExecutor {
                         futures.add(getOperations.process());
                     }
 
-                    List<ForStDBIterRequest<?>> iterRequests =
+                    List<ForStDBIterRequest<?, ?, ?, ?, ?>> iterRequests =
                             stateRequestClassifier.pollDbIterRequests();
                     if (!iterRequests.isEmpty()) {
                         ForStIterateOperation iterOperations =
