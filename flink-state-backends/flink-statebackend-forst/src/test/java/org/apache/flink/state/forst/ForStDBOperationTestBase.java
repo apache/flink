@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -221,6 +222,54 @@ public class ForStDBOperationTestBase {
                 StateFuture<? extends U> other,
                 BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception>
                         fn) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+                FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+                FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
+                FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+                FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+                FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public StateFuture<Boolean> thenConditionallyAccept(
+                FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+                ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
+                ThrowingConsumer<? super T, ? extends Exception> actionIfFalse) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public StateFuture<Boolean> thenConditionallyAccept(
+                FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+                ThrowingConsumer<? super T, ? extends Exception> actionIfTrue) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+                FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+                FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                        actionIfTrue,
+                FunctionWithException<? super T, ? extends StateFuture<V>, ? extends Exception>
+                        actionIfFalse) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+                FunctionWithException<? super T, Boolean, ? extends Exception> condition,
+                FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                        actionIfTrue) {
             throw new UnsupportedOperationException();
         }
     }
