@@ -34,7 +34,7 @@ from pyflink.datastream.data_stream import DataStream
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
-    Module, ModuleEntry, TableSink, Schema, ChangelogMode
+    Module, ModuleEntry, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
