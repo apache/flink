@@ -126,6 +126,12 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('hex(a)', str(expr1.hex))
         self.assertEqual("UNHEX(a)", str(expr1.unhex))
         self.assertEqual('truncate(a, 3)', str(expr1.truncate(3)))
+        self.assertEqual('PERCENTILE(a, 0.5)', str(expr1.percentile(0.5)))
+        self.assertEqual('PERCENTILE(a, 0.5, b)',
+                         str(expr1.percentile(0.5, expr2)))
+        self.assertEqual('PERCENTILE(a, array(0.1, 0.5))', str(expr1.percentile(array(0.1, 0.5))))
+        self.assertEqual('PERCENTILE(a, array(0.1, 0.5), b)',
+                         str(expr1.percentile(array(0.1, 0.5), expr2)))
 
         # string functions
         self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))

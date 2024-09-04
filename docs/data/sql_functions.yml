@@ -251,6 +251,26 @@ arithmetic:
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
+  - sql: PERCENTILE(expr, percentage[, frequency])
+    table: expr.percentile(percentage[, frequency])
+    description: |
+      Returns the exact percentile value of expr at the specified percentage in a group.
+      
+      percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
+      If a variable expression is passed to this function, the result will be calculated using any one of them.
+      frequency describes how many times expr should be counted, the default value is 1.
+      
+      If no expr lies exactly at the desired percentile, the result is calculated using linear interpolation of the two nearest exprs. 
+      If expr or frequency is `NULL`, or frequency is not positive, the input row will be ignored.
+      
+      NOTE: It is recommended to use this function in a window scenario, as it typically offers better performance. 
+      In a regular group aggregation scenario, users should be aware of the performance overhead caused by a full sort triggered by each record.
+      
+      `value <NUMERIC>, percentage [<NUMERIC NOT NULL> | <ARRAY<NUMERIC NOT NULL> NOT NULL>], frequency <INTEGER_NUMERIC>`
+      `(INTEGER_NUMERIC: TINYINT, SMALLINT, INTEGER, BIGINT)`
+      `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
+      
+      Returns a `DOUBLE` if percentage is numeric, or an `ARRAY<DOUBLE>` if percentage is an array. `NULL` if percentage is an empty array.
 
 string:
   - sql: string1 || string2

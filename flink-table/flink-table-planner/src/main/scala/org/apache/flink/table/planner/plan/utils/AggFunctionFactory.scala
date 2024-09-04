@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.{DeclarativeAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunctio
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.functions.aggregate._
 import org.apache.flink.table.runtime.functions.aggregate.BatchApproxCountDistinctAggFunctions._
+import org.apache.flink.table.runtime.functions.aggregate.PercentileAggFunction.{MultiPercentileAggFunction, SinglePercentileAggFunction}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
@@ -60,6 +61,10 @@ class AggFunctionFactory(
 
   /** The entry point to create an aggregate function from the given [[AggregateCall]]. */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
+
+    object BuiltInAggFunctionName {
+      val PERCENTILE: String = BuiltInFunctionDefinitions.PERCENTILE.getName
+    }
 
     val argTypes: Array[LogicalType] = call.getArgList
       .map(inputRowType.getChildren.get(_))
@@ -165,7 +170,14 @@ class AggFunctionFactory(
         udagg.makeFunction(constants.toArray, argTypes)
 
       case bridge: BridgingSqlAggFunction =>
-        bridge.getDefinition.asInstanceOf[UserDefinedFunction]
+        bridge.getName match {
+          // built-in imperativeFunction
+          case BuiltInAggFunctionName.PERCENTILE =>
+            createPercentileAggFunction(argTypes)
+          // DeclarativeAggregateFunction & UDF
+          case _ =>
+            bridge.getDefinition.asInstanceOf[UserDefinedFunction]
+        }
 
       case unSupported: SqlAggFunction =>
         throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
@@ -633,5 +645,19 @@ class AggFunctionFactory(
       types: Array[LogicalType],
       ignoreNulls: Boolean): UserDefinedFunction = {
     new ArrayAggFunction(types(0), ignoreNulls)
+  }
+
+  private def createPercentileAggFunction(
+      argTypes: Array[LogicalType]
+  ): UserDefinedFunction = {
+    val isMultiPercentile = argTypes(1).is(LogicalTypeRoot.ARRAY)
+    val firstArg = argTypes(0)
+    val secondArg = if (argTypes.length < 3) null else argTypes(2)
+
+    if (isMultiPercentile) {
+      new MultiPercentileAggFunction(firstArg, secondArg)
+    } else {
+      new SinglePercentileAggFunction(firstArg, secondArg)
+    }
   }
 }

@@ -313,6 +313,26 @@ arithmetic:
       如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
       此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
       例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。
+  - sql: PERCENTILE(expr, percentage[, frequency])
+    table: expr.percentile(percentage[, frequency])
+    description: |
+      返回 expr 的 percentage 百分位值。
+
+      percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
+      如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。
+      frequency 描述了 expr 的统计次数，默认值为 1。
+
+      如果没有 expr 恰好位于指定的百分位上，则结果通过对两个最接近的 expr 进行线性插值来计算。
+      如果 expr 或 frequency 为 `NULL`，或者 frequency 不是正数，则将忽略该输入行。
+
+      注意: 建议在窗口场景中使用此函数，因为它通常能提供更好的性能。
+      在常规的分组聚合场景中，用户应注意每条记录引发的全面排序带来的性能开销。
+
+      `value <NUMERIC>, percentage [<NUMERIC NOT NULL> | <ARRAY<NUMERIC NOT NULL> NOT NULL>], frequency <INTEGER_NUMERIC>`
+      `(INTEGER_NUMERIC: TINYINT, SMALLINT, INTEGER, BIGINT)`
+      `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
+
+      如果 percentage 是数字，返回类型为 `DOUBLE`；如果 percentage 是数组，返回类型为 `ARRAY<DOUBLE>`。 如果 percentage 是空数组，则返回 `NULL`。
 
 string:
   - sql: string1 || string2

@@ -1026,6 +1026,33 @@ class Expression(Generic[T]):
         """
         return _binary_op("truncate")(self, n)
 
+    def percentile(self, percentage, frequency=None) -> 'Expression':
+        """
+        Returns the exact percentile value of expr at the specified percentage in a group.
+
+        percentage must be a literal numeric value between [0.0, 1.0] or an array of such values.
+        If a variable expression is passed to this function, the result will be calculated using
+        any one of them. frequency describes how many times expr should be counted, the default
+        value is 1.
+
+        If no expr lies exactly at the desired percentile, the result is calculated using linear
+        interpolation of the two nearest exprs. If expr or frequency is null, or frequency is not
+        positive, the input row will be ignored.
+
+        NOTE: It is recommended to use this function in a window scenario, as it typically offers
+        better performance. In a regular group aggregation scenario, users should be aware of the
+        performance overhead caused by a full sort triggered by each record.
+
+        :param percentage: A NUMERIC NOT NULL or ARRAY<NUMERIC NOT NULL> NOT NULL expression.
+        :param frequency: An optional INTEGER_NUMERIC expression.
+        :return: A DOUBLE if percentage is numeric, or an ARRAY<DOUBLE> if percentage is an
+                 array. null if percentage is an empty array.
+        """
+        if frequency is None:
+            return _binary_op("percentile")(self, percentage)
+        else:
+            return _ternary_op("percentile")(self, percentage, frequency)
+
     # ---------------------------- string functions ----------------------------------
 
     def starts_with(self, start_expr) -> 'Expression':

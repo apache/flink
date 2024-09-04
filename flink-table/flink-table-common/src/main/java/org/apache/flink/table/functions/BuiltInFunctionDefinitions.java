@@ -104,6 +104,8 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
 
 /** Dictionary of function definitions for all built-in functions. */
@@ -862,6 +864,27 @@ public final class BuiltInFunctionDefinitions {
                     .name("ARRAY_AGG")
                     .kind(AGGREGATE)
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY))
+                    .build();
+
+    public static final BuiltInFunctionDefinition PERCENTILE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("PERCENTILE")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            Arrays.asList("expr", "percentage"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.NUMERIC),
+                                                    or(percentage(false), percentageArray(false)))),
+                                    sequence(
+                                            Arrays.asList("expr", "percentage", "frequency"),
+                                            Arrays.asList(
+                                                    logical(LogicalTypeFamily.NUMERIC),
+                                                    or(percentage(false), percentageArray(false)),
+                                                    logical(LogicalTypeFamily.INTEGER_NUMERIC)))))
+                    .outputTypeStrategy(SpecificTypeStrategies.PERCENTILE)
+                    .runtimeProvided()
                     .build();
 
     // --------------------------------------------------------------------------------------------
