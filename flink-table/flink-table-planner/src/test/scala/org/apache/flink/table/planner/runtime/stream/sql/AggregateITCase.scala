@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
@@ -44,6 +43,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.data.Percentage
 import org.junit.jupiter.api.{Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -1994,5 +1994,59 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
         "2,{\"Hallo Welt\":1,\"Hallo Welt wie\":2},[\"Hallo Welt\",\"Hallo Welt wie\"],[1,2],2"
       )
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testPercentile(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  c,
+        |  PERCENTILE(a, 0.5) AS `swo`,
+        |  PERCENTILE(a, 0.5, b) AS `sw`,
+        |  PERCENTILE(a, ARRAY[0.5, 0.9, 0.3]) AS `mwo`,
+        |  PERCENTILE(a, ARRAY[0.5, 0.9, 0.3], b) AS `mw`
+        |FROM MyTable
+        |GROUP BY c
+      """.stripMargin
+    val outer =
+      s"""
+         |SELECT
+         | c,
+         | `swo`,
+         | `sw`,
+         | `mwo`[1], `mwo`[2], `mwo`[3],
+         | `mw`[1], `mw`[2], `mw`[3]
+         |FROM ($sql)
+    """.stripMargin
+
+    val data = new mutable.MutableList[(Int, Int, Int)]
+    for (i <- 0 until 10) {
+      data.+=((i * 2, i + 1, 0))
+      data.+=((i * 2, i + 1, 1))
+    }
+    for (i <- 0 until 10) {
+      data.+=((i * 2 + 1, i + 1, 0))
+      data.+=((i * 2 + 1, i + 1, 1))
+    }
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(outer).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(9.5, 13.0, 9.5, 17.1, 5.7, 13.0, 18.0, 10.0)
+    val ERROR_RATE = Percentage.withPercentage(1e-6)
+
+    val result = sink.getRetractResults.sorted
+    for (i <- result.indices) {
+      val actual = result(i).split(",")
+      assertThat(actual(0).toInt).isEqualTo(i)
+      for (j <- expected.indices) {
+        assertThat(actual(j + 1).toDouble).isCloseTo(expected(j), ERROR_RATE)
+      }
+    }
   }
 }
