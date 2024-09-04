@@ -28,10 +28,11 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.state.forst.ForStDBIterRequest.ResultType;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.rocksdb.RocksDB;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -221,7 +222,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
 
         @Override
         public <N> void setCurrentNamespaceForState(
-                @NotNull InternalPartitionedState<N> state, N namespace) {
+                @Nonnull InternalPartitionedState<N> state, N namespace) {
             state.setCurrentNamespace(namespace);
         }
     }
