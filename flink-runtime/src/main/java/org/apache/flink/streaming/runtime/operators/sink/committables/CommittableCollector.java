@@ -241,7 +241,7 @@ public class CommittableCollector<CommT> {
                                         numberOfSubtasks,
                                         summary.getCheckpointIdOrEOI(),
                                         metricGroup))
-                .upsertSummary(summary);
+                .addSummary(summary);
     }
 
     private void addCommittable(CommittableWithLineage<CommT> committable) {
