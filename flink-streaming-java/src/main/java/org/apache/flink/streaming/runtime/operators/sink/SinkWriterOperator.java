@@ -274,7 +274,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
             int numberOfParallelSubtasks,
             long checkpointId,
             Collection<CommT> committables) {
-        output.collect(
+        emit(
                 new StreamRecord<>(
                         new CommittableSummary<>(
                                 indexOfThisSubtask,
@@ -284,11 +284,16 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                                 committables.size(),
                                 0)));
         for (CommT committable : committables) {
-            output.collect(
+            emit(
                     new StreamRecord<>(
                             new CommittableWithLineage<>(
                                     committable, checkpointId, indexOfThisSubtask)));
         }
+    }
+
+    private void emit(StreamRecord<CommittableMessage<CommT>> message) {
+        LOG.debug("Sending message to committer: {}", message);
+        output.collect(message);
     }
 
     private WriterInitContext createInitContext(OptionalLong restoredCheckpointId) {
