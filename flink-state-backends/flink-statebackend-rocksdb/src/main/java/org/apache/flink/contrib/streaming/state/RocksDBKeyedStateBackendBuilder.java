@@ -338,8 +338,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         RocksDB db = null;
         RocksDBRestoreOperation restoreOperation = null;
         CompletableFuture<Void> asyncCompactAfterRestoreFuture = null;
+
         RocksDbTtlCompactFiltersManager ttlCompactFiltersManager =
-                new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
+                new RocksDbTtlCompactFiltersManager(
+                        ttlTimeProvider,
+                        optionsContainer.getQueryTimeAfterNumEntries(),
+                        optionsContainer.getPeriodicCompactionTime());
 
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
         RocksDBSnapshotStrategyBase<K, ?> checkpointStrategy = null;
