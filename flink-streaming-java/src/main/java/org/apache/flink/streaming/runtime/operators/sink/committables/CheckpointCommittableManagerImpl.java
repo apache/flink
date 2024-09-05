@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
@@ -72,18 +73,24 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
         return subtasksCommittableManagers.values();
     }
 
-    void upsertSummary(CommittableSummary<CommT> summary) {
+    void addSummary(CommittableSummary<CommT> summary) {
+        long checkpointId = summary.getCheckpointIdOrEOI();
         SubtaskCommittableManager<CommT> manager =
                 new SubtaskCommittableManager<>(
-                        summary.getNumberOfCommittables(),
-                        subtaskId,
-                        summary.getCheckpointIdOrEOI(),
-                        metricGroup);
-        SubtaskCommittableManager<CommT> existing =
-                subtasksCommittableManagers.putIfAbsent(summary.getSubtaskId(), manager);
-        if (existing != null) {
-            throw new UnsupportedOperationException(
-                    "Currently it is not supported to update the CommittableSummary for a checkpoint coming from the same subtask. Please check the status of FLINK-25920");
+                        summary.getNumberOfCommittables(), subtaskId, checkpointId, metricGroup);
+        if (checkpointId == CommittableMessage.EOI) {
+            SubtaskCommittableManager<CommT> merged =
+                    subtasksCommittableManagers.merge(
+                            summary.getSubtaskId(), manager, SubtaskCommittableManager::merge);
+        } else {
+            SubtaskCommittableManager<CommT> existing =
+                    subtasksCommittableManagers.putIfAbsent(summary.getSubtaskId(), manager);
+            if (existing != null) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Received duplicate committable summary for checkpoint %s + subtask %s (new=%s, old=%s). Please check the status of FLINK-25920",
+                                checkpointId, summary.getSubtaskId(), manager, existing));
+            }
         }
     }
 
