@@ -210,7 +210,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                 managedMemoryFraction,
                                 statsCollector,
                                 StateBackend::createKeyedStateBackend);
-                asyncKeyedStateBackend = new AsyncKeyedStateBackendAdaptor<>(keyedStatedBackend);
+                if (keyedStatedBackend != null) {
+                    asyncKeyedStateBackend =
+                            new AsyncKeyedStateBackendAdaptor<>(keyedStatedBackend);
+                }
             }
 
             // -------------- Operator State Backend --------------
