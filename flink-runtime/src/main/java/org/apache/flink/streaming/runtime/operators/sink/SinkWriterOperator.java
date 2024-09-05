@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema.Initializat
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
@@ -53,6 +54,8 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -67,7 +70,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An operator that processes records to be written into a {@link
- * org.apache.flink.api.connector.sink.Sink}. It also has a way to process committables with the
+ * org.apache.flink.api.connector.sink2.Sink}. It also has a way to process committables with the
  * same parallelism or send them downstream to a {@link CommitterOperator} with a different
  * parallelism.
  *
@@ -90,6 +93,13 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Nullable private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final List<CommT> legacyCommittables = new ArrayList<>();
 
+    /**
+     * Used to remember that EOI has already happened so that we don't emit the last committables of
+     * the final checkpoints twice.
+     */
+    private static final ListStateDescriptor<Boolean> END_OF_INPUT_STATE_DESC =
+            new ListStateDescriptor<>("end_of_input_state", BooleanSerializer.INSTANCE);
+
     /** The runtime information of the input element. */
     private final Context<InputT> context;
 
@@ -107,6 +117,10 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     private final MailboxExecutor mailboxExecutor;
 
     private boolean endOfInput = false;
+    /**
+     * Remembers the endOfInput state for (final) checkpoints iff the operator emits committables.
+     */
+    @Nullable private ListState<Boolean> endOfInputState;
 
     SinkWriterOperator(
             Sink<InputT> sink,
@@ -160,17 +174,48 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                 legacyCommitterState.clear();
             }
         }
+
         sinkWriter = writerStateHandler.createWriter(initContext, context);
+
+        if (emitDownstream) {
+            // Figure out if we have seen end of input before and if we can suppress creating
+            // transactions and sending them downstream to the CommitterOperator. We have the
+            // following
+            // cases:
+            // 1. state is empty:
+            //   - First time initialization
+            //   - Restoring from a previous version of Flink that didn't handle EOI
+            //   - Upscaled from a final or regular checkpoint
+            // In all cases, we regularly handle EOI, potentially resulting in duplicate summaries
+            // that the CommitterOperator needs to handle.
+            // 2. state is not empty:
+            //   - This implies Flink restores from a version that handles EOI.
+            //   - If there is one entry, no rescaling happened (for this subtask), so if it's true,
+            //     we recover from a final checkpoint (for this subtask) and can ignore another EOI
+            //     else we have a regular checkpoint.
+            //   - If there are multiple entries, Flink downscaled, and we need to check if all are
+            //     true and do the same as above. As soon as one entry is false, we regularly start
+            //     the writer and potentially emit duplicate summaries if we indeed recovered from a
+            //     final checkpoint.
+            endOfInputState = context.getOperatorStateStore().getListState(END_OF_INPUT_STATE_DESC);
+            ArrayList<Boolean> previousState = Lists.newArrayList(endOfInputState.get());
+            endOfInput = !previousState.isEmpty() && !previousState.contains(false);
+        }
     }
 
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
         writerStateHandler.snapshotState(context.getCheckpointId());
+        if (endOfInputState != null) {
+            endOfInputState.clear();
+            endOfInputState.add(this.endOfInput);
+        }
     }
 
     @Override
     public void processElement(StreamRecord<InputT> element) throws Exception {
+        checkState(!endOfInput, "Received element after endOfInput: %s", element);
         context.element = element;
         sinkWriter.write(element.getValue(), context);
     }
@@ -195,9 +240,14 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
     @Override
     public void endInput() throws Exception {
-        endOfInput = true;
-        sinkWriter.flush(true);
-        emitCommittables(CommittableMessage.EOI);
+        if (!endOfInput) {
+            endOfInput = true;
+            if (endOfInputState != null) {
+                endOfInputState.add(true);
+            }
+            sinkWriter.flush(true);
+            emitCommittables(CommittableMessage.EOI);
+        }
     }
 
     private void emitCommittables(long checkpointId) throws IOException, InterruptedException {
