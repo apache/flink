@@ -59,6 +59,9 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
         switch (stateRequestType) {
             case VALUE_GET:
             case LIST_GET:
+            case MAP_GET:
+            case MAP_IS_EMPTY:
+            case MAP_CONTAINS:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
@@ -69,27 +72,12 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
             case LIST_UPDATE:
             case LIST_ADD:
             case LIST_ADD_ALL:
+            case MAP_PUT:
+            case MAP_REMOVE:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
                     dbPutRequests.add(innerTable.buildDBPutRequest(stateRequest));
-                    return;
-                }
-            case MAP_GET:
-            case MAP_IS_EMPTY:
-            case MAP_CONTAINS:
-                {
-                    ForStMapState<?, ?, ?, ?> forStMapState =
-                            (ForStMapState<?, ?, ?, ?>) stateRequest.getState();
-                    dbGetRequests.add(forStMapState.buildDBGetRequest(stateRequest));
-                    return;
-                }
-            case MAP_PUT:
-            case MAP_REMOVE:
-                {
-                    ForStMapState<?, ?, ?, ?> forStMapState =
-                            (ForStMapState<?, ?, ?, ?>) stateRequest.getState();
-                    dbPutRequests.add(forStMapState.buildDBPutRequest(stateRequest));
                     return;
                 }
             case MAP_ITER:
@@ -111,15 +99,15 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                 }
             case CLEAR:
                 {
-                    if (stateRequest.getState() instanceof ForStValueState) {
-                        ForStValueState<?, ?, ?> forStValueState =
-                                (ForStValueState<?, ?, ?>) stateRequest.getState();
-                        dbPutRequests.add(forStValueState.buildDBPutRequest(stateRequest));
-                        return;
-                    } else if (stateRequest.getState() instanceof ForStMapState) {
+                    if (stateRequest.getState() instanceof ForStMapState) {
                         ForStMapState<?, ?, ?, ?> forStMapState =
                                 (ForStMapState<?, ?, ?, ?>) stateRequest.getState();
                         dbPutRequests.add(forStMapState.buildDBBunchPutRequest(stateRequest));
+                        return;
+                    } else if (stateRequest.getState() instanceof ForStInnerTable) {
+                        ForStInnerTable<?, ?, ?> innerTable =
+                                (ForStInnerTable<?, ?, ?>) stateRequest.getState();
+                        dbPutRequests.add(innerTable.buildDBPutRequest(stateRequest));
                         return;
                     } else {
                         throw new UnsupportedOperationException(
