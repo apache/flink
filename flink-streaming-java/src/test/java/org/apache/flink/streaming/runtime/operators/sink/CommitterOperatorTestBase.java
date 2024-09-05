@@ -35,6 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.function.IntSupplier;
 
+import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.fromOutput;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.toCommittableSummary;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.toCommittableWithLinage;
@@ -171,15 +172,15 @@ abstract class CommitterOperatorTestBase {
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 2, null, 1, 1, 0);
+                new CommittableSummary<>(1, 2, EOI, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(2, 2, null, 1, 1, 0);
+                new CommittableSummary<>(2, 2, EOI, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
 
-        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", null, 1);
+        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", EOI, 1);
         testHarness.processElement(new StreamRecord<>(first));
-        final CommittableWithLineage<String> second = new CommittableWithLineage<>("1", null, 2);
+        final CommittableWithLineage<String> second = new CommittableWithLineage<>("1", EOI, 2);
         testHarness.processElement(new StreamRecord<>(second));
 
         testHarness.endInput();
@@ -330,11 +331,7 @@ abstract class CommitterOperatorTestBase {
     CommittableWithLineage<?> copyCommittableWithDifferentOrigin(
             CommittableWithLineage<?> committable, int subtaskId) {
         return new CommittableWithLineage<>(
-                committable.getCommittable(),
-                committable.getCheckpointId().isPresent()
-                        ? committable.getCheckpointId().getAsLong()
-                        : null,
-                subtaskId);
+                committable.getCommittable(), committable.getCheckpointIdOrEOI(), subtaskId);
     }
 
     private OneInputStreamOperatorTestHarness<

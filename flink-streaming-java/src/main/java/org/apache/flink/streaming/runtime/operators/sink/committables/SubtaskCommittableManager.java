@@ -22,8 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 class SubtaskCommittableManager<CommT> {
     private final Deque<CommitRequestImpl<CommT>> requests;
     private int numExpectedCommittables;
-    @Nullable private final Long checkpointId;
+    private final long checkpointId;
     private final int subtaskId;
     private int numDrained;
     private int numFailed;
@@ -51,7 +49,7 @@ class SubtaskCommittableManager<CommT> {
     SubtaskCommittableManager(
             int numExpectedCommittables,
             int subtaskId,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this(
                 Collections.emptyList(),
@@ -69,7 +67,7 @@ class SubtaskCommittableManager<CommT> {
             int numDrained,
             int numFailed,
             int subtaskId,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this.checkpointId = checkpointId;
         this.subtaskId = subtaskId;
@@ -179,8 +177,7 @@ class SubtaskCommittableManager<CommT> {
     }
 
     @VisibleForTesting
-    @Nullable
-    Long getCheckpointId() {
+    long getCheckpointId() {
         return checkpointId;
     }
 

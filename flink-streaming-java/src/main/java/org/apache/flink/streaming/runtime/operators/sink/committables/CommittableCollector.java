@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink2.InitContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -157,8 +157,7 @@ public class CommittableCollector<CommT> {
     }
 
     /**
-     * Returns {@link CheckpointCommittableManager} that is currently hold by the collector and
-     * associated with the {@link CommittableCollector#EOI} checkpoint id.
+     * Returns {@link CommittableManager} belonging to the last input.
      *
      * @return {@link CheckpointCommittableManager}
      */
@@ -235,12 +234,12 @@ public class CommittableCollector<CommT> {
     private void addSummary(CommittableSummary<CommT> summary) {
         checkpointCommittables
                 .computeIfAbsent(
-                        summary.getCheckpointId().orElse(EOI),
+                        summary.getCheckpointIdOrEOI(),
                         key ->
                                 new CheckpointCommittableManagerImpl<>(
                                         subtaskId,
                                         numberOfSubtasks,
-                                        summary.getCheckpointId().orElse(EOI),
+                                        summary.getCheckpointIdOrEOI(),
                                         metricGroup))
                 .upsertSummary(summary);
     }
@@ -252,7 +251,7 @@ public class CommittableCollector<CommT> {
     private CheckpointCommittableManagerImpl<CommT> getCheckpointCommittables(
             CommittableMessage<CommT> committable) {
         CheckpointCommittableManagerImpl<CommT> committables =
-                this.checkpointCommittables.get(committable.getCheckpointId().orElse(EOI));
+                this.checkpointCommittables.get(committable.getCheckpointIdOrEOI());
         return checkNotNull(committables, "Unknown checkpoint for %s", committable);
     }
 }

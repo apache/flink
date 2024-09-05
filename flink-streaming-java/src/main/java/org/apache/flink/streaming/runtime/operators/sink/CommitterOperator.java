@@ -50,6 +50,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.OptionalLong;
 
+import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -148,7 +149,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         endInput = true;
         if (!isCheckpointingEnabled || isBatchMode) {
             // There will be no final checkpoint, all committables should be committed here
-            notifyCheckpointComplete(Long.MAX_VALUE);
+            notifyCheckpointComplete(EOI);
         }
     }
 
@@ -208,8 +209,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
         // in case of unaligned checkpoint, we may receive notifyCheckpointComplete before the
         // committables
-        OptionalLong checkpointId = element.getValue().getCheckpointId();
-        if (checkpointId.isPresent() && checkpointId.getAsLong() <= lastCompletedCheckpointId) {
+        long checkpointId = element.getValue().getCheckpointIdOrEOI();
+        if (checkpointId <= lastCompletedCheckpointId) {
             commitAndEmitCheckpoints();
         }
     }

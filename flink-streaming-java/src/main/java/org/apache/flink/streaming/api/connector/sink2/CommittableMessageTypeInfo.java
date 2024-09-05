@@ -50,7 +50,6 @@ public class CommittableMessageTypeInfo<CommT> extends TypeInformation<Committab
      * @param committableSerializerFactory factory to create the serializer for a {@link
      *     CommittableMessage}
      * @param <CommT> type of the committable
-     * @return
      */
     public static <CommT> TypeInformation<CommittableMessage<CommT>> of(
             SerializableSupplier<SimpleVersionedSerializer<CommT>> committableSerializerFactory) {
@@ -86,6 +85,7 @@ public class CommittableMessageTypeInfo<CommT> extends TypeInformation<Committab
         return 1;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public Class<CommittableMessage<CommT>> getTypeClass() {
         return (Class) CommittableMessage.class;
