@@ -19,7 +19,6 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
@@ -52,13 +51,12 @@ public class ConfigurationUtils {
      * @return extracted {@link MetricOptions#SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL} or {@code
      *     Optional.empty()} if {@link MetricOptions#SYSTEM_RESOURCE_METRICS} are disabled.
      */
-    public static Optional<Time> getSystemResourceMetricsProbingInterval(
+    public static Optional<Duration> getSystemResourceMetricsProbingInterval(
             Configuration configuration) {
         if (!configuration.get(SYSTEM_RESOURCE_METRICS)) {
             return Optional.empty();
         } else {
-            return Optional.of(
-                    Time.fromDuration(configuration.get(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
+            return Optional.of(configuration.get(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL));
         }
     }
 
@@ -137,15 +135,15 @@ public class ConfigurationUtils {
         return convertToString(map);
     }
 
-    public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
-        final Time timeout;
+    public static Duration getStandaloneClusterStartupPeriodTime(Configuration configuration) {
+        final Duration timeout;
         Duration standaloneClusterStartupPeriodTime =
                 configuration.get(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
         if (standaloneClusterStartupPeriodTime != null
                 && !standaloneClusterStartupPeriodTime.isNegative()) {
-            timeout = Time.fromDuration(standaloneClusterStartupPeriodTime);
+            timeout = standaloneClusterStartupPeriodTime;
         } else {
-            timeout = Time.fromDuration(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+            timeout = configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
         }
         return timeout;
     }

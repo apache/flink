@@ -19,7 +19,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -45,12 +44,14 @@ import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
+import java.time.Duration;
+
 /** Abstract test for the {@link Dispatcher} component. */
 public class AbstractDispatcherTest extends TestLogger {
 
     static TestingRpcService rpcService;
 
-    static final Time TIMEOUT = Time.minutes(1L);
+    static final Duration TIMEOUT = Duration.ofMinutes(1L);
 
     @BeforeClass
     public static void setupClass() {

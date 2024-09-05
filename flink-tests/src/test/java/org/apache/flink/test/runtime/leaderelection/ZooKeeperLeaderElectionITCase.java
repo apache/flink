@@ -21,7 +21,6 @@ package org.apache.flink.test.runtime.leaderelection;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -62,7 +61,7 @@ import static org.junit.Assert.fail;
 /** Test the election of a new JobManager leader. */
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
-    private static final Time RPC_TIMEOUT = Time.minutes(1L);
+    private static final Duration RPC_TIMEOUT = Duration.ofMinutes(1L);
 
     private static TestingServer zkServer;
 

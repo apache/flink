@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -69,7 +69,7 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters>
 
     public AbstractMetricsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> headers,
             MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> messageHeaders,
             MetricFetcher metricFetcher) {

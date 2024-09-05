@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
@@ -190,7 +189,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                 ResourceManagerRuntimeServices resourceManagerRuntimeServices,
                 Executor ioExecutor) {
 
-            final Time standaloneClusterStartupPeriodTime =
+            final Duration standaloneClusterStartupPeriodTime =
                     ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
 
             return new StandaloneResourceManager(
@@ -207,7 +206,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                     fatalErrorHandler,
                     resourceManagerMetricGroup,
                     standaloneClusterStartupPeriodTime,
-                    Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
+                    configuration.get(RpcOptions.ASK_TIMEOUT_DURATION),
                     ioExecutor) {
 
                 @Override
@@ -221,7 +220,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                         ResourceID taskManagerResourceId,
                         InstanceID taskManagerRegistrationId,
                         SlotReport slotReport,
-                        Time timeout) {
+                        Duration timeout) {
                     final CompletableFuture<Acknowledge> result =
                             super.sendSlotReport(
                                     taskManagerResourceId,

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
@@ -123,7 +122,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final Configuration configuration;
 
-    private final Time timeout;
+    private final Duration timeout;
 
     private final PluginManager pluginManager;
 
@@ -171,7 +170,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         this.pluginManager = checkNotNull(pluginManager);
         this.taskExecutorServiceFactory = checkNotNull(taskExecutorServiceFactory);
 
-        timeout = Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
+        timeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         this.terminationFuture = new CompletableFuture<>();
         this.shutdown = false;
@@ -408,7 +407,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             if (executor != null) {
                 terminationFutures.add(
                         ExecutorUtils.nonBlockingShutdown(
-                                timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor));
+                                timeout.toMillis(), TimeUnit.MILLISECONDS, executor));
             }
 
             if (exception != null) {

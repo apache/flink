@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -39,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -51,7 +51,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
 
     private final Set<AllocationID> pendingSlotAllocations = new HashSet<>();
     /** Timeout for slot requests to the task manager. */
-    private final Time taskManagerRequestTimeout;
+    private final Duration taskManagerRequestTimeout;
 
     @Nullable private TaskManagerTracker taskManagerTracker;
     @Nullable private ResourceTracker resourceTracker;
@@ -60,7 +60,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
 
     private boolean started = false;
 
-    public DefaultSlotStatusSyncer(Time taskManagerRequestTimeout) {
+    public DefaultSlotStatusSyncer(Duration taskManagerRequestTimeout) {
         this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
     }
 

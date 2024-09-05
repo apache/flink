@@ -25,7 +25,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -314,7 +313,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         jobVertex.setParallelism(1);
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.hours(1)));
+        executionConfig.setRestartStrategy(
+                RestartStrategies.fixedDelayRestart(1, Duration.ofHours(1)));
 
         final JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()

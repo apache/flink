@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnegative;
@@ -122,13 +121,6 @@ public class StateTtlConfig implements Serializable {
         return stateVisibility;
     }
 
-    /** @deprecated Use {@link #getTimeToLive()} */
-    @Deprecated
-    @Nonnull
-    public Time getTtl() {
-        return Time.fromDuration(getTimeToLive());
-    }
-
     public Duration getTimeToLive() {
         return ttl;
     }
@@ -161,13 +153,6 @@ public class StateTtlConfig implements Serializable {
                 + '}';
     }
 
-    /** @deprecated Use {@link #newBuilder(Duration)} */
-    @Deprecated
-    @Nonnull
-    public static Builder newBuilder(@Nonnull Time ttl) {
-        return new Builder(ttl);
-    }
-
     public static Builder newBuilder(Duration ttl) {
         return new Builder(ttl);
     }
@@ -183,12 +168,6 @@ public class StateTtlConfig implements Serializable {
         private boolean isCleanupInBackground = true;
         private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy>
                 strategies = new EnumMap<>(CleanupStrategies.Strategies.class);
-
-        /** @deprecated Use {@link #newBuilder(Duration)} */
-        @Deprecated
-        public Builder(@Nonnull Time ttl) {
-            this(Time.toDuration(ttl));
-        }
 
         private Builder(Duration ttl) {
             this.ttl = ttl;
@@ -359,18 +338,6 @@ public class StateTtlConfig implements Serializable {
         public Builder disableCleanupInBackground() {
             isCleanupInBackground = false;
             return this;
-        }
-
-        /**
-         * Sets the ttl time.
-         *
-         * @param ttl The ttl time.
-         * @deprecated Use {@link #setTimeToLive(Duration)}
-         */
-        @Deprecated
-        @Nonnull
-        public Builder setTtl(@Nonnull Time ttl) {
-            return setTimeToLive(Time.toDuration(ttl));
         }
 
         public Builder setTimeToLive(Duration ttl) {

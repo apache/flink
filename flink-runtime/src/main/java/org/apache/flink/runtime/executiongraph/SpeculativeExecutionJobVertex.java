@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -27,6 +26,8 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.util.SerializedValue;
+
+import java.time.Duration;
 
 /** The ExecutionJobVertex which supports speculative execution. */
 public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
@@ -46,7 +47,7 @@ public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
-            Time timeout,
+            Duration timeout,
             long createTimestamp,
             int executionHistorySizeLimit,
             int initialAttemptCount) {

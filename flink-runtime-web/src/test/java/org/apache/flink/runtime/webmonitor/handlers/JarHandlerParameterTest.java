@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -45,6 +44,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -82,7 +82,7 @@ abstract class JarHandlerParameterTest<
             () -> CompletableFuture.completedFuture(restfulGateway);
     static CompletableFuture<String> localAddressFuture =
             CompletableFuture.completedFuture("shazam://localhost:12345");
-    static Time timeout = Time.seconds(10);
+    static Duration timeout = Duration.ofSeconds(10);
     static Map<String, String> responseHeaders = Collections.emptyMap();
 
     protected static Path jarWithManifest;
@@ -119,7 +119,7 @@ abstract class JarHandlerParameterTest<
 
         gatewayRetriever = () -> CompletableFuture.completedFuture(restfulGateway);
         localAddressFuture = CompletableFuture.completedFuture("shazam://localhost:12345");
-        timeout = Time.seconds(10);
+        timeout = Duration.ofSeconds(10);
         responseHeaders = Collections.emptyMap();
     }
 

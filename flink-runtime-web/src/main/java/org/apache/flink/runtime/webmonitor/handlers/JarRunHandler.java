@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -41,6 +40,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +68,7 @@ public class JarRunHandler
 
     public JarRunHandler(
             final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
-            final Time timeout,
+            final Duration timeout,
             final Map<String, String> responseHeaders,
             final MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters>
                     messageHeaders,

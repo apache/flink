@@ -51,6 +51,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -485,7 +486,7 @@ public final class DataTypeExtractor {
         }
 
         // INTERVAL SECOND
-        else if (clazz == java.time.Duration.class) {
+        else if (clazz == Duration.class) {
             if (template.defaultSecondPrecision != null) {
                 return DataTypes.INTERVAL(DataTypes.SECOND(template.defaultSecondPrecision));
             }

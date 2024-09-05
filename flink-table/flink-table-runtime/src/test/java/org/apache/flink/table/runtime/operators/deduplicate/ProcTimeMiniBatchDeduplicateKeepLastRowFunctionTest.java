@@ -68,7 +68,7 @@ class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     @Test
     void testWithoutGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(false, true, minTime.toMilliseconds());
+                createFunction(false, true, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 10));
@@ -97,7 +97,7 @@ class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     @Test
     void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(false, false, minTime.toMilliseconds());
+                createFunction(false, false, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 10));
@@ -126,7 +126,7 @@ class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     @Test
     void testWithGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(true, true, minTime.toMilliseconds());
+                createFunction(true, true, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 10));
@@ -158,7 +158,7 @@ class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     @Test
     void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(true, true, minTime.toMilliseconds());
+                createFunction(true, true, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.setup();
         testHarness.open();

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -81,7 +80,7 @@ public class FineGrainedSlotManager implements SlotManager {
     private final ScheduledExecutor scheduledExecutor;
 
     /** Timeout after which an unused TaskManager is released. */
-    private final Time taskManagerTimeout;
+    private final Duration taskManagerTimeout;
 
     /** Delay of the requirement change check in the slot manager. */
     private final Duration requirementsCheckDelay;
@@ -226,7 +225,7 @@ public class FineGrainedSlotManager implements SlotManager {
                     scheduledExecutor.scheduleWithFixedDelay(
                             () -> mainThreadExecutor.execute(this::checkClusterReconciliation),
                             0L,
-                            taskManagerTimeout.toMilliseconds(),
+                            taskManagerTimeout.toMillis(),
                             TimeUnit.MILLISECONDS);
         }
 

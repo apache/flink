@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
@@ -36,8 +35,8 @@ import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadB
 
 /** Configuration for the {@link SlotManager}. */
 public class SlotManagerConfiguration {
-    private final Time taskManagerRequestTimeout;
-    private final Time taskManagerTimeout;
+    private final Duration taskManagerRequestTimeout;
+    private final Duration taskManagerTimeout;
     private final Duration requirementCheckDelay;
     private final Duration declareNeededResourceDelay;
     private final boolean waitResultConsumedBeforeRelease;
@@ -53,8 +52,8 @@ public class SlotManagerConfiguration {
     private final int redundantTaskManagerNum;
 
     public SlotManagerConfiguration(
-            Time taskManagerRequestTimeout,
-            Time taskManagerTimeout,
+            Duration taskManagerRequestTimeout,
+            Duration taskManagerTimeout,
             Duration requirementCheckDelay,
             Duration declareNeededResourceDelay,
             boolean waitResultConsumedBeforeRelease,
@@ -173,11 +172,11 @@ public class SlotManagerConfiguration {
         Preconditions.checkState(minMemoryWorkerNum <= maxMemoryWorkerNum);
     }
 
-    public Time getTaskManagerRequestTimeout() {
+    public Duration getTaskManagerRequestTimeout() {
         return taskManagerRequestTimeout;
     }
 
-    public Time getTaskManagerTimeout() {
+    public Duration getTaskManagerTimeout() {
         return taskManagerTimeout;
     }
 
@@ -237,11 +236,10 @@ public class SlotManagerConfiguration {
             Configuration configuration, WorkerResourceSpec defaultWorkerResourceSpec)
             throws ConfigurationException {
 
-        final Time rpcTimeout =
-                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
+        final Duration rpcTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
-        final Time taskManagerTimeout =
-                Time.fromDuration(configuration.get(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
+        final Duration taskManagerTimeout =
+                configuration.get(ResourceManagerOptions.TASK_MANAGER_TIMEOUT);
 
         final Duration requirementCheckDelay =
                 configuration.get(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY);

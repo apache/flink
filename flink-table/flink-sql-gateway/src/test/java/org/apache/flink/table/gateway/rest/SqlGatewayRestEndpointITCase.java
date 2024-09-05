@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.testutils.BlockerSync;
@@ -60,6 +59,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +67,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -95,7 +96,7 @@ class SqlGatewayRestEndpointITCase {
     private static TestVersionHandler testVersionHandlerNot0;
 
     private static Configuration config;
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
 
     @BeforeEach
     void setup() throws Exception {
@@ -173,7 +174,7 @@ class SqlGatewayRestEndpointITCase {
                         SqlGatewayRestAPIVersion.V0);
 
         TestResponse testResponse0 =
-                specifiedVersionResponse.get(timeout.getSize(), timeout.getUnit());
+                specifiedVersionResponse.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         assertThat(testResponse0.getStatus()).isEqualTo("V0");
 
         // The header only supports V0, lets the client get the version
@@ -187,7 +188,7 @@ class SqlGatewayRestEndpointITCase {
                         Collections.emptyList());
 
         TestResponse testResponse1 =
-                unspecifiedVersionResponse0.get(timeout.getSize(), timeout.getUnit());
+                unspecifiedVersionResponse0.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         assertThat(testResponse1.getStatus()).isEqualTo("V0");
 
         // The header supports multiple versions, lets the client get the latest version as default
@@ -201,7 +202,7 @@ class SqlGatewayRestEndpointITCase {
                         Collections.emptyList());
 
         TestResponse testResponse2 =
-                unspecifiedVersionResponse1.get(timeout.getSize(), timeout.getUnit());
+                unspecifiedVersionResponse1.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         assertThat(testResponse2.getStatus())
                 .isEqualTo(
                         RestAPIVersion.getLatestVersion(headerNot0.getSupportedAPIVersions())
@@ -224,7 +225,7 @@ class SqlGatewayRestEndpointITCase {
                                 version);
 
                 TestResponse testResponse =
-                        versionResponse.get(timeout.getSize(), timeout.getUnit());
+                        versionResponse.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 assertThat(testResponse.getStatus()).isEqualTo(version.name());
             }
         }
@@ -363,8 +364,8 @@ class SqlGatewayRestEndpointITCase {
         // Finish the in-flight request.
         sync.releaseBlocker();
 
-        request.get(timeout.getSize(), timeout.getUnit());
-        closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+        request.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        closeRestServerEndpointFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Test

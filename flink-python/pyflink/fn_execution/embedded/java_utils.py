@@ -40,7 +40,7 @@ JMapStateDescriptor = findClass('org.apache.flink.api.common.state.MapStateDescr
 
 # Java StateTtlConfig
 JStateTtlConfig = findClass('org.apache.flink.api.common.state.StateTtlConfig')
-JTime = findClass('org.apache.flink.api.common.time.Time')
+JDuration = findClass('java.time.Duration')
 JUpdateType = findClass('org.apache.flink.api.common.state.StateTtlConfig$UpdateType')
 JStateVisibility = findClass('org.apache.flink.api.common.state.StateTtlConfig$StateVisibility')
 
@@ -140,7 +140,7 @@ def to_java_typeinfo(type_info: TypeInformation):
 
 def to_java_state_ttl_config(ttl_config: StateTtlConfig):
     j_ttl_config_builder = JStateTtlConfig.newBuilder(
-        JTime.milliseconds(ttl_config.get_ttl().to_milliseconds()))
+        JDuration.ofMillis(ttl_config.get_ttl().to_milliseconds()))
 
     update_type = ttl_config.get_update_type()
     if update_type == StateTtlConfig.UpdateType.Disabled:

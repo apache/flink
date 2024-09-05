@@ -28,7 +28,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -62,6 +61,7 @@ import org.apache.flink.util.Collector;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -555,7 +555,7 @@ public class DataStreamBatchExecutionITCase {
         // trick the collecting sink into working even in the face of failures 🙏
         env.enableCheckpointing(42);
 
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Time.milliseconds(1)));
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Duration.ofMillis(1)));
 
         return env;
     }

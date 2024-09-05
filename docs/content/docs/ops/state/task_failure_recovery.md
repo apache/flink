@@ -73,7 +73,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
-  Time.of(10, TimeUnit.SECONDS) // delay
+  Duration.ofSeconds(10) // delay
 ))
 ```
 {{< /tab >}}
@@ -129,7 +129,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
-  Time.of(10, TimeUnit.SECONDS) // delay
+  Duration.ofSeconds(10) // delay
 ))
 ```
 {{< /tab >}}
@@ -188,10 +188,10 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Time.of(1, TimeUnit.MILLISECONDS), // initial delay between restarts
-  Time.of(1000, TimeUnit.MILLISECONDS), // maximum delay between restarts
+  Duration.ofMillis(1), // initial delay between restarts
+  Duration.ofMillis(1000), // maximum delay between restarts
   1.1, // exponential multiplier
-  Time.of(2, TimeUnit.SECONDS), // threshold duration to reset delay to its initial value
+  Duration.ofSeconds(2), // threshold duration to reset delay to its initial value
   0.1 // jitter
 ))
 ```
@@ -281,8 +281,8 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // max failures per unit
-  Time.of(5, TimeUnit.MINUTES), //time interval for measuring failure rate
-  Time.of(10, TimeUnit.SECONDS) // delay
+  Duration.ofMinutes(5), //time interval for measuring failure rate
+  Duration.ofSeconds(10) // delay
 ))
 ```
 {{< /tab >}}

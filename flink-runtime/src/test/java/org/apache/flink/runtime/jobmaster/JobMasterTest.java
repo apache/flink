@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -189,7 +188,7 @@ class JobMasterTest {
 
     @TempDir private Path temporaryFolder;
 
-    private static final Time testingTimeout = Time.seconds(10L);
+    private static final Duration testingTimeout = Duration.ofSeconds(10L);
 
     private static final long fastHeartbeatInterval = 1L;
     private static final long fastHeartbeatTimeout = 10L;
@@ -369,7 +368,7 @@ class JobMasterTest {
 
             final JobID disconnectedJobManager =
                     disconnectedJobManagerFuture.get(
-                            testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(disconnectedJobManager).isEqualTo(jobGraph.getJobID());
         }
@@ -704,7 +703,7 @@ class JobMasterTest {
             // register job manager success will trigger monitor heartbeat target between jm and rm
             final Tuple3<JobMasterId, ResourceID, JobID> registrationInformation =
                     jobManagerRegistrationFuture.get(
-                            testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(registrationInformation.f0).isEqualTo(jobMasterId);
             assertThat(registrationInformation.f1).isEqualTo(jmResourceId);
@@ -712,7 +711,7 @@ class JobMasterTest {
 
             final JobID disconnectedJobManager =
                     disconnectedJobManagerFuture.get(
-                            testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             // heartbeat timeout should trigger disconnect JobManager from ResourceManager
             assertThat(disconnectedJobManager).isEqualTo(jobGraph.getJobID());
@@ -1433,7 +1432,7 @@ class JobMasterTest {
 
     /**
      * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean,
-     * SavepointFormatType, Time)} is respected.
+     * SavepointFormatType, Duration)} is respected.
      */
     @Test
     void testTriggerSavepointTimeout() throws Exception {
@@ -1458,7 +1457,7 @@ class JobMasterTest {
                     jobMaster.getSelfGateway(JobMasterGateway.class);
             final CompletableFuture<String> savepointFutureLowTimeout =
                     jobMasterGateway.triggerSavepoint(
-                            "/tmp", false, SavepointFormatType.CANONICAL, Time.milliseconds(1));
+                            "/tmp", false, SavepointFormatType.CANONICAL, Duration.ofMillis(1));
             final CompletableFuture<String> savepointFutureHighTimeout =
                     jobMasterGateway.triggerSavepoint(
                             "/tmp", false, SavepointFormatType.CANONICAL, RpcUtils.INF_TIMEOUT);
@@ -1466,7 +1465,7 @@ class JobMasterTest {
             assertThatThrownBy(
                             () ->
                                     savepointFutureLowTimeout.get(
-                                            testingTimeout.getSize(), testingTimeout.getUnit()))
+                                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS))
                     .hasRootCauseInstanceOf(TimeoutException.class);
 
             assertThat(savepointFutureHighTimeout).isNotDone();
@@ -1597,7 +1596,7 @@ class JobMasterTest {
 
             // trigger some request to guarantee ensure the slotAllocationFailure processing if
             // complete
-            jobMasterGateway.requestJobStatus(Time.seconds(5)).get();
+            jobMasterGateway.requestJobStatus(Duration.ofSeconds(5)).get();
             assertThat(disconnectTaskExecutorFuture).isNotDone();
         }
     }

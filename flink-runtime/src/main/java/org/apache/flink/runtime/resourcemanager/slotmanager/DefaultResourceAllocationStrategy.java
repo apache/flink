@@ -20,13 +20,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -77,7 +77,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     private final ResourceMatchingStrategy pendingResourceMatchingStrategy =
             AnyMatchingResourceMatchingStrategy.INSTANCE;
 
-    private final Time taskManagerTimeout;
+    private final Duration taskManagerTimeout;
 
     /** Defines the number of redundant task managers. */
     private final int redundantTaskManagerNum;
@@ -86,7 +86,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             ResourceProfile totalResourceProfile,
             int numSlotsPerWorker,
             TaskManagerLoadBalanceMode taskManagerLoadBalanceMode,
-            Time taskManagerTimeout,
+            Duration taskManagerTimeout,
             int redundantTaskManagerNum,
             CPUResource minTotalCPU,
             MemorySize minTotalMemory) {
@@ -166,7 +166,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                         taskManagerInfo -> {
                             if (taskManagerInfo.isIdle()
                                     && currentTime - taskManagerInfo.getIdleSince()
-                                            >= taskManagerTimeout.toMilliseconds()) {
+                                            >= taskManagerTimeout.toMillis()) {
                                 taskManagersIdleTimeout.add(taskManagerInfo);
                             } else {
                                 taskManagersNonTimeout.add(taskManagerInfo);

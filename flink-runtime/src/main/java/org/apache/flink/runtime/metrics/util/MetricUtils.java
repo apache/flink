@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -58,6 +57,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -89,7 +89,7 @@ public class MetricUtils {
     public static ProcessMetricGroup instantiateProcessMetricGroup(
             final MetricRegistry metricRegistry,
             final String hostname,
-            final Optional<Time> systemResourceProbeInterval) {
+            final Optional<Duration> systemResourceProbeInterval) {
         final ProcessMetricGroup processMetricGroup =
                 ProcessMetricGroup.create(metricRegistry, hostname);
 
@@ -105,7 +105,7 @@ public class MetricUtils {
             MetricRegistry metricRegistry,
             String hostName,
             ResourceID resourceID,
-            Optional<Time> systemResourceProbeInterval) {
+            Optional<Duration> systemResourceProbeInterval) {
         final TaskManagerMetricGroup taskManagerMetricGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         metricRegistry, hostName, resourceID);
