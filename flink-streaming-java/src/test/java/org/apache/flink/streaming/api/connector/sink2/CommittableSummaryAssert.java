@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 
 import org.assertj.core.api.AbstractAssert;
 
-import javax.annotation.Nullable;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Custom assertions for {@link CommittableSummary}. */
@@ -75,13 +73,9 @@ public class CommittableSummaryAssert
         return this;
     }
 
-    public CommittableSummaryAssert hasCheckpointId(@Nullable Long checkpointId) {
+    public CommittableSummaryAssert hasCheckpointId(long checkpointId) {
         isNotNull();
-        if (checkpointId == null) {
-            assertThat(actual.getCheckpointId()).isEmpty();
-        } else {
-            assertThat(actual.getCheckpointId()).hasValue(checkpointId);
-        }
+        assertThat(actual.getCheckpointIdOrEOI()).isEqualTo(checkpointId);
         return this;
     }
 }

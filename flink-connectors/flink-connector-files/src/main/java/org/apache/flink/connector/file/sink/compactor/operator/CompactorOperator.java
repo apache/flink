@@ -46,8 +46,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -138,15 +136,15 @@ public class CompactorOperator
     @Override
     public void endInput() throws Exception {
         // add collecting requests into the final snapshot
-        checkpointRequests.put(Long.MAX_VALUE, collectingRequests);
+        checkpointRequests.put(CommittableMessage.EOI, collectingRequests);
         collectingRequests = new ArrayList<>();
 
         // submit all requests and wait until they are done
-        submitUntil(Long.MAX_VALUE);
+        submitUntil(CommittableMessage.EOI);
         assert checkpointRequests.isEmpty();
 
         getAllTasksFuture().join();
-        emitCompacted(null);
+        emitCompacted(CommittableMessage.EOI);
         assert compactingRequests.isEmpty();
     }
 
@@ -223,7 +221,7 @@ public class CompactorOperator
         canSubmit.clear();
     }
 
-    private void emitCompacted(@Nullable Long checkpointId) throws Exception {
+    private void emitCompacted(long checkpointId) throws Exception {
         List<FileSinkCommittable> compacted = new ArrayList<>();
         Iterator<Tuple2<CompactorRequest, CompletableFuture<Iterable<FileSinkCommittable>>>> iter =
                 compactingRequests.iterator();
