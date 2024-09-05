@@ -37,8 +37,8 @@ public class ForStDBMapValueIterRequest<K, N, UK, UV> extends ForStDBIterRequest
     private final InternalStateFuture<StateIterator<UV>> future;
 
     public ForStDBMapValueIterRequest(
-            ContextKey contextKey,
-            ForStMapState table,
+            ContextKey<K, N> contextKey,
+            ForStMapState<K, N, UK, UV> table,
             StateRequestHandler stateRequestHandler,
             @Nullable RocksIterator rocksIterator,
             InternalStateFuture<StateIterator<UV>> future) {

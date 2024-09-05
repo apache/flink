@@ -30,6 +30,7 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -123,6 +124,14 @@ public class ForStStateExecutor implements StateExecutor {
                                     coordinatorThread)
                             .exceptionally(
                                     e -> {
+                                        try {
+                                            for (ForStDBIterRequest<?, ?, ?, ?, ?> iterRequest :
+                                                    iterRequests) {
+                                                iterRequest.close();
+                                            }
+                                        } catch (IOException ioException) {
+                                            LOG.error("Close iterRequests fail", ioException);
+                                        }
                                         executionError = e;
                                         resultFuture.completeExceptionally(e);
                                         return null;

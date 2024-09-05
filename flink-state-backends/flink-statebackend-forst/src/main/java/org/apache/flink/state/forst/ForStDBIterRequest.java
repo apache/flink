@@ -27,6 +27,7 @@ import org.rocksdb.RocksIterator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,7 +42,7 @@ import java.util.List;
  * @param <UV> The type of user value in iterator.
  * @param <R> The type of result.
  */
-public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
+public abstract class ForStDBIterRequest<K, N, UK, UV, R> implements Closeable {
 
     /**
      * ContextKey that use to calculate prefix bytes. All entries under the same key have the same
@@ -67,8 +68,8 @@ public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
     @Nullable RocksIterator rocksIterator;
 
     public ForStDBIterRequest(
-            ContextKey contextKey,
-            ForStMapState table,
+            ContextKey<K, N> contextKey,
+            ForStMapState<K, N, UK, UV> table,
             StateRequestHandler stateRequestHandler,
             RocksIterator rocksIterator) {
         this.contextKey = contextKey;
@@ -158,6 +159,13 @@ public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
 
     public abstract void buildIteratorAndCompleteFuture(
             Collection<R> partialResult, boolean encounterEnd);
+
+    public void close() throws IOException {
+        if (rocksIterator != null) {
+            rocksIterator.close();
+            rocksIterator = null;
+        }
+    }
 
     /** The entry to store the raw key and value. */
     static class RawEntry {

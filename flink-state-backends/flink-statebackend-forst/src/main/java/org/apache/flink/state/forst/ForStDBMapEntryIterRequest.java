@@ -40,8 +40,8 @@ public class ForStDBMapEntryIterRequest<K, N, UK, UV>
     private final InternalStateFuture<StateIterator<Map.Entry<UK, UV>>> future;
 
     public ForStDBMapEntryIterRequest(
-            ContextKey contextKey,
-            ForStMapState table,
+            ContextKey<K, N> contextKey,
+            ForStMapState<K, N, UK, UV> table,
             StateRequestHandler stateRequestHandler,
             @Nullable RocksIterator rocksIterator,
             InternalStateFuture<StateIterator<Map.Entry<UK, UV>>> future) {
