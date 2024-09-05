@@ -23,14 +23,11 @@ import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -40,7 +37,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     /** Mapping of subtask id to {@link SubtaskCommittableManager}. */
     private final Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers;
 
-    @Nullable private final Long checkpointId;
+    private final long checkpointId;
     private final int subtaskId;
     private final int numberOfSubtasks;
     private final SinkCommitterMetricGroup metricGroup;
@@ -48,7 +45,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     CheckpointCommittableManagerImpl(
             int subtaskId,
             int numberOfSubtasks,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this(new HashMap<>(), subtaskId, numberOfSubtasks, checkpointId, metricGroup);
     }
@@ -57,7 +54,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
             Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers,
             int subtaskId,
             int numberOfSubtasks,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this.subtasksCommittableManagers = checkNotNull(subtasksCommittableManagers);
         this.subtaskId = subtaskId;
@@ -68,7 +65,6 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
 
     @Override
     public long getCheckpointId() {
-        checkNotNull(checkpointId);
         return checkpointId;
     }
 
@@ -77,16 +73,14 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     void upsertSummary(CommittableSummary<CommT> summary) {
+        SubtaskCommittableManager<CommT> manager =
+                new SubtaskCommittableManager<>(
+                        summary.getNumberOfCommittables(),
+                        subtaskId,
+                        summary.getCheckpointIdOrEOI(),
+                        metricGroup);
         SubtaskCommittableManager<CommT> existing =
-                subtasksCommittableManagers.putIfAbsent(
-                        summary.getSubtaskId(),
-                        new SubtaskCommittableManager<>(
-                                summary.getNumberOfCommittables(),
-                                subtaskId,
-                                summary.getCheckpointId().isPresent()
-                                        ? summary.getCheckpointId().getAsLong()
-                                        : null,
-                                metricGroup));
+                subtasksCommittableManagers.putIfAbsent(summary.getSubtaskId(), manager);
         if (existing != null) {
             throw new UnsupportedOperationException(
                     "Currently it is not supported to update the CommittableSummary for a checkpoint coming from the same subtask. Please check the status of FLINK-25920");
@@ -152,7 +146,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     CheckpointCommittableManagerImpl<CommT> merge(CheckpointCommittableManagerImpl<CommT> other) {
-        checkArgument(Objects.equals(other.checkpointId, checkpointId));
+        checkArgument(other.checkpointId == checkpointId);
         for (Map.Entry<Integer, SubtaskCommittableManager<CommT>> subtaskEntry :
                 other.subtasksCommittableManagers.entrySet()) {
             subtasksCommittableManagers.merge(

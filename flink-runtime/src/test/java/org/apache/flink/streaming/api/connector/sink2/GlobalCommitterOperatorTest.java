@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GlobalCommitterOperatorTest {
@@ -97,15 +98,15 @@ class GlobalCommitterOperatorTest {
         testHarness.open();
 
         final CommittableSummary<Integer> committableSummary =
-                new CommittableSummary<>(1, 2, null, 1, 1, 0);
+                new CommittableSummary<>(1, 2, EOI, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableSummary<Integer> committableSummary2 =
-                new CommittableSummary<>(2, 2, null, 1, 1, 0);
+                new CommittableSummary<>(2, 2, EOI, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
 
-        final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, null, 1);
+        final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, EOI, 1);
         testHarness.processElement(new StreamRecord<>(first));
-        final CommittableWithLineage<Integer> second = new CommittableWithLineage<>(2, null, 2);
+        final CommittableWithLineage<Integer> second = new CommittableWithLineage<>(2, EOI, 2);
         testHarness.processElement(new StreamRecord<>(second));
 
         testHarness.endInput();

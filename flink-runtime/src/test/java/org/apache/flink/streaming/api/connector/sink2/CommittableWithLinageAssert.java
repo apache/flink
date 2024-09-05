@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 
 import org.assertj.core.api.AbstractAssert;
 
-import javax.annotation.Nullable;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -38,7 +36,8 @@ public class CommittableWithLinageAssert
     public CommittableWithLinageAssert isEqualTo(CommittableWithLineage<?> committableWithLineage) {
         isNotNull();
         assertThat(actual.getSubtaskId()).isEqualTo(committableWithLineage.getSubtaskId());
-        assertThat(actual.getCheckpointId()).isEqualTo(committableWithLineage.getCheckpointId());
+        assertThat(actual.getCheckpointIdOrEOI())
+                .isEqualTo(committableWithLineage.getCheckpointIdOrEOI());
         assertThat(actual.getCommittable()).isEqualTo(committableWithLineage.getCommittable());
         return this;
     }
@@ -49,13 +48,9 @@ public class CommittableWithLinageAssert
         return this;
     }
 
-    public CommittableWithLinageAssert hasCheckpointId(@Nullable Long checkpointId) {
+    public CommittableWithLinageAssert hasCheckpointId(long checkpointId) {
         isNotNull();
-        if (checkpointId == null) {
-            assertThat(actual.getCheckpointId()).isEmpty();
-        } else {
-            assertThat(actual.getCheckpointId()).hasValue(checkpointId);
-        }
+        assertThat(actual.getCheckpointIdOrEOI()).isEqualTo(checkpointId);
         return this;
     }
 

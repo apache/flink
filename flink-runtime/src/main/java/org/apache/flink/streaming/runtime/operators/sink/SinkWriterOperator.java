@@ -197,10 +197,10 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     public void endInput() throws Exception {
         endOfInput = true;
         sinkWriter.flush(true);
-        emitCommittables(Long.MAX_VALUE);
+        emitCommittables(CommittableMessage.EOI);
     }
 
-    private void emitCommittables(Long checkpointId) throws IOException, InterruptedException {
+    private void emitCommittables(long checkpointId) throws IOException, InterruptedException {
         if (!emitDownstream) {
             // To support SinkV1 topologies with only a writer we have to call prepareCommit
             // although no committables are forwarded
