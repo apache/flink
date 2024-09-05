@@ -24,6 +24,9 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,6 +45,9 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     private final int subtaskId;
     private final int numberOfSubtasks;
     private final SinkCommitterMetricGroup metricGroup;
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(CheckpointCommittableManagerImpl.class);
 
     CheckpointCommittableManagerImpl(
             int subtaskId,
@@ -82,6 +88,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
             SubtaskCommittableManager<CommT> merged =
                     subtasksCommittableManagers.merge(
                             summary.getSubtaskId(), manager, SubtaskCommittableManager::merge);
+            LOG.debug("Adding EOI summary (new={}}, merged={}}).", manager, merged);
         } else {
             SubtaskCommittableManager<CommT> existing =
                     subtasksCommittableManagers.putIfAbsent(summary.getSubtaskId(), manager);
@@ -90,6 +97,11 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                         String.format(
                                 "Received duplicate committable summary for checkpoint %s + subtask %s (new=%s, old=%s). Please check the status of FLINK-25920",
                                 checkpointId, summary.getSubtaskId(), manager, existing));
+            } else {
+                LOG.debug(
+                        "Setting the summary for checkpointId {} with {}",
+                        this.checkpointId,
+                        manager);
             }
         }
     }
