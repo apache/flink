@@ -23,6 +23,10 @@ import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
+import org.rocksdb.RocksIterator;
+
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,9 +43,9 @@ public class ForStDBMapEntryIterRequest<K, N, UK, UV>
             ContextKey contextKey,
             ForStMapState table,
             StateRequestHandler stateRequestHandler,
-            byte[] toSeekBytes,
+            @Nullable RocksIterator rocksIterator,
             InternalStateFuture<StateIterator<Map.Entry<UK, UV>>> future) {
-        super(contextKey, table, stateRequestHandler, toSeekBytes);
+        super(contextKey, table, stateRequestHandler, rocksIterator);
         this.future = future;
     }
 
@@ -65,16 +69,16 @@ public class ForStDBMapEntryIterRequest<K, N, UK, UV>
 
     @Override
     public void buildIteratorAndCompleteFuture(
-            Collection<Map.Entry<UK, UV>> partialResult, boolean encounterEnd, byte[] nextSeek) {
+            Collection<Map.Entry<UK, UV>> partialResult, boolean encounterEnd) {
         ForStMapIterator<Map.Entry<UK, UV>> stateIterator =
                 new ForStMapIterator<>(
                         table,
                         StateRequestType.MAP_ITER,
                         StateRequestType.ITERATOR_LOADING,
                         stateRequestHandler,
-                        (Collection<Map.Entry<UK, UV>>) partialResult,
+                        partialResult,
                         encounterEnd,
-                        nextSeek);
+                        rocksIterator);
 
         future.complete(stateIterator);
     }

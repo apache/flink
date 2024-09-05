@@ -25,6 +25,7 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,19 +60,22 @@ public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
 
     final int keyGroupPrefixBytes;
 
-    /** The bytes to seek to. If null, seek start from the {@link #getKeyPrefixBytes}. */
-    final byte[] toSeekBytes;
+    /**
+     * The rocksdb iterator. If null, create a new rocksdb iterator and seek start from the {@link
+     * #getKeyPrefixBytes}.
+     */
+    @Nullable RocksIterator rocksIterator;
 
     public ForStDBIterRequest(
             ContextKey contextKey,
             ForStMapState table,
             StateRequestHandler stateRequestHandler,
-            byte[] toSeekBytes) {
+            RocksIterator rocksIterator) {
         this.contextKey = contextKey;
         this.table = table;
         this.stateRequestHandler = stateRequestHandler;
         this.keyGroupPrefixBytes = table.getKeyGroupPrefixBytes();
-        this.toSeekBytes = toSeekBytes;
+        this.rocksIterator = rocksIterator;
     }
 
     protected UV deserializeUserValue(byte[] valueBytes) throws IOException {
@@ -109,45 +113,42 @@ public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
     }
 
     public void process(RocksDB db, int cacheSizeLimit) throws IOException {
-        try (RocksIterator iter = db.newIterator(table.getColumnFamilyHandle())) {
-            // step 1: seek to the first key
-            byte[] prefix = getKeyPrefixBytes();
-            int userKeyOffset = prefix.length;
-            if (toSeekBytes != null) {
-                iter.seek(toSeekBytes);
-            } else {
-                iter.seek(prefix);
-            }
-
-            // step 2: iterate the entries, read at most cacheSizeLimit entries at a time. If not
-            // read all at once, other entries will be loaded in a new ITERATOR_LOADING request.
-            List<RawEntry> entries = new ArrayList<>(cacheSizeLimit);
-            boolean encounterEnd = false;
-            byte[] nextSeek = prefix;
-            while (iter.isValid() && entries.size() < cacheSizeLimit) {
-                byte[] key = iter.key();
-                if (startWithKeyPrefix(prefix, key, keyGroupPrefixBytes)) {
-                    entries.add(new RawEntry(key, iter.value()));
-                    nextSeek = key;
-                } else {
-                    encounterEnd = true;
-                    break;
-                }
-                iter.next();
-            }
-            if (iter.isValid()) {
-                nextSeek = iter.key();
-            }
-            if (entries.size() < cacheSizeLimit) {
-                encounterEnd = true;
-            }
-
-            // step 3: deserialize the entries
-            Collection<R> deserializedEntries = deserializeElement(entries, userKeyOffset);
-
-            // step 4: construct a ForStMapIterator.
-            buildIteratorAndCompleteFuture(deserializedEntries, encounterEnd, nextSeek);
+        // step 1: setup iterator, seek to the key
+        byte[] prefix = getKeyPrefixBytes();
+        int userKeyOffset = prefix.length;
+        if (rocksIterator == null) {
+            rocksIterator = db.newIterator(table.getColumnFamilyHandle());
+            rocksIterator.seek(prefix);
         }
+
+        // step 2: iterate the entries, read at most cacheSizeLimit entries at a time. If not
+        // read all at once, other entries will be loaded in a new ITERATOR_LOADING request.
+        List<RawEntry> entries = new ArrayList<>(cacheSizeLimit);
+        boolean encounterEnd = false;
+        while (rocksIterator.isValid() && entries.size() < cacheSizeLimit) {
+            byte[] key = rocksIterator.key();
+            if (startWithKeyPrefix(prefix, key, keyGroupPrefixBytes)) {
+                entries.add(new RawEntry(key, rocksIterator.value()));
+            } else {
+                encounterEnd = true;
+                rocksIterator.close();
+                rocksIterator = null;
+                break;
+            }
+            rocksIterator.next();
+        }
+
+        if (!encounterEnd && (entries.size() < cacheSizeLimit || !rocksIterator.isValid())) {
+            encounterEnd = true;
+            rocksIterator.close();
+            rocksIterator = null;
+        }
+
+        // step 3: deserialize the entries
+        Collection<R> deserializedEntries = deserializeElement(entries, userKeyOffset);
+
+        // step 4: construct a ForStMapIterator.
+        buildIteratorAndCompleteFuture(deserializedEntries, encounterEnd);
     }
 
     public abstract void completeStateFutureExceptionally(String message, Throwable ex);
@@ -156,7 +157,7 @@ public abstract class ForStDBIterRequest<K, N, UK, UV, R> {
             throws IOException;
 
     public abstract void buildIteratorAndCompleteFuture(
-            Collection<R> partialResult, boolean encounterEnd, byte[] nextSeek);
+            Collection<R> partialResult, boolean encounterEnd);
 
     /** The entry to store the raw key and value. */
     static class RawEntry {

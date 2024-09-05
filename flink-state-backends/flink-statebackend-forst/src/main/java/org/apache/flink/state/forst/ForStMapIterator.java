@@ -23,6 +23,8 @@ import org.apache.flink.runtime.asyncprocessing.AbstractStateIterator;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
+import org.rocksdb.RocksIterator;
+
 import java.util.Collection;
 
 /** The map iterator implementation for ForStDB. */
@@ -34,8 +36,11 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
      */
     private boolean encounterEnd;
 
-    /** The next seek bytes, should not be null when request type is ITERATOR_LOADING. */
-    private byte[] nextSeek;
+    /**
+     * The rocksdb iterator for next loading, should not be null when request type is
+     * ITERATOR_LOADING.
+     */
+    private RocksIterator rocksIterator;
 
     /** The original result type, mainly used for ITERATOR_LOADING. */
     private StateRequestType originalRequestType;
@@ -47,11 +52,11 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
             StateRequestHandler stateHandler,
             Collection<T> partialResult,
             boolean encounterEnd,
-            byte[] nextSeek) {
+            RocksIterator rocksIterator) {
         super(originalState, requestType, stateHandler, partialResult);
         this.originalRequestType = originalRequestType;
         this.encounterEnd = encounterEnd;
-        this.nextSeek = nextSeek;
+        this.rocksIterator = rocksIterator;
     }
 
     @Override
@@ -61,6 +66,6 @@ public class ForStMapIterator<T> extends AbstractStateIterator<T> {
 
     @Override
     protected Object nextPayloadForContinuousLoading() {
-        return Tuple2.of(originalRequestType, nextSeek);
+        return Tuple2.of(originalRequestType, rocksIterator);
     }
 }

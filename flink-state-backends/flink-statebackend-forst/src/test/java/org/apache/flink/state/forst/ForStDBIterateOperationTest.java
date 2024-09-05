@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 
 import org.junit.jupiter.api.Test;
 import org.rocksdb.RocksDB;
+import org.rocksdb.RocksIterator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -164,8 +165,8 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         } catch (NullPointerException npe) {
             assertThat(stateRequestHandler.payload).isNotNull();
             assertThat(count.get()).isEqualTo(CACHE_SIZE_LIMIT);
-            Tuple2<StateRequestType, byte[]> tuple =
-                    (Tuple2<StateRequestType, byte[]>) stateRequestHandler.payload;
+            Tuple2<StateRequestType, RocksIterator> tuple =
+                    (Tuple2<StateRequestType, RocksIterator>) stateRequestHandler.payload;
             assertThat(tuple.f0).isEqualTo(StateRequestType.MAP_ITER);
             TestStateFuture<StateIterator<Map.Entry<String, String>>> future2 =
                     new TestStateFuture<>();

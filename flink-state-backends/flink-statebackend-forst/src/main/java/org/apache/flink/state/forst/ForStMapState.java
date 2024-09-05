@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksIterator;
 
 import java.io.IOException;
 import java.util.Map;
@@ -226,31 +227,46 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
                         || stateRequest.getRequestType() == StateRequestType.MAP_ITER_KEY
                         || stateRequest.getRequestType() == StateRequestType.MAP_ITER_VALUE
                         || stateRequest.getRequestType() == StateRequestType.ITERATOR_LOADING);
-        byte[] seekBytes = null;
+        RocksIterator rocksIterator = null;
         StateRequestType requestType = stateRequest.getRequestType();
         if (requestType == StateRequestType.ITERATOR_LOADING) {
-            Tuple2<StateRequestType, byte[]> payload =
-                    (Tuple2<StateRequestType, byte[]>) stateRequest.getPayload();
+            Tuple2<StateRequestType, RocksIterator> payload =
+                    (Tuple2<StateRequestType, RocksIterator>) stateRequest.getPayload();
             requestType = payload.f0;
-            seekBytes = payload.f1;
+            rocksIterator = payload.f1;
         }
-        return buildDBIterRequest(stateRequest, requestType, seekBytes);
+        return buildDBIterRequest(stateRequest, requestType, rocksIterator);
     }
 
+    @SuppressWarnings("unchecked")
     private ForStDBIterRequest buildDBIterRequest(
-            StateRequest<?, ?, ?> stateRequest, StateRequestType requestType, byte[] seekBytes) {
+            StateRequest<?, ?, ?> stateRequest,
+            StateRequestType requestType,
+            RocksIterator rocksIterator) {
         ContextKey<K, N> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext(), null);
         switch (requestType) {
             case MAP_ITER:
                 return new ForStDBMapEntryIterRequest(
-                        contextKey, this, stateRequestHandler, seekBytes, stateRequest.getFuture());
+                        contextKey,
+                        this,
+                        stateRequestHandler,
+                        rocksIterator,
+                        stateRequest.getFuture());
             case MAP_ITER_KEY:
                 return new ForStDBMapKeyIterRequest(
-                        contextKey, this, stateRequestHandler, seekBytes, stateRequest.getFuture());
+                        contextKey,
+                        this,
+                        stateRequestHandler,
+                        rocksIterator,
+                        stateRequest.getFuture());
             case MAP_ITER_VALUE:
                 return new ForStDBMapValueIterRequest(
-                        contextKey, this, stateRequestHandler, seekBytes, stateRequest.getFuture());
+                        contextKey,
+                        this,
+                        stateRequestHandler,
+                        rocksIterator,
+                        stateRequest.getFuture());
             default:
                 throw new IllegalArgumentException(
                         "Unknown request type: "
@@ -260,6 +276,7 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
         }
     }
 
+    @SuppressWarnings("unchecked")
     static <N, UK, UV, K, SV, S extends State> S create(
             StateDescriptor<SV> stateDescriptor,
             StateRequestHandler stateRequestHandler,
