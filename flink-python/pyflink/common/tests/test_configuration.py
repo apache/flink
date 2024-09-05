@@ -41,19 +41,16 @@ class ConfigurationTests(PyFlinkTestCase):
         conf.set_integer("int", 2)
         conf.set_boolean("bool", True)
         conf.set_float("float", 0.5)
-        conf.set_bytearray("bytearray", bytearray([1, 2, 3]))
 
         str_value = conf.get_string("str", "")
         int_value = conf.get_integer("int", 0)
         bool_value = conf.get_boolean("bool", False)
         float_value = conf.get_float("float", 0)
-        bytearray_value = conf.get_bytearray("bytearray", bytearray())
 
         self.assertEqual(str_value, "v1")
         self.assertEqual(int_value, 2)
         self.assertEqual(bool_value, True)
         self.assertEqual(float_value, 0.5)
-        self.assertEqual(bytearray_value, bytearray([1, 2, 3]))
 
     def test_key_set(self):
         conf = Configuration()
@@ -72,15 +69,13 @@ class ConfigurationTests(PyFlinkTestCase):
         conf.set_integer("k2", 1)
         conf.set_float("k3", 1.2)
         conf.set_boolean("k4", True)
-        conf.set_bytearray("k5", bytearray([1, 2, 3]))
         target_dict = dict()
         conf.add_all_to_dict(target_dict)
 
         self.assertEqual(target_dict, {"k1": "v1",
                                        "k2": 1,
                                        "k3": 1.2,
-                                       "k4": True,
-                                       "k5": bytearray([1, 2, 3])})
+                                       "k4": True})
 
     def test_add_all(self):
         conf = Configuration()

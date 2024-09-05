@@ -915,15 +915,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
             // activate re-execution of failed applications
             appContext.setMaxAppAttempts(
-                    configuration.getInteger(
-                            YarnConfigOptions.APPLICATION_ATTEMPTS.key(),
+                    configuration.get(
+                            YarnConfigOptions.APPLICATION_ATTEMPTS,
                             YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
 
             activateHighAvailabilitySupport(appContext);
         } else {
             // set number of application retries to 1 in the default case
             appContext.setMaxAppAttempts(
-                    configuration.getInteger(YarnConfigOptions.APPLICATION_ATTEMPTS.key(), 1));
+                    configuration.get(YarnConfigOptions.APPLICATION_ATTEMPTS, 1));
         }
 
         final Set<Path> userJarFiles = new HashSet<>();

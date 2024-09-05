@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -33,7 +35,8 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
     private static final long serialVersionUID = 1L;
 
     /** The config parameter which defines the fixed length of a record. */
-    @Deprecated public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
+    protected static final ConfigOption<Long> BLOCK_SIZE_PARAMETER =
+            ConfigOptions.key("output.block_size").longType().noDefaultValue();
 
     public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
@@ -63,7 +66,7 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
         super.configure(parameters);
 
         // read own parameters
-        this.blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
+        this.blockSize = parameters.get(BLOCK_SIZE_PARAMETER, NATIVE_BLOCK_SIZE);
         if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
             throw new IllegalArgumentException(
                     "The block size parameter must be set and larger than 0.");

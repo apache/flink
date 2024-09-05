@@ -51,6 +51,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getLongConfigOption;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -656,10 +657,13 @@ public class JobGraph implements Serializable {
     }
 
     public void setInitialClientHeartbeatTimeout(long initialClientHeartbeatTimeout) {
-        jobConfiguration.setLong(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, initialClientHeartbeatTimeout);
+        jobConfiguration.set(
+                getLongConfigOption(INITIAL_CLIENT_HEARTBEAT_TIMEOUT),
+                initialClientHeartbeatTimeout);
     }
 
     public long getInitialClientHeartbeatTimeout() {
-        return jobConfiguration.getLong(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, Long.MIN_VALUE);
+        return jobConfiguration.get(
+                getLongConfigOption(INITIAL_CLIENT_HEARTBEAT_TIMEOUT), Long.MIN_VALUE);
     }
 }

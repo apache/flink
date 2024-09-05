@@ -28,6 +28,9 @@ import org.apache.flink.util.Visitable;
 
 import java.util.List;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigOptionUtils.getIntegerConfigOption;
+
 /**
  * Abstract base class for all operators. An operator is a source, sink, or it applies an operation
  * to one or more inputs, producing a result.
@@ -141,7 +144,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
      * @param value The parameter value.
      */
     public void setParameter(String key, int value) {
-        this.parameters.setInteger(key, value);
+        this.parameters.set(getIntegerConfigOption(key), value);
     }
 
     /**
@@ -154,7 +157,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
      * @param value The parameter value.
      */
     public void setParameter(String key, boolean value) {
-        this.parameters.setBoolean(key, value);
+        this.parameters.set(getBooleanConfigOption(key), value);
     }
 
     /**

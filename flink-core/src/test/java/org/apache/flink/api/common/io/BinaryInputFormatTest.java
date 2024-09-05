@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,12 +34,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
 class BinaryInputFormatTest {
 
     @TempDir private Path tempDir;
+
+    private static final ConfigOption<Long> INPUT_BLOCK_SIZE =
+            getLongConfigOption("input.block_size");
 
     private static final class MyBinaryInputFormat extends BinaryInputFormat<Record> {
 
@@ -67,7 +72,7 @@ class BinaryInputFormatTest {
                         "test_create_input_splits_with_one_file", blockSize, numBlocks);
 
         final Configuration config = new Configuration();
-        config.setLong("input.block_size", blockSize + 10);
+        config.set(INPUT_BLOCK_SIZE, blockSize + 10L);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePath(tempFile.toURI().toString());
@@ -184,7 +189,7 @@ class BinaryInputFormatTest {
                         "test_create_input_splits_with_empty_split", blockSize, numBlocks);
 
         final Configuration config = new Configuration();
-        config.setLong("input.block_size", blockSize + 10);
+        config.set(INPUT_BLOCK_SIZE, blockSize + 10L);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePath(tempFile.toURI().toString());

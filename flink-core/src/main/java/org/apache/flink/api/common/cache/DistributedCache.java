@@ -21,6 +21,8 @@ package org.apache.flink.api.common.cache;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.Path;
@@ -172,12 +174,16 @@ public class DistributedCache {
 
     public static void writeFileInfoToConfig(
             String name, DistributedCacheEntry e, Configuration conf) {
-        int num = conf.getInteger(CACHE_FILE_NUM, 0) + 1;
-        conf.setInteger(CACHE_FILE_NUM, num);
+        int num = conf.get(CACHE_FILE_NUM, 0) + 1;
+        conf.set(CACHE_FILE_NUM, num);
         conf.setString(CACHE_FILE_NAME + num, name);
         conf.setString(CACHE_FILE_PATH + num, e.filePath);
-        conf.setBoolean(CACHE_FILE_EXE + num, e.isExecutable || new File(e.filePath).canExecute());
-        conf.setBoolean(CACHE_FILE_DIR + num, e.isZipped || new File(e.filePath).isDirectory());
+        conf.set(
+                ConfigOptions.key(CACHE_FILE_EXE + num).booleanType().noDefaultValue(),
+                e.isExecutable || new File(e.filePath).canExecute());
+        conf.set(
+                ConfigOptions.key(CACHE_FILE_DIR + num).booleanType().noDefaultValue(),
+                e.isZipped || new File(e.filePath).isDirectory());
         if (e.blobKey != null) {
             conf.setBytes(CACHE_FILE_BLOB_KEY + num, e.blobKey);
         }
@@ -185,7 +191,7 @@ public class DistributedCache {
 
     public static Set<Entry<String, DistributedCacheEntry>> readFileInfoFromConfig(
             Configuration conf) {
-        int num = conf.getInteger(CACHE_FILE_NUM, 0);
+        int num = conf.get(CACHE_FILE_NUM, 0);
         if (num == 0) {
             return Collections.emptySet();
         }
@@ -195,8 +201,14 @@ public class DistributedCache {
         for (int i = 1; i <= num; i++) {
             String name = conf.getString(CACHE_FILE_NAME + i, null);
             String filePath = conf.getString(CACHE_FILE_PATH + i, null);
-            boolean isExecutable = conf.getBoolean(CACHE_FILE_EXE + i, false);
-            boolean isDirectory = conf.getBoolean(CACHE_FILE_DIR + i, false);
+            boolean isExecutable =
+                    conf.get(
+                            ConfigOptions.key(CACHE_FILE_EXE + i).booleanType().noDefaultValue(),
+                            false);
+            boolean isDirectory =
+                    conf.get(
+                            ConfigOptions.key(CACHE_FILE_DIR + i).booleanType().noDefaultValue(),
+                            false);
 
             byte[] blobKey = conf.getBytes(CACHE_FILE_BLOB_KEY + i, null);
             cacheFiles.put(
@@ -244,7 +256,8 @@ public class DistributedCache {
                 .collect(Collectors.toList());
     }
 
-    private static final String CACHE_FILE_NUM = "DISTRIBUTED_CACHE_FILE_NUM";
+    private static final ConfigOption<Integer> CACHE_FILE_NUM =
+            ConfigOptions.key("DISTRIBUTED_CACHE_FILE_NUM").intType().noDefaultValue();
 
     private static final String CACHE_FILE_NAME = "DISTRIBUTED_CACHE_FILE_NAME_";
 

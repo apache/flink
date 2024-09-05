@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -61,7 +63,8 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
     private static final Logger LOG = LoggerFactory.getLogger(BinaryInputFormat.class);
 
     /** The config parameter which defines the fixed length of a record. */
-    @Deprecated public static final String BLOCK_SIZE_PARAMETER_KEY = "input.block_size";
+    private static final ConfigOption<Long> BLOCK_SIZE_PARAMETER =
+            ConfigOptions.key("input.block_size").longType().noDefaultValue();
 
     public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
@@ -90,7 +93,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
         // overwriting the value set by the setter
 
         if (this.blockSize == NATIVE_BLOCK_SIZE) {
-            long blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
+            long blockSize = parameters.get(BLOCK_SIZE_PARAMETER, NATIVE_BLOCK_SIZE);
             setBlockSize(blockSize);
         }
     }

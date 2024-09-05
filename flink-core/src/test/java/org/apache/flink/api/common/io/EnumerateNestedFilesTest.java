@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -44,6 +46,9 @@ class EnumerateNestedFilesTest {
 
     private DummyFileInputFormat format;
 
+    private static final ConfigOption<Boolean> RECURSIVE_FILE_ENUMERATION =
+            ConfigOptions.key("recursive.file.enumeration").booleanType().noDefaultValue();
+
     @BeforeEach
     void setup() {
         this.config = new Configuration();
@@ -63,7 +68,7 @@ class EnumerateNestedFilesTest {
         String filePath = TestFileUtils.createTempFile("foo");
 
         this.format.setFilePath(new Path(filePath));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         FileInputSplit[] splits = format.createInputSplits(1);
@@ -85,7 +90,7 @@ class EnumerateNestedFilesTest {
         TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), "fideua");
 
         this.format.setFilePath(new Path(nestedDir.toURI().toString()));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         FileInputSplit[] splits = format.createInputSplits(1);
@@ -107,7 +112,7 @@ class EnumerateNestedFilesTest {
         TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), "fideua");
 
         this.format.setFilePath(new Path(nestedDir.toURI().toString()));
-        this.config.setBoolean("recursive.file.enumeration", false);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, false);
         format.configure(this.config);
 
         FileInputSplit[] splits = format.createInputSplits(1);
@@ -135,7 +140,7 @@ class EnumerateNestedFilesTest {
         TestFileUtils.createTempFileInDirectory(nestedNestedDir.getAbsolutePath(), "bravas");
 
         this.format.setFilePath(new Path(nestedDir.toURI().toString()));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         FileInputSplit[] splits = format.createInputSplits(1);
@@ -165,7 +170,7 @@ class EnumerateNestedFilesTest {
         TestFileUtils.createTempFileInDirectory(nestedNestedDir2.getAbsolutePath(), "bravas");
 
         this.format.setFilePath(new Path(testDir.getAbsolutePath()));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         FileInputSplit[] splits = format.createInputSplits(1);
@@ -208,7 +213,7 @@ class EnumerateNestedFilesTest {
                 nestedNestedDirFiltered.getAbsolutePath(), "bravas");
 
         this.format.setFilePath(new Path(nestedDir.toURI().toString()));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         FileInputSplit[] splits = format.createInputSplits(1);
@@ -229,7 +234,7 @@ class EnumerateNestedFilesTest {
         TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), SIZE);
 
         this.format.setFilePath(new Path(nestedDir.toURI().toString()));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         BaseStatistics stats = format.getStatistics(null);
@@ -262,7 +267,7 @@ class EnumerateNestedFilesTest {
         TestFileUtils.createTempFileInDirectory(insideNestedDir2.getAbsolutePath(), SIZE4);
 
         this.format.setFilePath(new Path(nestedDir.toURI().toString()));
-        this.config.setBoolean("recursive.file.enumeration", true);
+        this.config.set(RECURSIVE_FILE_ENUMERATION, true);
         format.configure(this.config);
 
         BaseStatistics stats = format.getStatistics(null);

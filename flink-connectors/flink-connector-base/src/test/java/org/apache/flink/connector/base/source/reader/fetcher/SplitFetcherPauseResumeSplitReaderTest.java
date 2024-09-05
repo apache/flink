@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getBooleanConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -107,8 +108,9 @@ public class SplitFetcherPauseResumeSplitReaderTest {
     public void testPauseResumeUnsupported(boolean allowUnalignedSourceSplits) throws Exception {
         final AtomicInteger numSplitReaders = new AtomicInteger();
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(
-                "pipeline.watermark-alignment.allow-unaligned-source-splits",
+        configuration.set(
+                getBooleanConfigOption(
+                        "pipeline.watermark-alignment.allow-unaligned-source-splits"),
                 allowUnalignedSourceSplits);
         final MockSplitReader.Builder readerBuilder =
                 SteppingSourceReaderTestHarness.createSplitReaderBuilder();

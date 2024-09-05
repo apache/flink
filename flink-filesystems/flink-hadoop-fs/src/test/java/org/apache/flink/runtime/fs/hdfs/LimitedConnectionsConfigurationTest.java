@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getIntegerConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -47,11 +48,11 @@ class LimitedConnectionsConfigurationTest {
         // configure some limits, which should cause "fsScheme" to be limited
 
         final Configuration config = new Configuration();
-        config.setInteger("fs.hdfs.limit.total", 40);
-        config.setInteger("fs.hdfs.limit.input", 39);
-        config.setInteger("fs.hdfs.limit.output", 38);
-        config.setInteger("fs.hdfs.limit.timeout", 23456);
-        config.setInteger("fs.hdfs.limit.stream-timeout", 34567);
+        config.set(getIntegerConfigOption("fs.hdfs.limit.total"), 40);
+        config.set(getIntegerConfigOption("fs.hdfs.limit.input"), 39);
+        config.set(getIntegerConfigOption("fs.hdfs.limit.output"), 38);
+        config.set(getIntegerConfigOption("fs.hdfs.limit.timeout"), 23456);
+        config.set(getIntegerConfigOption("fs.hdfs.limit.stream-timeout"), 34567);
 
         try {
             FileSystem.initialize(config);

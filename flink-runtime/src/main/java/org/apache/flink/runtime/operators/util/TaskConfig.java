@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -49,7 +50,21 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-/** Configuration class which stores all relevant parameters required to set up the Pact tasks. */
+import static org.apache.flink.configuration.ConfigOptionUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigOptionUtils.getDoubleConfigOption;
+import static org.apache.flink.configuration.ConfigOptionUtils.getFloatConfigOption;
+import static org.apache.flink.configuration.ConfigOptionUtils.getIntegerConfigOption;
+
+/**
+ * Configuration class which stores all relevant parameters required to set up the Pact tasks.
+ *
+ * <p>Note: Many string fields in this class represent configuration option keys. Since {@link
+ * TaskConfig} needs to be {@link java.io.Serializable} and {@link ConfigOption} is not {@link
+ * java.io.Serializable}, we cannot wrap these configuration option keys as {@link ConfigOption}
+ * objects directly within this class. Additionally, many of the keys are constructed in methods by
+ * appending suffixes, which further complicates direct wrapping. As a result, we temporarily
+ * construct these keys as {@link ConfigOption} in methods.
+ */
 public class TaskConfig implements Serializable {
 
     private static final long serialVersionUID = -2498884325640066272L;
@@ -344,11 +359,11 @@ public class TaskConfig implements Serializable {
     }
 
     public void setDriverStrategy(DriverStrategy strategy) {
-        this.config.setInteger(DRIVER_STRATEGY, strategy.ordinal());
+        this.config.set(getIntegerConfigOption(DRIVER_STRATEGY), strategy.ordinal());
     }
 
     public DriverStrategy getDriverStrategy() {
-        final int ls = this.config.getInteger(DRIVER_STRATEGY, -1);
+        final int ls = this.config.get(getIntegerConfigOption(DRIVER_STRATEGY), -1);
         if (ls == -1) {
             return DriverStrategy.NONE;
         } else if (ls < 0 || ls >= DriverStrategy.values().length) {
@@ -411,11 +426,13 @@ public class TaskConfig implements Serializable {
     // --------------------------------------------------------------------------------------------
 
     public void setInputLocalStrategy(int inputNum, LocalStrategy strategy) {
-        this.config.setInteger(INPUT_LOCAL_STRATEGY_PREFIX + inputNum, strategy.ordinal());
+        this.config.set(
+                getIntegerConfigOption(INPUT_LOCAL_STRATEGY_PREFIX + inputNum), strategy.ordinal());
     }
 
     public LocalStrategy getInputLocalStrategy(int inputNum) {
-        final int ls = this.config.getInteger(INPUT_LOCAL_STRATEGY_PREFIX + inputNum, -1);
+        final int ls =
+                this.config.get(getIntegerConfigOption(INPUT_LOCAL_STRATEGY_PREFIX + inputNum), -1);
         if (ls == -1) {
             return LocalStrategy.NONE;
         } else if (ls < 0 || ls >= LocalStrategy.values().length) {
@@ -469,58 +486,62 @@ public class TaskConfig implements Serializable {
     }
 
     public int getNumInputs() {
-        return this.config.getInteger(NUM_INPUTS, 0);
+        return this.config.get(getIntegerConfigOption(NUM_INPUTS), 0);
     }
 
     public int getNumBroadcastInputs() {
-        return this.config.getInteger(NUM_BROADCAST_INPUTS, 0);
+        return this.config.get(getIntegerConfigOption(NUM_BROADCAST_INPUTS), 0);
     }
 
     public int getGroupSize(int groupIndex) {
-        return this.config.getInteger(INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
+        return this.config.get(getIntegerConfigOption(INPUT_GROUP_SIZE_PREFIX + groupIndex), -1);
     }
 
     public int getBroadcastGroupSize(int groupIndex) {
-        return this.config.getInteger(BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex, -1);
+        return this.config.get(
+                getIntegerConfigOption(BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex), -1);
     }
 
     public void addInputToGroup(int groupIndex) {
         final String grp = INPUT_GROUP_SIZE_PREFIX + groupIndex;
-        this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
-        this.config.setInteger(NUM_INPUTS, this.config.getInteger(NUM_INPUTS, 0) + 1);
+        ConfigOption<Integer> inputsOption = getIntegerConfigOption(NUM_INPUTS);
+        ConfigOption<Integer> grpOption = getIntegerConfigOption(grp);
+        this.config.set(grpOption, this.config.get(grpOption, 0) + 1);
+        this.config.set(inputsOption, this.config.get(inputsOption, 0) + 1);
     }
 
     public void addBroadcastInputToGroup(int groupIndex) {
         final String grp = BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex;
+        ConfigOption<Integer> inputsOption = getIntegerConfigOption(NUM_BROADCAST_INPUTS);
+        ConfigOption<Integer> grpOption = getIntegerConfigOption(grp);
         if (!this.config.containsKey(grp)) {
-            this.config.setInteger(
-                    NUM_BROADCAST_INPUTS, this.config.getInteger(NUM_BROADCAST_INPUTS, 0) + 1);
+            this.config.set(inputsOption, this.config.get(inputsOption, 0) + 1);
         }
-        this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
+        this.config.set(grpOption, this.config.get(grpOption, 0) + 1);
     }
 
     public void setInputAsynchronouslyMaterialized(int inputNum, boolean temp) {
-        this.config.setBoolean(INPUT_DAM_PREFIX + inputNum, temp);
+        this.config.set(getBooleanConfigOption(INPUT_DAM_PREFIX + inputNum), temp);
     }
 
     public boolean isInputAsynchronouslyMaterialized(int inputNum) {
-        return this.config.getBoolean(INPUT_DAM_PREFIX + inputNum, false);
+        return this.config.get(getBooleanConfigOption(INPUT_DAM_PREFIX + inputNum), false);
     }
 
     public void setInputCached(int inputNum, boolean persistent) {
-        this.config.setBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, persistent);
+        this.config.set(getBooleanConfigOption(INPUT_REPLAYABLE_PREFIX + inputNum), persistent);
     }
 
     public boolean isInputCached(int inputNum) {
-        return this.config.getBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, false);
+        return this.config.get(getBooleanConfigOption(INPUT_REPLAYABLE_PREFIX + inputNum), false);
     }
 
     public void setRelativeInputMaterializationMemory(int inputNum, double relativeMemory) {
-        this.config.setDouble(INPUT_DAM_MEMORY_PREFIX + inputNum, relativeMemory);
+        this.config.set(getDoubleConfigOption(INPUT_DAM_MEMORY_PREFIX + inputNum), relativeMemory);
     }
 
     public double getRelativeInputMaterializationMemory(int inputNum) {
-        return this.config.getDouble(INPUT_DAM_MEMORY_PREFIX + inputNum, 0);
+        return this.config.get(getDoubleConfigOption(INPUT_DAM_MEMORY_PREFIX + inputNum), 0.0);
     }
 
     public void setBroadcastInputName(String name, int groupIndex) {
@@ -538,18 +559,21 @@ public class TaskConfig implements Serializable {
     // --------------------------------------------------------------------------------------------
 
     public void addOutputShipStrategy(ShipStrategyType strategy) {
-        final int outputCnt = this.config.getInteger(OUTPUTS_NUM, 0);
-        this.config.setInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt, strategy.ordinal());
-        this.config.setInteger(OUTPUTS_NUM, outputCnt + 1);
+        ConfigOption<Integer> option = getIntegerConfigOption(OUTPUTS_NUM);
+        final int outputCnt = this.config.get(option, 0);
+        this.config.set(
+                getIntegerConfigOption(OUTPUT_SHIP_STRATEGY_PREFIX + outputCnt),
+                strategy.ordinal());
+        this.config.set(option, outputCnt + 1);
     }
 
     public int getNumOutputs() {
-        return this.config.getInteger(OUTPUTS_NUM, 0);
+        return this.config.get(getIntegerConfigOption(OUTPUTS_NUM), 0);
     }
 
     public ShipStrategyType getOutputShipStrategy(int outputNum) {
         // check how many outputs are encoded in the config
-        final int outputCnt = this.config.getInteger(OUTPUTS_NUM, -1);
+        final int outputCnt = this.config.get(getIntegerConfigOption(OUTPUTS_NUM), -1);
         if (outputCnt < 1) {
             throw new CorruptConfigurationException(
                     "No output ship strategies are specified in the configuration.");
@@ -560,7 +584,9 @@ public class TaskConfig implements Serializable {
             throw new IllegalArgumentException("Invalid index for output shipping strategy.");
         }
 
-        final int strategy = this.config.getInteger(OUTPUT_SHIP_STRATEGY_PREFIX + outputNum, -1);
+        final int strategy =
+                this.config.get(
+                        getIntegerConfigOption(OUTPUT_SHIP_STRATEGY_PREFIX + outputNum), -1);
         if (strategy == -1) {
             throw new CorruptConfigurationException(
                     "No output shipping strategy in configuration for output " + outputNum);
@@ -680,19 +706,19 @@ public class TaskConfig implements Serializable {
     // --------------------------------------------------------------------------------------------
 
     public void setRelativeMemoryDriver(double relativeMemorySize) {
-        this.config.setDouble(MEMORY_DRIVER, relativeMemorySize);
+        this.config.set(getDoubleConfigOption(MEMORY_DRIVER), relativeMemorySize);
     }
 
     public double getRelativeMemoryDriver() {
-        return this.config.getDouble(MEMORY_DRIVER, 0);
+        return this.config.get(getDoubleConfigOption(MEMORY_DRIVER), 0.0);
     }
 
     public void setRelativeMemoryInput(int inputNum, double relativeMemorySize) {
-        this.config.setDouble(MEMORY_INPUT_PREFIX + inputNum, relativeMemorySize);
+        this.config.set(getDoubleConfigOption(MEMORY_INPUT_PREFIX + inputNum), relativeMemorySize);
     }
 
     public double getRelativeMemoryInput(int inputNum) {
-        return this.config.getDouble(MEMORY_INPUT_PREFIX + inputNum, 0);
+        return this.config.get(getDoubleConfigOption(MEMORY_INPUT_PREFIX + inputNum), 0.0);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -701,22 +727,22 @@ public class TaskConfig implements Serializable {
         if (filehandles < 2) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(FILEHANDLES_DRIVER, filehandles);
+        this.config.set(getIntegerConfigOption(FILEHANDLES_DRIVER), filehandles);
     }
 
     public int getFilehandlesDriver() {
-        return this.config.getInteger(FILEHANDLES_DRIVER, -1);
+        return this.config.get(getIntegerConfigOption(FILEHANDLES_DRIVER), -1);
     }
 
     public void setFilehandlesInput(int inputNum, int filehandles) {
         if (filehandles < 2) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(FILEHANDLES_INPUT_PREFIX + inputNum, filehandles);
+        this.config.set(getIntegerConfigOption(FILEHANDLES_INPUT_PREFIX + inputNum), filehandles);
     }
 
     public int getFilehandlesInput(int inputNum) {
-        return this.config.getInteger(FILEHANDLES_INPUT_PREFIX + inputNum, -1);
+        return this.config.get(getIntegerConfigOption(FILEHANDLES_INPUT_PREFIX + inputNum), -1);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -725,30 +751,33 @@ public class TaskConfig implements Serializable {
         if (threshold < 0.0f || threshold > 1.0f) {
             throw new IllegalArgumentException();
         }
-        this.config.setFloat(SORT_SPILLING_THRESHOLD_DRIVER, threshold);
+        this.config.set(getFloatConfigOption(SORT_SPILLING_THRESHOLD_DRIVER), threshold);
     }
 
     public float getSpillingThresholdDriver() {
-        return this.config.getFloat(SORT_SPILLING_THRESHOLD_DRIVER, 0.7f);
+        return this.config.get(getFloatConfigOption(SORT_SPILLING_THRESHOLD_DRIVER), 0.7f);
     }
 
     public void setSpillingThresholdInput(int inputNum, float threshold) {
         if (threshold < 0.0f || threshold > 1.0f) {
             throw new IllegalArgumentException();
         }
-        this.config.setFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, threshold);
+        this.config.set(
+                getFloatConfigOption(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum), threshold);
     }
 
     public float getSpillingThresholdInput(int inputNum) {
-        return this.config.getFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, 0.7f);
+        return this.config.get(
+                getFloatConfigOption(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum), 0.7f);
     }
 
     public void setUseLargeRecordHandler(boolean useLargeRecordHandler) {
-        this.config.setBoolean(USE_LARGE_RECORD_HANDLER, useLargeRecordHandler);
+        this.config.set(getBooleanConfigOption(USE_LARGE_RECORD_HANDLER), useLargeRecordHandler);
     }
 
     public boolean getUseLargeRecordHandler() {
-        return this.config.getBoolean(USE_LARGE_RECORD_HANDLER, USE_LARGE_RECORD_HANDLER_DEFAULT);
+        return this.config.get(
+                getBooleanConfigOption(USE_LARGE_RECORD_HANDLER), USE_LARGE_RECORD_HANDLER_DEFAULT);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -756,20 +785,20 @@ public class TaskConfig implements Serializable {
     // --------------------------------------------------------------------------------------------
 
     public int getNumberOfChainedStubs() {
-        return this.config.getInteger(CHAINING_NUM_STUBS, 0);
+        return this.config.get(getIntegerConfigOption(CHAINING_NUM_STUBS), 0);
     }
 
     public void addChainedTask(
             @SuppressWarnings("rawtypes") Class<? extends ChainedDriver> chainedTaskClass,
             TaskConfig conf,
             String taskName) {
-        int numChainedYet = this.config.getInteger(CHAINING_NUM_STUBS, 0);
+        int numChainedYet = this.config.get(getIntegerConfigOption(CHAINING_NUM_STUBS), 0);
 
         this.config.setString(CHAINING_TASK_PREFIX + numChainedYet, chainedTaskClass.getName());
         this.config.addAll(conf.config, CHAINING_TASKCONFIG_PREFIX + numChainedYet + SEPARATOR);
         this.config.setString(CHAINING_TASKNAME_PREFIX + numChainedYet, taskName);
 
-        this.config.setInteger(CHAINING_NUM_STUBS, ++numChainedYet);
+        this.config.set(getIntegerConfigOption(CHAINING_NUM_STUBS), ++numChainedYet);
     }
 
     public TaskConfig getChainedStubConfig(int chainPos) {
@@ -806,11 +835,11 @@ public class TaskConfig implements Serializable {
         if (numberOfIterations <= 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(NUMBER_OF_ITERATIONS, numberOfIterations);
+        this.config.set(getIntegerConfigOption(NUMBER_OF_ITERATIONS), numberOfIterations);
     }
 
     public int getNumberOfIterations() {
-        int numberOfIterations = this.config.getInteger(NUMBER_OF_ITERATIONS, 0);
+        int numberOfIterations = this.config.get(getIntegerConfigOption(NUMBER_OF_ITERATIONS), 0);
         if (numberOfIterations <= 0) {
             throw new IllegalArgumentException();
         }
@@ -821,11 +850,14 @@ public class TaskConfig implements Serializable {
         if (inputIndex < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION, inputIndex);
+        this.config.set(
+                getIntegerConfigOption(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION), inputIndex);
     }
 
     public int getIterationHeadPartialSolutionOrWorksetInputIndex() {
-        int index = this.config.getInteger(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION, -1);
+        int index =
+                this.config.get(
+                        getIntegerConfigOption(ITERATION_HEAD_INDEX_OF_PARTIAL_SOLUTION), -1);
         if (index < 0) {
             throw new IllegalArgumentException();
         }
@@ -836,11 +868,12 @@ public class TaskConfig implements Serializable {
         if (inputIndex < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(ITERATION_HEAD_INDEX_OF_SOLUTIONSET, inputIndex);
+        this.config.set(getIntegerConfigOption(ITERATION_HEAD_INDEX_OF_SOLUTIONSET), inputIndex);
     }
 
     public int getIterationHeadSolutionSetInputIndex() {
-        int index = this.config.getInteger(ITERATION_HEAD_INDEX_OF_SOLUTIONSET, -1);
+        int index =
+                this.config.get(getIntegerConfigOption(ITERATION_HEAD_INDEX_OF_SOLUTIONSET), -1);
         if (index < 0) {
             throw new IllegalArgumentException();
         }
@@ -851,12 +884,12 @@ public class TaskConfig implements Serializable {
         if (relativeMemory < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setDouble(ITERATION_HEAD_BACKCHANNEL_MEMORY, relativeMemory);
+        this.config.set(getDoubleConfigOption(ITERATION_HEAD_BACKCHANNEL_MEMORY), relativeMemory);
     }
 
     public double getRelativeBackChannelMemory() {
         double relativeBackChannelMemory =
-                this.config.getDouble(ITERATION_HEAD_BACKCHANNEL_MEMORY, 0);
+                this.config.get(getDoubleConfigOption(ITERATION_HEAD_BACKCHANNEL_MEMORY), 0.0);
         if (relativeBackChannelMemory <= 0) {
             throw new IllegalArgumentException();
         }
@@ -867,11 +900,12 @@ public class TaskConfig implements Serializable {
         if (relativeMemory < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setDouble(ITERATION_HEAD_SOLUTION_SET_MEMORY, relativeMemory);
+        this.config.set(getDoubleConfigOption(ITERATION_HEAD_SOLUTION_SET_MEMORY), relativeMemory);
     }
 
     public double getRelativeSolutionSetMemory() {
-        double backChannelMemory = this.config.getDouble(ITERATION_HEAD_SOLUTION_SET_MEMORY, 0);
+        double backChannelMemory =
+                this.config.get(getDoubleConfigOption(ITERATION_HEAD_SOLUTION_SET_MEMORY), 0.0);
         if (backChannelMemory <= 0) {
             throw new IllegalArgumentException();
         }
@@ -890,14 +924,16 @@ public class TaskConfig implements Serializable {
         if (numEvents <= 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, numEvents);
+        this.config.set(
+                getIntegerConfigOption(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex), numEvents);
     }
 
     public int getNumberOfEventsUntilInterruptInIterativeGate(int inputGateIndex) {
         if (inputGateIndex < 0) {
             throw new IllegalArgumentException();
         }
-        return this.config.getInteger(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex, 0);
+        return this.config.get(
+                getIntegerConfigOption(NUMBER_OF_EOS_EVENTS_PREFIX + inputGateIndex), 0);
     }
 
     public void setBroadcastGateIterativeWithNumberOfEventsUntilInterrupt(
@@ -908,25 +944,28 @@ public class TaskConfig implements Serializable {
         if (numEvents <= 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX + bcGateIndex, numEvents);
+        this.config.set(
+                getIntegerConfigOption(NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX + bcGateIndex),
+                numEvents);
     }
 
     public int getNumberOfEventsUntilInterruptInIterativeBroadcastGate(int bcGateIndex) {
         if (bcGateIndex < 0) {
             throw new IllegalArgumentException();
         }
-        return this.config.getInteger(NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX + bcGateIndex, 0);
+        return this.config.get(
+                getIntegerConfigOption(NUMBER_OF_EOS_EVENTS_BROADCAST_PREFIX + bcGateIndex), 0);
     }
 
     public void setIterationId(int id) {
         if (id < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(ITERATION_HEAD_ID, id);
+        this.config.set(getIntegerConfigOption(ITERATION_HEAD_ID), id);
     }
 
     public int getIterationId() {
-        int id = this.config.getInteger(ITERATION_HEAD_ID, -1);
+        int id = this.config.get(getIntegerConfigOption(ITERATION_HEAD_ID), -1);
         if (id == -1) {
             throw new CorruptConfigurationException("Iteration head ID is missing.");
         }
@@ -934,22 +973,23 @@ public class TaskConfig implements Serializable {
     }
 
     public void setIsWorksetIteration() {
-        this.config.setBoolean(ITERATION_WORKSET_MARKER, true);
+        this.config.set(getBooleanConfigOption(ITERATION_WORKSET_MARKER), true);
     }
 
     public boolean getIsWorksetIteration() {
-        return this.config.getBoolean(ITERATION_WORKSET_MARKER, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_WORKSET_MARKER), false);
     }
 
     public void setIterationHeadIndexOfSyncOutput(int outputIndex) {
         if (outputIndex < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setInteger(ITERATION_HEAD_SYNC_OUT_INDEX, outputIndex);
+        this.config.set(getIntegerConfigOption(ITERATION_HEAD_SYNC_OUT_INDEX), outputIndex);
     }
 
     public int getIterationHeadIndexOfSyncOutput() {
-        int outputIndex = this.config.getInteger(ITERATION_HEAD_SYNC_OUT_INDEX, -1);
+        int outputIndex =
+                this.config.get(getIntegerConfigOption(ITERATION_HEAD_SYNC_OUT_INDEX), -1);
         if (outputIndex < 0) {
             throw new IllegalArgumentException();
         }
@@ -994,7 +1034,7 @@ public class TaskConfig implements Serializable {
     }
 
     public void addIterationAggregator(String name, Aggregator<?> aggregator) {
-        int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
+        int num = this.config.get(getIntegerConfigOption(ITERATION_NUM_AGGREGATORS), 0);
         this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, name);
         try {
             InstantiationUtil.writeObjectToConfig(
@@ -1003,11 +1043,11 @@ public class TaskConfig implements Serializable {
             throw new RuntimeException(
                     "Error while writing the aggregator object to the task configuration.");
         }
-        this.config.setInteger(ITERATION_NUM_AGGREGATORS, num + 1);
+        this.config.set(getIntegerConfigOption(ITERATION_NUM_AGGREGATORS), num + 1);
     }
 
     public void addIterationAggregators(Collection<AggregatorWithName<?>> aggregators) {
-        int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
+        int num = this.config.get(getIntegerConfigOption(ITERATION_NUM_AGGREGATORS), 0);
         for (AggregatorWithName<?> awn : aggregators) {
             this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, awn.getName());
             try {
@@ -1019,12 +1059,12 @@ public class TaskConfig implements Serializable {
             }
             num++;
         }
-        this.config.setInteger(ITERATION_NUM_AGGREGATORS, num);
+        this.config.set(getIntegerConfigOption(ITERATION_NUM_AGGREGATORS), num);
     }
 
     @SuppressWarnings("unchecked")
     public Collection<AggregatorWithName<?>> getIterationAggregators(ClassLoader cl) {
-        final int numAggs = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
+        final int numAggs = this.config.get(getIntegerConfigOption(ITERATION_NUM_AGGREGATORS), 0);
         if (numAggs == 0) {
             return Collections.emptyList();
         }
@@ -1146,35 +1186,36 @@ public class TaskConfig implements Serializable {
     }
 
     public void setIsSolutionSetUpdate() {
-        this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE, true);
+        this.config.set(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE), true);
     }
 
     public boolean getIsSolutionSetUpdate() {
-        return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE), false);
     }
 
     public void setIsSolutionSetUpdateWithoutReprobe() {
-        this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE, true);
+        this.config.set(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE), true);
     }
 
     public boolean getIsSolutionSetUpdateWithoutReprobe() {
-        return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE, false);
+        return this.config.get(
+                getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE), false);
     }
 
     public void setWaitForSolutionSetUpdate() {
-        this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE_WAIT, true);
+        this.config.set(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_WAIT), true);
     }
 
     public boolean getWaitForSolutionSetUpdate() {
-        return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE_WAIT, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_WAIT), false);
     }
 
     public void setIsWorksetUpdate() {
-        this.config.setBoolean(ITERATION_WORKSET_UPDATE, true);
+        this.config.set(getBooleanConfigOption(ITERATION_WORKSET_UPDATE), true);
     }
 
     public boolean getIsWorksetUpdate() {
-        return this.config.getBoolean(ITERATION_WORKSET_UPDATE, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_WORKSET_UPDATE), false);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1294,10 +1335,10 @@ public class TaskConfig implements Serializable {
     }
 
     public void setSolutionSetUnmanaged(boolean unmanaged) {
-        config.setBoolean(SOLUTION_SET_OBJECTS, unmanaged);
+        config.set(getBooleanConfigOption(SOLUTION_SET_OBJECTS), unmanaged);
     }
 
     public boolean isSolutionSetUnmanaged() {
-        return config.getBoolean(SOLUTION_SET_OBJECTS, false);
+        return config.get(getBooleanConfigOption(SOLUTION_SET_OBJECTS), false);
     }
 }

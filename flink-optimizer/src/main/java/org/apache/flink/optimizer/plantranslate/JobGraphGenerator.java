@@ -105,6 +105,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getBooleanConfigOption;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -129,7 +130,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
     private static final boolean mergeIterationAuxTasks =
             GlobalConfiguration.loadConfiguration()
-                    .getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
+                    .get(getBooleanConfigOption(MERGE_ITERATION_AUX_TASKS_KEY), false);
 
     private static final TaskInChain ALREADY_VISITED_PLACEHOLDER =
             new TaskInChain(null, null, null, null);
@@ -177,8 +178,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
         this.defaultMaxFan = config.get(AlgorithmOptions.SPILLING_MAX_FAN);
         this.defaultSortSpillingThreshold = config.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
         this.useLargeRecordHandler =
-                config.getBoolean(
-                        ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
+                config.get(
+                        getBooleanConfigOption(ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY),
                         ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
     }
 

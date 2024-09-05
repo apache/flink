@@ -27,6 +27,8 @@ import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
 import org.apache.flink.api.common.io.compression.ZStandardInputStreamFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
@@ -459,7 +461,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         }
 
         if (!this.enumerateNestedFiles) {
-            this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
+            this.enumerateNestedFiles = parameters.get(ENUMERATE_NESTED_FILES, false);
         }
     }
 
@@ -1137,6 +1139,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     private static final String FILE_PARAMETER_KEY = "input.file.path";
 
     /** The config parameter which defines whether input directories are recursively traversed. */
-    @Deprecated
-    public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
+    private static final ConfigOption<Boolean> ENUMERATE_NESTED_FILES =
+            ConfigOptions.key("recursive.file.enumeration").booleanType().noDefaultValue();
 }

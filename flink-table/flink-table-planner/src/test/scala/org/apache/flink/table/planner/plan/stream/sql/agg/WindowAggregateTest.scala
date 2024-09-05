@@ -1480,7 +1480,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   def testSession_DistinctSplitEnabled(): Unit = {
     // Session window does not support split-distinct optimization
     util.tableEnv.getConfig.getConfiguration
-      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sql =
       """
         |SELECT

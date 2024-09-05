@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 from pyflink.common import WatermarkStrategy, SimpleStringSchema, Types, ConfigOptions, Duration
 from pyflink.datastream.connectors import DeliveryGuarantee
 from pyflink.datastream.connectors.pulsar import TopicRoutingMode, MessageDelayer, PulsarSink, \
@@ -22,7 +24,10 @@ from pyflink.datastream.connectors.pulsar import TopicRoutingMode, MessageDelaye
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 from pyflink.util.java_utils import get_field_value, is_instance_of
 
-
+@unittest.skip("""
+Temporarily disabled due to the Pulsar connector's reliance on deprecated public APIs
+(getters/setters) from the Configuration class, which have been removed in version 2.0.
+""")
 class FlinkPulsarTest(PyFlinkUTTestCase):
 
     def test_pulsar_source(self):

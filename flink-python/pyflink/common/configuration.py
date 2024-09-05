@@ -56,7 +56,10 @@ class Configuration:
                               associated with the given key.
         :return: The (default) value associated with the given key.
         """
-        return self._j_configuration.getString(key, default_value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).stringType().noDefaultValue()
+        return self._j_configuration.get(config_option, default_value)
 
     def set_string(self, key: str, value: str) -> 'Configuration':
         """
@@ -71,7 +74,10 @@ class Configuration:
         if key in [jars_key, classpaths_key]:
             jar_urls = Configuration.parse_jars_value(value, jvm)
             add_jars_to_context_class_loader(jar_urls)
-        self._j_configuration.setString(key, value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).stringType().noDefaultValue()
+        self._j_configuration.set(config_option, value)
         return self
 
     @staticmethod
@@ -92,7 +98,10 @@ class Configuration:
                               associated with the given key.
         :return: The (default) value associated with the given key.
         """
-        return self._j_configuration.getLong(key, default_value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).intType().noDefaultValue()
+        return self._j_configuration.get(config_option, default_value)
 
     def set_integer(self, key: str, value: int) -> 'Configuration':
         """
@@ -101,7 +110,10 @@ class Configuration:
         :param key: The key of the key/value pair to be added.
         :param value: The value of the key/value pair to be added.
         """
-        self._j_configuration.setLong(key, value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).intType().noDefaultValue()
+        self._j_configuration.set(config_option, value)
         return self
 
     def get_boolean(self, key: str, default_value: bool) -> bool:
@@ -113,7 +125,10 @@ class Configuration:
                               associated with the given key.
         :return: The (default) value associated with the given key.
         """
-        return self._j_configuration.getBoolean(key, default_value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).booleanType().noDefaultValue()
+        return self._j_configuration.get(config_option, default_value)
 
     def set_boolean(self, key: str, value: bool) -> 'Configuration':
         """
@@ -122,7 +137,10 @@ class Configuration:
         :param key: The key of the key/value pair to be added.
         :param value: The value of the key/value pair to be added.
         """
-        self._j_configuration.setBoolean(key, value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).booleanType().noDefaultValue()
+        self._j_configuration.set(config_option, value)
         return self
 
     def get_float(self, key: str, default_value: float) -> float:
@@ -134,7 +152,10 @@ class Configuration:
                               associated with the given key.
         :return: The (default) value associated with the given key.
         """
-        return self._j_configuration.getDouble(key, float(default_value))
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).floatType().noDefaultValue()
+        return self._j_configuration.get(config_option, float(default_value))
 
     def set_float(self, key: str, value: float) -> 'Configuration':
         """
@@ -143,28 +164,10 @@ class Configuration:
         :param key: The key of the key/value pair to be added.
         :param value: The value of the key/value pair to be added.
         """
-        self._j_configuration.setDouble(key, float(value))
-        return self
-
-    def get_bytearray(self, key: str, default_value: bytearray) -> bytearray:
-        """
-        Returns the value associated with the given key as a byte array.
-
-        :param key: The key pointing to the associated value.
-        :param default_value: The default value which is returned in case there is no value
-                              associated with the given key.
-        :return: The (default) value associated with the given key.
-        """
-        return bytearray(self._j_configuration.getBytes(key, default_value))
-
-    def set_bytearray(self, key: str, value: bytearray) -> 'Configuration':
-        """
-        Adds the given byte array to the configuration object.
-
-        :param key: The key under which the bytes are added.
-        :param value: The byte array to be added.
-        """
-        self._j_configuration.setBytes(key, value)
+        gateway = get_gateway()
+        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
+        config_option = JConfigOptions.key(key).floatType().noDefaultValue()
+        self._j_configuration.set(config_option, float(value))
         return self
 
     def key_set(self) -> Set[str]:

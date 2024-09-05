@@ -29,6 +29,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.net.URI;
 
+import static org.apache.flink.configuration.ConfigOptionUtils.getIntegerConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that validate that the configuration for limited FS connections are properly picked up. */
@@ -54,11 +55,11 @@ class LimitedConnectionsConfigurationTest {
         // configure some limits, which should cause "fsScheme" to be limited
 
         final Configuration config = new Configuration();
-        config.setInteger("fs." + fsScheme + ".limit.total", 42);
-        config.setInteger("fs." + fsScheme + ".limit.input", 11);
-        config.setInteger("fs." + fsScheme + ".limit.output", 40);
-        config.setInteger("fs." + fsScheme + ".limit.timeout", 12345);
-        config.setInteger("fs." + fsScheme + ".limit.stream-timeout", 98765);
+        config.set(getIntegerConfigOption("fs." + fsScheme + ".limit.total"), 42);
+        config.set(getIntegerConfigOption("fs." + fsScheme + ".limit.input"), 11);
+        config.set(getIntegerConfigOption("fs." + fsScheme + ".limit.output"), 40);
+        config.set(getIntegerConfigOption("fs." + fsScheme + ".limit.timeout"), 12345);
+        config.set(getIntegerConfigOption("fs." + fsScheme + ".limit.stream-timeout"), 98765);
 
         try {
             FileSystem.initialize(config);
