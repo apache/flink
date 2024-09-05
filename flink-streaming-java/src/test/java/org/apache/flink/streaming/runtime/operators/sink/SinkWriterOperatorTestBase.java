@@ -54,8 +54,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -71,6 +69,7 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.fromOutput;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -178,7 +177,7 @@ abstract class SinkWriterOperatorTestBase {
 
         testHarness.processElement(1, 1);
         testHarness.endInput();
-        assertBasicOutput(testHarness.getOutput(), 1, Long.MAX_VALUE);
+        assertBasicOutput(testHarness.getOutput(), 1, EOI);
     }
 
     @ParameterizedTest
@@ -222,7 +221,7 @@ abstract class SinkWriterOperatorTestBase {
         restoredTestHarness.notifyOfCompletedCheckpoint(checkpointId);
 
         if (stateful) {
-            assertBasicOutput(restoredTestHarness.getOutput(), 2, Long.MAX_VALUE);
+            assertBasicOutput(restoredTestHarness.getOutput(), 2, EOI);
         } else {
             assertThat(fromOutput(restoredTestHarness.getOutput()).get(0).asRecord().getValue())
                     .isInstanceOf(CommittableSummary.class)
@@ -565,9 +564,7 @@ abstract class SinkWriterOperatorTestBase {
     }
 
     private static void assertBasicOutput(
-            Collection<Object> queuedOutput,
-            int numberOfCommittables,
-            @Nullable Long checkpointId) {
+            Collection<Object> queuedOutput, int numberOfCommittables, long checkpointId) {
         List<StreamElement> output = fromOutput(queuedOutput);
         assertThat(output).hasSize(numberOfCommittables + 1);
         assertThat(output.get(0).asRecord().getValue())
