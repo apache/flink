@@ -186,17 +186,6 @@ TableEnvironment API
   <tbody>
     <tr>
       <td>
-        <strong>from_table_source(table_source)</strong>
-      </td>
-      <td>
-        通过 table source 创建一张表。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.from_table_source" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>scan(*table_path)</strong>
       </td>
       <td>

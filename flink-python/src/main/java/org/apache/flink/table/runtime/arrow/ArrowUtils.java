@@ -24,7 +24,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.data.ArrayData;
@@ -32,7 +34,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.runtime.arrow.sources.ArrowTableSource;
+import org.apache.flink.table.runtime.arrow.sources.ArrowTableSourceFactory;
+import org.apache.flink.table.runtime.arrow.sources.ArrowTableSourceOptions;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBinaryColumnVector;
@@ -158,6 +161,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.DataType.getFieldNames;
 
 /** Utilities for Arrow. */
 @Internal
@@ -475,10 +480,31 @@ public final class ArrowUtils {
         }
     }
 
-    public static ArrowTableSource createArrowTableSource(DataType dataType, String fileName)
-            throws IOException {
+    public static TableDescriptor createArrowTableSourceDesc(DataType dataType, String fileName) {
+        List<String> fieldNames = getFieldNames(dataType);
+        List<DataType> fieldTypes = dataType.getChildren();
+        org.apache.flink.table.api.Schema.Builder schemaBuilder =
+                org.apache.flink.table.api.Schema.newBuilder();
+        for (int i = 0; i < fieldNames.size(); i++) {
+            schemaBuilder.column(fieldNames.get(i), fieldTypes.get(i));
+        }
+
+        try {
+            byte[][] data = readArrowBatches(fileName);
+            return TableDescriptor.forConnector(ArrowTableSourceFactory.IDENTIFIER)
+                    .option(
+                            ArrowTableSourceOptions.DATA,
+                            ByteArrayUtils.twoDimByteArrayToString(data))
+                    .schema(schemaBuilder.build())
+                    .build();
+        } catch (Throwable e) {
+            throw new TableException("Failed to read the arrow data from " + fileName, e);
+        }
+    }
+
+    public static byte[][] readArrowBatches(String fileName) throws IOException {
         try (FileInputStream fis = new FileInputStream(fileName)) {
-            return new ArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
+            return readArrowBatches(fis.getChannel());
         }
     }
 
