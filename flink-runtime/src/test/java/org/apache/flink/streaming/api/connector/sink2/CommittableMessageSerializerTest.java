@@ -40,7 +40,7 @@ class CommittableMessageSerializerTest {
         assertThat(message).isInstanceOf(CommittableWithLineage.class);
         final CommittableWithLineage<Integer> copy = (CommittableWithLineage<Integer>) message;
         assertThat(copy.getCommittable()).isEqualTo(1);
-        assertThat(copy.getCheckpointId()).isPresent().hasValue(2L);
+        assertThat(copy.getCheckpointIdOrEOI()).isEqualTo(2L);
         assertThat(copy.getSubtaskId()).isEqualTo(3);
     }
 
@@ -56,7 +56,7 @@ class CommittableMessageSerializerTest {
         final CommittableSummary<Integer> copy = (CommittableSummary<Integer>) message;
         assertThat(copy.getSubtaskId()).isEqualTo(1);
         assertThat(copy.getNumberOfSubtasks()).isEqualTo(2);
-        assertThat(copy.getCheckpointId()).isPresent().hasValue(3L);
+        assertThat(copy.getCheckpointIdOrEOI()).isEqualTo(3L);
         assertThat(copy.getNumberOfCommittables()).isEqualTo(4);
         assertThat(copy.getNumberOfPendingCommittables()).isEqualTo(5);
         assertThat(copy.getNumberOfFailedCommittables()).isEqualTo(6);
