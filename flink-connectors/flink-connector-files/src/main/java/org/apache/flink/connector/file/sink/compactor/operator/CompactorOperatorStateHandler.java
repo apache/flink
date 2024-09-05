@@ -171,7 +171,7 @@ public class CompactorOperatorStateHandler
                         new CommittableSummary<>(
                                 summary.getSubtaskId(),
                                 summary.getNumberOfSubtasks(),
-                                getCheckpointId(summary),
+                                summary.getCheckpointIdOrEOI(),
                                 summary.getNumberOfCommittables() + results.size(),
                                 summary.getNumberOfPendingCommittables() + results.size(),
                                 summary.getNumberOfFailedCommittables())));
@@ -180,7 +180,7 @@ public class CompactorOperatorStateHandler
                     new StreamRecord<>(
                             new CommittableWithLineage<>(
                                     committable,
-                                    getCheckpointId(summary),
+                                    summary.getCheckpointIdOrEOI(),
                                     summary.getSubtaskId())));
         }
     }
@@ -204,7 +204,7 @@ public class CompactorOperatorStateHandler
         // cleanup request to the next summary, since the count of pending committable
         // for this checkpoint is immutable now
         Iterable<FileSinkCommittable> result = submit(request).get();
-        Long checkpointId = getCheckpointId(message);
+        Long checkpointId = message.getCheckpointIdOrEOI();
         boolean pendingFileSent = false;
         for (FileSinkCommittable c : result) {
             if (c.hasPendingFile()) {
@@ -273,10 +273,6 @@ public class CompactorOperatorStateHandler
         Map<Long, List<CompactorRequest>> requestsMap = new HashMap<>();
         requestsMap.put(-1L, remainingRequests);
         remainingRequestsState.update(Collections.singletonList(requestsMap));
-    }
-
-    private Long getCheckpointId(CommittableMessage<FileSinkCommittable> message) {
-        return message.getCheckpointId().isPresent() ? message.getCheckpointId().getAsLong() : null;
     }
 
     private CompletableFuture<Iterable<FileSinkCommittable>> submit(CompactorRequest request) {

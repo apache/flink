@@ -42,7 +42,6 @@ public class CommittableMessageSerializer<CommT>
     @VisibleForTesting static final int VERSION = 1;
     private static final int COMMITTABLE = 1;
     private static final int SUMMARY = 2;
-    private static final long EOI = Long.MAX_VALUE;
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
 
@@ -64,14 +63,14 @@ public class CommittableMessageSerializer<CommT>
                     committableSerializer,
                     ((CommittableWithLineage<CommT>) obj).getCommittable(),
                     out);
-            writeCheckpointId(out, obj);
+            out.writeLong(obj.getCheckpointIdOrEOI());
             out.writeInt(obj.getSubtaskId());
         } else if (obj instanceof CommittableSummary) {
             out.writeByte(SUMMARY);
             out.writeInt(obj.getSubtaskId());
             CommittableSummary<?> committableSummary = (CommittableSummary<?>) obj;
             out.writeInt(committableSummary.getNumberOfSubtasks());
-            writeCheckpointId(out, obj);
+            out.writeLong(obj.getCheckpointIdOrEOI());
             out.writeInt(committableSummary.getNumberOfCommittables());
             out.writeInt(committableSummary.getNumberOfPendingCommittables());
             out.writeInt(committableSummary.getNumberOfFailedCommittables());
@@ -91,13 +90,13 @@ public class CommittableMessageSerializer<CommT>
                 return new CommittableWithLineage<>(
                         SimpleVersionedSerialization.readVersionAndDeSerialize(
                                 committableSerializer, in),
-                        readCheckpointId(in),
+                        in.readLong(),
                         in.readInt());
             case SUMMARY:
                 return new CommittableSummary<>(
                         in.readInt(),
                         in.readInt(),
-                        readCheckpointId(in),
+                        in.readLong(),
                         in.readInt(),
                         in.readInt(),
                         in.readInt());
@@ -108,15 +107,5 @@ public class CommittableMessageSerializer<CommT>
                                 + " in "
                                 + StringUtils.byteToHexString(serialized));
         }
-    }
-
-    private void writeCheckpointId(DataOutputSerializer out, CommittableMessage<CommT> obj)
-            throws IOException {
-        out.writeLong(obj.getCheckpointId().orElse(EOI));
-    }
-
-    private Long readCheckpointId(DataInputDeserializer in) throws IOException {
-        long checkpointId = in.readLong();
-        return checkpointId == EOI ? null : checkpointId;
     }
 }
