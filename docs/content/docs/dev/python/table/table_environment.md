@@ -186,17 +186,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
   <tbody>
     <tr>
       <td>
-        <strong>from_table_source(table_source)</strong>
-      </td>
-      <td>
-        Creates a table from a table source. 
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.from_table_source" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>scan(*table_path)</strong>
       </td>
       <td>

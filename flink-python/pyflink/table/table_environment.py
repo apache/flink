@@ -120,23 +120,6 @@ class TableEnvironment(object):
         j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
 
-    def from_table_source(self, table_source: 'TableSource') -> 'Table':
-        """
-        Creates a table from a table source.
-
-        Example:
-        ::
-
-            >>> csv_table_source = CsvTableSource(
-            ...     csv_file_path, ['a', 'b'], [DataTypes.STRING(), DataTypes.BIGINT()])
-            >>> table_env.from_table_source(csv_table_source)
-
-        :param table_source: The table source used as table.
-        :return: The result table.
-        """
-        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
-        return Table(self._j_tenv.fromTableSource(table_source._j_table_source), self)
-
     def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
         Registers a :class:`~pyflink.table.catalog.Catalog` under a unique name.
@@ -1479,10 +1462,10 @@ class TableEnvironment(object):
             data_type = data_type.bridgedTo(
                 load_java_class('org.apache.flink.table.data.RowData'))
 
-            j_arrow_table_source = \
-                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
+            j_arrow_table_source_descriptor = \
+                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSourceDesc(
                     data_type, temp_file.name)
-            return Table(self._j_tenv.fromTableSource(j_arrow_table_source), self)
+            return Table(getattr(self._j_tenv, "from")(j_arrow_table_source_descriptor), self)
         finally:
             os.unlink(temp_file.name)
 
