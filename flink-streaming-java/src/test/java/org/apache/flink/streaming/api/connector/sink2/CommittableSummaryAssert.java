@@ -18,64 +18,37 @@
 
 package org.apache.flink.streaming.api.connector.sink2;
 
-import org.assertj.core.api.AbstractAssert;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.assertj.core.api.AbstractObjectAssert;
 
 /** Custom assertions for {@link CommittableSummary}. */
 public class CommittableSummaryAssert
-        extends AbstractAssert<CommittableSummaryAssert, CommittableSummary<?>> {
+        extends AbstractObjectAssert<CommittableSummaryAssert, CommittableSummary<?>> {
 
     public CommittableSummaryAssert(CommittableSummary<?> summary) {
         super(summary, CommittableSummaryAssert.class);
     }
 
-    public CommittableSummaryAssert isEqualTo(CommittableSummary<?> summary) {
-        isNotNull();
-        assertThat(actual.getSubtaskId()).isEqualTo(summary.getSubtaskId());
-        assertThat(actual.getCheckpointId()).isEqualTo(summary.getCheckpointId());
-        assertThat(actual.getNumberOfSubtasks()).isEqualTo(summary.getNumberOfSubtasks());
-        assertThat(actual.getNumberOfCommittables()).isEqualTo(summary.getNumberOfCommittables());
-        assertThat(actual.getNumberOfPendingCommittables())
-                .isEqualTo(summary.getNumberOfPendingCommittables());
-        assertThat(actual.getNumberOfFailedCommittables())
-                .isEqualTo(summary.getNumberOfFailedCommittables());
-        return this;
-    }
-
     public CommittableSummaryAssert hasSubtaskId(int subtaskId) {
-        isNotNull();
-        assertThat(actual.getSubtaskId()).isEqualTo(subtaskId);
-        return this;
+        return returns(subtaskId, CommittableSummary::getSubtaskId);
     }
 
     public CommittableSummaryAssert hasNumberOfSubtasks(int numberOfSubtasks) {
-        isNotNull();
-        assertThat(actual.getNumberOfSubtasks()).isEqualTo(numberOfSubtasks);
-        return this;
+        return returns(numberOfSubtasks, CommittableSummary::getNumberOfSubtasks);
     }
 
     public CommittableSummaryAssert hasOverallCommittables(int committableNumber) {
-        isNotNull();
-        assertThat(actual.getNumberOfCommittables()).isEqualTo(committableNumber);
-        return this;
+        return returns(committableNumber, CommittableSummary::getNumberOfCommittables);
     }
 
     public CommittableSummaryAssert hasPendingCommittables(int committableNumber) {
-        isNotNull();
-        assertThat(actual.getNumberOfPendingCommittables()).isEqualTo(committableNumber);
-        return this;
+        return returns(committableNumber, CommittableSummary::getNumberOfPendingCommittables);
     }
 
     public CommittableSummaryAssert hasFailedCommittables(int committableNumber) {
-        isNotNull();
-        assertThat(actual.getNumberOfFailedCommittables()).isEqualTo(committableNumber);
-        return this;
+        return returns(committableNumber, CommittableSummary::getNumberOfFailedCommittables);
     }
 
     public CommittableSummaryAssert hasCheckpointId(long checkpointId) {
-        isNotNull();
-        assertThat(actual.getCheckpointIdOrEOI()).isEqualTo(checkpointId);
-        return this;
+        return returns(checkpointId, CommittableSummary::getCheckpointIdOrEOI);
     }
 }
