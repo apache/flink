@@ -539,7 +539,7 @@ class JMFailoverITCase {
                 Output<StreamRecord<Long>> output) {
             super.setup(containingTask, config, output);
 
-            int subIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             // attempt id ++
             attemptIds.compute(
@@ -601,7 +601,7 @@ class JMFailoverITCase {
                 Output<StreamRecord<Tuple2<Integer, Integer>>> output) {
             super.setup(containingTask, config, output);
 
-            int subIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             // attempt id ++
             attemptIds.compute(
@@ -654,7 +654,7 @@ class JMFailoverITCase {
                 Output<StreamRecord<Tuple2<Integer, Integer>>> output) {
             super.setup(containingTask, config, output);
 
-            int subIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             // attempt id ++
             attemptIds.compute(
@@ -710,7 +710,7 @@ class JMFailoverITCase {
                 Output<StreamRecord<Void>> output) {
             super.setup(containingTask, config, output);
 
-            int subIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             // attempt id ++
             attemptIds.compute(
