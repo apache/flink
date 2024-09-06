@@ -22,6 +22,7 @@ import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.util.function.FunctionWithException;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
@@ -37,8 +38,15 @@ public class ContextKey<K, N> {
 
     private final RecordContext<K> recordContext;
 
+    @Nullable private Object userKey;
+
     public ContextKey(RecordContext<K> recordContext) {
         this.recordContext = recordContext;
+    }
+
+    public ContextKey(RecordContext<K> recordContext, Object userKey) {
+        this.recordContext = recordContext;
+        this.userKey = userKey;
     }
 
     public K getRawKey() {
@@ -51,6 +59,19 @@ public class ContextKey<K, N> {
 
     public N getNamespace(InternalPartitionedState<N> state) {
         return recordContext.getNamespace(state);
+    }
+
+    public Object getUserKey() {
+        return userKey;
+    }
+
+    public void setUserKey(Object userKey) {
+        this.userKey = userKey;
+        resetExtra();
+    }
+
+    public void resetExtra() {
+        recordContext.setExtra(null);
     }
 
     /**
@@ -91,5 +112,10 @@ public class ContextKey<K, N> {
         }
         ContextKey<?, ?> that = (ContextKey<?, ?>) o;
         return Objects.equals(recordContext, that.recordContext);
+    }
+
+    @Override
+    public String toString() {
+        return "ContextKey{recordCtx:" + recordContext.toString() + ", userKey:" + userKey + "}";
     }
 }

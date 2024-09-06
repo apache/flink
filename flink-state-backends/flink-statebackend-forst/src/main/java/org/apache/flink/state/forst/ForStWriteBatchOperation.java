@@ -19,7 +19,6 @@
 package org.apache.flink.state.forst;
 
 import org.rocksdb.RocksDB;
-import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 
 import java.util.List;
@@ -29,8 +28,6 @@ import java.util.concurrent.Executor;
 
 /** The writeBatch operation implementation for ForStDB. */
 public class ForStWriteBatchOperation implements ForStDBOperation {
-
-    private static final int PER_RECORD_ESTIMATE_BYTES = 100;
 
     private final RocksDB db;
 
@@ -55,27 +52,12 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
     public CompletableFuture<Void> process() {
         return CompletableFuture.runAsync(
                 () -> {
-                    try (WriteBatch writeBatch =
-                            new WriteBatch(batchRequest.size() * PER_RECORD_ESTIMATE_BYTES)) {
+                    try (ForStDBWriteBatchWrapper writeBatch =
+                            new ForStDBWriteBatchWrapper(db, writeOptions, batchRequest.size())) {
                         for (ForStDBPutRequest<?, ?, ?> request : batchRequest) {
-                            if (request.valueIsNull()) {
-                                // put(key, null) == delete(key)
-                                writeBatch.delete(
-                                        request.getColumnFamilyHandle(),
-                                        request.buildSerializedKey());
-                            } else if (request.isMerge()) {
-                                writeBatch.merge(
-                                        request.getColumnFamilyHandle(),
-                                        request.buildSerializedKey(),
-                                        request.buildSerializedValue());
-                            } else {
-                                writeBatch.put(
-                                        request.getColumnFamilyHandle(),
-                                        request.buildSerializedKey(),
-                                        request.buildSerializedValue());
-                            }
+                            request.process(writeBatch, db);
                         }
-                        db.write(writeOptions, writeBatch);
+                        writeBatch.flush();
                         for (ForStDBPutRequest<?, ?, ?> request : batchRequest) {
                             request.completeStateFuture();
                         }

@@ -27,19 +27,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * The general-purpose multiGet operation implementation for ForStDB, which simulates multiGet by
- * calling the Get API multiple times with multiple threads.
+ * The iterate operation implementation for ForStDB, which leverages rocksdb's iterator directly.
  */
-public class ForStGeneralMultiGetOperation implements ForStDBOperation {
+public class ForStIterateOperation implements ForStDBOperation {
+
+    public static final int CACHE_SIZE_LIMIT = 128;
 
     private final RocksDB db;
 
-    private final List<ForStDBGetRequest<?, ?, ?, ?>> batchRequest;
+    private final List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest;
 
     private final Executor executor;
 
-    ForStGeneralMultiGetOperation(
-            RocksDB db, List<ForStDBGetRequest<?, ?, ?, ?>> batchRequest, Executor executor) {
+    ForStIterateOperation(
+            RocksDB db, List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest, Executor executor) {
         this.db = db;
         this.batchRequest = batchRequest;
         this.executor = executor;
@@ -47,29 +48,27 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
 
     @Override
     public CompletableFuture<Void> process() {
-        // TODO: Use MultiGet to optimize this implement
-
         CompletableFuture<Void> future = new CompletableFuture<>();
 
         AtomicReference<Exception> error = new AtomicReference<>();
         AtomicInteger counter = new AtomicInteger(batchRequest.size());
         for (int i = 0; i < batchRequest.size(); i++) {
-            ForStDBGetRequest<?, ?, ?, ?> request = batchRequest.get(i);
+            ForStDBIterRequest<?, ?, ?, ?, ?> request = batchRequest.get(i);
             executor.execute(
                     () -> {
+                        // todo: config read options
                         try {
                             if (error.get() == null) {
-                                request.process(db);
+                                request.process(db, CACHE_SIZE_LIMIT);
                             } else {
                                 request.completeStateFutureExceptionally(
-                                        "Error already occurred in other state request of the same "
-                                                + "group, failed the state request directly",
+                                        "Error when execute ForStDb iterate operation",
                                         error.get());
                             }
                         } catch (Exception e) {
                             error.set(e);
                             request.completeStateFutureExceptionally(
-                                    "Error when execute ForStDb get operation", e);
+                                    "Error when execute ForStDb iterate operation", e);
                             future.completeExceptionally(e);
                         } finally {
                             if (counter.decrementAndGet() == 0

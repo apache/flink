@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
@@ -31,17 +33,19 @@ import org.junit.jupiter.api.Test;
 import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link ForStStateExecutor}. */
-public class ForStStateExecutorTest extends ForStDBOperationTestBase {
+class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testExecuteValueStateRequest() throws Exception {
+    void testExecuteValueStateRequest() throws Exception {
         ForStStateExecutor forStStateExecutor = new ForStStateExecutor(4, db, new WriteOptions());
         ForStValueState<Integer, VoidNamespace, String> state1 =
                 buildForStValueState("value-state-1");
@@ -123,12 +127,127 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.shutdown();
     }
 
+    @Test
+    void testExecuteMapStateRequest() throws Exception {
+        ForStStateExecutor forStStateExecutor = new ForStStateExecutor(4, db, new WriteOptions());
+        ForStMapState<Integer, VoidNamespace, String, String> state =
+                buildForStMapState("map-state");
+        StateRequestContainer stateRequestContainer =
+                forStStateExecutor.createStateRequestContainer();
+        assertTrue(stateRequestContainer.isEmpty());
+
+        // 1. prepare put data: keyRange [0, 100)
+        for (int i = 0; i < 100; i++) {
+            stateRequestContainer.offer(
+                    buildMapRequest(
+                            state,
+                            StateRequestType.MAP_PUT,
+                            i,
+                            Tuple2.of("uk-" + i, "uv-" + i),
+                            i * 2));
+        }
+        for (int i = 50; i < 100; i++) {
+            HashMap<String, String> map = new HashMap<>(100);
+            for (int j = 0; j < 50; j++) {
+                map.put("ukk-" + j, "uvv-" + j);
+            }
+            stateRequestContainer.offer(
+                    buildMapRequest(state, StateRequestType.MAP_PUT_ALL, i, map, i * 2));
+        }
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+
+        stateRequestContainer = forStStateExecutor.createStateRequestContainer();
+        List<StateRequest<?, ?, ?>> checkList = new ArrayList<>();
+
+        // 2. check the number of user key under primary key is correct
+        for (int i = 0; i < 100; i++) {
+            StateRequest<?, ?, ?> iterRequest =
+                    buildStateRequest(state, StateRequestType.MAP_ITER_KEY, i, null, i * 2);
+            stateRequestContainer.offer(iterRequest);
+            checkList.add(iterRequest);
+        }
+
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+
+        for (int i = 0; i < 50; i++) { // 1 user key per primary key
+            StateIterator<String> iter =
+                    (StateIterator<String>)
+                            ((TestStateFuture) checkList.get(i).getFuture()).getCompletedResult();
+            AtomicInteger count = new AtomicInteger(0);
+            iter.onNext(
+                    k -> {
+                        count.incrementAndGet();
+                    });
+            assertThat(count.get()).isEqualTo(1);
+            assertThat(iter.isEmpty()).isFalse();
+        }
+
+        for (int i = 50; i < 100; i++) { // 51 user keys per primary key
+            StateIterator<String> iter =
+                    (StateIterator<String>)
+                            ((TestStateFuture) checkList.get(i).getFuture()).getCompletedResult();
+            AtomicInteger count = new AtomicInteger(0);
+            iter.onNext(
+                    k -> {
+                        count.incrementAndGet();
+                    });
+            assertThat(count.get()).isEqualTo(51);
+            assertThat(iter.isEmpty()).isFalse();
+        }
+
+        stateRequestContainer = forStStateExecutor.createStateRequestContainer();
+
+        // 3. delete primary key [75,100)
+        for (int i = 75; i < 100; i++) {
+            stateRequestContainer.offer(
+                    buildMapRequest(state, StateRequestType.CLEAR, i, null, i * 2));
+        }
+
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+        stateRequestContainer = forStStateExecutor.createStateRequestContainer();
+        checkList.clear();
+        // 4. check primary key [75,100) is deleted
+        for (int i = 0; i < 100; i++) {
+            StateRequest<?, ?, ?> iterRequest =
+                    buildStateRequest(state, StateRequestType.MAP_IS_EMPTY, i, null, i * 2);
+            stateRequestContainer.offer(iterRequest);
+            checkList.add(iterRequest);
+        }
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+        for (int i = 0; i < 75; i++) { // not empty
+            boolean empty =
+                    (Boolean) ((TestStateFuture) checkList.get(i).getFuture()).getCompletedResult();
+            assertThat(empty).isFalse();
+        }
+        for (int i = 75; i < 100; i++) { // empty
+            boolean empty =
+                    (Boolean) ((TestStateFuture) checkList.get(i).getFuture()).getCompletedResult();
+            assertThat(empty).isTrue();
+        }
+
+        forStStateExecutor.shutdown();
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked"})
     private <K, N, V, R> StateRequest<?, ?, ?> buildStateRequest(
             InternalKeyedState<K, N, V> innerTable,
             StateRequestType requestType,
             K key,
             V value,
+            R record) {
+        int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
+        RecordContext<K> recordContext =
+                new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0));
+        TestStateFuture stateFuture = new TestStateFuture<>();
+        return new StateRequest<>(innerTable, requestType, value, stateFuture, recordContext);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private <K, N, UK, UV, R> StateRequest<?, ?, ?> buildMapRequest(
+            ForStMapState<K, N, UK, UV> innerTable,
+            StateRequestType requestType,
+            K key,
+            Object value,
             R record) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
         RecordContext<K> recordContext =

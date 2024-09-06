@@ -30,6 +30,7 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -82,7 +83,7 @@ public class ForStStateExecutor implements StateExecutor {
         coordinatorThread.execute(
                 () -> {
                     long startTime = System.currentTimeMillis();
-                    List<CompletableFuture<Void>> futures = new ArrayList<>(2);
+                    List<CompletableFuture<Void>> futures = new ArrayList<>(3);
                     List<ForStDBPutRequest<?, ?, ?>> putRequests =
                             stateRequestClassifier.pollDbPutRequests();
                     if (!putRequests.isEmpty()) {
@@ -100,20 +101,37 @@ public class ForStStateExecutor implements StateExecutor {
                         futures.add(getOperations.process());
                     }
 
+                    List<ForStDBIterRequest<?, ?, ?, ?, ?>> iterRequests =
+                            stateRequestClassifier.pollDbIterRequests();
+                    if (!iterRequests.isEmpty()) {
+                        ForStIterateOperation iterOperations =
+                                new ForStIterateOperation(db, iterRequests, workerThreads);
+                        futures.add(iterOperations.process());
+                    }
+
                     FutureUtils.combineAll(futures)
                             .thenAcceptAsync(
                                     (e) -> {
                                         long duration = System.currentTimeMillis() - startTime;
                                         LOG.debug(
-                                                "Complete executing a batch of state requests, putRequest size {}, getRequest size {}, duration {} ms",
+                                                "Complete executing a batch of state requests, putRequest size {}, getRequest size {}, iterRequest size {}, duration {} ms",
                                                 putRequests.size(),
                                                 getRequests.size(),
+                                                iterRequests.size(),
                                                 duration);
                                         resultFuture.complete(null);
                                     },
                                     coordinatorThread)
                             .exceptionally(
                                     e -> {
+                                        try {
+                                            for (ForStDBIterRequest<?, ?, ?, ?, ?> iterRequest :
+                                                    iterRequests) {
+                                                iterRequest.close();
+                                            }
+                                        } catch (IOException ioException) {
+                                            LOG.error("Close iterRequests fail", ioException);
+                                        }
                                         executionError = e;
                                         resultFuture.completeExceptionally(e);
                                         return null;

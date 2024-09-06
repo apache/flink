@@ -169,6 +169,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 optionsContainer.getRemoteBasePath());
         return new ForStKeyedStateBackend<>(
                 this.optionsContainer,
+                keyGroupPrefixBytes,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 serializedKeyBuilder,
                 valueSerializerView,
