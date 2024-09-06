@@ -191,7 +191,7 @@ class RestartingTest {
         private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
                 new StateValidator<>("Cancelling");
 
-        private final StateValidator<Void> waitingForResourcesStateValidator =
+        private final StateValidator<ExecutionGraph> waitingForResourcesStateValidator =
                 new StateValidator<>("WaitingForResources");
 
         private final StateValidator<ExecutionGraph> creatingExecutionGraphStateValidator =
@@ -202,7 +202,7 @@ class RestartingTest {
         }
 
         public void setExpectWaitingForResources() {
-            waitingForResourcesStateValidator.expectInput((none) -> {});
+            waitingForResourcesStateValidator.expectInput(assertNonNull());
         }
 
         public void setExpectCreatingExecutionGraph() {
@@ -225,8 +225,8 @@ class RestartingTest {
         public void archiveFailure(RootExceptionHistoryEntry failure) {}
 
         @Override
-        public void goToWaitingForResources(ExecutionGraph previousExecutionGraph) {
-            waitingForResourcesStateValidator.validateInput(null);
+        public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
+            waitingForResourcesStateValidator.validateInput(previousExecutionGraph);
             hadStateTransition = true;
         }
 
