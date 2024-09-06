@@ -67,7 +67,7 @@ The Flink distribution ships with the following log4j properties files in the `c
 Log4j periodically scans this file for changes and adjusts the logging behavior if necessary.
 By default this check happens every 30 seconds and is controlled by the `monitorInterval` setting in the Log4j properties files.
 
-You can configure the default logging level using the [`env.log.level` configuration]({{< ref "docs/deployment/config/#jvm-and-logging-options" >}}).
+You can configure the default logging level using the [`env.log.level` configuration]({{< ref "docs/deployment/config">}}#jvm-and-logging-options).
 
 ### Compatibility with Log4j 1
 
