@@ -77,6 +77,8 @@ class InitOutputPathTest {
         runTest(false);
     }
 
+    // Line 82~ Line 147 are copied from
+    // https://github.com/powermock/powermock/blob/release/2.x/powermock-reflect/src/main/java/org/powermock/reflect/internal/WhiteboxImpl.java
     private static void setStaticFieldUsingUnsafe(final Field field, final Object newValue) {
         try {
             field.setAccessible(true);
@@ -108,41 +110,6 @@ class InitOutputPathTest {
         } catch (IllegalAccessException ex) {
             throw new RuntimeException(ex);
         } catch (IllegalArgumentException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private static void setFieldUsingUnsafe(
-            final Field field, final Object object, final Object newValue) {
-        try {
-            field.setAccessible(true);
-            int fieldModifiersMask = field.getModifiers();
-            boolean isFinalModifierPresent =
-                    (fieldModifiersMask & Modifier.FINAL) == Modifier.FINAL;
-            if (isFinalModifierPresent) {
-                AccessController.doPrivileged(
-                        new PrivilegedAction<Object>() {
-                            @Override
-                            public Object run() {
-                                try {
-                                    Unsafe unsafe = getUnsafe();
-                                    long offset = unsafe.objectFieldOffset(field);
-                                    setFieldUsingUnsafe(
-                                            object, field.getType(), offset, newValue, unsafe);
-                                    return null;
-                                } catch (Throwable t) {
-                                    throw new RuntimeException(t);
-                                }
-                            }
-                        });
-            } else {
-                try {
-                    field.set(object, newValue);
-                } catch (IllegalAccessException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        } catch (SecurityException ex) {
             throw new RuntimeException(ex);
         }
     }
