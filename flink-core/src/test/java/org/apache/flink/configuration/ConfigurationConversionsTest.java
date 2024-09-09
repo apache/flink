@@ -84,15 +84,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getString("int", "0")).expect("5"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("int", EMPTY_BYTES))
                         .expectException("Configuration cannot evaluate value 5 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "int",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Integer as a class name"),
 
                 // from long
                 TestSpec.whenAccessed(conf -> conf.getInteger("long", 0)).expect(15),
@@ -105,15 +96,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("long", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 15 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "long",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Long as a class name"),
 
                 // from too long
                 TestSpec.whenAccessed(conf -> conf.getInteger("too_long", 0))
@@ -131,15 +113,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("too_long", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 2147483657 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "too_long",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Long as a class name"),
 
                 // from float
                 TestSpec.whenAccessed(conf -> conf.getInteger("float", 0))
@@ -161,15 +134,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("float", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 2.1456776 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "float",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "onfiguration cannot evaluate object of class class java.lang.Float as a class name"),
 
                 // from double
                 TestSpec.whenAccessed(conf -> conf.getInteger("double", 0))
@@ -191,15 +155,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("double", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 3.141592653589793 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "double",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "onfiguration cannot evaluate object of class class java.lang.Double as a class name"),
 
                 // from negative double
                 TestSpec.whenAccessed(conf -> conf.getInteger("negative_double", 0))
@@ -217,15 +172,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("negative_double", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value -1.0 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "negative_double",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Double as a class name"),
 
                 // from zero
                 TestSpec.whenAccessed(conf -> conf.getInteger("zero", 0))
@@ -242,15 +188,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("zero", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 0.0 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "zero",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Double as a class name"),
 
                 // from too long double
                 TestSpec.whenAccessed(conf -> conf.getInteger("too_long_double", 0))
@@ -275,15 +212,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("too_long_double", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 1.7976931348623157E308 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "too_long_double",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Double as a class name"),
 
                 // from string
                 TestSpec.whenAccessed(conf -> conf.getInteger("string", 0)).expect(42),
@@ -296,14 +224,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("string", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value 42 as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "string",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException("42", ClassNotFoundException.class),
 
                 // from non convertible string
                 TestSpec.whenAccessed(conf -> conf.getInteger("non_convertible_string", 0))
@@ -330,14 +250,6 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getBytes("non_convertible_string", EMPTY_BYTES))
                         .expectException(
                                 "Configuration cannot evaluate value bcdefg&& as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "non_convertible_string",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException("bcdefg&&", ClassNotFoundException.class),
 
                 // from boolean
                 TestSpec.whenAccessed(conf -> conf.getInteger("boolean", 0))
@@ -353,16 +265,7 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getString("boolean", "0")).expect("true"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("boolean", EMPTY_BYTES))
                         .expectException(
-                                "Configuration cannot evaluate value true as a byte[] value"),
-                TestSpec.whenAccessed(
-                                conf ->
-                                        conf.getClass(
-                                                "boolean",
-                                                ConfigurationConversionsTest.class,
-                                                ConfigurationConversionsTest.class
-                                                        .getClassLoader()))
-                        .expectException(
-                                "Configuration cannot evaluate object of class class java.lang.Boolean as a class name"));
+                                "Configuration cannot evaluate value true as a byte[] value"));
     }
 
     @TestTemplate

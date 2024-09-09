@@ -77,7 +77,6 @@ class ConfigurationTest {
         orig.setDouble("E", Math.E);
         orig.set(getBooleanConfigOption("shouldbetrue"), true);
         orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
-        orig.setClass("myclass", this.getClass());
 
         final Configuration copy = InstantiationUtil.createCopyWritable(orig);
         assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
@@ -87,8 +86,6 @@ class ConfigurationTest {
         assertThat(copy.getDouble("E", 0.0)).isCloseTo(Math.E, Offset.offset(0.0));
         assertThat(copy.get(getBooleanConfigOption("shouldbetrue"), false)).isTrue();
         assertThat(copy.getBytes("bytes sequence", null)).containsExactly(1, 2, 3, 4, 5);
-        assertThat(getClass())
-                .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
 
         assertThat(copy).isEqualTo(orig);
         assertThat(copy.keySet()).isEqualTo(orig.keySet());
