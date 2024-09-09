@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
 
 /** Configuration class which stores all relevant parameters required to set up the Pact tasks. */
 public class TaskConfig implements Serializable {
@@ -518,11 +519,11 @@ public class TaskConfig implements Serializable {
     }
 
     public void setRelativeInputMaterializationMemory(int inputNum, double relativeMemory) {
-        this.config.setDouble(INPUT_DAM_MEMORY_PREFIX + inputNum, relativeMemory);
+        this.config.set(getDoubleConfigOption(INPUT_DAM_MEMORY_PREFIX + inputNum), relativeMemory);
     }
 
     public double getRelativeInputMaterializationMemory(int inputNum) {
-        return this.config.getDouble(INPUT_DAM_MEMORY_PREFIX + inputNum, 0);
+        return this.config.get(getDoubleConfigOption(INPUT_DAM_MEMORY_PREFIX + inputNum), 0.0);
     }
 
     public void setBroadcastInputName(String name, int groupIndex) {
@@ -682,19 +683,19 @@ public class TaskConfig implements Serializable {
     // --------------------------------------------------------------------------------------------
 
     public void setRelativeMemoryDriver(double relativeMemorySize) {
-        this.config.setDouble(MEMORY_DRIVER, relativeMemorySize);
+        this.config.set(getDoubleConfigOption(MEMORY_DRIVER), relativeMemorySize);
     }
 
     public double getRelativeMemoryDriver() {
-        return this.config.getDouble(MEMORY_DRIVER, 0);
+        return this.config.get(getDoubleConfigOption(MEMORY_DRIVER), 0.0);
     }
 
     public void setRelativeMemoryInput(int inputNum, double relativeMemorySize) {
-        this.config.setDouble(MEMORY_INPUT_PREFIX + inputNum, relativeMemorySize);
+        this.config.set(getDoubleConfigOption(MEMORY_INPUT_PREFIX + inputNum), relativeMemorySize);
     }
 
     public double getRelativeMemoryInput(int inputNum) {
-        return this.config.getDouble(MEMORY_INPUT_PREFIX + inputNum, 0);
+        return this.config.get(getDoubleConfigOption(MEMORY_INPUT_PREFIX + inputNum), 0.0);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -854,12 +855,12 @@ public class TaskConfig implements Serializable {
         if (relativeMemory < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setDouble(ITERATION_HEAD_BACKCHANNEL_MEMORY, relativeMemory);
+        this.config.set(getDoubleConfigOption(ITERATION_HEAD_BACKCHANNEL_MEMORY), relativeMemory);
     }
 
     public double getRelativeBackChannelMemory() {
         double relativeBackChannelMemory =
-                this.config.getDouble(ITERATION_HEAD_BACKCHANNEL_MEMORY, 0);
+                this.config.get(getDoubleConfigOption(ITERATION_HEAD_BACKCHANNEL_MEMORY), 0.0);
         if (relativeBackChannelMemory <= 0) {
             throw new IllegalArgumentException();
         }
@@ -870,11 +871,12 @@ public class TaskConfig implements Serializable {
         if (relativeMemory < 0) {
             throw new IllegalArgumentException();
         }
-        this.config.setDouble(ITERATION_HEAD_SOLUTION_SET_MEMORY, relativeMemory);
+        this.config.set(getDoubleConfigOption(ITERATION_HEAD_SOLUTION_SET_MEMORY), relativeMemory);
     }
 
     public double getRelativeSolutionSetMemory() {
-        double backChannelMemory = this.config.getDouble(ITERATION_HEAD_SOLUTION_SET_MEMORY, 0);
+        double backChannelMemory =
+                this.config.get(getDoubleConfigOption(ITERATION_HEAD_SOLUTION_SET_MEMORY), 0.0);
         if (backChannelMemory <= 0) {
             throw new IllegalArgumentException();
         }

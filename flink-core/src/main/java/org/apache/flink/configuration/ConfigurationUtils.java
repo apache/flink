@@ -654,4 +654,8 @@ public class ConfigurationUtils {
     public static ConfigOption<Boolean> getBooleanConfigOption(String key) {
         return ConfigOptions.key(key).booleanType().noDefaultValue();
     }
+
+    public static ConfigOption<Double> getDoubleConfigOption(String key) {
+        return ConfigOptions.key(key).doubleType().noDefaultValue();
+    }
 }

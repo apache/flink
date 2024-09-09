@@ -177,11 +177,11 @@ class DelegatingConfigurationTest {
         // Test for double
         ConfigOption<Double> doubleOption =
                 ConfigOptions.key("double.key").doubleType().noDefaultValue();
-        original.setDouble(doubleOption, 7d);
-        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(8d);
+        original.set(doubleOption, 7d);
         assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(8d);
-        delegatingConf.setDouble(doubleOption, 9f);
-        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(9f);
+        assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(8d);
+        delegatingConf.set(doubleOption, 9.0);
+        assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(9f);
         assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(9f);
 
         // Test for long
