@@ -227,13 +227,15 @@ class WaitingForResourcesTest {
                 };
 
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(),
+                new AdaptiveSchedulerTest.DummyState(ctx),
                 runLastBecauseOfHighDelay,
                 Duration.ofMillis(999));
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(), runFirstBecauseOfLowDelay, Duration.ZERO);
+                new AdaptiveSchedulerTest.DummyState(ctx),
+                runFirstBecauseOfLowDelay,
+                Duration.ZERO);
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(),
+                new AdaptiveSchedulerTest.DummyState(ctx),
                 runSecondBecauseOfScheduleOrder,
                 Duration.ZERO);
 
@@ -251,7 +253,7 @@ class WaitingForResourcesTest {
                     executed.set(true);
                 };
 
-        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(), executeOnce, Duration.ZERO);
+        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(ctx), executeOnce, Duration.ZERO);
 
         // execute at least twice
         ctx.runScheduledTasks();
@@ -263,14 +265,15 @@ class WaitingForResourcesTest {
     void testInternalRunScheduledTasks_upperBoundRespected() {
         Runnable executeNever = () -> fail("Not expected");
 
-        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(), executeNever, Duration.ofMillis(10));
+        ctx.runIfState(
+                new AdaptiveSchedulerTest.DummyState(ctx), executeNever, Duration.ofMillis(10));
 
         ctx.runScheduledTasks(4);
     }
 
     @Test
     void testInternalRunScheduledTasks_scheduleTaskFromRunnable() {
-        final State state = new AdaptiveSchedulerTest.DummyState();
+        final State state = new AdaptiveSchedulerTest.DummyState(ctx);
 
         AtomicBoolean executed = new AtomicBoolean(false);
         ctx.runIfState(
