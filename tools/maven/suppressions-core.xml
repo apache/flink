@@ -45,10 +45,6 @@ under the License.
 	<suppress files="MethodForwardingTestUtil.java|InitOutputPathTest.java|LimitedConnectionsFileSystemDelegationTest.java"
 			  checks="IllegalImport"/>
 
-	<!-- Legacy powermock usages -->
-	<suppress files="InitOutputPathTest.java"
-			  checks="IllegalImport"/>
-
 	<suppress
 		files="(.*)api[/\\]java[/\\]typeutils[/\\]runtime[/\\](.*)"
 		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|StaticVariableNameCheck|LocalFinalVariableName|EmptyLineSeparator"/>
