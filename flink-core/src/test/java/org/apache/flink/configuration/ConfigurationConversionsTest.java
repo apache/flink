@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -67,7 +68,7 @@ class ConfigurationConversionsTest {
         pc.setDouble("too_long_double", TOO_LONG_DOUBLE);
         pc.setString("string", "42");
         pc.setString("non_convertible_string", "bcdefg&&");
-        pc.setBoolean("boolean", true);
+        pc.set(getBooleanConfigOption("boolean"), true);
     }
 
     @Parameters(name = "testSpec={0}")
@@ -78,9 +79,8 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getLong("int", 0)).expect(5L),
                 TestSpec.whenAccessed(conf -> conf.getFloat("int", 0)).expect(5f),
                 TestSpec.whenAccessed(conf -> conf.getDouble("int", 0)).expect(5.0),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("int", true))
-                        .expectException(
-                                "Unrecognized option for boolean: 5. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("int"), true))
+                        .expectException("Could not parse value '5' for key 'int'."),
                 TestSpec.whenAccessed(conf -> conf.getString("int", "0")).expect("5"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("int", EMPTY_BYTES))
                         .expectException("Configuration cannot evaluate value 5 as a byte[] value"),
@@ -99,9 +99,8 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getLong("long", 0)).expect(15L),
                 TestSpec.whenAccessed(conf -> conf.getFloat("long", 0)).expect(15f),
                 TestSpec.whenAccessed(conf -> conf.getDouble("long", 0)).expect(15.0),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("long", true))
-                        .expectException(
-                                "Unrecognized option for boolean: 15. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("long"), true))
+                        .expectException("Could not parse value '15' for key 'long'."),
                 TestSpec.whenAccessed(conf -> conf.getString("long", "0")).expect("15"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("long", EMPTY_BYTES))
                         .expectException(
@@ -125,9 +124,8 @@ class ConfigurationConversionsTest {
                         .expect((float) TOO_LONG),
                 TestSpec.whenAccessed(conf -> conf.getDouble("too_long", 0))
                         .expect((double) TOO_LONG),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("too_long", true))
-                        .expectException(
-                                "Unrecognized option for boolean: 2147483657. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("too_long"), true))
+                        .expectException("Could not parse value '2147483657' for key 'too_long'."),
                 TestSpec.whenAccessed(conf -> conf.getString("too_long", "0"))
                         .expect(String.valueOf(TOO_LONG)),
                 TestSpec.whenAccessed(conf -> conf.getBytes("too_long", EMPTY_BYTES))
@@ -156,9 +154,8 @@ class ConfigurationConversionsTest {
                                 new Condition<>(
                                         d -> Math.abs(d - 2.1456775) < 0.0000001,
                                         "Expected value")),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("float", true))
-                        .expectException(
-                                "Unrecognized option for boolean: 2.1456776. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("float"), true))
+                        .expectException("Could not parse value '2.1456776' for key 'float'."),
                 TestSpec.whenAccessed(conf -> conf.getString("float", "0"))
                         .expect(new Condition<>(s -> s.startsWith("2.145677"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("float", EMPTY_BYTES))
@@ -186,9 +183,9 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getFloat("double", 0))
                         .expect(new IsCloseTo(3.141592f, 0.000001f)),
                 TestSpec.whenAccessed(conf -> conf.getDouble("double", 0)).expect(Math.PI),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("double", true))
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("double"), true))
                         .expectException(
-                                "Unrecognized option for boolean: 3.141592653589793. Expected either true or false(case insensitive)"),
+                                "Could not parse value '3.141592653589793' for key 'double'."),
                 TestSpec.whenAccessed(conf -> conf.getString("double", "0"))
                         .expect(new Condition<>(s -> s.startsWith("3.141592"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("double", EMPTY_BYTES))
@@ -212,9 +209,9 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getFloat("negative_double", 0))
                         .expect(new IsCloseTo(-1f, 0.000001f)),
                 TestSpec.whenAccessed(conf -> conf.getDouble("negative_double", 0)).expect(-1D),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("negative_double", true))
-                        .expectException(
-                                "Unrecognized option for boolean: -1.0. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(
+                                conf -> conf.get(getBooleanConfigOption("negative_double"), true))
+                        .expectException("Could not parse value '-1.0' for key 'negative_double'."),
                 TestSpec.whenAccessed(conf -> conf.getString("negative_double", "0"))
                         .expect(new Condition<>(s -> s.startsWith("-1.0"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("negative_double", EMPTY_BYTES))
@@ -238,9 +235,8 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getFloat("zero", 0))
                         .expect(new IsCloseTo(0f, 0.000001f)),
                 TestSpec.whenAccessed(conf -> conf.getDouble("zero", 0)).expect(0D),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("zero", true))
-                        .expectException(
-                                "Unrecognized option for boolean: 0.0. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("zero"), true))
+                        .expectException("Could not parse value '0.0' for key 'zero'."),
                 TestSpec.whenAccessed(conf -> conf.getString("zero", "0"))
                         .expect(new Condition<>(s -> s.startsWith("0"), "Expected value")),
                 TestSpec.whenAccessed(conf -> conf.getBytes("zero", EMPTY_BYTES))
@@ -270,9 +266,10 @@ class ConfigurationConversionsTest {
                                 "Configuration value 1.7976931348623157E308 overflows/underflows the float type."),
                 TestSpec.whenAccessed(conf -> conf.getDouble("too_long_double", 0))
                         .expect(TOO_LONG_DOUBLE),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("too_long_double", true))
+                TestSpec.whenAccessed(
+                                conf -> conf.get(getBooleanConfigOption("too_long_double"), true))
                         .expectException(
-                                "Unrecognized option for boolean: 1.7976931348623157E308. Expected either true or false(case insensitive)"),
+                                "Could not parse value '1.7976931348623157E308' for key 'too_long_double'."),
                 TestSpec.whenAccessed(conf -> conf.getString("too_long_double", "0"))
                         .expect(String.valueOf(TOO_LONG_DOUBLE)),
                 TestSpec.whenAccessed(conf -> conf.getBytes("too_long_double", EMPTY_BYTES))
@@ -293,9 +290,8 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getLong("string", 0)).expect(42L),
                 TestSpec.whenAccessed(conf -> conf.getFloat("string", 0)).expect(42f),
                 TestSpec.whenAccessed(conf -> conf.getDouble("string", 0)).expect(42.0),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("string", true))
-                        .expectException(
-                                "Unrecognized option for boolean: 42. Expected either true or false(case insensitive)"),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("string"), true))
+                        .expectException("Could not parse value '42' for key 'string'."),
                 TestSpec.whenAccessed(conf -> conf.getString("string", "0")).expect("42"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("string", EMPTY_BYTES))
                         .expectException(
@@ -322,9 +318,13 @@ class ConfigurationConversionsTest {
                 TestSpec.whenAccessed(conf -> conf.getDouble("non_convertible_string", 0))
                         .expectException(
                                 "For input string: \"bcdefg&&\"", NumberFormatException.class),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("non_convertible_string", true))
+                TestSpec.whenAccessed(
+                                conf ->
+                                        conf.get(
+                                                getBooleanConfigOption("non_convertible_string"),
+                                                true))
                         .expectException(
-                                "Unrecognized option for boolean: bcdefg&&. Expected either true or false(case insensitive)"),
+                                "Could not parse value 'bcdefg&&' for key 'non_convertible_string'."),
                 TestSpec.whenAccessed(conf -> conf.getString("non_convertible_string", "0"))
                         .expect("bcdefg&&"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("non_convertible_string", EMPTY_BYTES))
@@ -348,7 +348,8 @@ class ConfigurationConversionsTest {
                         .expectException("For input string: \"true\""),
                 TestSpec.whenAccessed(conf -> conf.getDouble("boolean", 0))
                         .expectException("For input string: \"true\""),
-                TestSpec.whenAccessed(conf -> conf.getBoolean("boolean", false)).expect(true),
+                TestSpec.whenAccessed(conf -> conf.get(getBooleanConfigOption("boolean"), false))
+                        .expect(true),
                 TestSpec.whenAccessed(conf -> conf.getString("boolean", "0")).expect("true"),
                 TestSpec.whenAccessed(conf -> conf.getBytes("boolean", EMPTY_BYTES))
                         .expectException(

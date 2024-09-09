@@ -49,6 +49,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+
 /** Configuration class which stores all relevant parameters required to set up the Pact tasks. */
 public class TaskConfig implements Serializable {
 
@@ -500,19 +502,19 @@ public class TaskConfig implements Serializable {
     }
 
     public void setInputAsynchronouslyMaterialized(int inputNum, boolean temp) {
-        this.config.setBoolean(INPUT_DAM_PREFIX + inputNum, temp);
+        this.config.set(getBooleanConfigOption(INPUT_DAM_PREFIX + inputNum), temp);
     }
 
     public boolean isInputAsynchronouslyMaterialized(int inputNum) {
-        return this.config.getBoolean(INPUT_DAM_PREFIX + inputNum, false);
+        return this.config.get(getBooleanConfigOption(INPUT_DAM_PREFIX + inputNum), false);
     }
 
     public void setInputCached(int inputNum, boolean persistent) {
-        this.config.setBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, persistent);
+        this.config.set(getBooleanConfigOption(INPUT_REPLAYABLE_PREFIX + inputNum), persistent);
     }
 
     public boolean isInputCached(int inputNum) {
-        return this.config.getBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, false);
+        return this.config.get(getBooleanConfigOption(INPUT_REPLAYABLE_PREFIX + inputNum), false);
     }
 
     public void setRelativeInputMaterializationMemory(int inputNum, double relativeMemory) {
@@ -744,11 +746,12 @@ public class TaskConfig implements Serializable {
     }
 
     public void setUseLargeRecordHandler(boolean useLargeRecordHandler) {
-        this.config.setBoolean(USE_LARGE_RECORD_HANDLER, useLargeRecordHandler);
+        this.config.set(getBooleanConfigOption(USE_LARGE_RECORD_HANDLER), useLargeRecordHandler);
     }
 
     public boolean getUseLargeRecordHandler() {
-        return this.config.getBoolean(USE_LARGE_RECORD_HANDLER, USE_LARGE_RECORD_HANDLER_DEFAULT);
+        return this.config.get(
+                getBooleanConfigOption(USE_LARGE_RECORD_HANDLER), USE_LARGE_RECORD_HANDLER_DEFAULT);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -934,11 +937,11 @@ public class TaskConfig implements Serializable {
     }
 
     public void setIsWorksetIteration() {
-        this.config.setBoolean(ITERATION_WORKSET_MARKER, true);
+        this.config.set(getBooleanConfigOption(ITERATION_WORKSET_MARKER), true);
     }
 
     public boolean getIsWorksetIteration() {
-        return this.config.getBoolean(ITERATION_WORKSET_MARKER, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_WORKSET_MARKER), false);
     }
 
     public void setIterationHeadIndexOfSyncOutput(int outputIndex) {
@@ -1146,35 +1149,31 @@ public class TaskConfig implements Serializable {
     }
 
     public void setIsSolutionSetUpdate() {
-        this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE, true);
+        this.config.set(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE), true);
     }
 
     public boolean getIsSolutionSetUpdate() {
-        return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE), false);
     }
 
     public void setIsSolutionSetUpdateWithoutReprobe() {
-        this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE, true);
-    }
-
-    public boolean getIsSolutionSetUpdateWithoutReprobe() {
-        return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE, false);
+        this.config.set(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_SKIP_REPROBE), true);
     }
 
     public void setWaitForSolutionSetUpdate() {
-        this.config.setBoolean(ITERATION_SOLUTION_SET_UPDATE_WAIT, true);
+        this.config.set(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_WAIT), true);
     }
 
     public boolean getWaitForSolutionSetUpdate() {
-        return this.config.getBoolean(ITERATION_SOLUTION_SET_UPDATE_WAIT, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_SOLUTION_SET_UPDATE_WAIT), false);
     }
 
     public void setIsWorksetUpdate() {
-        this.config.setBoolean(ITERATION_WORKSET_UPDATE, true);
+        this.config.set(getBooleanConfigOption(ITERATION_WORKSET_UPDATE), true);
     }
 
     public boolean getIsWorksetUpdate() {
-        return this.config.getBoolean(ITERATION_WORKSET_UPDATE, false);
+        return this.config.get(getBooleanConfigOption(ITERATION_WORKSET_UPDATE), false);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1294,10 +1293,10 @@ public class TaskConfig implements Serializable {
     }
 
     public void setSolutionSetUnmanaged(boolean unmanaged) {
-        config.setBoolean(SOLUTION_SET_OBJECTS, unmanaged);
+        config.set(getBooleanConfigOption(SOLUTION_SET_OBJECTS), unmanaged);
     }
 
     public boolean isSolutionSetUnmanaged() {
-        return config.getBoolean(SOLUTION_SET_OBJECTS, false);
+        return config.get(getBooleanConfigOption(SOLUTION_SET_OBJECTS), false);
     }
 }

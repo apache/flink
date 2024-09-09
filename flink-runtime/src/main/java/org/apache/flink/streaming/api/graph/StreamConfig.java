@@ -88,7 +88,8 @@ public class StreamConfig implements Serializable {
     private static final String NUMBER_OF_NETWORK_INPUTS = "numberOfNetworkInputs";
     private static final String CHAINED_OUTPUTS = "chainedOutputs";
     private static final String CHAINED_TASK_CONFIG = "chainedTaskConfig_";
-    private static final String IS_CHAINED_VERTEX = "isChainedSubtask";
+    private static final ConfigOption<Boolean> IS_CHAINED_VERTEX =
+            ConfigOptions.key("isChainedSubtask").booleanType().defaultValue(false);
     private static final String CHAIN_INDEX = "chainIndex";
     private static final String VERTEX_NAME = "vertexID";
     private static final String ITERATION_ID = "iterationId";
@@ -101,10 +102,15 @@ public class StreamConfig implements Serializable {
     private static final String IN_STREAM_EDGES = "inStreamEdges";
     private static final String OPERATOR_NAME = "operatorName";
     private static final String OPERATOR_ID = "operatorID";
-    private static final String CHAIN_END = "chainEnd";
-    private static final String GRAPH_CONTAINING_LOOPS = "graphContainingLoops";
+    private static final ConfigOption<Boolean> CHAIN_END =
+            ConfigOptions.key("chainEnd").booleanType().defaultValue(false);
 
-    private static final String CHECKPOINTING_ENABLED = "checkpointing";
+    private static final ConfigOption<Boolean> GRAPH_CONTAINING_LOOPS =
+            ConfigOptions.key("graphContainingLoops").booleanType().defaultValue(false);
+
+    private static final ConfigOption<Boolean> CHECKPOINTING_ENABLED =
+            ConfigOptions.key("checkpointing").booleanType().defaultValue(false);
+
     private static final String CHECKPOINT_MODE = "checkpointMode";
 
     private static final String SAVEPOINT_DIR = "savepointdir";
@@ -504,11 +510,11 @@ public class StreamConfig implements Serializable {
     // --------------------- checkpointing -----------------------
 
     public void setCheckpointingEnabled(boolean enabled) {
-        config.setBoolean(CHECKPOINTING_ENABLED, enabled);
+        config.set(CHECKPOINTING_ENABLED, enabled);
     }
 
     public boolean isCheckpointingEnabled() {
-        return config.getBoolean(CHECKPOINTING_ENABLED, false);
+        return config.get(CHECKPOINTING_ENABLED);
     }
 
     public void setCheckpointMode(CheckpointingMode mode) {
@@ -533,7 +539,7 @@ public class StreamConfig implements Serializable {
     }
 
     public void setUnalignedCheckpointsSplittableTimersEnabled(boolean enabled) {
-        config.setBoolean(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
+        config.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
     }
 
     public boolean isUnalignedCheckpointsSplittableTimersEnabled() {
@@ -741,19 +747,19 @@ public class StreamConfig implements Serializable {
     // ------------------------------------------------------------------------
 
     public void setChainStart() {
-        config.setBoolean(IS_CHAINED_VERTEX, true);
+        config.set(IS_CHAINED_VERTEX, true);
     }
 
     public boolean isChainStart() {
-        return config.getBoolean(IS_CHAINED_VERTEX, false);
+        return config.get(IS_CHAINED_VERTEX);
     }
 
     public void setChainEnd() {
-        config.setBoolean(CHAIN_END, true);
+        config.set(CHAIN_END, true);
     }
 
     public boolean isChainEnd() {
-        return config.getBoolean(CHAIN_END, false);
+        return config.get(CHAIN_END);
     }
 
     @Override
@@ -793,11 +799,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setGraphContainingLoops(boolean graphContainingLoops) {
-        config.setBoolean(GRAPH_CONTAINING_LOOPS, graphContainingLoops);
+        config.set(GRAPH_CONTAINING_LOOPS, graphContainingLoops);
     }
 
     public boolean isGraphContainingLoops() {
-        return config.getBoolean(GRAPH_CONTAINING_LOOPS, false);
+        return config.get(GRAPH_CONTAINING_LOOPS);
     }
 
     /**

@@ -26,6 +26,8 @@ import org.apache.flink.types.Value;
 
 import java.util.Arrays;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+
 /**
  * A factory for a {@link org.apache.flink.api.common.typeutils.TypeComparator} for {@link Record}.
  * The comparator uses a subset of the fields for the comparison. That subset of fields (positions
@@ -103,7 +105,8 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
         for (int i = 0; i < this.positions.length; i++) {
             config.setInteger(KEY_POS_PREFIX + i, this.positions[i]);
             config.setString(KEY_CLASS_PREFIX + i, this.types[i].getName());
-            config.setBoolean(KEY_SORT_DIRECTION_PREFIX + i, this.sortDirections[i]);
+            config.set(
+                    getBooleanConfigOption(KEY_SORT_DIRECTION_PREFIX + i), this.sortDirections[i]);
         }
     }
 
@@ -145,7 +148,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
             }
 
             // next key sort direction
-            direction[i] = config.getBoolean(KEY_SORT_DIRECTION_PREFIX + i, true);
+            direction[i] = config.get(getBooleanConfigOption(KEY_SORT_DIRECTION_PREFIX + i), true);
         }
 
         this.positions = positions;

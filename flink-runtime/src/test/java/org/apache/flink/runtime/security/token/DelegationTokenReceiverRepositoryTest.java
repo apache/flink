@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -61,7 +62,7 @@ class DelegationTokenReceiverRepositoryTest {
     @Test
     public void testAllReceiversLoaded() {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
+        configuration.set(getBooleanConfigOption(CONFIG_PREFIX + ".throw.enabled"), false);
         DelegationTokenReceiverRepository delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, null);
 

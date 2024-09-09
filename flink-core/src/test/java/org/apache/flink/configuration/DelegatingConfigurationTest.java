@@ -196,11 +196,11 @@ class DelegatingConfigurationTest {
         // Test for boolean
         ConfigOption<Boolean> booleanOption =
                 ConfigOptions.key("boolean.key").booleanType().noDefaultValue();
-        original.setBoolean(booleanOption, false);
-        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(true);
+        original.set(booleanOption, false);
         assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(true);
-        delegatingConf.setBoolean(booleanOption, false);
-        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(false);
+        assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(true);
+        delegatingConf.set(booleanOption, false);
+        assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(false);
         assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(false);
     }
 

@@ -650,4 +650,8 @@ public class ConfigurationUtils {
 
     // Make sure that we cannot instantiate this class
     private ConfigurationUtils() {}
+
+    public static ConfigOption<Boolean> getBooleanConfigOption(String key) {
+        return ConfigOptions.key(key).booleanType().noDefaultValue();
+    }
 }

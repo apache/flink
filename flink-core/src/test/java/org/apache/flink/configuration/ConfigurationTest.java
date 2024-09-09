@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -74,7 +75,7 @@ class ConfigurationTest {
         orig.setLong("longvalue", 478236947162389746L);
         orig.setFloat("PI", 3.1415926f);
         orig.setDouble("E", Math.E);
-        orig.setBoolean("shouldbetrue", true);
+        orig.set(getBooleanConfigOption("shouldbetrue"), true);
         orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
         orig.setClass("myclass", this.getClass());
 
@@ -84,7 +85,7 @@ class ConfigurationTest {
         assertThat(copy.getLong("longvalue", 0L)).isEqualTo(478236947162389746L);
         assertThat(copy.getFloat("PI", 3.1415926f)).isCloseTo(3.1415926f, Offset.offset(0.0f));
         assertThat(copy.getDouble("E", 0.0)).isCloseTo(Math.E, Offset.offset(0.0));
-        assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
+        assertThat(copy.get(getBooleanConfigOption("shouldbetrue"), false)).isTrue();
         assertThat(copy.getBytes("bytes sequence", null)).containsExactly(1, 2, 3, 4, 5);
         assertThat(getClass())
                 .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));

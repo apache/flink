@@ -48,6 +48,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+
 /** Manually test the throughput of the network stack. */
 public class NetworkStackThroughputITCase extends TestLogger {
 
@@ -105,7 +107,8 @@ public class NetworkStackThroughputITCase extends TestLogger {
                                 dataMbPerSubtask / 1024.0));
 
                 boolean isSlow =
-                        getTaskConfiguration().getBoolean(IS_SLOW_SENDER_CONFIG_KEY, false);
+                        getTaskConfiguration()
+                                .get(getBooleanConfigOption(IS_SLOW_SENDER_CONFIG_KEY), false);
 
                 int numRecords = 0;
                 SpeedTestRecord record = new SpeedTestRecord();
@@ -180,7 +183,8 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
             try {
                 boolean isSlow =
-                        getTaskConfiguration().getBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, false);
+                        getTaskConfiguration()
+                                .get(getBooleanConfigOption(IS_SLOW_RECEIVER_CONFIG_KEY), false);
 
                 int numRecords = 0;
                 while (reader.next() != null) {
@@ -328,7 +332,8 @@ public class NetworkStackThroughputITCase extends TestLogger {
         producer.setInvokableClass(SpeedTestProducer.class);
         producer.setParallelism(numSubtasks);
         producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
-        producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
+        producer.getConfiguration()
+                .set(getBooleanConfigOption(IS_SLOW_SENDER_CONFIG_KEY), isSlowSender);
 
         jobVertices.add(producer);
 
@@ -347,7 +352,8 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
         consumer.setInvokableClass(SpeedTestConsumer.class);
         consumer.setParallelism(numSubtasks);
-        consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
+        consumer.getConfiguration()
+                .set(getBooleanConfigOption(IS_SLOW_RECEIVER_CONFIG_KEY), isSlowReceiver);
 
         jobVertices.add(consumer);
 
