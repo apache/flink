@@ -31,6 +31,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.concat;
 import static org.apache.flink.table.api.Expressions.lit;
 
 /** Test String functions correct behaviour. */
@@ -44,8 +45,31 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                         endsWithTestCases(),
                         printfTestCases(),
                         startsWithTestCases(),
-                        translateTestCases())
+                        translateTestCases(),
+                        concatenateTestCases())
                 .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> concatenateTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PLUS)
+                        .onFieldsWithData("Beginning", " Middle ", "Ending")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        .testResult(
+                                $("f0").concat($("f1")).concat($("f2")),
+                                "concat(concat(f0, f1), f2)",
+                                "Beginning Middle Ending",
+                                DataTypes.STRING())
+                        .testResult(
+                                concat($("f0"), $("f1"), $("f2")),
+                                "concat(f0, f1, f2)",
+                                "Beginning Middle Ending",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").plus($("f1")).plus($("f2")),
+                                "concat(concat(f0, f1), f2)",
+                                "Beginning Middle Ending",
+                                DataTypes.STRING()));
     }
 
     private Stream<TestSetSpec> bTrimTestCases() {

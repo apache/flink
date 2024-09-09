@@ -631,6 +631,12 @@ class Expression(Generic[T]):
         """
         return _binary_op("round")(self, places)
 
+    def concat(self, other: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Concatenates two strings.
+        """
+        return _binary_op("concat")(self, other)
+
     def between(self, lower_bound, upper_bound) -> 'Expression[bool]':
         """
         Returns true if the given expression is between lower_bound and upper_bound
