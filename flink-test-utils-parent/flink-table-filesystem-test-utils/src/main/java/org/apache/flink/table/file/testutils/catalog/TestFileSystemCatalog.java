@@ -241,6 +241,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             return Arrays.stream(fs.listStatus(dbPath))
                     .filter(FileStatus::isDir)
                     .map(fileStatus -> fileStatus.getPath().getName())
+                    .filter(name -> tableExists(new ObjectPath(databaseName, name)))
                     .collect(Collectors.toList());
         } catch (IOException e) {
             throw new CatalogException(
@@ -355,10 +356,12 @@ public class TestFileSystemCatalog extends AbstractCatalog {
         try {
             if (!fs.exists(path)) {
                 fs.mkdirs(path);
+            }
+            if (!fs.exists(tableSchemaPath)) {
                 fs.mkdirs(tableSchemaPath);
-                if (isFileSystemTable(catalogTable.getOptions())) {
-                    fs.mkdirs(tableDataPath);
-                }
+            }
+            if (isFileSystemTable(catalogTable.getOptions()) && !fs.exists(tableDataPath)) {
+                fs.mkdirs(tableDataPath);
             }
 
             // write table schema
