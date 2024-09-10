@@ -203,9 +203,6 @@ function create_ha_config() {
     #==============================================================================
 
     set_config_key "rest.port" "8081"
-
-    set_config_key "queryable-state.server.ports" "9000-9009"
-    set_config_key "queryable-state.proxy.ports" "9010-9019"
 }
 
 function get_node_ip {
