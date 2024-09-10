@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,7 +76,9 @@ public final class PartitionPushDownSpec extends SourceAbilitySpecBase {
     @Override
     public String getDigests(SourceAbilityContext context) {
         return "partitions=["
-                + this.partitions.stream().map(Object::toString).collect(Collectors.joining(", "))
+                + convertMapListToOrderedMapList(this.partitions).stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(", "))
                 + "]";
     }
 
@@ -97,5 +100,19 @@ public final class PartitionPushDownSpec extends SourceAbilitySpecBase {
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode(), partitions);
+    }
+
+    private List<Map<String, String>> convertMapListToOrderedMapList(
+            List<Map<String, String>> inputMap) {
+        List<Map<String, String>> orderedMapList = new ArrayList<>();
+        inputMap.forEach(
+                mp -> {
+                    Map<String, String> orderedMap = new TreeMap<>();
+                    for (Map.Entry<String, String> entry : mp.entrySet()) {
+                        orderedMap.put(entry.getKey(), entry.getValue());
+                    }
+                    orderedMapList.add(orderedMap);
+                });
+        return orderedMapList;
     }
 }
