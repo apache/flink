@@ -140,6 +140,11 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         GenericMapData clusterInfo = ((GenericMapData) results.get(0).getMap(1));
         assertThat(clusterInfo.get(StringData.fromString(TARGET.key())))
                 .isEqualTo(StringData.fromString("remote"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -214,6 +219,11 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         GenericMapData clusterInfo = ((GenericMapData) results.get(0).getMap(1));
         assertThat(clusterInfo.get(StringData.fromString(TARGET.key())))
                 .isEqualTo(StringData.fromString("remote"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     FetchResultsResponseBody fetchResults(
