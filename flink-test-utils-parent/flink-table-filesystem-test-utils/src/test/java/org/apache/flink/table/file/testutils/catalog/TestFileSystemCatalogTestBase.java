@@ -32,6 +32,7 @@ public abstract class TestFileSystemCatalogTestBase extends AbstractTestBase {
     protected static final String TEST_CATALOG = "test_catalog";
     protected static final String TEST_DEFAULT_DATABASE = "test_db";
     protected static final String NONE_EXIST_DATABASE = "none_exist_database";
+    protected static final String NONE_EXIST_TABLE = "none_exist_table";
 
     protected TestFileSystemCatalog catalog;
 

@@ -42,6 +42,8 @@ import org.apache.flink.table.refresh.RefreshHandler;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -305,12 +307,21 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
 
         // test list table
         List<String> tables = catalog.listTables(TEST_DEFAULT_DATABASE);
-        assertThat(tables.contains(tablePath1.getObjectName())).isTrue();
-        assertThat(tables.contains(tablePath2.getObjectName())).isTrue();
+        assertThat(tables).contains(tablePath1.getObjectName());
+        assertThat(tables).contains(tablePath2.getObjectName());
 
         // test list non-exist database table
         assertThrows(
                 DatabaseNotExistException.class, () -> catalog.listTables(NONE_EXIST_DATABASE));
+
+        // test list table ignore the empty path
+        String nonExistTablePath =
+                String.format(
+                        "%s/%s/%s",
+                        tempFile.getAbsolutePath(), TEST_DEFAULT_DATABASE, NONE_EXIST_TABLE);
+        Files.createDirectories(Paths.get(nonExistTablePath));
+        tables = catalog.listTables(TEST_DEFAULT_DATABASE);
+        assertThat(tables).doesNotContain(NONE_EXIST_TABLE);
     }
 
     @Test
