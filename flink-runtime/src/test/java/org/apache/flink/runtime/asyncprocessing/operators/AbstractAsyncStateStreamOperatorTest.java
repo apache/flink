@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing;
+package org.apache.flink.runtime.asyncprocessing.operators;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -51,7 +52,7 @@ import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncSta
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Basic tests for {@link AbstractAsyncStateStreamOperator}. */
-class AbstractAsyncStateStreamOperatorTest {
+public class AbstractAsyncStateStreamOperatorTest {
 
     protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
             createTestHarness(
@@ -329,7 +330,7 @@ class AbstractAsyncStateStreamOperatorTest {
     }
 
     /** {@link KeySelector} for tests. */
-    static class TestKeySelector implements KeySelector<Tuple2<Integer, String>, Integer> {
+    public static class TestKeySelector implements KeySelector<Tuple2<Integer, String>, Integer> {
         private static final long serialVersionUID = 1L;
 
         @Override

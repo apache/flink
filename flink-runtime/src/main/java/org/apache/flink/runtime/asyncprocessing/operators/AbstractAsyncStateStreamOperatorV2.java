@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing;
+package org.apache.flink.runtime.asyncprocessing.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -40,6 +40,9 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -253,12 +256,12 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @VisibleForTesting
-    AsyncExecutionController<?> getAsyncExecutionController() {
+    public AsyncExecutionController<?> getAsyncExecutionController() {
         return asyncExecutionController;
     }
 
     @VisibleForTesting
-    RecordContext getCurrentProcessingContext() {
+    public RecordContext getCurrentProcessingContext() {
         return currentProcessingContext;
     }
 }
