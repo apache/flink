@@ -35,7 +35,6 @@ class SinkV2CommitterOperatorDeprecatedTest extends CommitterOperatorTestBase {
                 (TwoPhaseCommittingSink<?, String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(committer)
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .setWithPostCommitTopology(true)
                                 .build(),
                 () -> committer.successfulCommits);
@@ -47,7 +46,6 @@ class SinkV2CommitterOperatorDeprecatedTest extends CommitterOperatorTestBase {
                 (TwoPhaseCommittingSink<?, String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(new TestSinkV2.RetryOnceCommitter())
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .setWithPostCommitTopology(true)
                                 .build(),
                 () -> 0);
@@ -60,7 +58,6 @@ class SinkV2CommitterOperatorDeprecatedTest extends CommitterOperatorTestBase {
                 (TwoPhaseCommittingSink<?, String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(committer)
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .setWithPostCommitTopology(false)
                                 .build(),
                 () -> committer.successfulCommits);
