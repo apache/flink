@@ -53,4 +53,13 @@ public interface AsyncStateProcessingOperator extends AsyncStateProcessing {
      * @param processing the record processing logic.
      */
     void preserveRecordOrderAndProcess(ThrowingRunnable<Exception> processing);
+
+    /**
+     * Asynchronously process a code with a key provided.
+     *
+     * @param key the specified key.
+     * @param processing the process logic.
+     * @param <K> the type of key.
+     */
+    <K> void asyncProcessWithKey(K key, ThrowingRunnable<Exception> processing);
 }
