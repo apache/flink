@@ -66,13 +66,13 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
-        List<StateRequest<?, ?, ?>> checkList = new ArrayList<>();
+        List<StateRequest<?, ?, ?, ?>> checkList = new ArrayList<>();
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
         // 2. Get value state: keyRange [0, keyNum)
         //    Update value state: keyRange [keyNum, keyNum + 100]
         for (int i = 0; i < keyNum; i++) {
             ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
-            StateRequest<?, ?, ?> getRequest =
+            StateRequest<?, ?, ?, ?> getRequest =
                     buildStateRequest(state, StateRequestType.VALUE_GET, i, null, i * 2);
             stateRequestContainer.offer(getRequest);
             checkList.add(getRequest);
@@ -85,7 +85,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
         // 3. Check value state Get result : [0, keyNum)
-        for (StateRequest<?, ?, ?> getRequest : checkList) {
+        for (StateRequest<?, ?, ?, ?> getRequest : checkList) {
             assertThat(getRequest.getRequestType()).isEqualTo(StateRequestType.VALUE_GET);
             int key = (Integer) getRequest.getRecordContext().getKey();
             assertThat(getRequest.getRecordContext().getRecord()).isEqualTo(key * 2);
@@ -113,13 +113,13 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         checkList.clear();
         for (int i = keyNum - 100; i < keyNum + 100; i++) {
             ForStValueState<Integer, VoidNamespace, String> state = (i % 2 == 0 ? state1 : state2);
-            StateRequest<?, ?, ?> getRequest =
+            StateRequest<?, ?, ?, ?> getRequest =
                     buildStateRequest(state, StateRequestType.VALUE_GET, i, null, i * 2);
             stateRequestContainer.offer(getRequest);
             checkList.add(getRequest);
         }
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
-        for (StateRequest<?, ?, ?> getRequest : checkList) {
+        for (StateRequest<?, ?, ?, ?> getRequest : checkList) {
             assertThat(getRequest.getRequestType()).isEqualTo(StateRequestType.VALUE_GET);
             assertThat(((TestStateFuture<String>) getRequest.getFuture()).getCompletedResult())
                     .isEqualTo(null);
@@ -157,11 +157,11 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
-        List<StateRequest<?, ?, ?>> checkList = new ArrayList<>();
+        List<StateRequest<?, ?, ?, ?>> checkList = new ArrayList<>();
 
         // 2. check the number of user key under primary key is correct
         for (int i = 0; i < 100; i++) {
-            StateRequest<?, ?, ?> iterRequest =
+            StateRequest<?, ?, ?, ?> iterRequest =
                     buildStateRequest(state, StateRequestType.MAP_ITER_KEY, i, null, i * 2);
             stateRequestContainer.offer(iterRequest);
             checkList.add(iterRequest);
@@ -208,7 +208,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         checkList.clear();
         // 4. check primary key [75,100) is deleted
         for (int i = 0; i < 100; i++) {
-            StateRequest<?, ?, ?> iterRequest =
+            StateRequest<?, ?, ?, ?> iterRequest =
                     buildStateRequest(state, StateRequestType.MAP_IS_EMPTY, i, null, i * 2);
             stateRequestContainer.offer(iterRequest);
             checkList.add(iterRequest);
@@ -229,7 +229,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private <K, N, V, R> StateRequest<?, ?, ?> buildStateRequest(
+    private <K, N, V, R> StateRequest<?, ?, ?, ?> buildStateRequest(
             InternalKeyedState<K, N, V> innerTable,
             StateRequestType requestType,
             K key,
@@ -243,7 +243,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private <K, N, UK, UV, R> StateRequest<?, ?, ?> buildMapRequest(
+    private <K, N, UK, UV, R> StateRequest<?, ?, ?, ?> buildMapRequest(
             ForStMapState<K, N, UK, UV> innerTable,
             StateRequestType requestType,
             K key,

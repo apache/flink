@@ -93,7 +93,7 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = contextKey.getNamespace(this);
+                    N namespace = contextKey.getNamespace();
                     return builder.buildCompositeKeyNamespace(
                             namespace == null ? defaultNamespace : namespace,
                             namespaceSerializer.get());
@@ -117,22 +117,26 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBGetRequest<K, N, V, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBGetRequest<K, N, V, V> buildDBGetRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.VALUE_GET);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
         return new ForStDBSingleGetRequest<>(
                 contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.VALUE_UPDATE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
         V value =
                 (stateRequest.getRequestType() == StateRequestType.CLEAR)
                         ? null // "Delete(key)" is equivalent to "Put(key, null)"

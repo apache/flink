@@ -119,8 +119,10 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = contextKey.getNamespace(this);
-                    builder.setNamespace(namespace, namespaceSerializer.get());
+                    N namespace = contextKey.getNamespace();
+                    builder.setNamespace(
+                            namespace == null ? defaultNamespace : namespace,
+                            namespaceSerializer.get());
                     if (contextKey.getUserKey() == null) { // value get
                         return builder.build();
                     }
@@ -152,7 +154,7 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
 
     @Override
     @SuppressWarnings("unchecked")
-    public ForStDBGetRequest<?, ?, ?, ?> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBGetRequest<?, ?, ?, ?> buildDBGetRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.MAP_GET
                         || stateRequest.getRequestType() == StateRequestType.MAP_CONTAINS
@@ -160,6 +162,7 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace(),
                         stateRequest.getPayload());
 
         if (stateRequest.getRequestType() == StateRequestType.MAP_GET) {
@@ -175,13 +178,14 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
 
     @Override
     @SuppressWarnings("unchecked")
-    public ForStDBPutRequest<K, N, UV> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBPutRequest<K, N, UV> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.MAP_PUT
                         || stateRequest.getRequestType() == StateRequestType.MAP_REMOVE);
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace(),
                         ((Tuple2<UK, UV>) stateRequest.getPayload()).f0);
         Preconditions.checkNotNull(
                 stateRequest.getPayload(), String.format("payload is null, %s", stateRequest));
@@ -203,12 +207,15 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
      */
     @SuppressWarnings("unchecked")
     public ForStDBBunchPutRequest<K, N, UK, UV> buildDBBunchPutRequest(
-            StateRequest<?, ?, ?> stateRequest) {
+            StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.MAP_PUT_ALL
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext(), null);
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace(),
+                        null);
         Map<UK, UV> value = (Map<UK, UV>) stateRequest.getPayload();
         return new ForStDBBunchPutRequest(contextKey, value, this, stateRequest.getFuture());
     }
@@ -223,7 +230,7 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
      */
     @SuppressWarnings("unchecked")
     public ForStDBIterRequest<K, N, UK, UV, ?> buildDBIterRequest(
-            StateRequest<?, ?, ?> stateRequest) {
+            StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.MAP_ITER
                         || stateRequest.getRequestType() == StateRequestType.MAP_ITER_KEY
@@ -242,11 +249,14 @@ public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
 
     @SuppressWarnings("unchecked")
     private ForStDBIterRequest<K, N, UK, UV, ?> buildDBIterRequest(
-            StateRequest<?, ?, ?> stateRequest,
+            StateRequest<?, ?, ?, ?> stateRequest,
             StateRequestType requestType,
             RocksIterator rocksIterator) {
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext(), null);
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace(),
+                        null);
         switch (requestType) {
             case MAP_ITER:
                 return new ForStDBMapEntryIterRequest<>(

@@ -44,7 +44,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
     }
 
     @Override
-    public void offer(StateRequest<?, ?, ?> stateRequest) {
+    public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
         convertStateRequestsToForStDBRequests(stateRequest);
     }
 
@@ -54,7 +54,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void convertStateRequestsToForStDBRequests(StateRequest<?, ?, ?> stateRequest) {
+    private void convertStateRequestsToForStDBRequests(StateRequest<?, ?, ?, ?> stateRequest) {
         StateRequestType stateRequestType = stateRequest.getRequestType();
         switch (stateRequestType) {
             case VALUE_GET:
