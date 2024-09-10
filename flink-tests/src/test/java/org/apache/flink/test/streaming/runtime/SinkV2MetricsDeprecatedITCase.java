@@ -147,7 +147,6 @@ public class SinkV2MetricsDeprecatedITCase extends TestLogger {
                 .sinkTo(
                         TestSinkV2.<Long>newBuilder()
                                 .setCommitter(new MetricCommitter(beforeLatch, afterLatch))
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .build())
                 .name(TEST_SINK_NAME);
         JobClient jobClient = env.executeAsync();

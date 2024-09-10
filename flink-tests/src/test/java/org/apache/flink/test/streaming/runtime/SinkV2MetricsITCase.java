@@ -140,9 +140,8 @@ public class SinkV2MetricsITCase extends TestLogger {
         env.fromSequence(0, numCommittables - 1)
                 .returns(BasicTypeInfo.LONG_TYPE_INFO)
                 .sinkTo(
-                        TestSinkV2.<Long>newBuilder()
-                                .setCommitter(new MetricCommitter(beforeLatch, afterLatch))
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                        (TestSinkV2.<Long>newBuilder()
+                                        .setCommitter(new MetricCommitter(beforeLatch, afterLatch)))
                                 .build())
                 .name(TEST_SINK_NAME);
         JobClient jobClient = env.executeAsync();

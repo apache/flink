@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
@@ -30,6 +32,7 @@ import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -37,7 +40,6 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
@@ -61,6 +63,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** A {@link Sink} for all the sink related tests. */
 public class TestSinkV2<InputT> implements Sink<InputT> {
+    public static final SimpleVersionedSerializerAdapter<String> COMMITTABLE_SERIALIZER =
+            new SimpleVersionedSerializerAdapter<>(StringSerializer.INSTANCE);
+    public static final SimpleVersionedSerializerAdapter<Integer> WRITER_SERIALIZER =
+            new SimpleVersionedSerializerAdapter<>(IntSerializer.INSTANCE);
 
     private final DefaultSinkWriter<InputT> writer;
 
@@ -81,11 +87,18 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         return new Builder<>();
     }
 
+    public static <InputT> Builder<InputT> newBuilder(DefaultSinkWriter<InputT> writer) {
+        return new Builder<InputT>().setWriter(writer);
+    }
+
+    public SupportsCommitter<String> asSupportsCommitter() {
+        throw new UnsupportedOperationException("No committter");
+    }
+
     /** A builder class for {@link TestSinkV2}. */
     public static class Builder<InputT> {
         private DefaultSinkWriter<InputT> writer = null;
         private DefaultCommitter committer;
-        private SimpleVersionedSerializer<String> committableSerializer;
         private boolean withPostCommitTopology = false;
         private boolean withPreCommitTopology = false;
         private boolean withWriterState = false;
@@ -101,22 +114,14 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
             return this;
         }
 
-        public Builder<InputT> setCommittableSerializer(
-                SimpleVersionedSerializer<String> committableSerializer) {
-            this.committableSerializer = committableSerializer;
-            return this;
-        }
-
         public Builder<InputT> setDefaultCommitter() {
             this.committer = new DefaultCommitter();
-            this.committableSerializer = StringSerializer.INSTANCE;
             return this;
         }
 
         public Builder<InputT> setDefaultCommitter(
                 Supplier<Queue<Committer.CommitRequest<String>>> queueSupplier) {
             this.committer = new DefaultCommitter(queueSupplier);
-            this.committableSerializer = StringSerializer.INSTANCE;
             return this;
         }
 
@@ -155,7 +160,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                     if (!withPreCommitTopology) {
                         // TwoPhaseCommittingSink with a stateless writer and a committer
                         return new TestSinkV2TwoPhaseCommittingSink<>(
-                                writer, committableSerializer, committer);
+                                writer, COMMITTABLE_SERIALIZER, committer);
                     } else {
                         // TwoPhaseCommittingSink with a stateless writer, pre commit topology,
                         // committer
@@ -163,9 +168,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                                 writer instanceof DefaultCommittingSinkWriter,
                                 "Please provide a DefaultCommittingSinkWriter instance");
                         return new TestSinkV2WithPreCommitTopology<>(
-                                (DefaultCommittingSinkWriter) writer,
-                                committableSerializer,
-                                committer);
+                                writer, COMMITTABLE_SERIALIZER, committer);
                     }
                 } else {
                     if (withWriterState) {
@@ -174,9 +177,9 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                         Preconditions.checkArgument(
                                 writer instanceof DefaultStatefulSinkWriter,
                                 "Please provide a DefaultStatefulSinkWriter instance");
-                        return new TestStatefulSinkV2(
-                                (DefaultStatefulSinkWriter) writer,
-                                committableSerializer,
+                        return new TestStatefulSinkV2<>(
+                                (DefaultStatefulSinkWriter<InputT>) writer,
+                                COMMITTABLE_SERIALIZER,
                                 committer,
                                 compatibleStateNames);
                     } else {
@@ -186,9 +189,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                                 writer instanceof DefaultCommittingSinkWriter,
                                 "Please provide a DefaultCommittingSinkWriter instance");
                         return new TestSinkV2WithPostCommitTopology<>(
-                                (DefaultCommittingSinkWriter) writer,
-                                committableSerializer,
-                                committer);
+                                writer, COMMITTABLE_SERIALIZER, committer);
                     }
                 }
             }
@@ -213,6 +214,11 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         public Committer<String> createCommitter(CommitterInitContext context) {
             committer.init();
             return committer;
+        }
+
+        @Override
+        public SupportsCommitter<String> asSupportsCommitter() {
+            return this;
         }
 
         @Override
@@ -268,19 +274,19 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                                     return withLineage.map(old -> old + "Transformed");
                                 }
                             })
-                    .returns(CommittableMessageTypeInfo.of(StringSerializer::new));
+                    .returns(CommittableMessageTypeInfo.of(() -> COMMITTABLE_SERIALIZER));
         }
 
         @Override
         public SimpleVersionedSerializer<String> getWriteResultSerializer() {
-            return new StringSerializer();
+            return new SimpleVersionedSerializerAdapter<>(StringSerializer.INSTANCE);
         }
     }
 
     private static class TestStatefulSinkV2<InputT> extends TestSinkV2WithPostCommitTopology<InputT>
-            implements SupportsWriterState<InputT, String>,
+            implements SupportsWriterState<InputT, Integer>,
                     SupportsWriterState.WithCompatibleState {
-        private String compatibleState;
+        private final String compatibleState;
 
         public TestStatefulSinkV2(
                 DefaultStatefulSinkWriter<InputT> writer,
@@ -297,8 +303,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public StatefulSinkWriter<InputT, String> restoreWriter(
-                WriterInitContext context, Collection<String> recoveredState) {
+        public StatefulSinkWriter<InputT, Integer> restoreWriter(
+                WriterInitContext context, Collection<Integer> recoveredState) {
             DefaultStatefulSinkWriter<InputT> statefulWriter =
                     (DefaultStatefulSinkWriter) getWriter();
 
@@ -307,8 +313,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public SimpleVersionedSerializer<String> getWriterStateSerializer() {
-            return new StringSerializer();
+        public SimpleVersionedSerializer<Integer> getWriterStateSerializer() {
+            return WRITER_SERIALIZER;
         }
 
         @Override
@@ -325,6 +331,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         protected List<String> elements;
 
         protected List<Watermark> watermarks;
+
+        public long lastCheckpointId = -1;
 
         protected DefaultSinkWriter() {
             this.elements = new ArrayList<>();
@@ -380,15 +388,27 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
      */
     protected static class DefaultStatefulSinkWriter<InputT>
             extends DefaultCommittingSinkWriter<InputT>
-            implements StatefulSinkWriter<InputT, String> {
+            implements StatefulSinkWriter<InputT, Integer> {
+        private int recordCount = 0;
 
         @Override
-        public List<String> snapshotState(long checkpointId) throws IOException {
-            return elements;
+        public void write(InputT element, Context context) {
+            super.write(element, context);
+            recordCount++;
         }
 
-        protected void restore(Collection<String> recoveredState) {
-            this.elements = new ArrayList<>(recoveredState);
+        public int getRecordCount() {
+            return recordCount;
+        }
+
+        @Override
+        public List<Integer> snapshotState(long checkpointId) throws IOException {
+            lastCheckpointId = checkpointId;
+            return Collections.singletonList(recordCount);
+        }
+
+        protected void restore(Collection<Integer> recoveredState) {
+            this.recordCount = recoveredState.isEmpty() ? 0 : recoveredState.iterator().next();
         }
     }
 
@@ -462,31 +482,6 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
                             c.retryLater();
                         }
                     });
-        }
-    }
-
-    /**
-     * We introduce this {@link StringSerializer} is because that all the fields of {@link
-     * TestSinkV2} should be serializable.
-     */
-    public static class StringSerializer
-            implements SimpleVersionedSerializer<String>, Serializable {
-
-        public static final StringSerializer INSTANCE = new StringSerializer();
-
-        @Override
-        public int getVersion() {
-            return SimpleVersionedStringSerializer.INSTANCE.getVersion();
-        }
-
-        @Override
-        public byte[] serialize(String obj) {
-            return SimpleVersionedStringSerializer.INSTANCE.serialize(obj);
-        }
-
-        @Override
-        public String deserialize(int version, byte[] serialized) throws IOException {
-            return SimpleVersionedStringSerializer.INSTANCE.deserialize(version, serialized);
         }
     }
 }
