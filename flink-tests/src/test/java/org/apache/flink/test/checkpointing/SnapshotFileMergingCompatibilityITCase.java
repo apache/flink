@@ -21,7 +21,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -67,36 +67,40 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
     public static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[][] {
-                    {RestoreMode.CLAIM, true},
-                    {RestoreMode.CLAIM, false},
-                    {RestoreMode.NO_CLAIM, true},
-                    {RestoreMode.NO_CLAIM, false}
+                    {RecoveryClaimMode.CLAIM, true},
+                    {RecoveryClaimMode.CLAIM, false},
+                    {RecoveryClaimMode.NO_CLAIM, true},
+                    {RecoveryClaimMode.NO_CLAIM, false}
                 });
     }
 
-    @ParameterizedTest(name = "RestoreMode = {0}, fileMergingAcrossBoundary = {1}")
+    @ParameterizedTest(name = "RecoveryClaimMode = {0}, fileMergingAcrossBoundary = {1}")
     @MethodSource("parameters")
     public void testSwitchFromDisablingToEnablingFileMerging(
-            RestoreMode restoreMode, boolean fileMergingAcrossBoundary, @TempDir Path checkpointDir)
+            RecoveryClaimMode recoveryClaimMode,
+            boolean fileMergingAcrossBoundary,
+            @TempDir Path checkpointDir)
             throws Exception {
         testSwitchingFileMerging(
-                checkpointDir, false, true, restoreMode, fileMergingAcrossBoundary);
+                checkpointDir, false, true, recoveryClaimMode, fileMergingAcrossBoundary);
     }
 
-    @ParameterizedTest(name = "RestoreMode = {0}, fileMergingAcrossBoundary = {1}")
+    @ParameterizedTest(name = "RecoveryClaimMode = {0}, fileMergingAcrossBoundary = {1}")
     @MethodSource("parameters")
     public void testSwitchFromEnablingToDisablingFileMerging(
-            RestoreMode restoreMode, boolean fileMergingAcrossBoundary, @TempDir Path checkpointDir)
+            RecoveryClaimMode recoveryClaimMode,
+            boolean fileMergingAcrossBoundary,
+            @TempDir Path checkpointDir)
             throws Exception {
         testSwitchingFileMerging(
-                checkpointDir, true, false, restoreMode, fileMergingAcrossBoundary);
+                checkpointDir, true, false, recoveryClaimMode, fileMergingAcrossBoundary);
     }
 
     private void testSwitchingFileMerging(
             Path checkpointDir,
             boolean firstFileMergingSwitch,
             boolean secondFileMergingSwitch,
-            RestoreMode restoreMode,
+            RecoveryClaimMode recoveryClaimMode,
             boolean fileMergingAcrossBoundary)
             throws Exception {
         final Configuration config = new Configuration();
@@ -125,7 +129,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             stateBackend1,
                             null,
                             firstCluster,
-                            restoreMode,
+                            recoveryClaimMode,
                             config,
                             consecutiveCheckpoint,
                             true);
@@ -155,7 +159,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             stateBackend2,
                             firstCheckpoint,
                             secondCluster,
-                            restoreMode,
+                            recoveryClaimMode,
                             config,
                             consecutiveCheckpoint,
                             true);
@@ -165,7 +169,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
             verifyCheckpointExistOrWaitDeleted(
                     firstCheckpoint,
                     determineFileExist(
-                            restoreMode, firstFileMergingSwitch, secondFileMergingSwitch),
+                            recoveryClaimMode, firstFileMergingSwitch, secondFileMergingSwitch),
                     firstFileMergingSwitch,
                     firstMetadata);
         } finally {
@@ -190,7 +194,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             stateBackend3,
                             secondCheckpoint,
                             thirdCluster,
-                            restoreMode,
+                            recoveryClaimMode,
                             config,
                             consecutiveCheckpoint,
                             true);
@@ -200,7 +204,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
             verifyCheckpointExistOrWaitDeleted(
                     secondCheckpoint,
                     determineFileExist(
-                            restoreMode, secondFileMergingSwitch, secondFileMergingSwitch),
+                            recoveryClaimMode, secondFileMergingSwitch, secondFileMergingSwitch),
                     secondFileMergingSwitch,
                     secondMetadata);
         } finally {
@@ -225,7 +229,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                             stateBackend4,
                             thirdCheckpoint,
                             fourthCluster,
-                            restoreMode,
+                            recoveryClaimMode,
                             config,
                             consecutiveCheckpoint,
                             false);
@@ -233,7 +237,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
             verifyCheckpointExistOrWaitDeleted(
                     thirdCheckpoint,
                     determineFileExist(
-                            restoreMode, secondFileMergingSwitch, secondFileMergingSwitch),
+                            recoveryClaimMode, secondFileMergingSwitch, secondFileMergingSwitch),
                     secondFileMergingSwitch,
                     thirdMetadata);
             verifyCheckpointExistOrWaitDeleted(
@@ -274,8 +278,10 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
     }
 
     private static TernaryBoolean determineFileExist(
-            RestoreMode mode, boolean lastFileMergingEnabled, boolean thisFileMergingEnabled) {
-        if (mode == RestoreMode.CLAIM) {
+            RecoveryClaimMode mode,
+            boolean lastFileMergingEnabled,
+            boolean thisFileMergingEnabled) {
+        if (mode == RecoveryClaimMode.CLAIM) {
             if (lastFileMergingEnabled || thisFileMergingEnabled) {
                 // file merging will not reference files from previous jobs.
                 return TernaryBoolean.FALSE;

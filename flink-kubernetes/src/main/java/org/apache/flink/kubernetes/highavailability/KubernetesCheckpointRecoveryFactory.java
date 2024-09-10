@@ -20,7 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -83,7 +83,7 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
-            RestoreMode restoreMode)
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
         final String configMapName = getConfigMapNameFunction.apply(jobID);
         KubernetesUtils.createConfigMapIfItDoesNotExist(kubeClient, configMapName, clusterId);
@@ -97,7 +97,7 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
                 maxNumberOfCheckpointsToRetain,
                 sharedStateRegistryFactory,
                 ioExecutor,
-                restoreMode);
+                recoveryClaimMode);
     }
 
     @Override

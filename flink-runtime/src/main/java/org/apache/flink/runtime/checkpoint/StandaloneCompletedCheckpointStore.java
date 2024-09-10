@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
@@ -62,13 +62,13 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
                 SharedStateRegistry.DEFAULT_FACTORY,
                 Executors.directExecutor(),
                 /* Using the default mode in tests to detect any breaking changes early. */
-                RestoreMode.DEFAULT);
+                RecoveryClaimMode.DEFAULT);
     }
 
     /**
      * Creates {@link StandaloneCompletedCheckpointStore}.
      *
-     * @param restoreMode
+     * @param recoveryClaimMode
      * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain (at least
      *     1). Adding more checkpoints than this results in older checkpoints being discarded.
      */
@@ -76,13 +76,13 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
-            RestoreMode restoreMode) {
+            RecoveryClaimMode recoveryClaimMode) {
         this(
                 maxNumberOfCheckpointsToRetain,
                 sharedStateRegistryFactory,
                 new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1),
                 ioExecutor,
-                restoreMode);
+                recoveryClaimMode);
     }
 
     private StandaloneCompletedCheckpointStore(
@@ -90,8 +90,8 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
             SharedStateRegistryFactory sharedStateRegistryFactory,
             ArrayDeque<CompletedCheckpoint> checkpoints,
             Executor ioExecutor,
-            RestoreMode restoreMode) {
-        super(sharedStateRegistryFactory.create(ioExecutor, checkpoints, restoreMode));
+            RecoveryClaimMode recoveryClaimMode) {
+        super(sharedStateRegistryFactory.create(ioExecutor, checkpoints, recoveryClaimMode));
         checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
         this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
         this.checkpoints = checkpoints;

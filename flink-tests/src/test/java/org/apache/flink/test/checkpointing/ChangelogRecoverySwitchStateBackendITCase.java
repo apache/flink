@@ -22,7 +22,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -176,6 +176,6 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
 
     private void setSavepointRestoreSettings(JobGraph jobGraph, String restorePath) {
         jobGraph.setSavepointRestoreSettings(
-                SavepointRestoreSettings.forPath(restorePath, false, RestoreMode.CLAIM));
+                SavepointRestoreSettings.forPath(restorePath, false, RecoveryClaimMode.CLAIM));
     }
 }

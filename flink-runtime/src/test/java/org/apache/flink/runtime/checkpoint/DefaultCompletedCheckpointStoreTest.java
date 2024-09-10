@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingRetrievableStateStorageHelper;
@@ -388,7 +388,7 @@ class DefaultCompletedCheckpointStoreTest {
                 SharedStateRegistry.DEFAULT_FACTORY.create(
                         org.apache.flink.util.concurrent.Executors.directExecutor(),
                         emptyList(),
-                        RestoreMode.DEFAULT),
+                        RecoveryClaimMode.DEFAULT),
                 executorService);
     }
 
