@@ -100,7 +100,8 @@ public class StreamConfig implements Serializable {
     private static final String INPUTS = "inputs";
     private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
     private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
-    private static final String ITERATON_WAIT = "iterationWait";
+    private static final ConfigOption<Long> ITERATON_WAIT =
+            ConfigOptions.key("iterationWait").longType().defaultValue(0L);
     private static final String OP_NONCHAINED_OUTPUTS = "opNonChainedOutputs";
     private static final String VERTEX_NONCHAINED_OUTPUTS = "vertexNonChainedOutputs";
     private static final String IN_STREAM_EDGES = "inStreamEdges";
@@ -447,11 +448,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setIterationWaitTime(long time) {
-        config.setLong(ITERATON_WAIT, time);
+        config.set(ITERATON_WAIT, time);
     }
 
     public long getIterationWaitTime() {
-        return config.getLong(ITERATON_WAIT, 0);
+        return config.get(ITERATON_WAIT);
     }
 
     public void setNumberOfNetworkInputs(int numberOfInputs) {

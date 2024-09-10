@@ -27,6 +27,8 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
+
 @Public
 public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 
@@ -63,7 +65,8 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
         super.configure(parameters);
 
         // read own parameters
-        this.blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
+        this.blockSize =
+                parameters.get(getLongConfigOption(BLOCK_SIZE_PARAMETER_KEY), NATIVE_BLOCK_SIZE);
         if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
             throw new IllegalArgumentException(
                     "The block size parameter must be set and larger than 0.");

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link WorkerResourceSpec}. */
@@ -267,9 +268,11 @@ class WorkerResourceSpecTest {
         final Configuration config = new Configuration();
         config.setString(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME),
-                1);
+        config.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getAmountConfigOptionForResource(
+                                EXTERNAL_RESOURCE_NAME)),
+                1L);
 
         final TaskExecutorProcessSpec taskExecutorProcessSpec =
                 TaskExecutorProcessUtils.newProcessSpecBuilder(config)

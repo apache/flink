@@ -666,4 +666,8 @@ public class ConfigurationUtils {
     public static ConfigOption<Integer> getIntConfigOption(String key) {
         return ConfigOptions.key(key).intType().noDefaultValue();
     }
+
+    public static ConfigOption<Long> getLongConfigOption(String key) {
+        return ConfigOptions.key(key).longType().noDefaultValue();
+    }
 }

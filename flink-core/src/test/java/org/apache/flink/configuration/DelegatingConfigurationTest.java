@@ -186,11 +186,11 @@ class DelegatingConfigurationTest {
 
         // Test for long
         ConfigOption<Long> longOption = ConfigOptions.key("long.key").longType().noDefaultValue();
-        original.setLong(longOption, 10L);
-        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(11L);
+        original.set(longOption, 10L);
         assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(11L);
-        delegatingConf.setLong(longOption, 12L);
-        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(12L);
+        assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(11L);
+        delegatingConf.set(longOption, 12L);
+        assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(12L);
         assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(12L);
 
         // Test for boolean

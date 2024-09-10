@@ -38,6 +38,7 @@ import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfig
 import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -62,8 +63,8 @@ class ConfigurationConversionsTest {
         pc = new Configuration();
 
         pc.set(getIntConfigOption("int"), 5);
-        pc.setLong("long", 15);
-        pc.setLong("too_long", TOO_LONG);
+        pc.set(getLongConfigOption("long"), 15L);
+        pc.set(getLongConfigOption("too_long"), TOO_LONG);
         pc.set(getFloatConfigOption("float"), 2.1456775f);
         pc.set(getDoubleConfigOption("double"), Math.PI);
         pc.set(getDoubleConfigOption("negative_double"), -1.0);
@@ -79,7 +80,7 @@ class ConfigurationConversionsTest {
         return Arrays.asList(
                 // from integer
                 TestSpec.whenAccessed(conf -> conf.get(getIntConfigOption("int"), 0)).expect(5),
-                TestSpec.whenAccessed(conf -> conf.getLong("int", 0)).expect(5L),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("int"), 0L)).expect(5L),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("int"), 0f)).expect(5f),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("int"), 0.0))
                         .expect(5.0),
@@ -91,7 +92,8 @@ class ConfigurationConversionsTest {
 
                 // from long
                 TestSpec.whenAccessed(conf -> conf.get(getIntConfigOption("long"), 0)).expect(15),
-                TestSpec.whenAccessed(conf -> conf.getLong("long", 0)).expect(15L),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("long"), 0L))
+                        .expect(15L),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("long"), 0f))
                         .expect(15f),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("long"), 0.0))
@@ -106,7 +108,8 @@ class ConfigurationConversionsTest {
                 // from too long
                 TestSpec.whenAccessed(conf -> conf.get(getIntConfigOption("too_long"), 0))
                         .expectException("Could not parse value '2147483657' for key 'too_long'."),
-                TestSpec.whenAccessed(conf -> conf.getLong("too_long", 0)).expect(TOO_LONG),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("too_long"), 0L))
+                        .expect(TOO_LONG),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("too_long"), 0f))
                         .expect((float) TOO_LONG),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("too_long"), 0.0))
@@ -124,9 +127,10 @@ class ConfigurationConversionsTest {
                         .expectException(
                                 "Could not parse value '2.1456776' for key 'float'.",
                                 IllegalArgumentException.class),
-                TestSpec.whenAccessed(conf -> conf.getLong("float", 0))
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("float"), 0L))
                         .expectException(
-                                "For input string: \"2.1456776\"", NumberFormatException.class),
+                                "Could not parse value '2.1456776' for key 'float'.",
+                                IllegalArgumentException.class),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("float"), 0f))
                         .expect(2.1456775f),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("float"), 0.0))
@@ -147,10 +151,10 @@ class ConfigurationConversionsTest {
                         .expectException(
                                 "Could not parse value '3.141592653589793' for key 'double'.",
                                 IllegalArgumentException.class),
-                TestSpec.whenAccessed(conf -> conf.getLong("double", 0))
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("double"), 0L))
                         .expectException(
-                                "For input string: \"3.141592653589793\"",
-                                NumberFormatException.class),
+                                "Could not parse value '3.141592653589793' for key 'double'.",
+                                IllegalArgumentException.class),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("double"), 0f))
                         .expect(new IsCloseTo(3.141592f, 0.000001f)),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("double"), 0.0))
@@ -169,8 +173,10 @@ class ConfigurationConversionsTest {
                         .expectException(
                                 "Could not parse value '-1.0' for key 'negative_double'.",
                                 IllegalArgumentException.class),
-                TestSpec.whenAccessed(conf -> conf.getLong("negative_double", 0))
-                        .expectException("For input string: \"-1.0\"", NumberFormatException.class),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("negative_double"), 0L))
+                        .expectException(
+                                "Could not parse value '-1.0' for key 'negative_double'.",
+                                IllegalArgumentException.class),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("negative_double"), 0f))
                         .expect(new IsCloseTo(-1f, 0.000001f)),
                 TestSpec.whenAccessed(
@@ -190,8 +196,10 @@ class ConfigurationConversionsTest {
                         .expectException(
                                 "Could not parse value '0.0' for key 'zero'.",
                                 IllegalArgumentException.class),
-                TestSpec.whenAccessed(conf -> conf.getLong("zero", 0))
-                        .expectException("For input string: \"0.0\"", NumberFormatException.class),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("zero"), 0L))
+                        .expectException(
+                                "Could not parse value '0.0' for key 'zero'.",
+                                IllegalArgumentException.class),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("zero"), 0f))
                         .expect(new IsCloseTo(0f, 0.000001f)),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("zero"), 0.0))
@@ -209,10 +217,10 @@ class ConfigurationConversionsTest {
                         .expectException(
                                 "Could not parse value '1.7976931348623157E308' for key 'too_long_double'.",
                                 IllegalArgumentException.class),
-                TestSpec.whenAccessed(conf -> conf.getLong("too_long_double", 0))
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("too_long_double"), 0L))
                         .expectException(
-                                "For input string: \"1.7976931348623157E308\"",
-                                NumberFormatException.class),
+                                "Could not parse value '1.7976931348623157E308' for key 'too_long_double'.",
+                                IllegalArgumentException.class),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("too_long_double"), 0f))
                         .expectException(
                                 "Could not parse value '1.7976931348623157E308' for key 'too_long_double'."),
@@ -231,7 +239,8 @@ class ConfigurationConversionsTest {
 
                 // from string
                 TestSpec.whenAccessed(conf -> conf.get(getIntConfigOption("string"), 0)).expect(42),
-                TestSpec.whenAccessed(conf -> conf.getLong("string", 0)).expect(42L),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("string"), 0L))
+                        .expect(42L),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("string"), 0f))
                         .expect(42f),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("string"), 0.0))
@@ -249,9 +258,11 @@ class ConfigurationConversionsTest {
                         .expectException(
                                 "Could not parse value 'bcdefg&&' for key 'non_convertible_string'.",
                                 IllegalArgumentException.class),
-                TestSpec.whenAccessed(conf -> conf.getLong("non_convertible_string", 0))
+                TestSpec.whenAccessed(
+                                conf -> conf.get(getLongConfigOption("non_convertible_string"), 0L))
                         .expectException(
-                                "For input string: \"bcdefg&&\"", NumberFormatException.class),
+                                "Could not parse value 'bcdefg&&' for key 'non_convertible_string'.",
+                                IllegalArgumentException.class),
                 TestSpec.whenAccessed(
                                 conf ->
                                         conf.get(
@@ -283,8 +294,8 @@ class ConfigurationConversionsTest {
                 // from boolean
                 TestSpec.whenAccessed(conf -> conf.get(getIntConfigOption("boolean"), 0))
                         .expectException("Could not parse value 'true' for key 'boolean'."),
-                TestSpec.whenAccessed(conf -> conf.getLong("boolean", 0))
-                        .expectException("For input string: \"true\""),
+                TestSpec.whenAccessed(conf -> conf.get(getLongConfigOption("boolean"), 0L))
+                        .expectException("Could not parse value 'true' for key 'boolean'."),
                 TestSpec.whenAccessed(conf -> conf.get(getFloatConfigOption("boolean"), 0f))
                         .expectException("Could not parse value 'true' for key 'boolean'."),
                 TestSpec.whenAccessed(conf -> conf.get(getDoubleConfigOption("boolean"), 0.0))

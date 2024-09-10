@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_LEGACY_HEAP_OPTIONS;
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_PROCESS_MEMORY_OPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -635,9 +636,11 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
         final Configuration config = new Configuration();
         config.setString(
                 ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME_1);
-        config.setLong(
-                ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME_1),
-                1);
+        config.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getAmountConfigOptionForResource(
+                                EXTERNAL_RESOURCE_NAME_1)),
+                1L);
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(4096));
         final TaskExecutorProcessSpec taskExecutorProcessSpec =
                 TaskExecutorProcessUtils.processSpecFromConfig(config);

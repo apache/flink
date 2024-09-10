@@ -36,6 +36,7 @@ import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfig
 import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -75,7 +76,7 @@ class ConfigurationTest {
         final Configuration orig = new Configuration();
         orig.setString("mykey", "myvalue");
         orig.set(getIntConfigOption("mynumber"), 100);
-        orig.setLong("longvalue", 478236947162389746L);
+        orig.set(getLongConfigOption("longvalue"), 478236947162389746L);
         orig.set(getFloatConfigOption("PI"), 3.1415926f);
         orig.set(getDoubleConfigOption("E"), Math.E);
         orig.set(getBooleanConfigOption("shouldbetrue"), true);
@@ -84,7 +85,7 @@ class ConfigurationTest {
         final Configuration copy = InstantiationUtil.createCopyWritable(orig);
         assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
         assertThat(copy.get(getIntConfigOption("mynumber"), 0)).isEqualTo(100);
-        assertThat(copy.getLong("longvalue", 0L)).isEqualTo(478236947162389746L);
+        assertThat(copy.get(getLongConfigOption("longvalue"), 0L)).isEqualTo(478236947162389746L);
         assertThat(copy.get(getFloatConfigOption("PI"), 3.1415926f))
                 .isCloseTo(3.1415926f, Offset.offset(0.0f));
         assertThat(copy.get(getDoubleConfigOption("E"), 0.0)).isCloseTo(Math.E, Offset.offset(0.0));
