@@ -28,7 +28,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,38 +75,20 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
      * Creates a {@code DefaultStateTransitionManager} instance with the given parameters.
      *
      * @param transitionContext The context for the {@code StateTransitionManager}.
+     * @param clock A supplier for the current time.
      * @param cooldownTimeout The timeout for the cooldown phase.
      * @param resourceStabilizationTimeout The timeout for the resource stabilization phase.
      * @param maxTriggerDelay The maximum delay for triggering a {@link AdaptiveScheduler}'s state
      *     transition if only sufficient resources are available.
-     * @param initializationTime The last state transition timestamp of {@link AdaptiveScheduler}'s
-     *     state machine.
      */
     DefaultStateTransitionManager(
             Context transitionContext,
-            Duration cooldownTimeout,
-            Duration resourceStabilizationTimeout,
-            Duration maxTriggerDelay,
-            Temporal initializationTime) {
-        this(
-                Instant::now,
-                transitionContext,
-                cooldownTimeout,
-                resourceStabilizationTimeout,
-                maxTriggerDelay,
-                initializationTime);
-    }
-
-    @VisibleForTesting
-    DefaultStateTransitionManager(
             Supplier<Temporal> clock,
-            Context transitionContext,
             Duration cooldownTimeout,
             Duration resourceStabilizationTimeout,
-            Duration maxTriggerDelay,
-            Temporal initializationTime) {
+            Duration maxTriggerDelay) {
 
-        this.clock = clock;
+        this.clock = Preconditions.checkNotNull(clock);
         Preconditions.checkArgument(
                 !maxTriggerDelay.isNegative(), "Max trigger delay must not be negative");
         this.maxTriggerDelay = maxTriggerDelay;
@@ -120,7 +101,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         this.scheduledFutures = new ArrayList<>();
         this.phase =
                 new Cooldown(
-                        Preconditions.checkNotNull(initializationTime),
+                        Preconditions.checkNotNull(clock.get()),
                         clock,
                         this,
                         Preconditions.checkNotNull(cooldownTimeout));

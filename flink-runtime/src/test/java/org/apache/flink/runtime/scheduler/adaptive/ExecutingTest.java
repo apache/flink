@@ -86,7 +86,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -102,7 +101,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -160,9 +158,8 @@ class ExecutingTest {
                     ctx,
                     ClassLoader.getSystemClassLoader(),
                     new ArrayList<>(),
-                    (context, ts) -> TestingStateTransitionManager.withNoOp(),
-                    1,
-                    Instant.now());
+                    (context) -> TestingStateTransitionManager.withNoOp(),
+                    1);
             assertThat(mockExecutionVertex.isDeployCalled()).isFalse();
         }
     }
@@ -187,9 +184,8 @@ class ExecutingTest {
                                         ctx,
                                         ClassLoader.getSystemClassLoader(),
                                         new ArrayList<>(),
-                                        (context, ts) -> TestingStateTransitionManager.withNoOp(),
-                                        1,
-                                        Instant.now());
+                                        context -> TestingStateTransitionManager.withNoOp(),
+                                        1);
                             }
                         })
                 .isInstanceOf(IllegalStateException.class);
@@ -198,9 +194,9 @@ class ExecutingTest {
     @Test
     public void testTriggerRescaleOnCompletedCheckpoint() throws Exception {
         final AtomicBoolean rescaleTriggered = new AtomicBoolean();
-        final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+        final Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory =
-                        (context, ts) ->
+                        context ->
                                 TestingStateTransitionManager.withOnTriggerEventOnly(
                                         () -> rescaleTriggered.set(true));
 
@@ -219,9 +215,9 @@ class ExecutingTest {
     @Test
     public void testTriggerRescaleOnFailedCheckpoint() throws Exception {
         final AtomicInteger rescaleTriggerCount = new AtomicInteger();
-        final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+        final Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory =
-                        (context, ts) ->
+                        context ->
                                 TestingStateTransitionManager.withOnTriggerEventOnly(
                                         rescaleTriggerCount::incrementAndGet);
 
@@ -265,9 +261,9 @@ class ExecutingTest {
     @Test
     public void testOnCompletedCheckpointResetsFailedCheckpointCount() throws Exception {
         final AtomicInteger rescaleTriggeredCount = new AtomicInteger();
-        final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+        final Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory =
-                        (context, ts) ->
+                        context ->
                                 TestingStateTransitionManager.withOnTriggerEventOnly(
                                         rescaleTriggeredCount::incrementAndGet);
 
@@ -603,7 +599,7 @@ class ExecutingTest {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             new ExecutingStateBuilder()
                     .setStateTransitionManagerFactory(
-                            (context, ts) ->
+                            context ->
                                     new TestingStateTransitionManager(
                                             () -> actualEvents.add(onChangeEventLabel),
                                             () -> actualEvents.add(onTriggerEventLabel)))
@@ -633,9 +629,9 @@ class ExecutingTest {
     public void testInternalParallelismChangeBehavior(boolean parallelismChanged) throws Exception {
         try (MockExecutingContext adaptiveSchedulerCtx = new MockExecutingContext()) {
             final AtomicBoolean onChangeCalled = new AtomicBoolean();
-            final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+            final Function<StateTransitionManager.Context, StateTransitionManager>
                     stateTransitionManagerFactory =
-                            (transitionCtx, ts) ->
+                            transitionCtx ->
                                     TestingStateTransitionManager.withOnChangeEventOnly(
                                             () -> {
                                                 assertThat(transitionCtx.hasDesiredResources())
@@ -686,9 +682,8 @@ class ExecutingTest {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .build(EXECUTOR_EXTENSION.getExecutor());
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
-        private BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
-                stateTransitionManagerFactory =
-                        (context, ts) -> TestingStateTransitionManager.withNoOp();
+        private Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory = context -> TestingStateTransitionManager.withNoOp();
         private int rescaleOnFailedCheckpointCount = 1;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
@@ -707,7 +702,7 @@ class ExecutingTest {
         }
 
         public ExecutingStateBuilder setStateTransitionManagerFactory(
-                BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+                Function<StateTransitionManager.Context, StateTransitionManager>
                         stateTransitionManagerFactory) {
             this.stateTransitionManagerFactory = stateTransitionManagerFactory;
             return this;
@@ -732,9 +727,7 @@ class ExecutingTest {
                         ClassLoader.getSystemClassLoader(),
                         new ArrayList<>(),
                         stateTransitionManagerFactory::apply,
-                        rescaleOnFailedCheckpointCount,
-                        // will be ignored by the TestingStateTransitionManager.Factory
-                        Instant.now());
+                        rescaleOnFailedCheckpointCount);
             } finally {
                 Preconditions.checkState(
                         !ctx.hadStateTransition,
