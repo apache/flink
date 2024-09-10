@@ -151,6 +151,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
@@ -192,16 +193,16 @@ public class AdaptiveScheduler
      *
      * @see
      *     DefaultStateTransitionManager#DefaultStateTransitionManager(StateTransitionManager.Context,
-     *     Duration, Duration, Duration, Temporal)
+     *     Supplier, Duration, Duration, Duration)
      */
     @FunctionalInterface
     interface StateTransitionManagerFactory {
         StateTransitionManager create(
                 StateTransitionManager.Context context,
+                Supplier<Temporal> clock,
                 Duration cooldownTimeout,
                 Duration resourceStabilizationTimeout,
-                Duration maximumDelayForTrigger,
-                Temporal lastStateTransition);
+                Duration maximumDelayForTrigger);
     }
 
     /**
@@ -410,6 +411,8 @@ public class AdaptiveScheduler
 
     private final JobFailureMetricReporter jobFailureMetricReporter;
     private final boolean reportEventsAsSpans;
+
+    private final Supplier<Temporal> clock = Instant::now;
 
     public AdaptiveScheduler(
             Settings settings,
@@ -1155,10 +1158,10 @@ public class AdaptiveScheduler
             StateTransitionManager.Context ctx) {
         return stateTransitionManagerFactory.create(
                 ctx,
+                clock,
                 Duration.ZERO, // skip cooldown phase
                 settings.getResourceStabilizationTimeout(),
-                Duration.ZERO, // trigger immediately once the stabilization phase is over
-                Instant.now());
+                Duration.ZERO); // trigger immediately once the stabilization phase is over
     }
 
     private void declareDesiredResources() {
@@ -1194,13 +1197,13 @@ public class AdaptiveScheduler
     }
 
     private StateTransitionManager createExecutingStateTransitionManager(
-            StateTransitionManager.Context ctx, Instant lastRescaleTimestamp) {
+            StateTransitionManager.Context ctx) {
         return stateTransitionManagerFactory.create(
                 ctx,
+                clock,
                 settings.getScalingIntervalMin(),
                 settings.getScalingResourceStabilizationTimeout(),
-                settings.getMaximumDelayForTriggeringRescale(),
-                lastRescaleTimestamp);
+                settings.getMaximumDelayForTriggeringRescale());
     }
 
     @Override

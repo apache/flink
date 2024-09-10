@@ -153,6 +153,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -2383,10 +2384,10 @@ public class AdaptiveSchedulerTest {
 
         public StateTransitionManager create(
                 StateTransitionManager.Context context,
+                Supplier<Temporal> ignoredClock,
                 Duration cooldownTimeout,
                 Duration resourceStabilizationTimeout,
-                Duration maximumDelayForTrigger,
-                Temporal ignoredTimestamp) {
+                Duration maximumDelayForTrigger) {
             this.cooldownTimeout = cooldownTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
             this.maximumDelayForTrigger = maximumDelayForTrigger;
@@ -2429,10 +2430,10 @@ public class AdaptiveSchedulerTest {
                         .setDeclarativeSlotPool(slotPool)
                         .setStateTransitionManagerFactory(
                                 (context,
+                                        ignoredClock,
                                         ignoredCooldown,
                                         ignoredResourceStabilizationTimeout,
-                                        ignoredMaxTriggerDelay,
-                                        ignoredTimestamp) ->
+                                        ignoredMaxTriggerDelay) ->
                                         TestingStateTransitionManager.withOnTriggerEventOnly(
                                                 () -> {
                                                     singleThreadMainThreadExecutor
