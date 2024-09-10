@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
 import static org.apache.flink.configuration.FallbackKey.createDeprecatedKey;
 
 /**
@@ -183,7 +184,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public float getFloat(String key, float defaultValue) {
-        return this.backingConfig.getFloat(this.prefix + key, defaultValue);
+        return this.backingConfig.get(getFloatConfigOption(this.prefix + key), defaultValue);
     }
 
     @Override

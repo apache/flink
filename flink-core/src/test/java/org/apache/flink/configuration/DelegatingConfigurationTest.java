@@ -167,11 +167,11 @@ class DelegatingConfigurationTest {
         // Test for float
         ConfigOption<Float> floatOption =
                 ConfigOptions.key("float.key").floatType().noDefaultValue();
-        original.setFloat(floatOption, 4f);
-        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(5f);
+        original.set(floatOption, 4f);
         assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(5f);
-        delegatingConf.setFloat(floatOption, 6f);
-        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(6f);
+        assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(5f);
+        delegatingConf.set(floatOption, 6f);
+        assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(6f);
         assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(6f);
 
         // Test for double

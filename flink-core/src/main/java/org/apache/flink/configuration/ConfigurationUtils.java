@@ -658,4 +658,8 @@ public class ConfigurationUtils {
     public static ConfigOption<Double> getDoubleConfigOption(String key) {
         return ConfigOptions.key(key).doubleType().noDefaultValue();
     }
+
+    public static ConfigOption<Float> getFloatConfigOption(String key) {
+        return ConfigOptions.key(key).floatType().noDefaultValue();
+    }
 }

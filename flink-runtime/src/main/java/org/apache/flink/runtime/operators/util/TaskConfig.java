@@ -51,6 +51,7 @@ import java.util.List;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
 
 /** Configuration class which stores all relevant parameters required to set up the Pact tasks. */
 public class TaskConfig implements Serializable {
@@ -728,22 +729,24 @@ public class TaskConfig implements Serializable {
         if (threshold < 0.0f || threshold > 1.0f) {
             throw new IllegalArgumentException();
         }
-        this.config.setFloat(SORT_SPILLING_THRESHOLD_DRIVER, threshold);
+        this.config.set(getFloatConfigOption(SORT_SPILLING_THRESHOLD_DRIVER), threshold);
     }
 
     public float getSpillingThresholdDriver() {
-        return this.config.getFloat(SORT_SPILLING_THRESHOLD_DRIVER, 0.7f);
+        return this.config.get(getFloatConfigOption(SORT_SPILLING_THRESHOLD_DRIVER), 0.7f);
     }
 
     public void setSpillingThresholdInput(int inputNum, float threshold) {
         if (threshold < 0.0f || threshold > 1.0f) {
             throw new IllegalArgumentException();
         }
-        this.config.setFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, threshold);
+        this.config.set(
+                getFloatConfigOption(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum), threshold);
     }
 
     public float getSpillingThresholdInput(int inputNum) {
-        return this.config.getFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, 0.7f);
+        return this.config.get(
+                getFloatConfigOption(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum), 0.7f);
     }
 
     public void setUseLargeRecordHandler(boolean useLargeRecordHandler) {

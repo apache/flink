@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -74,7 +75,7 @@ class ConfigurationTest {
         orig.setString("mykey", "myvalue");
         orig.setInteger("mynumber", 100);
         orig.setLong("longvalue", 478236947162389746L);
-        orig.setFloat("PI", 3.1415926f);
+        orig.set(getFloatConfigOption("PI"), 3.1415926f);
         orig.set(getDoubleConfigOption("E"), Math.E);
         orig.set(getBooleanConfigOption("shouldbetrue"), true);
         orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
@@ -83,7 +84,8 @@ class ConfigurationTest {
         assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
         assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
         assertThat(copy.getLong("longvalue", 0L)).isEqualTo(478236947162389746L);
-        assertThat(copy.getFloat("PI", 3.1415926f)).isCloseTo(3.1415926f, Offset.offset(0.0f));
+        assertThat(copy.get(getFloatConfigOption("PI"), 3.1415926f))
+                .isCloseTo(3.1415926f, Offset.offset(0.0f));
         assertThat(copy.get(getDoubleConfigOption("E"), 0.0)).isCloseTo(Math.E, Offset.offset(0.0));
         assertThat(copy.get(getBooleanConfigOption("shouldbetrue"), false)).isTrue();
         assertThat(copy.getBytes("bytes sequence", null)).containsExactly(1, 2, 3, 4, 5);
