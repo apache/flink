@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
@@ -150,10 +150,10 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
                         jobManagerConfiguration, LOG),
                 sharedStateRegistryFactory,
                 cleanupExecutor,
-                // Using RestoreMode.CLAIM to be able to discard shared state, if any.
+                // Using RecoveryClaimMode.CLAIM to be able to discard shared state, if any.
                 // Note that it also means that the original shared state might be discarded as well
                 // because the initial checkpoint might be subsumed.
-                RestoreMode.CLAIM);
+                RecoveryClaimMode.CLAIM);
     }
 
     private CheckpointIDCounter createCheckpointIDCounter() throws Exception {

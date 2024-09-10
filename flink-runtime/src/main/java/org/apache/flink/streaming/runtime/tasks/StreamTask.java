@@ -24,7 +24,7 @@ import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTim
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -1475,7 +1475,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             "Configured state backend (%s) does not support enforcing a full"
                                     + " snapshot. If you are restoring in %s mode, please"
                                     + " consider choosing %s mode.",
-                            stateBackend, RestoreMode.NO_CLAIM, RestoreMode.CLAIM));
+                            stateBackend, RecoveryClaimMode.NO_CLAIM, RecoveryClaimMode.CLAIM));
         } else if (checkpointOptions.getCheckpointType().isSavepoint()) {
             SavepointType savepointType = (SavepointType) checkpointOptions.getCheckpointType();
             if (!stateBackend.supportsSavepointFormat(savepointType.getFormatType())) {

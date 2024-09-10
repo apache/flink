@@ -20,7 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CleanupOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
@@ -90,7 +90,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 previous,
                                 sharedStateRegistryFactory,
                                 ioExecutor,
-                                restoreMode) -> {
+                                recoveryClaimMode) -> {
                             if (previous != null) {
                                 // First job cleanup still succeeded for the
                                 // CompletedCheckpointStore because the JobGraph cleanup happens
@@ -103,7 +103,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         sharedStateRegistryFactory.create(
                                                 ioExecutor,
                                                 previous.getAllCheckpoints(),
-                                                restoreMode));
+                                                recoveryClaimMode));
                             }
                             return new EmbeddedCompletedCheckpointStore(
                                     maxCheckpoints,
@@ -111,7 +111,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                     sharedStateRegistryFactory.create(
                                             ioExecutor,
                                             Collections.emptyList(),
-                                            RestoreMode.DEFAULT));
+                                            RecoveryClaimMode.DEFAULT));
                         }));
     }
 

@@ -43,7 +43,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -421,7 +421,7 @@ public class SavepointITCase extends TestLogger {
         restoreJobAndVerifyState(
                 clusterFactory,
                 parallelism,
-                SavepointRestoreSettings.forPath(savepointPath, false, RestoreMode.CLAIM),
+                SavepointRestoreSettings.forPath(savepointPath, false, RecoveryClaimMode.CLAIM),
                 cluster -> {
                     cluster.after();
 
@@ -446,7 +446,7 @@ public class SavepointITCase extends TestLogger {
         restoreJobAndVerifyState(
                 clusterFactory,
                 parallelism,
-                SavepointRestoreSettings.forPath(savepointPath, false, RestoreMode.LEGACY),
+                SavepointRestoreSettings.forPath(savepointPath, false, RecoveryClaimMode.LEGACY),
                 cluster -> {
                     cluster.after();
 
@@ -533,7 +533,8 @@ public class SavepointITCase extends TestLogger {
 
             cluster.getClusterClient().cancel(jobID1).get();
             jobGraph.setSavepointRestoreSettings(
-                    SavepointRestoreSettings.forPath(firstCheckpoint, false, RestoreMode.NO_CLAIM));
+                    SavepointRestoreSettings.forPath(
+                            firstCheckpoint, false, RecoveryClaimMode.NO_CLAIM));
             final JobID jobID2 = new JobID();
             jobGraph.setJobID(jobID2);
             cluster.getClusterClient().submitJob(jobGraph).get();
@@ -548,7 +549,7 @@ public class SavepointITCase extends TestLogger {
             // on top of the first checkpoint
             jobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(
-                            secondCheckpoint, false, RestoreMode.NO_CLAIM));
+                            secondCheckpoint, false, RecoveryClaimMode.NO_CLAIM));
             final JobID jobID3 = new JobID();
             jobGraph.setJobID(jobID3);
             cluster.getClusterClient().submitJob(jobGraph).get();

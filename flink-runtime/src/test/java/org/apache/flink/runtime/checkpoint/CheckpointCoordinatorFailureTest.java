@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
@@ -285,7 +285,7 @@ class CheckpointCoordinatorFailureTest {
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
             super(
                     SharedStateRegistry.DEFAULT_FACTORY.create(
-                            Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT));
+                            Executors.directExecutor(), emptyList(), RecoveryClaimMode.DEFAULT));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 

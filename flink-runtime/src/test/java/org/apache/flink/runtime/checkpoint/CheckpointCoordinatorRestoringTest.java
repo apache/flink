@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
@@ -238,7 +238,9 @@ class CheckpointCoordinatorRestoringTest {
         final ExecutionGraph executionGraph = createExecutionGraph(vertices);
         final EmbeddedCompletedCheckpointStore store =
                 new EmbeddedCompletedCheckpointStore(
-                        completedCheckpoints.size(), completedCheckpoints, RestoreMode.DEFAULT);
+                        completedCheckpoints.size(),
+                        completedCheckpoints,
+                        RecoveryClaimMode.DEFAULT);
 
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
@@ -780,7 +782,7 @@ class CheckpointCoordinatorRestoringTest {
         // set up the coordinator and validate the initial state
         SharedStateRegistry sharedStateRegistry =
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT);
+                        Executors.directExecutor(), emptyList(), RecoveryClaimMode.DEFAULT);
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(
