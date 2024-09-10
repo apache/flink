@@ -18,65 +18,46 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 class WithAdapterSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
-
     @Override
-    SinkAndSuppliers sinkWithoutCommitter() {
+    InspectableSink sinkWithoutCommitter() {
         TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
-        return new SinkAndSuppliers(
-                TestSink.newBuilder().setWriter(sinkWriter).build().asV2(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> -1,
-                () -> new TestSink.StringCommittableSerializer());
+        return new InspectableSink(TestSink.newBuilder().setWriter(sinkWriter).build());
     }
 
     @Override
-    SinkAndSuppliers sinkWithCommitter() {
+    InspectableSink sinkWithCommitter() {
         TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
-        return new SinkAndSuppliers(
-                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter().build().asV2(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> -1,
-                () -> new TestSink.StringCommittableSerializer());
+        return new InspectableSink(
+                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter().build());
     }
 
     @Override
-    SinkAndSuppliers sinkWithTimeBasedWriter() {
+    InspectableSink sinkWithTimeBasedWriter() {
         TestSink.DefaultSinkWriter<Integer> sinkWriter = new TimeBasedBufferingSinkWriter();
-        return new SinkAndSuppliers(
-                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter().build().asV2(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> -1,
-                () -> new TestSink.StringCommittableSerializer());
+        return new InspectableSink(
+                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter().build());
     }
 
     @Override
-    SinkAndSuppliers sinkWithSnapshottingWriter(boolean withState, String stateName) {
-        SnapshottingBufferingSinkWriter sinkWriter = new SnapshottingBufferingSinkWriter();
+    InspectableSink sinkWithState(boolean withState, String stateName) {
+        TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
         TestSink.Builder<Integer> builder =
                 TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter();
         if (withState) {
             builder.withWriterState();
+            if (stateName != null) {
+                builder.setCompatibleStateNames(stateName);
+            }
         }
-        if (stateName != null) {
-            builder.setCompatibleStateNames(stateName);
-        }
-        return new SinkAndSuppliers(
-                builder.build().asV2(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> sinkWriter.lastCheckpointId,
-                () -> new TestSink.StringCommittableSerializer());
+        return new InspectableSink(builder.build());
     }
 
     private static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter<Integer>
@@ -103,30 +84,33 @@ class WithAdapterSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
         }
     }
 
-    private static class SnapshottingBufferingSinkWriter
-            extends TestSink.DefaultSinkWriter<Integer> {
-        public static final int NOT_SNAPSHOTTED = -1;
-        long lastCheckpointId = NOT_SNAPSHOTTED;
+    class InspectableSink
+            extends AbstractInspectableSink<org.apache.flink.api.connector.sink2.Sink<Integer>> {
+        private final TestSink<Integer> sink;
 
-        @Override
-        public List<String> snapshotState(long checkpointId) {
-            lastCheckpointId = checkpointId;
-            return elements;
+        InspectableSink(TestSink<Integer> sink) {
+            super(sink.asV2());
+            this.sink = sink;
         }
 
         @Override
-        void restoredFrom(List<String> states) {
-            this.elements = new ArrayList<>(states);
+        public long getLastCheckpointId() {
+            return sink.getWriter().lastCheckpointId;
         }
 
         @Override
-        public List<String> prepareCommit(boolean flush) {
-            if (!flush) {
-                return Collections.emptyList();
-            }
-            List<String> result = elements;
-            elements = new ArrayList<>();
-            return result;
+        public List<String> getRecordsOfCurrentCheckpoint() {
+            return sink.getWriter().elements;
+        }
+
+        @Override
+        public List<Watermark> getWatermarks() {
+            return sink.getWriter().watermarks;
+        }
+
+        @Override
+        public int getRecordCountFromState() {
+            return sink.getWriter().getRecordCount();
         }
     }
 }

@@ -226,7 +226,6 @@ public class SinkITCase extends AbstractTestBaseJUnit4 {
 
         stream.sinkTo(
                 TestSink.newBuilder()
-                        .setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
                         .setGlobalCommitter(
                                 (Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
                         .build());
@@ -252,8 +251,6 @@ public class SinkITCase extends AbstractTestBaseJUnit4 {
         env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .setGlobalCommitter(
                                         (Supplier<Queue<String>> & Serializable)
                                                 () -> GLOBAL_COMMIT_QUEUE)
