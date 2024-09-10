@@ -33,8 +33,6 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
                         TestSink.newBuilder()
                                 .setCommitter(committer)
                                 .setDefaultGlobalCommitter()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .build()
                                 .asV2(),
                 () -> committer.successfulCommits);
@@ -47,8 +45,6 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
                         TestSink.newBuilder()
                                 .setCommitter(new TestSink.RetryOnceCommitter())
                                 .setDefaultGlobalCommitter()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .build()
                                 .asV2(),
                 () -> 0);
@@ -59,12 +55,7 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
                 (SupportsCommitter<String>)
-                        TestSink.newBuilder()
-                                .setCommitter(committer)
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .build()
-                                .asV2(),
+                        TestSink.newBuilder().setCommitter(committer).build().asV2(),
                 () -> committer.successfulCommits);
     }
 
@@ -78,6 +69,6 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
         }
 
         @Override
-        public void close() throws Exception {}
+        public void close() {}
     }
 }

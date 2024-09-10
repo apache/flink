@@ -116,6 +116,7 @@ public class SinkITCase extends AbstractTestBase {
     @Test
     public void writerAndCommitterAndGlobalCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
+
         final FiniteTestSource<Integer> source =
                 new FiniteTestSource<>(BOTH_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
@@ -174,6 +175,7 @@ public class SinkITCase extends AbstractTestBase {
     @Test
     public void writerAndCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
+
         final FiniteTestSource<Integer> source =
                 new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
@@ -207,14 +209,13 @@ public class SinkITCase extends AbstractTestBase {
     @Test
     public void writerAndGlobalCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
+
         final FiniteTestSource<Integer> source =
                 new FiniteTestSource<>(GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
 
         env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
                 .sinkTo(
                         TestSink.newBuilder()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .setGlobalCommitter(
                                         (Supplier<Queue<String>> & Serializable)
                                                 () -> GLOBAL_COMMIT_QUEUE)
@@ -241,8 +242,6 @@ public class SinkITCase extends AbstractTestBase {
         env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .setGlobalCommitter(
                                         (Supplier<Queue<String>> & Serializable)
                                                 () -> GLOBAL_COMMIT_QUEUE)

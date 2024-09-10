@@ -30,7 +30,6 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
                 (SupportsCommitter<String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(committer)
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .setWithPostCommitTopology(true)
                                 .build(),
                 () -> committer.successfulCommits);
@@ -42,7 +41,6 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
                 (SupportsCommitter<String>)
                         TestSinkV2.newBuilder()
                                 .setCommitter(new TestSinkV2.RetryOnceCommitter())
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .setWithPostCommitTopology(true)
                                 .build(),
                 () -> 0);
@@ -52,12 +50,11 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithoutPostCommit() {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
-                (SupportsCommitter<String>)
-                        TestSinkV2.newBuilder()
-                                .setCommitter(committer)
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
-                                .setWithPostCommitTopology(false)
-                                .build(),
+                TestSinkV2.newBuilder()
+                        .setCommitter(committer)
+                        .setWithPostCommitTopology(false)
+                        .build()
+                        .asSupportsCommitter(),
                 () -> committer.successfulCommits);
     }
 
