@@ -41,67 +41,67 @@ public class InternalMapStateTest extends InternalKeyedStateTestBase {
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         mapState.asyncClear();
-        validateRequestRun(mapState, StateRequestType.CLEAR, null);
+        validateRequestRun(mapState, StateRequestType.CLEAR, null, 0);
 
         mapState.asyncGet("key1");
-        validateRequestRun(mapState, StateRequestType.MAP_GET, "key1");
+        validateRequestRun(mapState, StateRequestType.MAP_GET, "key1", 0);
 
         mapState.asyncPut("key2", 2);
-        validateRequestRun(mapState, StateRequestType.MAP_PUT, Tuple2.of("key2", 2));
+        validateRequestRun(mapState, StateRequestType.MAP_PUT, Tuple2.of("key2", 2), 0);
 
         Map<String, Integer> map = new HashMap<>();
         mapState.asyncPutAll(map);
-        validateRequestRun(mapState, StateRequestType.MAP_PUT_ALL, map);
+        validateRequestRun(mapState, StateRequestType.MAP_PUT_ALL, map, 0);
 
         mapState.asyncRemove("key3");
-        validateRequestRun(mapState, StateRequestType.MAP_REMOVE, "key3");
+        validateRequestRun(mapState, StateRequestType.MAP_REMOVE, "key3", 0);
 
         mapState.asyncContains("key4");
-        validateRequestRun(mapState, StateRequestType.MAP_CONTAINS, "key4");
+        validateRequestRun(mapState, StateRequestType.MAP_CONTAINS, "key4", 0);
 
         mapState.asyncEntries();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER, null, 0);
 
         mapState.asyncKeys();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER_KEY, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER_KEY, null, 0);
 
         mapState.asyncValues();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER_VALUE, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER_VALUE, null, 0);
 
         mapState.asyncIsEmpty();
-        validateRequestRun(mapState, StateRequestType.MAP_IS_EMPTY, null);
+        validateRequestRun(mapState, StateRequestType.MAP_IS_EMPTY, null, 0);
 
         mapState.clear();
-        validateRequestRun(mapState, StateRequestType.CLEAR, null);
+        validateRequestRun(mapState, StateRequestType.CLEAR, null, 0);
 
         mapState.get("key1");
-        validateRequestRun(mapState, StateRequestType.MAP_GET, "key1");
+        validateRequestRun(mapState, StateRequestType.MAP_GET, "key1", 0);
 
         mapState.put("key2", 2);
-        validateRequestRun(mapState, StateRequestType.MAP_PUT, Tuple2.of("key2", 2));
+        validateRequestRun(mapState, StateRequestType.MAP_PUT, Tuple2.of("key2", 2), 0);
 
         mapState.putAll(map);
-        validateRequestRun(mapState, StateRequestType.MAP_PUT_ALL, map);
+        validateRequestRun(mapState, StateRequestType.MAP_PUT_ALL, map, 0);
 
         mapState.remove("key3");
-        validateRequestRun(mapState, StateRequestType.MAP_REMOVE, "key3");
+        validateRequestRun(mapState, StateRequestType.MAP_REMOVE, "key3", 0);
 
         mapState.contains("key4");
-        validateRequestRun(mapState, StateRequestType.MAP_CONTAINS, "key4");
+        validateRequestRun(mapState, StateRequestType.MAP_CONTAINS, "key4", 0);
 
         mapState.iterator();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER, null, 0);
 
         mapState.entries().iterator();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER, null, 0);
 
         mapState.keys().iterator();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER_KEY, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER_KEY, null, 0);
 
         mapState.values().iterator();
-        validateRequestRun(mapState, StateRequestType.MAP_ITER_VALUE, null);
+        validateRequestRun(mapState, StateRequestType.MAP_ITER_VALUE, null, 0);
 
         mapState.isEmpty();
-        validateRequestRun(mapState, StateRequestType.MAP_IS_EMPTY, null);
+        validateRequestRun(mapState, StateRequestType.MAP_IS_EMPTY, null, 0);
     }
 }

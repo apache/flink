@@ -61,12 +61,12 @@ class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         state.asyncClear();
-        validateRequestRun(state, StateRequestType.CLEAR, null);
+        validateRequestRun(state, StateRequestType.CLEAR, null, 0);
 
         state.asyncGet();
-        validateRequestRun(state, StateRequestType.AGGREGATING_GET, null);
+        validateRequestRun(state, StateRequestType.AGGREGATING_GET, null, 0);
 
         state.asyncAdd(1);
-        validateRequestRun(state, StateRequestType.AGGREGATING_ADD, 1);
+        validateRequestRun(state, StateRequestType.AGGREGATING_ADD, 1, 0);
     }
 }
