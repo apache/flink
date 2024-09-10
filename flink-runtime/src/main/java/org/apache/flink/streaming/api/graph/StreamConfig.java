@@ -84,14 +84,18 @@ public class StreamConfig implements Serializable {
      */
     public static final String SERIALIZED_UDF_CLASS = "serializedUdfClass";
 
-    private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
-    private static final String NUMBER_OF_NETWORK_INPUTS = "numberOfNetworkInputs";
+    private static final ConfigOption<Integer> NUMBER_OF_OUTPUTS =
+            ConfigOptions.key("numberOfOutputs").intType().defaultValue(0);
+    private static final ConfigOption<Integer> NUMBER_OF_NETWORK_INPUTS =
+            ConfigOptions.key("numberOfNetworkInputs").intType().defaultValue(0);
     private static final String CHAINED_OUTPUTS = "chainedOutputs";
     private static final String CHAINED_TASK_CONFIG = "chainedTaskConfig_";
     private static final ConfigOption<Boolean> IS_CHAINED_VERTEX =
             ConfigOptions.key("isChainedSubtask").booleanType().defaultValue(false);
-    private static final String CHAIN_INDEX = "chainIndex";
-    private static final String VERTEX_NAME = "vertexID";
+    private static final ConfigOption<Integer> CHAIN_INDEX =
+            ConfigOptions.key("chainIndex").intType().defaultValue(0);
+    private static final ConfigOption<Integer> VERTEX_NAME =
+            ConfigOptions.key("vertexID").intType().defaultValue(-1);
     private static final String ITERATION_ID = "iterationId";
     private static final String INPUTS = "inputs";
     private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
@@ -111,7 +115,8 @@ public class StreamConfig implements Serializable {
     private static final ConfigOption<Boolean> CHECKPOINTING_ENABLED =
             ConfigOptions.key("checkpointing").booleanType().defaultValue(false);
 
-    private static final String CHECKPOINT_MODE = "checkpointMode";
+    private static final ConfigOption<Integer> CHECKPOINT_MODE =
+            ConfigOptions.key("checkpointMode").intType().defaultValue(-1);
 
     private static final String SAVEPOINT_DIR = "savepointdir";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
@@ -122,7 +127,8 @@ public class StreamConfig implements Serializable {
 
     private static final String STATE_KEY_SERIALIZER = "statekeyser";
 
-    private static final String TIME_CHARACTERISTIC = "timechar";
+    private static final ConfigOption<Integer> TIME_CHARACTERISTIC =
+            ConfigOptions.key("timechar").intType().defaultValue(-1);
 
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
@@ -234,11 +240,11 @@ public class StreamConfig implements Serializable {
     // ------------------------------------------------------------------------
 
     public void setVertexID(Integer vertexID) {
-        config.setInteger(VERTEX_NAME, vertexID);
+        config.set(VERTEX_NAME, vertexID);
     }
 
     public Integer getVertexID() {
-        return config.getInteger(VERTEX_NAME, -1);
+        return config.get(VERTEX_NAME);
     }
 
     /** Fraction of managed memory reserved for the given use case that this operator should use. */
@@ -294,11 +300,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setTimeCharacteristic(TimeCharacteristic characteristic) {
-        config.setInteger(TIME_CHARACTERISTIC, characteristic.ordinal());
+        config.set(TIME_CHARACTERISTIC, characteristic.ordinal());
     }
 
     public TimeCharacteristic getTimeCharacteristic() {
-        int ordinal = config.getInteger(TIME_CHARACTERISTIC, -1);
+        int ordinal = config.get(TIME_CHARACTERISTIC, -1);
         if (ordinal >= 0) {
             return TimeCharacteristic.values()[ordinal];
         } else {
@@ -449,19 +455,19 @@ public class StreamConfig implements Serializable {
     }
 
     public void setNumberOfNetworkInputs(int numberOfInputs) {
-        config.setInteger(NUMBER_OF_NETWORK_INPUTS, numberOfInputs);
+        config.set(NUMBER_OF_NETWORK_INPUTS, numberOfInputs);
     }
 
     public int getNumberOfNetworkInputs() {
-        return config.getInteger(NUMBER_OF_NETWORK_INPUTS, 0);
+        return config.get(NUMBER_OF_NETWORK_INPUTS);
     }
 
     public void setNumberOfOutputs(int numberOfOutputs) {
-        config.setInteger(NUMBER_OF_OUTPUTS, numberOfOutputs);
+        config.set(NUMBER_OF_OUTPUTS, numberOfOutputs);
     }
 
     public int getNumberOfOutputs() {
-        return config.getInteger(NUMBER_OF_OUTPUTS, 0);
+        return config.get(NUMBER_OF_OUTPUTS);
     }
 
     /** Sets the operator level non-chained outputs. */
@@ -518,11 +524,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setCheckpointMode(CheckpointingMode mode) {
-        config.setInteger(CHECKPOINT_MODE, mode.ordinal());
+        config.set(CHECKPOINT_MODE, mode.ordinal());
     }
 
     public CheckpointingMode getCheckpointMode() {
-        int ordinal = config.getInteger(CHECKPOINT_MODE, -1);
+        int ordinal = config.get(CHECKPOINT_MODE, -1);
         if (ordinal >= 0) {
             return CheckpointingMode.values()[ordinal];
         } else {
@@ -642,11 +648,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setChainIndex(int index) {
-        this.config.setInteger(CHAIN_INDEX, index);
+        this.config.set(CHAIN_INDEX, index);
     }
 
     public int getChainIndex() {
-        return this.config.getInteger(CHAIN_INDEX, 0);
+        return this.config.get(CHAIN_INDEX);
     }
 
     // ------------------------------------------------------------------------

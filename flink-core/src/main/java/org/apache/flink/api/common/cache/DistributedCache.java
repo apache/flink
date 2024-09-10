@@ -42,6 +42,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 
 /**
  * DistributedCache provides static methods to write the registered cache files into job
@@ -174,8 +175,8 @@ public class DistributedCache {
 
     public static void writeFileInfoToConfig(
             String name, DistributedCacheEntry e, Configuration conf) {
-        int num = conf.getInteger(CACHE_FILE_NUM, 0) + 1;
-        conf.setInteger(CACHE_FILE_NUM, num);
+        int num = conf.get(getIntConfigOption(CACHE_FILE_NUM), 0) + 1;
+        conf.set(getIntConfigOption(CACHE_FILE_NUM), num);
         conf.setString(CACHE_FILE_NAME + num, name);
         conf.setString(CACHE_FILE_PATH + num, e.filePath);
         conf.set(
@@ -191,7 +192,7 @@ public class DistributedCache {
 
     public static Set<Entry<String, DistributedCacheEntry>> readFileInfoFromConfig(
             Configuration conf) {
-        int num = conf.getInteger(CACHE_FILE_NUM, 0);
+        int num = conf.get(getIntConfigOption(CACHE_FILE_NUM), 0);
         if (num == 0) {
             return Collections.emptySet();
         }

@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 
 /** Manually test the throughput of the network stack. */
 public class NetworkStackThroughputITCase extends TestLogger {
@@ -90,8 +91,11 @@ public class NetworkStackThroughputITCase extends TestLogger {
                 // Determine the amount of data to send per subtask
                 int dataVolumeGb =
                         getTaskConfiguration()
-                                .getInteger(
-                                        NetworkStackThroughputITCase.DATA_VOLUME_GB_CONFIG_KEY, 1);
+                                .get(
+                                        getIntConfigOption(
+                                                NetworkStackThroughputITCase
+                                                        .DATA_VOLUME_GB_CONFIG_KEY),
+                                        1);
 
                 long dataMbPerSubtask = (dataVolumeGb * 10) / getCurrentNumberOfSubtasks();
                 long numRecordsToEmit =
@@ -331,7 +335,8 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
         producer.setInvokableClass(SpeedTestProducer.class);
         producer.setParallelism(numSubtasks);
-        producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
+        producer.getConfiguration()
+                .set(getIntConfigOption(DATA_VOLUME_GB_CONFIG_KEY), dataVolumeGb);
         producer.getConfiguration()
                 .set(getBooleanConfigOption(IS_SLOW_SENDER_CONFIG_KEY), isSlowSender);
 

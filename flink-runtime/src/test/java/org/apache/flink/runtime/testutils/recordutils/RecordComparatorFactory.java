@@ -27,6 +27,7 @@ import org.apache.flink.types.Value;
 import java.util.Arrays;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 
 /**
  * A factory for a {@link org.apache.flink.api.common.typeutils.TypeComparator} for {@link Record}.
@@ -101,9 +102,9 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
         }
 
         // write the config
-        config.setInteger(NUM_KEYS, this.positions.length);
+        config.set(getIntConfigOption(NUM_KEYS), this.positions.length);
         for (int i = 0; i < this.positions.length; i++) {
-            config.setInteger(KEY_POS_PREFIX + i, this.positions[i]);
+            config.set(getIntConfigOption(KEY_POS_PREFIX + i), this.positions[i]);
             config.setString(KEY_CLASS_PREFIX + i, this.types[i].getName());
             config.set(
                     getBooleanConfigOption(KEY_SORT_DIRECTION_PREFIX + i), this.sortDirections[i]);
@@ -115,7 +116,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
     public void readParametersFromConfig(Configuration config, ClassLoader cl)
             throws ClassNotFoundException {
         // figure out how many key fields there are
-        final int numKeyFields = config.getInteger(NUM_KEYS, -1);
+        final int numKeyFields = config.get(getIntConfigOption(NUM_KEYS), -1);
         if (numKeyFields < 0) {
             throw new IllegalConfigurationException(
                     "The number of keys for the comparator is invalid: " + numKeyFields);
@@ -128,7 +129,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
         // read the individual key positions and types
         for (int i = 0; i < numKeyFields; i++) {
             // next key position
-            final int p = config.getInteger(KEY_POS_PREFIX + i, -1);
+            final int p = config.get(getIntConfigOption(KEY_POS_PREFIX + i), -1);
             if (p >= 0) {
                 positions[i] = p;
             } else {

@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -73,7 +74,7 @@ class ConfigurationTest {
     void testConfigurationSerializationAndGetters() throws ClassNotFoundException, IOException {
         final Configuration orig = new Configuration();
         orig.setString("mykey", "myvalue");
-        orig.setInteger("mynumber", 100);
+        orig.set(getIntConfigOption("mynumber"), 100);
         orig.setLong("longvalue", 478236947162389746L);
         orig.set(getFloatConfigOption("PI"), 3.1415926f);
         orig.set(getDoubleConfigOption("E"), Math.E);
@@ -82,7 +83,7 @@ class ConfigurationTest {
 
         final Configuration copy = InstantiationUtil.createCopyWritable(orig);
         assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
-        assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
+        assertThat(copy.get(getIntConfigOption("mynumber"), 0)).isEqualTo(100);
         assertThat(copy.getLong("longvalue", 0L)).isEqualTo(478236947162389746L);
         assertThat(copy.get(getFloatConfigOption("PI"), 3.1415926f))
                 .isCloseTo(3.1415926f, Offset.offset(0.0f));
@@ -111,7 +112,7 @@ class ConfigurationTest {
     @Test
     void testOptionWithDefault() {
         Configuration cfg = new Configuration();
-        cfg.setInteger("int-key", 11);
+        cfg.set(getIntConfigOption("int-key"), 11);
         cfg.setString("string-key", "abc");
 
         ConfigOption<String> presentStringOption =
@@ -122,7 +123,7 @@ class ConfigurationTest {
         assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
         assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
-        assertThat(cfg.getInteger(presentIntOption)).isEqualTo(11);
+        assertThat(cfg.get(presentIntOption)).isEqualTo(11);
         assertThat(cfg.getValue(presentIntOption)).isEqualTo("11");
 
         // test getting default when no value is present
@@ -139,14 +140,14 @@ class ConfigurationTest {
         assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
 
         // getting a primitive with a default value should work
-        assertThat(cfg.getInteger(intOption)).isEqualTo(87);
+        assertThat(cfg.get(intOption)).isEqualTo(87);
         assertThat(cfg.getValue(intOption)).isEqualTo("87");
     }
 
     @Test
     void testOptionWithNoDefault() {
         Configuration cfg = new Configuration();
-        cfg.setInteger("int-key", 11);
+        cfg.get(getIntConfigOption("int-key"), 11);
         cfg.setString("string-key", "abc");
 
         ConfigOption<String> presentStringOption =
@@ -170,9 +171,9 @@ class ConfigurationTest {
     @Test
     void testDeprecatedKeys() {
         Configuration cfg = new Configuration();
-        cfg.setInteger("the-key", 11);
-        cfg.setInteger("old-key", 12);
-        cfg.setInteger("older-key", 13);
+        cfg.set(getIntConfigOption("the-key"), 11);
+        cfg.set(getIntConfigOption("old-key"), 12);
+        cfg.set(getIntConfigOption("older-key"), 13);
 
         ConfigOption<Integer> matchesFirst =
                 ConfigOptions.key("the-key")
@@ -198,18 +199,18 @@ class ConfigurationTest {
                         .defaultValue(-1)
                         .withDeprecatedKeys("not-there", "also-not-there");
 
-        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
-        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
-        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
-        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
+        assertThat(cfg.get(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.get(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.get(matchesThird)).isEqualTo(13);
+        assertThat(cfg.get(notContained)).isEqualTo(-1);
     }
 
     @Test
     void testFallbackKeys() {
         Configuration cfg = new Configuration();
-        cfg.setInteger("the-key", 11);
-        cfg.setInteger("old-key", 12);
-        cfg.setInteger("older-key", 13);
+        cfg.set(getIntConfigOption("the-key"), 11);
+        cfg.set(getIntConfigOption("old-key"), 12);
+        cfg.set(getIntConfigOption("older-key"), 13);
 
         ConfigOption<Integer> matchesFirst =
                 ConfigOptions.key("the-key")
@@ -235,10 +236,10 @@ class ConfigurationTest {
                         .defaultValue(-1)
                         .withFallbackKeys("not-there", "also-not-there");
 
-        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
-        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
-        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
-        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
+        assertThat(cfg.get(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.get(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.get(matchesThird)).isEqualTo(13);
+        assertThat(cfg.get(notContained)).isEqualTo(-1);
     }
 
     @Test
@@ -257,12 +258,12 @@ class ConfigurationTest {
                         .withDeprecatedKeys(deprecated.key());
 
         final Configuration fallbackCfg = new Configuration();
-        fallbackCfg.setInteger(fallback, 1);
-        assertThat(fallbackCfg.getInteger(mainOption)).isOne();
+        fallbackCfg.set(fallback, 1);
+        assertThat(fallbackCfg.get(mainOption)).isOne();
 
         final Configuration deprecatedCfg = new Configuration();
-        deprecatedCfg.setInteger(deprecated, 2);
-        assertThat(deprecatedCfg.getInteger(mainOption)).isEqualTo(2);
+        deprecatedCfg.set(deprecated, 2);
+        assertThat(deprecatedCfg.get(mainOption)).isEqualTo(2);
 
         // reverse declaration of fallback and deprecated keys, fallback keys should always be used
         // first
@@ -274,17 +275,17 @@ class ConfigurationTest {
                         .withFallbackKeys(fallback.key());
 
         final Configuration deprecatedAndFallBackConfig = new Configuration();
-        deprecatedAndFallBackConfig.setInteger(fallback, 1);
-        deprecatedAndFallBackConfig.setInteger(deprecated, 2);
-        assertThat(deprecatedAndFallBackConfig.getInteger(mainOption)).isOne();
-        assertThat(deprecatedAndFallBackConfig.getInteger(reversedMainOption)).isOne();
+        deprecatedAndFallBackConfig.set(fallback, 1);
+        deprecatedAndFallBackConfig.set(deprecated, 2);
+        assertThat(deprecatedAndFallBackConfig.get(mainOption)).isOne();
+        assertThat(deprecatedAndFallBackConfig.get(reversedMainOption)).isOne();
     }
 
     @Test
     void testRemove() {
         Configuration cfg = new Configuration();
-        cfg.setInteger("a", 1);
-        cfg.setInteger("b", 2);
+        cfg.set(getIntConfigOption("a"), 1);
+        cfg.set(getIntConfigOption("b"), 2);
 
         ConfigOption<Integer> validOption = ConfigOptions.key("a").intType().defaultValue(-1);
 
@@ -311,11 +312,11 @@ class ConfigurationTest {
         Configuration cfg = new Configuration();
         String key1 = "a.b";
         String key2 = "c.d";
-        cfg.setInteger(key1, 42);
-        cfg.setInteger(key2, 44);
-        cfg.setInteger(key2 + ".f1", 44);
-        cfg.setInteger(key2 + ".f2", 44);
-        cfg.setInteger("e.f", 1337);
+        cfg.set(getIntConfigOption(key1), 42);
+        cfg.set(getIntConfigOption(key2), 44);
+        cfg.set(getIntConfigOption(key2 + ".f1"), 44);
+        cfg.set(getIntConfigOption(key2 + ".f2"), 44);
+        cfg.set(getIntConfigOption("e.f"), 1337);
 
         assertThat(cfg.removeKey("not-existing-key")).isFalse();
         assertThat(cfg.removeKey(key1)).isTrue();
@@ -423,7 +424,7 @@ class ConfigurationTest {
     void testMapWithPrefix() {
         final Configuration cfg = new Configuration();
         cfg.setString(MAP_PROPERTY_1, "value1");
-        cfg.setInteger(MAP_PROPERTY_2, 12);
+        cfg.set(getIntConfigOption(MAP_PROPERTY_2), 12);
 
         assertThat(cfg.get(MAP_OPTION)).isEqualTo(PROPERTIES_MAP);
         assertThat(cfg.contains(MAP_OPTION)).isTrue();
@@ -443,7 +444,7 @@ class ConfigurationTest {
         final Configuration cfg = new Configuration();
         cfg.set(MAP_OPTION, PROPERTIES_MAP);
         cfg.setString(MAP_PROPERTY_1, "value1");
-        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.get(getIntConfigOption(MAP_PROPERTY_2), 99999);
 
         assertThat(cfg.get(MAP_OPTION)).isEqualTo(PROPERTIES_MAP);
         assertThat(cfg.contains(MAP_OPTION)).isTrue();
@@ -454,7 +455,7 @@ class ConfigurationTest {
     void testMapThatOverwritesPrefix() {
         final Configuration cfg = new Configuration();
         cfg.setString(MAP_PROPERTY_1, "value1");
-        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.get(getIntConfigOption(MAP_PROPERTY_2), 99999);
         cfg.set(MAP_OPTION, PROPERTIES_MAP);
 
         assertThat(cfg.get(MAP_OPTION)).isEqualTo(PROPERTIES_MAP);
@@ -466,7 +467,7 @@ class ConfigurationTest {
     void testMapRemovePrefix() {
         final Configuration cfg = new Configuration();
         cfg.setString(MAP_PROPERTY_1, "value1");
-        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.get(getIntConfigOption(MAP_PROPERTY_2), 99999);
         cfg.removeConfig(MAP_OPTION);
 
         assertThat(cfg.contains(MAP_OPTION)).isFalse();

@@ -662,4 +662,8 @@ public class ConfigurationUtils {
     public static ConfigOption<Float> getFloatConfigOption(String key) {
         return ConfigOptions.key(key).floatType().noDefaultValue();
     }
+
+    public static ConfigOption<Integer> getIntConfigOption(String key) {
+        return ConfigOptions.key(key).intType().noDefaultValue();
+    }
 }

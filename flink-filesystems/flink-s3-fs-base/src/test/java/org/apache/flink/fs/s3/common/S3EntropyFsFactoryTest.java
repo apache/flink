@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that the file system factory picks up the entropy configuration properly. */
@@ -33,7 +34,7 @@ class S3EntropyFsFactoryTest {
     void testEntropyInjectionConfig() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString("s3.entropy.key", "__entropy__");
-        conf.setInteger("s3.entropy.length", 7);
+        conf.set(getIntConfigOption("s3.entropy.length"), 7);
 
         TestS3FileSystemFactory factory = new TestS3FileSystemFactory();
         factory.configure(conf);

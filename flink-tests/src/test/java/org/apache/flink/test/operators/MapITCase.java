@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
 
@@ -512,7 +513,7 @@ public class MapITCase extends MultipleProgramsTestBaseJUnit4 {
 
         DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
         Configuration conf = new Configuration();
-        conf.setInteger(TEST_KEY, TEST_VALUE);
+        conf.set(getIntConfigOption(TEST_KEY), TEST_VALUE);
         DataSet<Tuple3<Integer, Long, String>> bcMapDs =
                 ds.map(new RichMapper2()).withParameters(conf);
         List<Tuple3<Integer, Long, String>> result = bcMapDs.collect();

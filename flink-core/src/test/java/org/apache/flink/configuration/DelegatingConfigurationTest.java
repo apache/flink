@@ -155,13 +155,13 @@ class DelegatingConfigurationTest {
                 ConfigOptions.key("integer.key").intType().noDefaultValue();
 
         // integerOption doesn't exist in delegatingConf, and it should be overrideDefault.
-        original.setInteger(integerOption, 1);
-        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(2);
+        original.set(integerOption, 1);
+        assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(2);
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(2);
 
         // integerOption exists in delegatingConf, and it should be value that set before.
         delegatingConf.setInteger(integerOption, 3);
-        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(3);
+        assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
 
         // Test for float
@@ -217,13 +217,13 @@ class DelegatingConfigurationTest {
         assertThat(delegatingConf.get(integerOption)).isZero();
         delegatingConf.removeConfig(integerOption);
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
-        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
+        assertThat(delegatingConf.get(integerOption, 0)).isZero();
 
         // Test for removeKey
         delegatingConf.set(integerOption, 0);
-        assertThat(delegatingConf.getInteger(integerOption, -1)).isZero();
+        assertThat(delegatingConf.get(integerOption, -1)).isZero();
         delegatingConf.removeKey(integerOption.key());
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
-        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
+        assertThat(delegatingConf.get(integerOption, 0)).isZero();
     }
 }
