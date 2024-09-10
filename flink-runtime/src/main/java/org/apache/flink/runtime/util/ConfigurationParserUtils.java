@@ -199,7 +199,7 @@ public class ConfigurationParserUtils {
             if (removeKeyValues
                     .getProperty(propertyName)
                     .equals(
-                            configuration.getString(
+                            configuration.get(
                                     ConfigOptions.key(propertyName)
                                             .stringType()
                                             .noDefaultValue()))) {

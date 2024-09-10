@@ -121,7 +121,7 @@ class ConfigurationTest {
         ConfigOption<Integer> presentIntOption =
                 ConfigOptions.key("int-key").intType().defaultValue(87);
 
-        assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
+        assertThat(cfg.get(presentStringOption)).isEqualTo("abc");
         assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
         assertThat(cfg.get(presentIntOption)).isEqualTo(11);
@@ -135,10 +135,10 @@ class ConfigurationTest {
 
         // getting strings with default value should work
         assertThat(cfg.getValue(stringOption)).isEqualTo("my-beautiful-default");
-        assertThat(cfg.getString(stringOption)).isEqualTo("my-beautiful-default");
+        assertThat(cfg.get(stringOption)).isEqualTo("my-beautiful-default");
 
         // overriding the default should work
-        assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
+        assertThat(cfg.get(stringOption, "override")).isEqualTo("override");
 
         // getting a primitive with a default value should work
         assertThat(cfg.get(intOption)).isEqualTo(87);
@@ -154,7 +154,7 @@ class ConfigurationTest {
         ConfigOption<String> presentStringOption =
                 ConfigOptions.key("string-key").stringType().noDefaultValue();
 
-        assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
+        assertThat(cfg.get(presentStringOption)).isEqualTo("abc");
         assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
         // test getting default when no value is present
@@ -163,10 +163,10 @@ class ConfigurationTest {
 
         // getting strings for null should work
         assertThat(cfg.getValue(stringOption)).isNull();
-        assertThat(cfg.getString(stringOption)).isNull();
+        assertThat(cfg.get(stringOption)).isNull();
 
         // overriding the null default should work
-        assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
+        assertThat(cfg.get(stringOption, "override")).isEqualTo("override");
     }
 
     @Test
