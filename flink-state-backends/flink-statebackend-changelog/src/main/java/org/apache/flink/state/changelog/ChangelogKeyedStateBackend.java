@@ -675,7 +675,6 @@ public class ChangelogKeyedStateBackend<K>
                             stateDescriptor,
                             keyedStateBackend.getLatencyTrackingStateConfig());
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
-            keyedStateBackend.publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
         functionDelegationHelper.addOrUpdate(stateDescriptor);
         return (S) kvState;

@@ -363,20 +363,8 @@ public abstract class AbstractKeyedStateBackend<K>
                             stateDescriptor,
                             latencyTrackingStateConfig);
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
-            publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
         return (S) kvState;
-    }
-
-    public void publishQueryableStateIfEnabled(
-            StateDescriptor<?, ?> stateDescriptor, InternalKvState<?, ?, ?> kvState) {
-        if (stateDescriptor.isQueryable()) {
-            if (kvStateRegistry == null) {
-                throw new IllegalStateException("State backend has not been initialized for job.");
-            }
-            String name = stateDescriptor.getQueryableStateName();
-            kvStateRegistry.registerKvState(keyGroupRange, name, kvState, userCodeClassLoader);
-        }
     }
 
     /**

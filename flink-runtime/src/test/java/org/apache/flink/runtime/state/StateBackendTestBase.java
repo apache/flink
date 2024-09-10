@@ -55,19 +55,12 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.heap.AbstractHeapState;
-import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -124,11 +117,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link KeyedStateBackend} and {@link OperatorStateBackend} as produced by various
@@ -4404,201 +4392,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             assertThatThrownBy(() -> backend.getPartitionedState(null, null, kvId))
                     .isInstanceOf(NullPointerException.class);
-        } finally {
-            IOUtils.closeQuietly(backend);
-            backend.dispose();
-        }
-    }
-
-    /**
-     * Tests that {@link AbstractHeapState} instances respect the queryable flag and create
-     * concurrent variants for internal state structures.
-     */
-    @SuppressWarnings("unchecked")
-    void testConcurrentMapIfQueryable() throws Exception {
-        final int numberOfKeyGroups = 1;
-        final CheckpointableKeyedStateBackend<Integer> backend =
-                createKeyedBackend(
-                        IntSerializer.INSTANCE,
-                        numberOfKeyGroups,
-                        new KeyGroupRange(0, 0),
-                        new DummyEnvironment());
-
-        try {
-            {
-                // ValueState
-                ValueStateDescriptor<Integer> desc =
-                        new ValueStateDescriptor<>("value-state", Integer.class, -1);
-                desc.setQueryable("my-query");
-
-                ValueState<Integer> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Integer> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Integer>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.update(121818273);
-
-                assertThat(((AbstractHeapState<?, ?, ?>) kvState).getStateTable())
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-
-            {
-                // ListState
-                ListStateDescriptor<Integer> desc =
-                        new ListStateDescriptor<>("list-state", Integer.class);
-                desc.setQueryable("my-query");
-
-                ListState<Integer> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Integer> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Integer>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.add(121818273);
-
-                assertThat(((AbstractHeapState<?, ?, ?>) kvState).getStateTable())
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-
-            {
-                // ReducingState
-                ReducingStateDescriptor<Integer> desc =
-                        new ReducingStateDescriptor<>(
-                                "reducing-state",
-                                new ReduceFunction<Integer>() {
-                                    @Override
-                                    public Integer reduce(Integer value1, Integer value2)
-                                            throws Exception {
-                                        return value1 + value2;
-                                    }
-                                },
-                                Integer.class);
-                desc.setQueryable("my-query");
-
-                ReducingState<Integer> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Integer> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Integer>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.add(121818273);
-
-                assertThat(((AbstractHeapState<?, ?, ?>) kvState).getStateTable())
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-
-            {
-                // MapState
-                MapStateDescriptor<Integer, String> desc =
-                        new MapStateDescriptor<>("map-state", Integer.class, String.class);
-                desc.setQueryable("my-query");
-
-                MapState<Integer, String> state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-                InternalKvState<Integer, VoidNamespace, Map<Integer, String>> kvState =
-                        (InternalKvState<Integer, VoidNamespace, Map<Integer, String>>) state;
-                assertThat(kvState).isInstanceOf(AbstractHeapState.class);
-
-                kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-                backend.setCurrentKey(1);
-                state.put(121818273, "121818273");
-
-                int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-                StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-                assertThat(stateTable.get(keyGroupIndex))
-                        .withFailMessage("State not set")
-                        .isNotNull();
-            }
-        } finally {
-            IOUtils.closeQuietly(backend);
-            backend.dispose();
-        }
-    }
-
-    /** Tests registration with the KvStateRegistry. */
-    @TestTemplate
-    void testQueryableStateRegistration() throws Exception {
-        KvStateRegistry registry = env.getKvStateRegistry();
-
-        CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        CheckpointableKeyedStateBackend<Integer> backend =
-                createKeyedBackend(IntSerializer.INSTANCE, env);
-        try {
-            KeyGroupRange expectedKeyGroupRange = backend.getKeyGroupRange();
-
-            KvStateRegistryListener listener = mock(KvStateRegistryListener.class);
-            registry.registerListener(HighAvailabilityServices.DEFAULT_JOB_ID, listener);
-
-            ValueStateDescriptor<Integer> desc =
-                    new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
-            desc.setQueryable("banana");
-
-            backend.getPartitionedState(
-                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-            // Verify registered
-            verify(listener, times(1))
-                    .notifyKvStateRegistered(
-                            eq(env.getJobID()),
-                            eq(env.getJobVertexId()),
-                            eq(expectedKeyGroupRange),
-                            eq("banana"),
-                            any(KvStateID.class));
-
-            KeyedStateHandle snapshot =
-                    runSnapshot(
-                            backend.snapshot(
-                                    682375462379L,
-                                    4,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
-                            sharedStateRegistry);
-
-            backend.dispose();
-
-            verify(listener, times(1))
-                    .notifyKvStateUnregistered(
-                            eq(env.getJobID()),
-                            eq(env.getJobVertexId()),
-                            eq(expectedKeyGroupRange),
-                            eq("banana"));
-            backend.dispose();
-            // Initialize again
-            backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-            if (snapshot != null) {
-                snapshot.discardState();
-            }
-
-            backend.getPartitionedState(
-                    VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
-
-            // Verify registered again
-            verify(listener, times(2))
-                    .notifyKvStateRegistered(
-                            eq(env.getJobID()),
-                            eq(env.getJobVertexId()),
-                            eq(expectedKeyGroupRange),
-                            eq("banana"),
-                            any(KvStateID.class));
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();

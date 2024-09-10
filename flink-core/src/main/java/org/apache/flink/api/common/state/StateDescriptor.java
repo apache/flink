@@ -220,56 +220,6 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
     }
 
     /**
-     * Sets the name for queries of state created from this descriptor.
-     *
-     * <p>If a name is set, the created state will be published for queries during runtime. The name
-     * needs to be unique per job. If there is another state instance published under the same name,
-     * the job will fail during runtime.
-     *
-     * @param queryableStateName State name for queries (unique name per job)
-     * @throws IllegalStateException If queryable state name already set
-     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
-     *     in a future Flink major version.
-     */
-    @Deprecated
-    public void setQueryable(String queryableStateName) {
-        Preconditions.checkArgument(
-                ttlConfig.getUpdateType() == StateTtlConfig.UpdateType.Disabled,
-                "Queryable state is currently not supported with TTL");
-        if (this.queryableStateName == null) {
-            this.queryableStateName =
-                    Preconditions.checkNotNull(queryableStateName, "Registration name");
-        } else {
-            throw new IllegalStateException("Queryable state name already set");
-        }
-    }
-
-    /**
-     * Returns the queryable state name.
-     *
-     * @return Queryable state name or <code>null</code> if not set.
-     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
-     *     in a future Flink major version.
-     */
-    @Nullable
-    @Deprecated
-    public String getQueryableStateName() {
-        return queryableStateName;
-    }
-
-    /**
-     * Returns whether the state created from this descriptor is queryable.
-     *
-     * @return <code>true</code> if state is queryable, <code>false</code> otherwise.
-     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
-     *     in a future Flink major version.
-     */
-    @Deprecated
-    public boolean isQueryable() {
-        return queryableStateName != null;
-    }
-
-    /**
      * Configures optional activation of state time-to-live (TTL).
      *
      * <p>State user value will expire, become unavailable and be cleaned up in storage depending on
@@ -371,7 +321,6 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
                 + defaultValue
                 + ", serializer="
                 + serializerAtomicReference.get()
-                + (isQueryable() ? ", queryableStateName=" + queryableStateName + "" : "")
                 + '}';
     }
 
