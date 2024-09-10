@@ -23,7 +23,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -72,10 +71,4 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
     @Override
     @TestTemplate
     void testMapStateRestoreWithWrongSerializers() {}
-
-    @Disabled
-    @TestTemplate
-    void testConcurrentMapIfQueryable() throws Exception {
-        super.testConcurrentMapIfQueryable();
-    }
 }

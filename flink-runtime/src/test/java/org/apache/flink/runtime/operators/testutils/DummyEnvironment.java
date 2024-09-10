@@ -47,8 +47,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -77,7 +75,6 @@ public class DummyEnvironment implements Environment {
     private final ExecutionAttemptID executionId;
     private final ExecutionConfig executionConfig = new ExecutionConfig();
     private final TaskInfo taskInfo;
-    private KvStateRegistry kvStateRegistry = new KvStateRegistry();
     private TaskStateManager taskStateManager;
     private final GlobalAggregateManager aggregateManager;
     private final AccumulatorRegistry accumulatorRegistry;
@@ -110,14 +107,6 @@ public class DummyEnvironment implements Environment {
         this.taskStateManager = new TestTaskStateManager();
         this.aggregateManager = new TestGlobalAggregateManager();
         this.accumulatorRegistry = new AccumulatorRegistry(jobInfo.getJobId(), executionId);
-    }
-
-    public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
-        this.kvStateRegistry = kvStateRegistry;
-    }
-
-    public KvStateRegistry getKvStateRegistry() {
-        return kvStateRegistry;
     }
 
     @Override
@@ -222,11 +211,6 @@ public class DummyEnvironment implements Environment {
     @Override
     public AccumulatorRegistry getAccumulatorRegistry() {
         return accumulatorRegistry;
-    }
-
-    @Override
-    public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return kvStateRegistry.createTaskRegistry(jobInfo.getJobId(), jobVertexId);
     }
 
     @Override

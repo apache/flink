@@ -22,15 +22,9 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -99,47 +93,6 @@ class HeapListState<K, N, V> extends AbstractHeapMergingState<K, N, V, List<V>, 
             map.put(namespace, list);
         }
         list.add(value);
-    }
-
-    @Override
-    public byte[] getSerializedValue(
-            final byte[] serializedKeyAndNamespace,
-            final TypeSerializer<K> safeKeySerializer,
-            final TypeSerializer<N> safeNamespaceSerializer,
-            final TypeSerializer<List<V>> safeValueSerializer)
-            throws IOException {
-
-        Preconditions.checkNotNull(serializedKeyAndNamespace);
-        Preconditions.checkNotNull(safeKeySerializer);
-        Preconditions.checkNotNull(safeNamespaceSerializer);
-        Preconditions.checkNotNull(safeValueSerializer);
-
-        Tuple2<K, N> keyAndNamespace =
-                KvStateSerializer.deserializeKeyAndNamespace(
-                        serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
-
-        List<V> result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
-
-        if (result == null) {
-            return null;
-        }
-
-        final TypeSerializer<V> dupSerializer =
-                ((ListSerializer<V>) safeValueSerializer).getElementSerializer();
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);
-
-        // write the same as RocksDB writes lists, with one ',' separator
-        for (int i = 0; i < result.size(); i++) {
-            dupSerializer.serialize(result.get(i), view);
-            if (i < result.size() - 1) {
-                view.writeByte(',');
-            }
-        }
-        view.flush();
-
-        return baos.toByteArray();
     }
 
     // ------------------------------------------------------------------------

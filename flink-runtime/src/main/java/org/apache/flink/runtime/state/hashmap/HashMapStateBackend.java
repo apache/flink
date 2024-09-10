@@ -102,7 +102,6 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         return new HeapKeyedStateBackendBuilder<>(
-                        parameters.getKvStateRegistry(),
                         parameters.getKeySerializer(),
                         parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                         parameters.getNumberOfKeyGroups(),

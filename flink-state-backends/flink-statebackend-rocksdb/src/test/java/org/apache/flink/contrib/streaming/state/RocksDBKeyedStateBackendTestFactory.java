@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -34,8 +33,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.util.Collections;
-
-import static org.mockito.Mockito.mock;
 
 /** External resource for tests that require an instance of RocksDBKeyedStateBackend. */
 public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
@@ -51,7 +48,6 @@ public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
         env = MockEnvironment.builder().build();
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, maxKeyGroupNumber - 1);
-        TaskKvStateRegistry kvStateRegistry = mock(TaskKvStateRegistry.class);
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         keyedStateBackend =
                 (RocksDBKeyedStateBackend<K>)
@@ -63,7 +59,6 @@ public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
                                         keySerializer,
                                         maxKeyGroupNumber,
                                         keyGroupRange,
-                                        kvStateRegistry,
                                         TtlTimeProvider.DEFAULT,
                                         new UnregisteredMetricsGroup(),
                                         Collections.emptyList(),

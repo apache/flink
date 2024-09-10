@@ -28,7 +28,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -104,10 +103,4 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
     @Override
     @TestTemplate
     void testMapStateRestoreWithWrongSerializers() {}
-
-    @Disabled
-    @TestTemplate
-    void testConcurrentMapIfQueryable() throws Exception {
-        super.testConcurrentMapIfQueryable();
-    }
 }

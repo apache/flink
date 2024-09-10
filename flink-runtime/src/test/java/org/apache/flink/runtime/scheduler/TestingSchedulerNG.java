@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -43,15 +42,12 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -154,32 +150,6 @@ public class TestingSchedulerNG implements SchedulerNG {
     @Override
     public JobStatus requestJobStatus() {
         return JobStatus.CREATED;
-    }
-
-    @Override
-    public KvStateLocation requestKvStateLocation(JobID jobId, String registrationName) {
-        failOperation();
-        return null;
-    }
-
-    @Override
-    public void notifyKvStateRegistered(
-            JobID jobId,
-            JobVertexID jobVertexId,
-            KeyGroupRange keyGroupRange,
-            String registrationName,
-            KvStateID kvStateId,
-            InetSocketAddress kvStateServerAddress) {
-        failOperation();
-    }
-
-    @Override
-    public void notifyKvStateUnregistered(
-            JobID jobId,
-            JobVertexID jobVertexId,
-            KeyGroupRange keyGroupRange,
-            String registrationName) {
-        failOperation();
     }
 
     @Override

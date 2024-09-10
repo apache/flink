@@ -33,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.InternalKeyContext;
@@ -98,7 +97,6 @@ public class MultiStateKeyIteratorTest {
                         IntSerializer.INSTANCE,
                         129,
                         keyGroupRange,
-                        (TaskKvStateRegistry) null,
                         TtlTimeProvider.DEFAULT,
                         metricGroup,
                         Collections.emptyList(),
@@ -111,7 +109,6 @@ public class MultiStateKeyIteratorTest {
         TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
         int numberOfKeyGroups = 129;
         KeyGroupRange keyGroupRange = KeyGroupRange.of(0, 128);
-        TaskKvStateRegistry kvStateRegistry = null;
         TtlTimeProvider ttlTimeProvider = TtlTimeProvider.DEFAULT;
         @Nonnull Collection<KeyedStateHandle> stateHandles = Collections.emptyList();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
@@ -126,7 +123,6 @@ public class MultiStateKeyIteratorTest {
 
         return new CountingKeysKeyedStateBackend(
                 numKeys,
-                kvStateRegistry,
                 keySerializerProvider.currentSchemaSerializer(),
                 env.getUserCodeClassLoader().asClassLoader(),
                 env.getExecutionConfig(),
@@ -263,7 +259,6 @@ public class MultiStateKeyIteratorTest {
 
         public CountingKeysKeyedStateBackend(
                 int numberOfKeysGenerated,
-                TaskKvStateRegistry kvStateRegistry,
                 TypeSerializer<Integer> keySerializer,
                 ClassLoader userCodeClassLoader,
                 ExecutionConfig executionConfig,
@@ -272,7 +267,6 @@ public class MultiStateKeyIteratorTest {
                 CloseableRegistry cancelStreamRegistry,
                 InternalKeyContext<Integer> keyContext) {
             super(
-                    kvStateRegistry,
                     keySerializer,
                     userCodeClassLoader,
                     executionConfig,

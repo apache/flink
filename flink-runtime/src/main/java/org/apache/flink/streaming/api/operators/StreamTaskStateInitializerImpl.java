@@ -438,7 +438,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                             keySerializer,
                                             taskInfo.getMaxNumberOfParallelSubtasks(),
                                             keyGroupRange,
-                                            environment.getTaskKvStateRegistry(),
                                             ttlTimeProvider,
                                             metricGroup,
                                             initializationMetrics::addDurationMetric,

@@ -40,7 +40,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.IOUtils;
@@ -1404,7 +1403,6 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             throws Exception {
         StateBackend stateBackend = getStateBackend();
         JobID jobID = new JobID();
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         CheckpointableKeyedStateBackend<K> backend =
                 stateBackend.createKeyedStateBackend(
@@ -1415,7 +1413,6 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                 keySerializer,
                                 numberOfKeyGroups,
                                 keyGroupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),
@@ -1444,7 +1441,6 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             throws Exception {
         StateBackend stateBackend = getStateBackend();
         JobID jobID = new JobID();
-        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         CheckpointableKeyedStateBackend<K> backend =
                 stateBackend.createKeyedStateBackend(
@@ -1455,7 +1451,6 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                 keySerializer,
                                 numberOfKeyGroups,
                                 keyGroupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 state,

@@ -226,15 +226,6 @@ public class ChangelogMapStateTest {
         public void setCurrentNamespace(String namespace) {}
 
         @Override
-        public byte[] getSerializedValue(
-                byte[] serializedKeyAndNamespace,
-                TypeSerializer<String> safeKeySerializer,
-                TypeSerializer<String> safeNamespaceSerializer,
-                TypeSerializer<Map<String, String>> safeValueSerializer) {
-            return new byte[0];
-        }
-
-        @Override
         public StateIncrementalVisitor<String, String, Map<String, String>>
                 getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
             return null;

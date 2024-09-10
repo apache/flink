@@ -20,8 +20,6 @@ package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -56,8 +54,6 @@ public class MockStateBackend extends AbstractStateBackend {
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
             KeyedStateBackendParameters<K> parameters) {
         return new MockKeyedStateBackendBuilder<>(
-                        new KvStateRegistry()
-                                .createTaskRegistry(parameters.getJobID(), new JobVertexID()),
                         parameters.getKeySerializer(),
                         parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                         parameters.getNumberOfKeyGroups(),

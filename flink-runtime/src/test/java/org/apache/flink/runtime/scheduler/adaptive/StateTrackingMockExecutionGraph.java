@@ -55,7 +55,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -291,11 +290,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     @Nullable
     @Override
     public CheckpointCoordinator getCheckpointCoordinator() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public KvStateLocationRegistry getKvStateLocationRegistry() {
         throw new UnsupportedOperationException();
     }
 

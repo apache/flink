@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.InternalKeyContext;
@@ -59,7 +58,6 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
     private final boolean asynchronousSnapshots;
 
     public HeapKeyedStateBackendBuilder(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             int numberOfKeyGroups,
@@ -74,7 +72,6 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
             boolean asynchronousSnapshots,
             CloseableRegistry cancelStreamRegistry) {
         super(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 numberOfKeyGroups,
@@ -107,7 +104,6 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 
         restoreState(registeredKVStates, registeredPQStates, keyContext, stateTableFactory);
         return new HeapKeyedStateBackend<>(
-                kvStateRegistry,
                 keySerializerProvider.currentSchemaSerializer(),
                 userCodeClassLoader,
                 executionConfig,

@@ -26,10 +26,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -313,67 +310,6 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         this.userKeySerializer = castedMapSerializer.getKeySerializer();
         this.userValueSerializer = castedMapSerializer.getValueSerializer();
         return this;
-    }
-
-    @Override
-    public byte[] getSerializedValue(
-            final byte[] serializedKeyAndNamespace,
-            final TypeSerializer<K> safeKeySerializer,
-            final TypeSerializer<N> safeNamespaceSerializer,
-            final TypeSerializer<Map<UK, UV>> safeValueSerializer)
-            throws Exception {
-
-        Preconditions.checkNotNull(serializedKeyAndNamespace);
-        Preconditions.checkNotNull(safeKeySerializer);
-        Preconditions.checkNotNull(safeNamespaceSerializer);
-        Preconditions.checkNotNull(safeValueSerializer);
-
-        // TODO make KvStateSerializer key-group aware to save this round trip and key-group
-        // computation
-        Tuple2<K, N> keyAndNamespace =
-                KvStateSerializer.deserializeKeyAndNamespace(
-                        serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
-
-        int keyGroup =
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keyAndNamespace.f0, backend.getNumberOfKeyGroups());
-
-        SerializedCompositeKeyBuilder<K> keyBuilder =
-                new SerializedCompositeKeyBuilder<>(
-                        safeKeySerializer, backend.getKeyGroupPrefixBytes(), 32);
-
-        keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
-
-        final byte[] keyPrefixBytes =
-                keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
-
-        final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
-
-        final TypeSerializer<UK> dupUserKeySerializer = serializer.getKeySerializer();
-        final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
-        final DataInputDeserializer inputView = new DataInputDeserializer();
-
-        final Iterator<Map.Entry<UK, UV>> iterator =
-                new RocksDBMapIterator<Map.Entry<UK, UV>>(
-                        backend.db,
-                        keyPrefixBytes,
-                        dupUserKeySerializer,
-                        dupUserValueSerializer,
-                        inputView) {
-
-                    @Override
-                    public Map.Entry<UK, UV> next() {
-                        return nextEntry();
-                    }
-                };
-
-        // Return null to make the behavior consistent with other backends
-        if (!iterator.hasNext()) {
-            return null;
-        }
-
-        return KvStateSerializer.serializeMap(
-                () -> iterator, dupUserKeySerializer, dupUserValueSerializer);
     }
 
     // ------------------------------------------------------------------------

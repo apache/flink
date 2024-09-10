@@ -157,8 +157,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         IntervalJoinOperator.BufferEntrySerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
-                        org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class
-                                .getName(),
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
                         EnumValueSerializer.class.getName(),
                         OptionSerializer.class.getName(),
@@ -280,8 +278,7 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                     || typeSerializer.getName().contains("TestType$")
                     || typeSerializer.getName().contains("testutils")
                     || typeSerializer.getName().contains("ITCase$")
-                    || typeSerializer.getName().contains("$$anon")
-                    || typeSerializer.getName().contains("queryablestate")) {
+                    || typeSerializer.getName().contains("$$anon")) {
                 continue;
             }
 

@@ -19,7 +19,6 @@
 package org.apache.flink.test.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
@@ -29,8 +28,6 @@ import org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueConfig;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -101,8 +98,6 @@ public final class BackendSwitchSpecs {
                             temporaryFolder.newFolder(),
                             optionsContainer,
                             stateName -> optionsContainer.getColumnOptions(),
-                            new KvStateRegistry()
-                                    .createTaskRegistry(new JobID(), new JobVertexID()),
                             StringSerializer.INSTANCE,
                             numKeyGroups,
                             keyGroupRange,
@@ -139,8 +134,6 @@ public final class BackendSwitchSpecs {
                 throws Exception {
             ExecutionConfig executionConfig = new ExecutionConfig();
             return new HeapKeyedStateBackendBuilder<>(
-                            new KvStateRegistry()
-                                    .createTaskRegistry(new JobID(), new JobVertexID()),
                             StringSerializer.INSTANCE,
                             this.getClass().getClassLoader(),
                             numKeyGroups,

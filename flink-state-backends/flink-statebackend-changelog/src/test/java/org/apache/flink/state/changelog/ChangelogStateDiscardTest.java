@@ -31,10 +31,8 @@ import org.apache.flink.changelog.fs.TaskChangelogRegistry;
 import org.apache.flink.changelog.fs.UploadResult;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -264,7 +262,6 @@ public class ChangelogStateDiscardTest {
             throws IOException {
         AbstractKeyedStateBackend<String> nestedBackend =
                 new HeapKeyedStateBackendBuilder<>(
-                                new KvStateRegistry().createTaskRegistry(jobId, new JobVertexID()),
                                 StringSerializer.INSTANCE,
                                 StringSerializer.class.getClassLoader(),
                                 kgRange.getNumberOfKeyGroups(),

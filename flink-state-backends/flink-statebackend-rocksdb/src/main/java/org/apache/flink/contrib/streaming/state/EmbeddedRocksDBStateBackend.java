@@ -498,7 +498,6 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                                 instanceBasePath,
                                 resourceContainer,
                                 stateName -> resourceContainer.getColumnOptions(),
-                                parameters.getKvStateRegistry(),
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
                                 parameters.getKeyGroupRange(),

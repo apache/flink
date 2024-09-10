@@ -559,7 +559,6 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         return new HeapKeyedStateBackendBuilder<>(
-                        parameters.getKvStateRegistry(),
                         parameters.getKeySerializer(),
                         parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                         parameters.getNumberOfKeyGroups(),

@@ -32,7 +32,6 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -78,7 +77,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -87,8 +85,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
@@ -98,7 +94,6 @@ import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTer
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.IntArrayList;
@@ -112,7 +107,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -160,8 +154,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     protected final ExecutionVertexVersioner executionVertexVersioner;
-
-    private final KvStateHandler kvStateHandler;
 
     private final ExecutionGraphHandler executionGraphHandler;
 
@@ -250,7 +242,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
-        this.kvStateHandler = new KvStateHandler(executionGraph);
         this.executionGraphHandler =
                 new ExecutionGraphHandler(executionGraph, log, ioExecutor, this.mainThreadExecutor);
 
@@ -846,47 +837,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public JobStatus requestJobStatus() {
         return executionGraph.getState();
-    }
-
-    @Override
-    public KvStateLocation requestKvStateLocation(final JobID jobId, final String registrationName)
-            throws UnknownKvStateLocation, FlinkJobNotFoundException {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        return kvStateHandler.requestKvStateLocation(jobId, registrationName);
-    }
-
-    @Override
-    public void notifyKvStateRegistered(
-            final JobID jobId,
-            final JobVertexID jobVertexId,
-            final KeyGroupRange keyGroupRange,
-            final String registrationName,
-            final KvStateID kvStateId,
-            final InetSocketAddress kvStateServerAddress)
-            throws FlinkJobNotFoundException {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        kvStateHandler.notifyKvStateRegistered(
-                jobId,
-                jobVertexId,
-                keyGroupRange,
-                registrationName,
-                kvStateId,
-                kvStateServerAddress);
-    }
-
-    @Override
-    public void notifyKvStateUnregistered(
-            final JobID jobId,
-            final JobVertexID jobVertexId,
-            final KeyGroupRange keyGroupRange,
-            final String registrationName)
-            throws FlinkJobNotFoundException {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        kvStateHandler.notifyKvStateUnregistered(
-                jobId, jobVertexId, keyGroupRange, registrationName);
     }
 
     @Override

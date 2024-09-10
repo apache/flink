@@ -69,20 +69,6 @@ class AbstractLatencyTrackState<
     }
 
     @Override
-    public byte[] getSerializedValue(
-            byte[] serializedKeyAndNamespace,
-            TypeSerializer<K> safeKeySerializer,
-            TypeSerializer<N> safeNamespaceSerializer,
-            TypeSerializer<V> safeValueSerializer)
-            throws Exception {
-        return original.getSerializedValue(
-                serializedKeyAndNamespace,
-                safeKeySerializer,
-                safeNamespaceSerializer,
-                safeValueSerializer);
-    }
-
-    @Override
     public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
             int recommendedMaxNumberOfReturnedRecords) {
         return original.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);

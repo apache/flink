@@ -85,9 +85,6 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
-import org.apache.flink.runtime.query.KvStateClientProxy;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -122,7 +119,6 @@ import org.apache.flink.runtime.taskexecutor.exceptions.TaskSubmissionException;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcGlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
-import org.apache.flink.runtime.taskexecutor.rpc.RpcKvStateRegistryListener;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
@@ -253,9 +249,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     /** The network component in the task manager. */
     private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
-    /** The kvState registration service in the task manager. */
-    private final KvStateService kvStateService;
-
     private final Executor ioExecutor;
 
     /** {@link MemoryManager} shared across all tasks. */
@@ -362,7 +355,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.channelStateExecutorFactoryManager =
                 taskExecutorServices.getTaskManagerChannelStateManager();
         this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
-        this.kvStateService = taskExecutorServices.getKvStateService();
         this.ioExecutor = taskExecutorServices.getIOExecutor();
         this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
@@ -839,7 +831,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             sharedResources,
                             taskExecutorServices.getIOManager(),
                             taskExecutorServices.getShuffleEnvironment(),
-                            taskExecutorServices.getKvStateService(),
                             taskExecutorServices.getBroadcastVariableManager(),
                             taskExecutorServices.getTaskEventDispatcher(),
                             externalResourceInfoProvider,
@@ -1980,8 +1971,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         PartitionProducerStateChecker partitionStateChecker =
                 new RpcPartitionStateChecker(jobMasterGateway);
 
-        registerQueryableState(job.getJobId(), jobMasterGateway);
-
         return job.connect(
                 resourceID,
                 jobMasterGateway,
@@ -1996,18 +1985,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         checkNotNull(jobManagerConnection);
 
         final JobID jobId = jobManagerConnection.getJobId();
-
-        final KvStateRegistry kvStateRegistry = kvStateService.getKvStateRegistry();
-
-        if (kvStateRegistry != null) {
-            kvStateRegistry.unregisterListener(jobId);
-        }
-
-        final KvStateClientProxy kvStateClientProxy = kvStateService.getKvStateClientProxy();
-
-        if (kvStateClientProxy != null) {
-            kvStateClientProxy.updateKvStateLocationOracle(jobManagerConnection.getJobId(), null);
-        }
 
         JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
         jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
@@ -2071,24 +2048,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                 jobPartitionToCleanupSet.remove(jobId);
                             },
                             getMainThreadExecutor());
-        }
-    }
-
-    private void registerQueryableState(JobID jobId, JobMasterGateway jobMasterGateway) {
-        final KvStateServer kvStateServer = kvStateService.getKvStateServer();
-        final KvStateRegistry kvStateRegistry = kvStateService.getKvStateRegistry();
-
-        if (kvStateServer != null && kvStateRegistry != null) {
-            kvStateRegistry.registerListener(
-                    jobId,
-                    new RpcKvStateRegistryListener(
-                            jobMasterGateway, kvStateServer.getServerAddress()));
-        }
-
-        final KvStateClientProxy kvStateProxy = kvStateService.getKvStateClientProxy();
-
-        if (kvStateProxy != null) {
-            kvStateProxy.updateKvStateLocationOracle(jobId, jobMasterGateway);
         }
     }
 

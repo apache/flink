@@ -119,7 +119,6 @@ public abstract class StateBackendTestContext {
                                     StringSerializer.INSTANCE,
                                     numberOfKeyGroups,
                                     new KeyGroupRange(0, numberOfKeyGroups - 1),
-                                    env.getTaskKvStateRegistry(),
                                     timeProvider,
                                     new UnregisteredMetricsGroup(),
                                     (name, value) -> {},

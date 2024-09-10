@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
@@ -54,7 +53,6 @@ public class TaskManagerServicesBuilder {
 
     private IOManager ioManager;
     private ShuffleEnvironment<?, ?> shuffleEnvironment;
-    private KvStateService kvStateService;
     private BroadcastVariableManager broadcastVariableManager;
     private TaskSlotTable<Task> taskSlotTable;
     private JobTable jobTable;
@@ -73,7 +71,6 @@ public class TaskManagerServicesBuilder {
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
         ioManager = mock(IOManager.class);
         shuffleEnvironment = mock(ShuffleEnvironment.class);
-        kvStateService = new KvStateService(new KvStateRegistry(), null, null);
         broadcastVariableManager = new BroadcastVariableManager();
         taskEventDispatcher = new TaskEventDispatcher();
         taskSlotTable =
@@ -111,11 +108,6 @@ public class TaskManagerServicesBuilder {
     public TaskManagerServicesBuilder setShuffleEnvironment(
             ShuffleEnvironment<?, ?> shuffleEnvironment) {
         this.shuffleEnvironment = shuffleEnvironment;
-        return this;
-    }
-
-    public TaskManagerServicesBuilder setKvStateService(KvStateService kvStateService) {
-        this.kvStateService = kvStateService;
         return this;
     }
 
@@ -187,7 +179,6 @@ public class TaskManagerServicesBuilder {
                 managedMemorySize,
                 ioManager,
                 shuffleEnvironment,
-                kvStateService,
                 broadcastVariableManager,
                 taskSlotTable,
                 jobTable,

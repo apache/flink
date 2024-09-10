@@ -133,7 +133,6 @@ public class StateBackendBenchmarkUtils {
                                 new LongSerializer(),
                                 2,
                                 keyGroupRange,
-                                null,
                                 ttlTimeProvider,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),
@@ -182,7 +181,6 @@ public class StateBackendBenchmarkUtils {
                         dbPathFile,
                         resourceContainer,
                         stateName -> resourceContainer.getColumnOptions(),
-                        null,
                         LongSerializer.INSTANCE,
                         2,
                         new KeyGroupRange(0, 1),
@@ -215,7 +213,6 @@ public class StateBackendBenchmarkUtils {
                 new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
         HeapKeyedStateBackendBuilder<Long> backendBuilder =
                 new HeapKeyedStateBackendBuilder<>(
-                        null,
                         new LongSerializer(),
                         Thread.currentThread().getContextClassLoader(),
                         numberOfKeyGroups,

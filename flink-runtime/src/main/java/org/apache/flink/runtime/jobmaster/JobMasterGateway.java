@@ -65,8 +65,6 @@ import java.util.concurrent.CompletableFuture;
 public interface JobMasterGateway
         extends CheckpointCoordinatorGateway,
                 FencedRpcGateway<JobMasterId>,
-                KvStateLocationOracle,
-                KvStateRegistryGateway,
                 JobMasterOperatorEventGateway,
                 BlocklistListener {
 

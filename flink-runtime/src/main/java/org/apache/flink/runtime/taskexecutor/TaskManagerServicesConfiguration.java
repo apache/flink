@@ -38,8 +38,6 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
 import java.net.InetAddress;
 import java.util.Optional;
@@ -75,8 +73,6 @@ public class TaskManagerServicesConfiguration {
 
     private final int numberOfSlots;
 
-    @Nullable private final QueryableStateConfiguration queryableStateConfig;
-
     private final int pageSize;
 
     private final long timerServiceShutdownTimeout;
@@ -108,7 +104,6 @@ public class TaskManagerServicesConfiguration {
             Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
             boolean localBackupEnabled,
-            @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
             int pageSize,
             TaskExecutorResourceSpec taskExecutorResourceSpec,
@@ -130,7 +125,6 @@ public class TaskManagerServicesConfiguration {
         this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = localRecoveryEnabled;
         this.localBackupEnabled = localBackupEnabled;
-        this.queryableStateConfig = queryableStateConfig;
         this.numberOfSlots = numberOfSlots;
 
         this.pageSize = pageSize;
@@ -194,11 +188,6 @@ public class TaskManagerServicesConfiguration {
 
     boolean isLocalBackupEnabled() {
         return localBackupEnabled;
-    }
-
-    @Nullable
-    QueryableStateConfiguration getQueryableStateConfig() {
-        return queryableStateConfig;
     }
 
     public int getNumberOfSlots() {
@@ -295,9 +284,6 @@ public class TaskManagerServicesConfiguration {
         boolean localRecoveryEnabled = configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
         boolean localBackupEnabled = configuration.get(CheckpointingOptions.LOCAL_BACKUP_ENABLED);
 
-        final QueryableStateConfiguration queryableStateConfig =
-                QueryableStateConfiguration.fromConfiguration(configuration);
-
         long timerServiceShutdownTimeout =
                 configuration.get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
 
@@ -338,7 +324,6 @@ public class TaskManagerServicesConfiguration {
                 localStateDirs,
                 localRecoveryEnabled,
                 localBackupEnabled,
-                queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),
                 ConfigurationParserUtils.getPageSize(configuration),
                 taskExecutorResourceSpec,

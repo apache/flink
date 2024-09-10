@@ -24,7 +24,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -82,10 +81,4 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
     @Override
     @TestTemplate
     void testMapStateRestoreWithWrongSerializers() {}
-
-    @Disabled
-    @TestTemplate
-    void testConcurrentMapIfQueryable() throws Exception {
-        super.testConcurrentMapIfQueryable();
-    }
 }

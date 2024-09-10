@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -74,15 +73,6 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
     @Override
     public void setCurrentNamespace(N namespace) {
         original.setCurrentNamespace(namespace);
-    }
-
-    @Override
-    public byte[] getSerializedValue(
-            byte[] serializedKeyAndNamespace,
-            TypeSerializer<K> safeKeySerializer,
-            TypeSerializer<N> safeNamespaceSerializer,
-            TypeSerializer<SV> safeValueSerializer) {
-        throw new FlinkRuntimeException("Queryable state is not currently supported with TTL.");
     }
 
     @Override

@@ -28,7 +28,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlockedNode;
@@ -70,14 +69,11 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
@@ -95,7 +91,6 @@ import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -117,7 +112,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -652,58 +646,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             final CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
             return schedulerNG.deliverCoordinationRequestToCoordinator(operatorID, request);
         } catch (Exception e) {
-            return FutureUtils.completedExceptionally(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<KvStateLocation> requestKvStateLocation(
-            final JobID jobId, final String registrationName) {
-        try {
-            return CompletableFuture.completedFuture(
-                    schedulerNG.requestKvStateLocation(jobId, registrationName));
-        } catch (UnknownKvStateLocation | FlinkJobNotFoundException e) {
-            log.info("Error while request key-value state location", e);
-            return FutureUtils.completedExceptionally(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> notifyKvStateRegistered(
-            final JobID jobId,
-            final JobVertexID jobVertexId,
-            final KeyGroupRange keyGroupRange,
-            final String registrationName,
-            final KvStateID kvStateId,
-            final InetSocketAddress kvStateServerAddress) {
-
-        try {
-            schedulerNG.notifyKvStateRegistered(
-                    jobId,
-                    jobVertexId,
-                    keyGroupRange,
-                    registrationName,
-                    kvStateId,
-                    kvStateServerAddress);
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        } catch (FlinkJobNotFoundException e) {
-            log.info("Error while receiving notification about key-value state registration", e);
-            return FutureUtils.completedExceptionally(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> notifyKvStateUnregistered(
-            JobID jobId,
-            JobVertexID jobVertexId,
-            KeyGroupRange keyGroupRange,
-            String registrationName) {
-        try {
-            schedulerNG.notifyKvStateUnregistered(
-                    jobId, jobVertexId, keyGroupRange, registrationName);
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        } catch (FlinkJobNotFoundException e) {
-            log.info("Error while receiving notification about key-value state de-registration", e);
             return FutureUtils.completedExceptionally(e);
         }
     }

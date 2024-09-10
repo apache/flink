@@ -33,7 +33,6 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
-import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -85,15 +84,12 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
-import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
@@ -116,7 +112,6 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ConfigurationException;
@@ -134,7 +129,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -824,56 +818,6 @@ public class AdaptiveScheduler
     @Override
     public JobStatus requestJobStatus() {
         return state.getJobStatus();
-    }
-
-    @Override
-    public KvStateLocation requestKvStateLocation(JobID jobId, String registrationName)
-            throws UnknownKvStateLocation, FlinkJobNotFoundException {
-        final Optional<StateWithExecutionGraph> asOptional =
-                state.as(StateWithExecutionGraph.class);
-
-        if (asOptional.isPresent()) {
-            return asOptional.get().requestKvStateLocation(jobId, registrationName);
-        } else {
-            throw new UnknownKvStateLocation(registrationName);
-        }
-    }
-
-    @Override
-    public void notifyKvStateRegistered(
-            JobID jobId,
-            JobVertexID jobVertexId,
-            KeyGroupRange keyGroupRange,
-            String registrationName,
-            KvStateID kvStateId,
-            InetSocketAddress kvStateServerAddress)
-            throws FlinkJobNotFoundException {
-        state.tryRun(
-                StateWithExecutionGraph.class,
-                stateWithExecutionGraph ->
-                        stateWithExecutionGraph.notifyKvStateRegistered(
-                                jobId,
-                                jobVertexId,
-                                keyGroupRange,
-                                registrationName,
-                                kvStateId,
-                                kvStateServerAddress),
-                "notifyKvStateRegistered");
-    }
-
-    @Override
-    public void notifyKvStateUnregistered(
-            JobID jobId,
-            JobVertexID jobVertexId,
-            KeyGroupRange keyGroupRange,
-            String registrationName)
-            throws FlinkJobNotFoundException {
-        state.tryRun(
-                StateWithExecutionGraph.class,
-                stateWithExecutionGraph ->
-                        stateWithExecutionGraph.notifyKvStateUnregistered(
-                                jobId, jobVertexId, keyGroupRange, registrationName),
-                "notifyKvStateUnregistered");
     }
 
     @Override

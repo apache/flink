@@ -21,8 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
@@ -85,31 +83,6 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
     public final void setCurrentNamespace(N namespace) {
         this.currentNamespace =
                 Preconditions.checkNotNull(namespace, "Namespace must not be null.");
-    }
-
-    @Override
-    public byte[] getSerializedValue(
-            final byte[] serializedKeyAndNamespace,
-            final TypeSerializer<K> safeKeySerializer,
-            final TypeSerializer<N> safeNamespaceSerializer,
-            final TypeSerializer<SV> safeValueSerializer)
-            throws Exception {
-
-        Preconditions.checkNotNull(serializedKeyAndNamespace);
-        Preconditions.checkNotNull(safeKeySerializer);
-        Preconditions.checkNotNull(safeNamespaceSerializer);
-        Preconditions.checkNotNull(safeValueSerializer);
-
-        Tuple2<K, N> keyAndNamespace =
-                KvStateSerializer.deserializeKeyAndNamespace(
-                        serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
-
-        SV result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
-
-        if (result == null) {
-            return null;
-        }
-        return KvStateSerializer.serializeValue(result, safeValueSerializer);
     }
 
     /** This should only be used for testing. */

@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -67,7 +66,6 @@ public class TestStateBackend extends AbstractStateBackend {
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
             KeyedStateBackendParameters<K> parameters) throws IOException {
         return new TestKeyedStateBackend<>(
-                parameters.getKvStateRegistry(),
                 parameters.getKeySerializer(),
                 Thread.currentThread().getContextClassLoader(),
                 parameters.getEnv().getExecutionConfig(),
@@ -119,7 +117,6 @@ public class TestStateBackend extends AbstractStateBackend {
         private long subsumeCheckpointId = -1L;
 
         public TestKeyedStateBackend(
-                TaskKvStateRegistry kvStateRegistry,
                 TypeSerializer<K> keySerializer,
                 ClassLoader userCodeClassLoader,
                 ExecutionConfig executionConfig,
@@ -128,7 +125,6 @@ public class TestStateBackend extends AbstractStateBackend {
                 CloseableRegistry cancelStreamRegistry,
                 InternalKeyContext<K> keyContext) {
             super(
-                    kvStateRegistry,
                     keySerializer,
                     userCodeClassLoader,
                     executionConfig,

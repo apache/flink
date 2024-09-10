@@ -57,8 +57,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -103,8 +101,6 @@ public class SavepointEnvironment implements Environment {
 
     private final int indexOfSubtask;
 
-    private final TaskKvStateRegistry registry;
-
     private final TaskStateManager taskStateManager;
 
     private final IOManager ioManager;
@@ -140,7 +136,6 @@ public class SavepointEnvironment implements Environment {
         this.maxParallelism = maxParallelism;
         this.indexOfSubtask = indexOfSubtask;
 
-        this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
         this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
         this.ioManager =
                 new IOManagerAsync(
@@ -274,11 +269,6 @@ public class SavepointEnvironment implements Environment {
     @Override
     public AccumulatorRegistry getAccumulatorRegistry() {
         return accumulatorRegistry;
-    }
-
-    @Override
-    public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return registry;
     }
 
     @Override

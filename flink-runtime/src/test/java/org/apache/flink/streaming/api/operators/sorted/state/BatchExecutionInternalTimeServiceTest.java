@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -68,7 +67,6 @@ class BatchExecutionInternalTimeServiceTest {
         AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
-        TaskKvStateRegistry kvStateRegistry = mockEnvironment.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         AbstractKeyedStateBackend<Integer> stateBackend =
                 abstractStateBackend.createKeyedStateBackend(
@@ -79,7 +77,6 @@ class BatchExecutionInternalTimeServiceTest {
                                 KEY_SERIALIZER,
                                 2,
                                 keyGroupRange,
-                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),

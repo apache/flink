@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -37,7 +36,6 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
         implements StateBackendBuilder<AbstractKeyedStateBackend<K>, BackendBuildingException> {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-    protected final TaskKvStateRegistry kvStateRegistry;
     protected final StateSerializerProvider<K> keySerializerProvider;
     protected final ClassLoader userCodeClassLoader;
     protected final int numberOfKeyGroups;
@@ -50,7 +48,6 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
     protected final CloseableRegistry cancelStreamRegistry;
 
     public AbstractKeyedStateBackendBuilder(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             int numberOfKeyGroups,
@@ -61,7 +58,6 @@ public abstract class AbstractKeyedStateBackendBuilder<K>
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             CloseableRegistry cancelStreamRegistry) {
-        this.kvStateRegistry = kvStateRegistry;
         this.keySerializerProvider =
                 StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
         this.userCodeClassLoader = userCodeClassLoader;

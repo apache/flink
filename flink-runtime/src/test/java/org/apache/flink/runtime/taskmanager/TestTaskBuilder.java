@@ -46,10 +46,8 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
@@ -76,7 +74,6 @@ public final class TestTaskBuilder {
     private PartitionProducerStateChecker partitionProducerStateChecker =
             new NoOpPartitionProducerStateChecker();
     private final ShuffleEnvironment<?, ?> shuffleEnvironment;
-    private KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
     private Configuration taskManagerConfig = new Configuration();
     private Configuration taskConfig = new Configuration();
     private ExecutionConfig executionConfig = new ExecutionConfig();
@@ -113,11 +110,6 @@ public final class TestTaskBuilder {
     public TestTaskBuilder setPartitionProducerStateChecker(
             PartitionProducerStateChecker partitionProducerStateChecker) {
         this.partitionProducerStateChecker = partitionProducerStateChecker;
-        return this;
-    }
-
-    public TestTaskBuilder setKvStateService(KvStateService kvStateService) {
-        this.kvStateService = kvStateService;
         return this;
     }
 
@@ -213,7 +205,6 @@ public final class TestTaskBuilder {
                 new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
-                kvStateService,
                 new BroadcastVariableManager(),
                 new TaskEventDispatcher(),
                 externalResourceInfoProvider,

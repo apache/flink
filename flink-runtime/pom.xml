@@ -91,12 +91,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-queryable-state-client-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- The Hadoop FS support has only an optional dependency on Hadoop and
 			gracefully handles absence of Hadoop classes -->
 

@@ -38,7 +38,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -95,8 +94,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
-
-    KvStateLocationRegistry getKvStateLocationRegistry();
 
     void setJsonPlan(String jsonPlan);
 

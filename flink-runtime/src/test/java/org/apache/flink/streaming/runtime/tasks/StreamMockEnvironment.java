@@ -53,8 +53,6 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -112,8 +110,6 @@ public class StreamMockEnvironment implements Environment {
     private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
     private final AccumulatorRegistry accumulatorRegistry;
-
-    private final TaskKvStateRegistry kvStateRegistry;
 
     private final int bufferSize;
 
@@ -202,10 +198,6 @@ public class StreamMockEnvironment implements Environment {
         this.executionConfig = executionConfig;
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 
-        KvStateRegistry registry = new KvStateRegistry();
-        this.kvStateRegistry =
-                registry.createTaskRegistry(
-                        jobID, executionAttemptID.getExecutionVertexId().getJobVertexId());
         this.collectNetworkEvents = collectNetworkEvents;
         this.channelStateExecutorFactory = new ChannelStateWriteRequestExecutorFactory(jobID);
     }
@@ -369,11 +361,6 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public AccumulatorRegistry getAccumulatorRegistry() {
         return accumulatorRegistry;
-    }
-
-    @Override
-    public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return kvStateRegistry;
     }
 
     @Override

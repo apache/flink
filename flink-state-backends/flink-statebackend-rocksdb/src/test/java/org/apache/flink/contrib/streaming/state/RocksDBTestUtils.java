@@ -19,13 +19,10 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -91,7 +88,6 @@ public final class RocksDBTestUtils {
                 instanceBasePath,
                 optionsContainer,
                 stateName -> optionsContainer.getColumnOptions(),
-                new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                 keySerializer,
                 numKeyGroups,
                 keyGroupRange,
@@ -122,7 +118,6 @@ public final class RocksDBTestUtils {
                 instanceBasePath,
                 optionsContainer,
                 stateName -> columnFamilyOptions,
-                new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                 keySerializer,
                 2,
                 new KeyGroupRange(0, 1),
@@ -155,7 +150,6 @@ public final class RocksDBTestUtils {
                                 keySerializer,
                                 1,
                                 new KeyGroupRange(0, 0),
-                                env.getTaskKvStateRegistry(),
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 (name, value) -> {},

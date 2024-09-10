@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
@@ -135,7 +134,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     private final HeapPriorityQueuesManager priorityQueuesManager;
 
     public HeapKeyedStateBackend(
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
@@ -152,7 +150,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
         super(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 executionConfig,

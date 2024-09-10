@@ -18,13 +18,10 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -143,7 +140,6 @@ public class ChangelogKeyedStateBackendTest {
 
     private MockKeyedStateBackend<Integer> createMock() {
         return new MockKeyedStateBackendBuilder<>(
-                        new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                         IntSerializer.INSTANCE,
                         getClass().getClassLoader(),
                         1,

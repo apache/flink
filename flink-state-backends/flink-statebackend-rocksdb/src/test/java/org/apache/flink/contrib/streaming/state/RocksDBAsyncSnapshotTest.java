@@ -426,7 +426,6 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                                 VoidSerializer.INSTANCE,
                                 1,
                                 new KeyGroupRange(0, 0),
-                                null,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 (name, value) -> {},

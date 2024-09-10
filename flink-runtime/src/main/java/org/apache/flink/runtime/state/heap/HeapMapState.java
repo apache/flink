@@ -23,8 +23,6 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
@@ -166,38 +164,6 @@ class HeapMapState<K, N, UK, UV> extends AbstractHeapState<K, N, Map<UK, UV>>
     public boolean isEmpty() {
         Map<UK, UV> userMap = stateTable.get(currentNamespace);
         return userMap == null || userMap.isEmpty();
-    }
-
-    @Override
-    public byte[] getSerializedValue(
-            final byte[] serializedKeyAndNamespace,
-            final TypeSerializer<K> safeKeySerializer,
-            final TypeSerializer<N> safeNamespaceSerializer,
-            final TypeSerializer<Map<UK, UV>> safeValueSerializer)
-            throws Exception {
-
-        Preconditions.checkNotNull(serializedKeyAndNamespace);
-        Preconditions.checkNotNull(safeKeySerializer);
-        Preconditions.checkNotNull(safeNamespaceSerializer);
-        Preconditions.checkNotNull(safeValueSerializer);
-
-        Tuple2<K, N> keyAndNamespace =
-                KvStateSerializer.deserializeKeyAndNamespace(
-                        serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
-
-        Map<UK, UV> result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
-
-        if (result == null) {
-            return null;
-        }
-
-        final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
-
-        final TypeSerializer<UK> dupUserKeySerializer = serializer.getKeySerializer();
-        final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
-
-        return KvStateSerializer.serializeMap(
-                result.entrySet(), dupUserKeySerializer, dupUserValueSerializer);
     }
 
     @SuppressWarnings("unchecked")

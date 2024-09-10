@@ -35,7 +35,6 @@ import org.apache.flink.contrib.streaming.state.sstmerge.RocksDBManualCompaction
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
@@ -152,7 +151,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             File instanceBasePath,
             RocksDBResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
@@ -168,7 +166,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             CloseableRegistry cancelStreamRegistry) {
 
         super(
-                kvStateRegistry,
                 keySerializer,
                 userCodeClassLoader,
                 numberOfKeyGroups,
@@ -203,7 +200,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             File instanceBasePath,
             RocksDBResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
@@ -224,7 +220,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 instanceBasePath,
                 optionsContainer,
                 columnFamilyOptionsFactory,
-                kvStateRegistry,
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
@@ -471,7 +466,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 this.instanceBasePath,
                 this.optionsContainer,
                 columnFamilyOptionsFactory,
-                this.kvStateRegistry,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 this.executionConfig,
                 this.ttlTimeProvider,

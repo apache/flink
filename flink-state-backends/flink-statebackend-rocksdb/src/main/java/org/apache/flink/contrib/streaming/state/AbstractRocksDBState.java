@@ -19,11 +19,8 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -119,32 +116,6 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
     @Override
     public void setCurrentNamespace(N namespace) {
         this.currentNamespace = namespace;
-    }
-
-    @Override
-    public byte[] getSerializedValue(
-            final byte[] serializedKeyAndNamespace,
-            final TypeSerializer<K> safeKeySerializer,
-            final TypeSerializer<N> safeNamespaceSerializer,
-            final TypeSerializer<V> safeValueSerializer)
-            throws Exception {
-
-        // TODO make KvStateSerializer key-group aware to save this round trip and key-group
-        // computation
-        Tuple2<K, N> keyAndNamespace =
-                KvStateSerializer.deserializeKeyAndNamespace(
-                        serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
-
-        int keyGroup =
-                KeyGroupRangeAssignment.assignToKeyGroup(
-                        keyAndNamespace.f0, backend.getNumberOfKeyGroups());
-
-        SerializedCompositeKeyBuilder<K> keyBuilder =
-                new SerializedCompositeKeyBuilder<>(
-                        safeKeySerializer, backend.getKeyGroupPrefixBytes(), 32);
-        keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
-        byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
-        return backend.db.get(columnFamily, key);
     }
 
     <UK> byte[] serializeCurrentKeyWithGroupAndNamespacePlusUserKey(

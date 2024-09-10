@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
@@ -99,7 +98,6 @@ class StateSnapshotCompressionTest {
             ExecutionConfig executionConfig, Collection<KeyedStateHandle> stateHandles)
             throws BackendBuildingException {
         return new HeapKeyedStateBackendBuilder<>(
-                        mock(TaskKvStateRegistry.class),
                         StringSerializer.INSTANCE,
                         StateSnapshotCompressionTest.class.getClassLoader(),
                         16,

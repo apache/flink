@@ -43,7 +43,6 @@ public final class ForStTestUtils {
                         keySerializer,
                         1,
                         new KeyGroupRange(0, 0),
-                        env.getTaskKvStateRegistry(),
                         TtlTimeProvider.DEFAULT,
                         new UnregisteredMetricsGroup(),
                         (name, value) -> {},

@@ -29,7 +29,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
@@ -194,8 +193,6 @@ public interface StateBackend extends java.io.Serializable {
 
         /** @return Range of key-groups for which the to-be-created backend is responsible. */
         KeyGroupRange getKeyGroupRange();
-
-        TaskKvStateRegistry getKvStateRegistry();
 
         /** @return Provider for TTL logic to judge about state expiration. */
         TtlTimeProvider getTtlTimeProvider();

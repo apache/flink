@@ -70,7 +70,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse.Failure;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
@@ -281,15 +280,11 @@ class TaskExecutorTest {
 
         nettyShuffleEnvironment.start();
 
-        final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
-        kvStateService.start();
-
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
                         .setIoManager(ioManager)
                         .setShuffleEnvironment(nettyShuffleEnvironment)
-                        .setKvStateService(kvStateService)
                         .setTaskSlotTable(taskSlotTable)
                         .setJobLeaderService(jobLeaderService)
                         .setTaskStateManager(localStateStoresManager)
@@ -305,7 +300,6 @@ class TaskExecutorTest {
 
         assertThat(taskSlotTable.isClosed()).isTrue();
         assertThat(nettyShuffleEnvironment.isClosed()).isTrue();
-        assertThat(kvStateService.isShutdown()).isTrue();
     }
 
     @Test

@@ -31,10 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
@@ -78,8 +75,6 @@ public class TriggerTestHarness<T, W extends Window> {
 
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
-        TaskKvStateRegistry kvStateRegistry =
-                new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID());
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         @SuppressWarnings("unchecked")
         HeapKeyedStateBackend<Integer> stateBackend =
@@ -92,7 +87,6 @@ public class TriggerTestHarness<T, W extends Window> {
                                         IntSerializer.INSTANCE,
                                         1,
                                         keyGroupRange,
-                                        kvStateRegistry,
                                         TtlTimeProvider.DEFAULT,
                                         new UnregisteredMetricsGroup(),
                                         Collections.emptyList(),

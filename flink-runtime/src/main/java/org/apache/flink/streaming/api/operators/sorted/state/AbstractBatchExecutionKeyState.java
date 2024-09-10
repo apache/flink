@@ -96,16 +96,6 @@ abstract class AbstractBatchExecutionKeyState<K, N, V> implements InternalKvStat
     }
 
     @Override
-    public byte[] getSerializedValue(
-            byte[] serializedKeyAndNamespace,
-            TypeSerializer<K> safeKeySerializer,
-            TypeSerializer<N> safeNamespaceSerializer,
-            TypeSerializer<V> safeValueSerializer) {
-        throw new UnsupportedOperationException(
-                "Queryable state is not supported in BATCH runtime.");
-    }
-
-    @Override
     public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
             int recommendedMaxNumberOfReturnedRecords) {
         return null;
