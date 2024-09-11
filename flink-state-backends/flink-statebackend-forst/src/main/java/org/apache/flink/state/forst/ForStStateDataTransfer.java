@@ -150,16 +150,16 @@ public class ForStStateDataTransfer implements Closeable {
 
     private HandleAndLocalPath transferFile(
             Path filePath,
-            long transferBytes,
+            long maxTransferBytes,
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry)
             throws IOException {
 
-        if (transferBytes < 0) {
+        if (maxTransferBytes < 0) {
             // Means transfer whole file to checkpoint storage.
-            transferBytes = Long.MAX_VALUE;
+            maxTransferBytes = Long.MAX_VALUE;
 
             // TODO: Optimizing transfer with fast duplicate
         }
@@ -177,17 +177,17 @@ public class ForStStateDataTransfer implements Closeable {
             outputStream = checkpointStreamFactory.createCheckpointStateOutputStream(stateScope);
             closeableRegistry.registerCloseable(outputStream);
 
-            while (transferBytes >= 0) {
-                int numBytes = inputStream.read(buffer);
+            while (maxTransferBytes >= 0) {
+                int maxReadBytes = (int) Math.min(maxTransferBytes, READ_BUFFER_SIZE);
+                int readBytes = inputStream.read(buffer, 0, maxReadBytes);
 
-                if (numBytes == -1) {
+                if (readBytes == -1) {
                     break;
                 }
 
-                int writeBytes = numBytes < transferBytes ? numBytes : (int) transferBytes;
-                outputStream.write(buffer, 0, writeBytes);
+                outputStream.write(buffer, 0, readBytes);
 
-                transferBytes -= writeBytes;
+                maxTransferBytes -= readBytes;
             }
 
             final StreamStateHandle result;

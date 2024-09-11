@@ -178,9 +178,12 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
     private void logLiveFiles(long checkpointId, long manifestFileSize, List<Path> liveFilesPath) {
         if (LOG.isDebugEnabled()) {
             StringBuilder sb =
-                    new StringBuilder("    manifestFileSize:").append(manifestFileSize).append("\n");
+                    new StringBuilder("    manifestFileSize:")
+                            .append(manifestFileSize)
+                            .append("\n");
             liveFilesPath.forEach(e -> sb.append("    file : ").append(e).append("\n"));
-            LOG.debug("Backend:{} live files for checkpoint:{} : \n{}", backendUID, checkpointId, sb);
+            LOG.debug(
+                    "Backend:{} live files for checkpoint:{} : \n{}", backendUID, checkpointId, sb);
         }
     }
 

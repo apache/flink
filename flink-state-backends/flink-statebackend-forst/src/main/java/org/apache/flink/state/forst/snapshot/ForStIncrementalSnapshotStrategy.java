@@ -415,7 +415,8 @@ public class ForStIncrementalSnapshotStrategy<K>
                 } else if (fileName.endsWith(SST_FILE_SUFFIX)) {
                     Optional<StreamStateHandle> uploaded =
                             snapshotResources.previousSnapshot.getUploaded(fileName);
-                    if (uploaded.isPresent()) {
+                    if (uploaded.isPresent()
+                            && checkpointStreamFactory.couldReuseStateHandle(uploaded.get())) {
                         transferredSstHandles.add(HandleAndLocalPath.of(uploaded.get(), fileName));
                     } else {
                         toTransferSstFiles.add(filePath); // re-transfer
