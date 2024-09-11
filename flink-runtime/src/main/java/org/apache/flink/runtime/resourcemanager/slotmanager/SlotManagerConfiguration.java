@@ -39,7 +39,6 @@ public class SlotManagerConfiguration {
     private final Duration taskManagerTimeout;
     private final Duration requirementCheckDelay;
     private final Duration declareNeededResourceDelay;
-    private final boolean waitResultConsumedBeforeRelease;
     private final TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
     private final WorkerResourceSpec defaultWorkerResourceSpec;
     private final int numSlotsPerWorker;
@@ -56,7 +55,6 @@ public class SlotManagerConfiguration {
             Duration taskManagerTimeout,
             Duration requirementCheckDelay,
             Duration declareNeededResourceDelay,
-            boolean waitResultConsumedBeforeRelease,
             TaskManagerLoadBalanceMode taskManagerLoadBalanceMode,
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
@@ -72,7 +70,6 @@ public class SlotManagerConfiguration {
         this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
         this.requirementCheckDelay = Preconditions.checkNotNull(requirementCheckDelay);
         this.declareNeededResourceDelay = Preconditions.checkNotNull(declareNeededResourceDelay);
-        this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
         this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
         this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
         Preconditions.checkState(numSlotsPerWorker > 0);
@@ -188,10 +185,6 @@ public class SlotManagerConfiguration {
         return declareNeededResourceDelay;
     }
 
-    public boolean isWaitResultConsumedBeforeRelease() {
-        return waitResultConsumedBeforeRelease;
-    }
-
     public TaskManagerLoadBalanceMode getTaskManagerLoadBalanceMode() {
         return taskManagerLoadBalanceMode;
     }
@@ -247,11 +240,8 @@ public class SlotManagerConfiguration {
         final Duration declareNeededResourceDelay =
                 configuration.get(ResourceManagerOptions.DECLARE_NEEDED_RESOURCE_DELAY);
 
-        boolean waitResultConsumedBeforeRelease =
-                configuration.get(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
-
         TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
-                TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
+                configuration.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
 
         int numSlotsPerWorker = configuration.get(TaskManagerOptions.NUM_TASK_SLOTS);
 
@@ -266,7 +256,6 @@ public class SlotManagerConfiguration {
                 taskManagerTimeout,
                 requirementCheckDelay,
                 declareNeededResourceDelay,
-                waitResultConsumedBeforeRelease,
                 taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,

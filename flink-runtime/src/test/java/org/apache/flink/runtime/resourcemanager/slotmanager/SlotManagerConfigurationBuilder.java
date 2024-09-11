@@ -154,7 +154,6 @@ public class SlotManagerConfigurationBuilder {
                 taskManagerTimeout,
                 requirementCheckDelay,
                 declareNeededResourceDelay,
-                waitResultConsumedBeforeRelease,
                 taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,

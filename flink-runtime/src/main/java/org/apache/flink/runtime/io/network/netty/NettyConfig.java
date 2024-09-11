@@ -102,25 +102,22 @@ public class NettyConfig {
     // ------------------------------------------------------------------------
 
     public int getServerConnectBacklog() {
-        return config.get(NettyShuffleEnvironmentOptions.CONNECT_BACKLOG);
+        return 0;
     }
 
     public int getNumberOfArenas() {
-        // default: number of slots
-        final int configValue = config.get(NettyShuffleEnvironmentOptions.NUM_ARENAS);
-        return configValue == -1 ? numberOfSlots : configValue;
+        // always return number of task slots
+        return numberOfSlots;
     }
 
     public int getServerNumThreads() {
-        // default: number of task slots
-        final int configValue = config.get(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER);
-        return configValue == -1 ? numberOfSlots : configValue;
+        // always return number of task slots
+        return numberOfSlots;
     }
 
     public int getClientNumThreads() {
-        // default: number of task slots
-        final int configValue = config.get(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT);
-        return configValue == -1 ? numberOfSlots : configValue;
+        // always return number of task slots
+        return numberOfSlots;
     }
 
     public int getClientConnectTimeoutSeconds() {
@@ -132,20 +129,7 @@ public class NettyConfig {
     }
 
     public int getSendAndReceiveBufferSize() {
-        return config.get(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
-    }
-
-    public TransportType getTransportType() {
-        String transport = config.get(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE);
-
-        switch (transport) {
-            case "nio":
-                return TransportType.NIO;
-            case "epoll":
-                return TransportType.EPOLL;
-            default:
-                return TransportType.AUTO;
-        }
+        return 0;
     }
 
     public Optional<Integer> getTcpKeepIdleInSeconds() {
@@ -187,7 +171,6 @@ public class NettyConfig {
                         + "server port range: %s, "
                         + "ssl enabled: %s, "
                         + "memory segment size (bytes): %d, "
-                        + "transport type: %s, "
                         + "number of server threads: %d (%s), "
                         + "number of client threads: %d (%s), "
                         + "server connect backlog: %d (%s), "
@@ -203,7 +186,6 @@ public class NettyConfig {
                 serverPortRange,
                 getSSLEnabled() ? "true" : "false",
                 memorySegmentSize,
-                getTransportType(),
                 getServerNumThreads(),
                 getServerNumThreads() == 0 ? def : man,
                 getClientNumThreads(),

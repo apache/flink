@@ -474,9 +474,6 @@ public class JobManagerOptions {
 
     /** Type of scheduler implementation. */
     public enum SchedulerType implements DescribedEnum {
-        /** @deprecated Use {@link SchedulerType#Default} instead. */
-        @Deprecated
-        Ng(text("Deprecated. Use Default scheduler instead.")),
         Default(text("Default scheduler")),
         Adaptive(
                 text(
@@ -683,106 +680,6 @@ public class JobManagerOptions {
                     .defaultValue(true)
                     .withDescription(
                             "Controls whether partitions should already be released during the job execution.");
-
-    /** @deprecated Use {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM =
-            key("jobmanager.adaptive-batch-scheduler.min-parallelism")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .build());
-
-    /** @deprecated Use {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM =
-            key("jobmanager.adaptive-batch-scheduler.max-parallelism")
-                    .intType()
-                    .defaultValue(128)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .build());
-
-    /**
-     * @deprecated Use {@link
-     *     BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK}.
-     */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK =
-            key("jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task")
-                    .memoryType()
-                    .defaultValue(MemorySize.ofMebiBytes(1024))
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The average size of data volume to expect each task instance to process if %s has been set to %s. "
-                                                    + "Note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
-                                                    + "the data actually processed by some tasks may far exceed this value.",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()),
-                                            code(ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.key()))
-                                    .build());
-
-    /**
-     * @deprecated Use {@link
-     *     BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM}.
-     */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM =
-            key("jobmanager.adaptive-batch-scheduler.default-source-parallelism")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The default parallelism of source vertices if %s has been set to %s",
-                                            code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
-                                    .build());
-
-    /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_ENABLED}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Boolean> SPECULATIVE_ENABLED =
-            key("jobmanager.adaptive-batch-scheduler.speculative.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("Controls whether to enable speculative execution.");
-
-    /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_MAX_CONCURRENT_EXECUTIONS}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Integer> SPECULATIVE_MAX_CONCURRENT_EXECUTIONS =
-            key("jobmanager.adaptive-batch-scheduler.speculative.max-concurrent-executions")
-                    .intType()
-                    .defaultValue(2)
-                    .withDescription(
-                            "Controls the maximum number of execution attempts of each operator "
-                                    + "that can execute concurrently, including the original one "
-                                    + "and speculative ones.");
-
-    /** @deprecated Use {@link BatchExecutionOptions#BLOCK_SLOW_NODE_DURATION}. */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    public static final ConfigOption<Duration> BLOCK_SLOW_NODE_DURATION =
-            key("jobmanager.adaptive-batch-scheduler.speculative.block-slow-node-duration")
-                    .durationType()
-                    .defaultValue(Duration.ofMinutes(1))
-                    .withDescription(
-                            "Controls how long an detected slow node should be blocked for.");
 
     /**
      * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.

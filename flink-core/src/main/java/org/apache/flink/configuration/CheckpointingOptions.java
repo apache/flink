@@ -39,44 +39,6 @@ public class CheckpointingOptions {
     // ------------------------------------------------------------------------
 
     /**
-     * The checkpoint storage used to store operator state locally within the cluster during
-     * execution.
-     *
-     * <p>The implementation can be specified either via their shortcut name, or via the class name
-     * of a {@code StateBackendFactory}. If a StateBackendFactory class name is specified, the
-     * factory is instantiated (via its zero-argument constructor) and its {@code
-     * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
-     *
-     * <p>Recognized shortcut names are 'hashmap' and 'rocksdb'.
-     *
-     * @deprecated Use {@link StateBackendOptions#STATE_BACKEND}.
-     */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    @Deprecated
-    public static final ConfigOption<String> STATE_BACKEND =
-            ConfigOptions.key("state.backend.type")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDeprecatedKeys("state.backend")
-                    .withDescription(
-                            Description.builder()
-                                    .text("The state backend to be used to store state.")
-                                    .linebreak()
-                                    .text(
-                                            "The implementation can be specified either via their shortcut "
-                                                    + " name, or via the class name of a %s. "
-                                                    + "If a factory is specified it is instantiated via its "
-                                                    + "zero argument constructor and its %s "
-                                                    + "method is called.",
-                                            TextElement.code("StateBackendFactory"),
-                                            TextElement.code(
-                                                    "StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)"))
-                                    .linebreak()
-                                    .text("Recognized shortcut names are 'hashmap' and 'rocksdb'.")
-                                    .build());
-
-    /**
      * The checkpoint storage used to checkpoint state for recovery.
      *
      * <p>The implementation can be specified either via their shortcut name, or via the class name
@@ -154,14 +116,6 @@ public class CheckpointingOptions {
                             "Option whether to discard a checkpoint's states in parallel using"
                                     + " the ExecutorService passed into the cleaner");
 
-    /** @deprecated Checkpoints are always asynchronous. */
-    @Deprecated
-    public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS =
-            ConfigOptions.key("state.backend.async")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription("Deprecated option. All state snapshots are asynchronous.");
-
     /**
      * Option whether to create incremental checkpoints, if possible. For an incremental checkpoint,
      * only a diff from the previous checkpoint is stored, rather than the complete checkpoint
@@ -184,28 +138,6 @@ public class CheckpointingOptions {
                                     + " complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API"
                                     + " only represents the delta checkpoint size instead of full checkpoint size."
                                     + " Some state backends may not support incremental checkpoints and ignore this option.");
-
-    /**
-     * This option configures local recovery for this state backend. By default, local recovery is
-     * deactivated.
-     *
-     * <p>Local recovery currently only covers keyed state backends (including both the
-     * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
-     *
-     * @deprecated use {@link StateRecoveryOptions#LOCAL_RECOVERY} and {@link
-     *     CheckpointingOptions#LOCAL_BACKUP_ENABLED} instead.
-     */
-    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
-    @Deprecated
-    public static final ConfigOption<Boolean> LOCAL_RECOVERY =
-            ConfigOptions.key("state.backend.local-recovery")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "This option configures local recovery for this state backend. By default, local recovery is "
-                                    + "deactivated. Local recovery currently only covers keyed state backends "
-                                    + "(including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).");
 
     /**
      * The config parameter defining the root directories for storing file-based state for local
@@ -343,7 +275,7 @@ public class CheckpointingOptions {
                     .booleanType()
                     .defaultValue(StateRecoveryOptions.LOCAL_RECOVERY.defaultValue())
                     .withFallbackKeys(StateRecoveryOptions.LOCAL_RECOVERY.key())
-                    .withDeprecatedKeys(LOCAL_RECOVERY.key())
+                    .withDeprecatedKeys("state.backend.local-recovery")
                     .withDescription(
                             "This option configures local backup for the state backend, "
                                     + "which indicates whether to make backup checkpoint on local disk.  "

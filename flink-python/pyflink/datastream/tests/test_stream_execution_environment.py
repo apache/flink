@@ -27,7 +27,7 @@ import uuid
 from pyflink.common import Configuration, ExecutionConfig, RestartStrategies
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
-                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic,
+                                CheckpointingMode, MemoryStateBackend,
                                 SlotSharingGroup)
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
@@ -189,27 +189,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertFalse(self.env.is_changelog_state_backend_enabled())
 
-    def test_get_set_stream_time_characteristic(self):
-        default_time_characteristic = self.env.get_stream_time_characteristic()
-
-        self.assertEqual(default_time_characteristic, TimeCharacteristic.EventTime)
-
-        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
-
-        time_characteristic = self.env.get_stream_time_characteristic()
-
-        self.assertEqual(time_characteristic, TimeCharacteristic.ProcessingTime)
-
     def test_configure(self):
         configuration = Configuration()
         configuration.set_string('pipeline.operator-chaining', 'false')
-        configuration.set_string('pipeline.time-characteristic', 'IngestionTime')
         configuration.set_string('execution.buffer-timeout', '1 min')
         configuration.set_string('execution.checkpointing.timeout', '12000')
         self.env.configure(configuration)
         self.assertEqual(self.env.is_chaining_enabled(), False)
-        self.assertEqual(self.env.get_stream_time_characteristic(),
-                         TimeCharacteristic.IngestionTime)
         self.assertEqual(self.env.get_buffer_timeout(), 60000)
         self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
         self.assertTrue(self.env.get_state_backend() is None)

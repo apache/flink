@@ -48,7 +48,6 @@ class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 
         final SerializedInputFormat<Record> inputFormat = new SerializedInputFormat<Record>();
         inputFormat.setFilePath(this.tempFile.toURI().toString());
-        inputFormat.setBlockSize(this.blockSize);
 
         inputFormat.configure(configuration);
         return inputFormat;

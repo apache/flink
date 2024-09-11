@@ -28,26 +28,12 @@ class SecurityOptionsTest {
     @SuppressWarnings("deprecation")
     @Test
     void checkEnableSSL() {
-        // backwards compatibility
-        Configuration oldConf = new Configuration();
-        oldConf.set(SecurityOptions.SSL_ENABLED, true);
-        assertThat(SecurityOptions.isInternalSSLEnabled(oldConf)).isTrue();
-        assertThat(SecurityOptions.isRestSSLEnabled(oldConf)).isTrue();
-
         // new options take precedence
         Configuration newOptions = new Configuration();
         newOptions.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
         newOptions.set(SecurityOptions.SSL_REST_ENABLED, false);
         assertThat(SecurityOptions.isInternalSSLEnabled(newOptions)).isTrue();
         assertThat(SecurityOptions.isRestSSLEnabled(newOptions)).isFalse();
-
-        // new options take precedence
-        Configuration precedence = new Configuration();
-        precedence.set(SecurityOptions.SSL_ENABLED, true);
-        precedence.set(SecurityOptions.SSL_INTERNAL_ENABLED, false);
-        precedence.set(SecurityOptions.SSL_REST_ENABLED, false);
-        assertThat(SecurityOptions.isInternalSSLEnabled(precedence)).isFalse();
-        assertThat(SecurityOptions.isRestSSLEnabled(precedence)).isFalse();
     }
 
     /**

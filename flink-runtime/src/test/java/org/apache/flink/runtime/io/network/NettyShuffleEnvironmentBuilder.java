@@ -275,7 +275,6 @@ public class NettyShuffleEnvironmentBuilder {
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
                         debloatConfiguration,
-                        maxNumberOfConnections,
                         connectionReuseEnabled,
                         maxOverdraftBuffersPerGate,
                         tieredStorageConfiguration),

@@ -266,15 +266,6 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             }
         }
 
-        if (schedulerType == JobManagerOptions.SchedulerType.Ng) {
-            LOG.warn(
-                    "Config value '{}' for option '{}' is deprecated, use '{}' instead.",
-                    JobManagerOptions.SchedulerType.Ng,
-                    JobManagerOptions.SCHEDULER.key(),
-                    JobManagerOptions.SchedulerType.Default);
-            // overwrite
-            schedulerType = JobManagerOptions.SchedulerType.Default;
-        }
         return schedulerType;
     }
 

@@ -617,7 +617,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             }
 
             final boolean fetchToken =
-                    flinkConfiguration.get(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+                    flinkConfiguration.get(SecurityOptions.DELEGATION_TOKENS_ENABLED);
             final boolean yarnAccessFSEnabled =
                     !CollectionUtil.isNullOrEmpty(
                             flinkConfiguration.get(
@@ -626,7 +626,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 throw new IllegalConfigurationException(
                         String.format(
                                 "When %s is disabled, %s must be disabled as well.",
-                                SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN.key(),
+                                SecurityOptions.DELEGATION_TOKENS_ENABLED.key(),
                                 SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS.key()));
             }
         }
