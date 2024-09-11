@@ -143,36 +143,44 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
         // enableFileDeletions(), so disableFileDeletions() should be call only once.
         db.disableFileDeletions();
 
-        // get live files with flush memtable
-        RocksDB.LiveFiles liveFiles = db.getLiveFiles(true);
-        List<Path> liveFilesPath =
-                liveFiles.files.stream()
-                        .map(file -> new Path(resourceContainer.getDbPath(), file))
-                        .collect(Collectors.toList());
+        try {
+            // get live files with flush memtable
+            RocksDB.LiveFiles liveFiles = db.getLiveFiles(true);
+            List<Path> liveFilesPath =
+                    liveFiles.files.stream()
+                            .map(file -> new Path(resourceContainer.getDbPath(), file))
+                            .collect(Collectors.toList());
 
-        logLiveFiles(checkpointId, liveFiles.manifestFileSize, liveFilesPath);
+            logLiveFiles(checkpointId, liveFiles.manifestFileSize, liveFilesPath);
 
-        return new ForStNativeSnapshotResources(
-                stateMetaInfoSnapshots,
-                liveFiles.manifestFileSize,
-                liveFilesPath,
-                previousSnapshot,
-                () -> {
-                    try {
-                        db.enableFileDeletions(false);
-                        LOG.info(
-                                "Release one file deletion lock with ForStNativeSnapshotResources, backendUID:{}, checkpointId:{}.",
-                                backendUID,
-                                checkpointId);
-                    } catch (RocksDBException e) {
-                        LOG.error(
-                                "Enable file deletion failed, backendUID:{}, checkpointId:{}.",
-                                backendUID,
-                                checkpointId,
-                                e);
-                        // TODO: 2024/5/28 wangfeifan - Add more robust exception handling
-                    }
-                });
+            return new ForStNativeSnapshotResources(
+                    stateMetaInfoSnapshots,
+                    liveFiles.manifestFileSize,
+                    liveFilesPath,
+                    previousSnapshot,
+                    () -> {
+                        try {
+                            db.enableFileDeletions(false);
+                            LOG.info(
+                                    "Release one file deletion lock with ForStNativeSnapshotResources, backendUID:{}, checkpointId:{}.",
+                                    backendUID,
+                                    checkpointId);
+                        } catch (RocksDBException e) {
+                            LOG.error(
+                                    "Enable file deletion failed, backendUID:{}, checkpointId:{}.",
+                                    backendUID,
+                                    checkpointId,
+                                    e);
+                        }
+                    });
+        } catch (Exception e) {
+            LOG.error(
+                    "Exception thrown when prepare snapshot resources, enable file deletion and rethrow the exception, backendUID:{}, checkpointId:{}",
+                    backendUID,
+                    checkpointId);
+            db.enableFileDeletions(false);
+            throw e;
+        }
     }
 
     private void logLiveFiles(long checkpointId, long manifestFileSize, List<Path> liveFilesPath) {
