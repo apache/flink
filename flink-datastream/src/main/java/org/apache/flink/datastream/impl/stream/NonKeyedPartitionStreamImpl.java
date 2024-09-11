@@ -81,7 +81,7 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     }
 
     @Override
-    public <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    public <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction) {
         validateStates(
                 processFunction.usesStates(),
@@ -107,7 +107,8 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                 new NonKeyedPartitionStreamImpl<>(
                         environment, firstStream.getSideOutputTransform(secondOutputTag));
         environment.addOperator(outTransformation);
-        return TwoNonKeyedPartitionStreamsImpl.of(firstStream, secondStream);
+        return new ProcessConfigurableAndTwoNonKeyedPartitionStreamImpl<>(
+                environment, outTransformation, firstStream, secondStream);
     }
 
     @Override
@@ -120,7 +121,11 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         Arrays.asList(
                                 StateDeclaration.RedistributionMode.NONE,
                                 StateDeclaration.RedistributionMode.IDENTICAL)));
-
+        other =
+                other instanceof ProcessConfigurableAndNonKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndNonKeyedPartitionStreamImpl) other)
+                                .getNonKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputNonBroadcastProcessFunction(
                         processFunction,
@@ -204,36 +209,5 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     @Override
     public BroadcastStream<T> broadcast() {
         return new BroadcastStreamImpl<>(environment, getTransformation());
-    }
-
-    static class TwoNonKeyedPartitionStreamsImpl<OUT1, OUT2>
-            implements TwoNonKeyedPartitionStreams<OUT1, OUT2> {
-
-        private final NonKeyedPartitionStreamImpl<OUT1> firstStream;
-
-        private final NonKeyedPartitionStreamImpl<OUT2> secondStream;
-
-        public static <OUT1, OUT2> TwoNonKeyedPartitionStreamsImpl<OUT1, OUT2> of(
-                NonKeyedPartitionStreamImpl<OUT1> firstStream,
-                NonKeyedPartitionStreamImpl<OUT2> secondStream) {
-            return new TwoNonKeyedPartitionStreamsImpl<>(firstStream, secondStream);
-        }
-
-        private TwoNonKeyedPartitionStreamsImpl(
-                NonKeyedPartitionStreamImpl<OUT1> firstStream,
-                NonKeyedPartitionStreamImpl<OUT2> secondStream) {
-            this.firstStream = firstStream;
-            this.secondStream = secondStream;
-        }
-
-        @Override
-        public ProcessConfigurableAndNonKeyedPartitionStream<OUT1> getFirst() {
-            return StreamUtils.wrapWithConfigureHandle(firstStream);
-        }
-
-        @Override
-        public ProcessConfigurableAndNonKeyedPartitionStream<OUT2> getSecond() {
-            return StreamUtils.wrapWithConfigureHandle(secondStream);
-        }
     }
 }
