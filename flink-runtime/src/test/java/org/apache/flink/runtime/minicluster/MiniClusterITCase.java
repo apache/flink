@@ -110,7 +110,8 @@ class MiniClusterITCase {
         // this triggers the failure for the default scheduler
         config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
         // this triggers the failure for the adaptive scheduler
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
 
         // we have to disable sending the slot-unavailable request to allow for the timeout to kick
         // in
@@ -133,7 +134,8 @@ class MiniClusterITCase {
         // this triggers the failure for the default scheduler
         config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
         // this triggers the failure for the adaptive scheduler
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
 
         // overwrite the default check delay to speed up the test execution
         config.set(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofMillis(20));

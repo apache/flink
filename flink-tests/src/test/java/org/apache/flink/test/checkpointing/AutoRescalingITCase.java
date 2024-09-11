@@ -173,7 +173,9 @@ public class AutoRescalingITCase extends TestLogger {
 
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
             // Disable the scaling cooldown to speed up the test
-            config.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(0));
+            config.set(
+                    JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                    Duration.ofMillis(0));
 
             // speed the test suite up
             // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
