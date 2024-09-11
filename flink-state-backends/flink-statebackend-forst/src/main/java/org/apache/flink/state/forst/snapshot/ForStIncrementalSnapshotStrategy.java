@@ -360,6 +360,8 @@ public class ForStIncrementalSnapshotStrategy<K>
                             .mapToLong(HandleAndLocalPath::getStateSize)
                             .sum();
 
+            // TODO: The FLINK-35927 will change the storage of manifest/current files, so this part
+            // should be change accordingly after that.
             HandleAndLocalPath manifestFileTransferResult =
                     stateTransfer.transferFileToCheckpointFs(
                             classifiedFiles.f3,
