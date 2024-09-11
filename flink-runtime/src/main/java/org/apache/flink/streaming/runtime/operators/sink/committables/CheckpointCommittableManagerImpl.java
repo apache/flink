@@ -120,10 +120,9 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     @Override
-    public Collection<CommittableWithLineage<CommT>> commit(
-            boolean fullyReceived, Committer<CommT> committer)
+    public Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
             throws IOException, InterruptedException {
-        Collection<CommitRequestImpl<CommT>> requests = getPendingRequests(fullyReceived);
+        Collection<CommitRequestImpl<CommT>> requests = getPendingRequests(true);
         requests.forEach(CommitRequestImpl::setSelected);
         committer.commit(new ArrayList<>(requests));
         requests.forEach(CommitRequestImpl::setCommittedIfNoError);
@@ -132,9 +131,9 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
         return committed;
     }
 
-    Collection<CommitRequestImpl<CommT>> getPendingRequests(boolean fullyReceived) {
+    Collection<CommitRequestImpl<CommT>> getPendingRequests(boolean onlyIfFullyReceived) {
         return subtasksCommittableManagers.values().stream()
-                .filter(subtask -> !fullyReceived || subtask.hasReceivedAll())
+                .filter(subtask -> !onlyIfFullyReceived || subtask.hasReceivedAll())
                 .flatMap(SubtaskCommittableManager::getPendingRequests)
                 .collect(Collectors.toList());
     }
