@@ -1286,7 +1286,7 @@ class Expression(Generic[T]):
         group index.
         """
         if extract_index is None:
-            return _ternary_op("regexpExtract")(self, regex)
+            return _binary_op("regexpExtract")(self, regex)
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
 
