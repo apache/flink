@@ -2339,6 +2339,8 @@ under the License.
 								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130, should be removed in 2.0 -->
 								<exclude>org.apache.flink.configuration.Configuration#getBytes(java.lang.String,byte[])</exclude>
 								<exclude>org.apache.flink.configuration.Configuration#setBytes(java.lang.String,byte[])</exclude>
+								<!-- FLINK-34085 Deprecated string config should be removed in 2.0 -->
+								<exclude>org.apache.flink.configuration.ConfigConstants</exclude>
 								<!-- FLINK-35812 move tuple interfaces into flink-core-api, should be removed in 2.0 -->
 								<exclude>org.apache.flink.api.java.tuple.*</exclude>
 								<exclude>org.apache.flink.types.NullFieldException</exclude>

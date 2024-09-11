@@ -32,7 +32,6 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.configuration.AlgorithmOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -105,6 +104,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.AlgorithmOptions.USE_LARGE_RECORDS_HANDLER;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -170,16 +170,13 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
     public JobGraphGenerator() {
         this.defaultMaxFan = AlgorithmOptions.SPILLING_MAX_FAN.defaultValue();
         this.defaultSortSpillingThreshold = AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue();
-        this.useLargeRecordHandler = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
+        this.useLargeRecordHandler = USE_LARGE_RECORDS_HANDLER.defaultValue();
     }
 
     public JobGraphGenerator(Configuration config) {
         this.defaultMaxFan = config.get(AlgorithmOptions.SPILLING_MAX_FAN);
         this.defaultSortSpillingThreshold = config.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
-        this.useLargeRecordHandler =
-                config.getBoolean(
-                        ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
-                        ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
+        this.useLargeRecordHandler = config.get(USE_LARGE_RECORDS_HANDLER);
     }
 
     /**

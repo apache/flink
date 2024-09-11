@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -50,61 +49,6 @@ class HadoopConfigLoadingTest {
         org.apache.hadoop.conf.Configuration hadoopConf =
                 HadoopUtils.getHadoopConfiguration(new Configuration());
 
-        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
-    }
-
-    @Test
-    void loadFromLegacyConfigEntries(@TempDir File tempFolder) throws Exception {
-        final String k1 = "shipmate";
-        final String v1 = "smooth sailing";
-
-        final String k2 = "pirate";
-        final String v2 = "Arrg, yer scurvy dog!";
-
-        final File file1 = new File(tempFolder, "core-site.xml");
-        final File file2 = new File(tempFolder, "hdfs-site.xml");
-
-        printConfig(file1, k1, v1);
-        printConfig(file2, k2, v2);
-
-        final Configuration cfg = new Configuration();
-        cfg.setString(ConfigConstants.HDFS_DEFAULT_CONFIG, file1.getAbsolutePath());
-        cfg.setString(ConfigConstants.HDFS_SITE_CONFIG, file2.getAbsolutePath());
-
-        org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
-
-        // contains extra entries
-        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
-        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
-
-        // also contains classpath defaults
-        assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
-    }
-
-    @Test
-    void loadFromHadoopConfEntry(@TempDir File confDir) throws Exception {
-        final String k1 = "singing?";
-        final String v1 = "rain!";
-
-        final String k2 = "dancing?";
-        final String v2 = "shower!";
-
-        final File file1 = new File(confDir, "core-site.xml");
-        final File file2 = new File(confDir, "hdfs-site.xml");
-
-        printConfig(file1, k1, v1);
-        printConfig(file2, k2, v2);
-
-        final Configuration cfg = new Configuration();
-        cfg.setString(ConfigConstants.PATH_HADOOP_CONFIG, confDir.getAbsolutePath());
-
-        org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
-
-        // contains extra entries
-        assertThat(hadoopConf.get(k1, null)).isEqualTo(v1);
-        assertThat(hadoopConf.get(k2, null)).isEqualTo(v2);
-
-        // also contains classpath defaults
         assertThat(hadoopConf.get(IN_CP_CONFIG_KEY, null)).isEqualTo(IN_CP_CONFIG_VALUE);
     }
 
@@ -183,8 +127,8 @@ class HadoopConfigLoadingTest {
         final String k5 = "key5";
 
         final String v1 = "from HADOOP_CONF_DIR";
-        final String v2 = "from Flink config `fs.hdfs.hadoopconf`";
-        final String v3 = "from Flink config `fs.hdfs.hdfsdefault`";
+        final String v2 = "from HADOOP_HOME/etc/hadoop";
+        final String v3 = "from HADOOP_HOME/etc/hadoop";
         final String v4 = "from HADOOP_HOME/etc/hadoop";
         final String v5 = "from HADOOP_HOME/conf";
 
@@ -230,8 +174,6 @@ class HadoopConfigLoadingTest {
         printConfigs(file5, properties5);
 
         final Configuration cfg = new Configuration();
-        cfg.setString(ConfigConstants.PATH_HADOOP_CONFIG, hadoopConfEntryDir.getAbsolutePath());
-        cfg.setString(ConfigConstants.HDFS_DEFAULT_CONFIG, file3.getAbsolutePath());
 
         final org.apache.hadoop.conf.Configuration hadoopConf;
 

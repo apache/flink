@@ -18,11 +18,9 @@
 
 package org.apache.flink.yarn.entrypoint;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -76,20 +74,6 @@ public class YarnEntrypointUtils {
             // set the REST port to 0 to select it randomly
             configuration.set(RestOptions.BIND_PORT, "0");
         }
-
-        // if the user has set the deprecated YARN-specific config keys, we add the
-        // corresponding generic config keys instead. that way, later code needs not
-        // deal with deprecated config keys
-
-        BootstrapTools.substituteDeprecatedConfigPrefix(
-                configuration,
-                ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX,
-                ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX);
-
-        BootstrapTools.substituteDeprecatedConfigPrefix(
-                configuration,
-                ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
-                ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
         final String keytabPath =
                 Utils.resolveKeytabPath(
