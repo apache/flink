@@ -149,30 +149,23 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         endInput = true;
         if (!isCheckpointingEnabled || isBatchMode) {
             // There will be no final checkpoint, all committables should be committed here
-            notifyCheckpointComplete(EOI);
+            commitAndEmitCheckpoints();
         }
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        if (endInput) {
-            // This is the final checkpoint, all committables should be committed
-            lastCompletedCheckpointId = Long.MAX_VALUE;
-        } else {
-            lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
-        }
+        lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
         commitAndEmitCheckpoints();
     }
 
     private void commitAndEmitCheckpoints() throws IOException, InterruptedException {
+        long completedCheckpointId = endInput ? EOI : lastCompletedCheckpointId;
         do {
             for (CheckpointCommittableManager<CommT> manager :
-                    committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
-                // wait for all committables of the current manager before submission
-                boolean fullyReceived =
-                        !endInput && manager.getCheckpointId() == lastCompletedCheckpointId;
-                commitAndEmit(manager, fullyReceived);
+                    committableCollector.getCheckpointCommittablesUpTo(completedCheckpointId)) {
+                commitAndEmit(manager);
             }
             // !committableCollector.isFinished() indicates that we should retry
             // Retry should be done here if this is a final checkpoint (indicated by endInput)
@@ -185,10 +178,9 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         }
     }
 
-    private void commitAndEmit(CommittableManager<CommT> committableManager, boolean fullyReceived)
+    private void commitAndEmit(CommittableManager<CommT> committableManager)
             throws IOException, InterruptedException {
-        Collection<CommittableWithLineage<CommT>> committed =
-                committableManager.commit(fullyReceived, committer);
+        Collection<CommittableWithLineage<CommT>> committed = committableManager.commit(committer);
         if (emitDownstream && !committed.isEmpty()) {
             output.collect(new StreamRecord<>(committableManager.getSummary()));
             for (CommittableWithLineage<CommT> committable : committed) {
