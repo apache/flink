@@ -96,7 +96,7 @@ public class MultiInputTransformationTranslator<OUT>
                 transformation.getInputTypes(),
                 transformation.getOutputType(),
                 transformation.getName());
-
+        streamGraph.setAttribute(transformationId, transformation.getAttribute());
         final int parallelism =
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
                         ? transformation.getParallelism()
