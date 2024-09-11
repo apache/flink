@@ -39,7 +39,6 @@ import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.util.{SplittableIterator, TernaryBoolean}
-import org.apache.flink.util.Preconditions.checkNotNull
 
 import _root_.scala.language.implicitConversions
 import com.esotericsoftware.kryo.Serializer
@@ -584,10 +583,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
   def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
 
   /**
-   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
-   * [[org.apache.flink.streaming.api.environment.StreamPipelineOptions#TIME_CHARACTERISTIC]]. It
-   * will reconfigure [[StreamExecutionEnvironment]],
-   * [[org.apache.flink.api.common.ExecutionConfig]] and
+   * Sets all relevant options contained in the [[ReadableConfig]]. It will reconfigure
+   * [[StreamExecutionEnvironment]], [[org.apache.flink.api.common.ExecutionConfig]] and
    * [[org.apache.flink.streaming.api.environment.CheckpointConfig]].
    *
    * It will change the value of a setting only if a corresponding option was set in the
@@ -604,10 +601,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
   }
 
   /**
-   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
-   * [[org.apache.flink.streaming.api.environment.StreamPipelineOptions#TIME_CHARACTERISTIC]]. It
-   * will reconfigure [[StreamExecutionEnvironment]],
-   * [[org.apache.flink.api.common.ExecutionConfig]] and
+   * Sets all relevant options contained in the [[ReadableConfig]]. It will reconfigure
+   * [[StreamExecutionEnvironment]], [[org.apache.flink.api.common.ExecutionConfig]] and
    * [[org.apache.flink.streaming.api.environment.CheckpointConfig]].
    *
    * It will change the value of a setting only if a corresponding option was set in the

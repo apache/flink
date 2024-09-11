@@ -1091,8 +1091,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     /**
-     * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
-     * StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure {@link
+     * Sets all relevant options contained in the {@link ReadableConfig}. It will reconfigure {@link
      * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
      *
      * <p>It will change the value of a setting only if a corresponding option was set in the {@code
@@ -1106,8 +1105,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     /**
-     * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
-     * StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure {@link
+     * Sets all relevant options contained in the {@link ReadableConfig}. It will reconfigure {@link
      * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
      *
      * <p>It will change the value of a setting only if a corresponding option was set in the {@code
@@ -1119,9 +1117,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public void configure(ReadableConfig configuration, ClassLoader classLoader) {
         this.configuration.addAll(Configuration.fromMap(configuration.toMap()));
-        configuration
-                .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
-                .ifPresent(this::setStreamTimeCharacteristic);
         configuration
                 .getOptional(DeploymentOptions.JOB_LISTENERS)
                 .ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
