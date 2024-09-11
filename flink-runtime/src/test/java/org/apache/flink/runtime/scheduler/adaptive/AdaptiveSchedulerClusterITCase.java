@@ -92,10 +92,14 @@ public class AdaptiveSchedulerClusterITCase {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
         configuration.set(
-                JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
                 Duration.ofMillis(1L));
         // required for #testCheckpointStatsPersistedAcrossRescale
         configuration.set(WebOptions.CHECKPOINTS_HISTORY_SIZE, Integer.MAX_VALUE);

@@ -115,7 +115,9 @@ abstract class AbstractTaskManagerProcessFailureRecoveryTest {
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30L));
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofSeconds(30L));
         config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
         config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         config.set(
