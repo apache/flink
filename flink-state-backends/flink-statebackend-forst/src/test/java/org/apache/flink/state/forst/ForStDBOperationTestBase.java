@@ -118,7 +118,7 @@ public class ForStDBOperationTestBase {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
                 new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
-        return new ContextKey<>(recordContext);
+        return new ContextKey<>(recordContext, VoidNamespace.INSTANCE, null);
     }
 
     protected ForStValueState<Integer, VoidNamespace, String> buildForStValueState(String stateName)
@@ -216,7 +216,7 @@ public class ForStDBOperationTestBase {
 
         @Override
         public void completeExceptionally(String message, Throwable ex) {
-            throw new UnsupportedOperationException();
+            // do nothing
         }
 
         @Override

@@ -60,14 +60,14 @@ public class StateRequestBuffer<K> {
      * The state requests in this buffer could be executed when the buffer is full or configured
      * batch size is reached. All operations on this buffer must be invoked in task thread.
      */
-    final LinkedList<StateRequest<K, ?, ?>> activeQueue;
+    final LinkedList<StateRequest<K, ?, ?, ?>> activeQueue;
 
     /**
      * The requests in that should wait until all preceding records with identical key finishing its
      * execution. After which the queueing requests will move into the active buffer. All operations
      * on this buffer must be invoked in task thread.
      */
-    final Map<K, Deque<StateRequest<K, ?, ?>>> blockingQueue;
+    final Map<K, Deque<StateRequest<K, ?, ?, ?>>> blockingQueue;
 
     /** The number of state requests in blocking queue. */
     int blockingQueueSize;
@@ -120,7 +120,7 @@ public class StateRequestBuffer<K> {
         return currentSeq.get() == seq;
     }
 
-    void enqueueToActive(StateRequest<K, ?, ?> request) {
+    void enqueueToActive(StateRequest<K, ?, ?, ?> request) {
         if (request.getRequestType() == StateRequestType.SYNC_POINT) {
             request.getFuture().complete(null);
         } else {
@@ -147,7 +147,7 @@ public class StateRequestBuffer<K> {
         }
     }
 
-    void enqueueToBlocking(StateRequest<K, ?, ?> request) {
+    void enqueueToBlocking(StateRequest<K, ?, ?, ?> request) {
         blockingQueue
                 .computeIfAbsent(request.getRecordContext().getKey(), k -> new LinkedList<>())
                 .add(request);
@@ -166,7 +166,7 @@ public class StateRequestBuffer<K> {
             return null;
         }
 
-        StateRequest<K, ?, ?> stateRequest = blockingQueue.get(key).removeFirst();
+        StateRequest<K, ?, ?, ?> stateRequest = blockingQueue.get(key).removeFirst();
         enqueueToActive(stateRequest);
         if (blockingQueue.get(key).isEmpty()) {
             blockingQueue.remove(key);

@@ -99,7 +99,7 @@ public class ForStListState<K, N, V> extends InternalListState<K, N, V>
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = contextKey.getNamespace(this);
+                    N namespace = contextKey.getNamespace();
                     return builder.buildCompositeKeyNamespace(
                             namespace == null ? defaultNamespace : namespace,
                             namespaceSerializer.get());
@@ -123,19 +123,24 @@ public class ForStListState<K, N, V> extends InternalListState<K, N, V>
     @SuppressWarnings("unchecked")
     @Override
     public ForStDBGetRequest<K, N, List<V>, StateIterator<V>> buildDBGetRequest(
-            StateRequest<?, ?, ?> stateRequest) {
+            StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.LIST_GET);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
         return new ForStDBListGetRequest<>(
                 contextKey, this, (InternalStateFuture<StateIterator<V>>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBPutRequest<K, N, List<V>> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBPutRequest<K, N, List<V>> buildDBPutRequest(
+            StateRequest<?, ?, ?, ?> stateRequest) {
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
         List<V> value;
         boolean merge = false;
         switch (stateRequest.getRequestType()) {
