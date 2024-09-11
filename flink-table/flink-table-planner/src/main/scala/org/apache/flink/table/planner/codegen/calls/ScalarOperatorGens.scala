@@ -23,7 +23,7 @@ import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, EqualiserCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -412,6 +412,10 @@ object ScalarOperatorGens {
           mapType.getValueType,
           resultType),
         resultType)
+    }
+    // row types
+    else if (isRow(left.resultType) && canEqual) {
+      wrapExpressionIfNonEq(nonEq, generateRowComparison(ctx, left, right, resultType), resultType)
     }
     // multiset types
     else if (isMultiset(left.resultType) && canEqual) {
@@ -1817,6 +1821,26 @@ object ScalarOperatorGens {
              """.stripMargin
         (stmt, resultTerm)
     }
+
+  private def generateRowComparison(
+      ctx: CodeGeneratorContext,
+      left: GeneratedExpression,
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateCallWithStmtIfArgsNotNull(ctx, resultType, Seq(left, right)) {
+      args =>
+        val leftTerm = args.head
+        val rightTerm = args(1)
+
+        EqualiserCodeGenerator.generateRecordEqualiserCode(
+          ctx,
+          left.resultType,
+          right.resultType,
+          leftTerm,
+          rightTerm,
+          "rowGeneratedEqualiser")
+    }
+  }
 
   // ------------------------------------------------------------------------------------------
 

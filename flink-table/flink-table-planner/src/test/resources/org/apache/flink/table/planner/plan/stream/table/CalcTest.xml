@@ -119,6 +119,20 @@ Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..2), (2..3), (3..4),
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRowTypeEquality">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(_c0=[=($0, ROW(1, _UTF-16LE'str'))])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(my_row = ROW(1, 'str')) AS _c0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[my_row])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testScalarResult">
     <Resource name="ast">
       <![CDATA[
