@@ -300,7 +300,7 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
         @Override
         public void release() {
             // make sure only release once
-            if (!released.getAndSet(true)) {
+            if (released.compareAndSet(false, true)) {
                 releaser.run();
             }
         }
