@@ -66,12 +66,6 @@ public class SavepointWriter {
     private final Map<OperatorIdentifier, OperatorIdentifier> uidTransformationMap =
             new HashMap<>();
 
-    /** @deprecated use {@link #fromExistingSavepoint(StreamExecutionEnvironment, String)} */
-    @Deprecated
-    public static SavepointWriter fromExistingSavepoint(String path) throws IOException {
-        return new SavepointWriter(readSavepointMetadata(path), null, null);
-    }
-
     /**
      * Loads an existing savepoint. Useful if you want to modify or extend the state of an existing
      * application. The savepoint will be written using the state backend defined via the clusters
@@ -88,23 +82,12 @@ public class SavepointWriter {
     }
 
     /**
-     * @deprecated use {@link #fromExistingSavepoint(StreamExecutionEnvironment, String,
-     *     StateBackend)}
-     */
-    @Deprecated
-    public static SavepointWriter fromExistingSavepoint(String path, StateBackend stateBackend)
-            throws IOException {
-        return new SavepointWriter(readSavepointMetadata(path), stateBackend, null);
-    }
-
-    /**
      * Loads an existing savepoint. Useful if you want to modify or extend the state of an existing
      * application.
      *
      * @param path The path to an existing savepoint on disk.
      * @param stateBackend The state backend of the savepoint.
      * @return A {@link SavepointWriter}.
-     * @see #fromExistingSavepoint(String)
      */
     public static SavepointWriter fromExistingSavepoint(
             StreamExecutionEnvironment executionEnvironment, String path, StateBackend stateBackend)
@@ -128,12 +111,6 @@ public class SavepointWriter {
                 maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
     }
 
-    /** @deprecated use {@link #newSavepoint(StreamExecutionEnvironment, int)} */
-    @Deprecated
-    public static SavepointWriter newSavepoint(int maxParallelism) {
-        return new SavepointWriter(createSavepointMetadata(maxParallelism), null, null);
-    }
-
     /**
      * Creates a new savepoint. The savepoint will be written using the state backend defined via
      * the clusters configuration.
@@ -147,12 +124,6 @@ public class SavepointWriter {
             StreamExecutionEnvironment executionEnvironment, int maxParallelism) {
         return new SavepointWriter(
                 createSavepointMetadata(maxParallelism), null, executionEnvironment);
-    }
-
-    /** @deprecated use {@link #newSavepoint(StreamExecutionEnvironment, StateBackend, int)} */
-    @Deprecated
-    public static SavepointWriter newSavepoint(StateBackend stateBackend, int maxParallelism) {
-        return new SavepointWriter(createSavepointMetadata(maxParallelism), stateBackend, null);
     }
 
     /**
@@ -205,12 +176,6 @@ public class SavepointWriter {
         this.executionEnvironment = executionEnvironment;
     }
 
-    /** @deprecated use {@link #removeOperator(OperatorIdentifier)} */
-    @Deprecated
-    public SavepointWriter removeOperator(String uid) {
-        return removeOperator(OperatorIdentifier.forUid(uid));
-    }
-
     /**
      * Drop an existing operator from the savepoint.
      *
@@ -220,12 +185,6 @@ public class SavepointWriter {
     public SavepointWriter removeOperator(OperatorIdentifier identifier) {
         metadata.removeOperator(identifier);
         return this;
-    }
-
-    @Deprecated
-    public <T> SavepointWriter withOperator(
-            String uid, StateBootstrapTransformation<T> transformation) {
-        return withOperator(OperatorIdentifier.forUid(uid), transformation);
     }
 
     /**
