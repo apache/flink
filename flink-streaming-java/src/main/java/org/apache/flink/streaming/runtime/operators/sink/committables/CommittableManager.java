@@ -37,16 +37,14 @@ public interface CommittableManager<CommT> {
     CommittableSummary<CommT> getSummary();
 
     /**
-     * Commits all due committables.
+     * Commits all due committables if all respective committables of the specific subtask and
+     * checkpoint have been received.
      *
-     * @param fullyReceived only commit committables if all committables of this checkpoint for a
-     *     subtask are received
      * @param committer used to commit to the external system
      * @return successfully committed committables with meta information
      * @throws IOException
      * @throws InterruptedException
      */
-    Collection<CommittableWithLineage<CommT>> commit(
-            boolean fullyReceived, Committer<CommT> committer)
+    Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
             throws IOException, InterruptedException;
 }
