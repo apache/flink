@@ -177,7 +177,7 @@ public class ForStStateDataTransfer implements Closeable {
             outputStream = checkpointStreamFactory.createCheckpointStateOutputStream(stateScope);
             closeableRegistry.registerCloseable(outputStream);
 
-            while (maxTransferBytes >= 0) {
+            while (maxTransferBytes > 0) {
                 int maxReadBytes = (int) Math.min(maxTransferBytes, READ_BUFFER_SIZE);
                 int readBytes = inputStream.read(buffer, 0, maxReadBytes);
 

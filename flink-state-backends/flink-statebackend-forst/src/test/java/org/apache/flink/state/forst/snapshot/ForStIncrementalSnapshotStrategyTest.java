@@ -99,10 +99,11 @@ class ForStIncrementalSnapshotStrategyTest {
         byte[] val = "incrementalTest".getBytes();
         db.put(columnFamilyHandle, key, val);
 
-        RegisteredKeyValueStateBackendMetaInfo<ArrayList<Integer>> metaInfo =
+        RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
                 new RegisteredKeyValueStateBackendMetaInfo<>(
                         "test",
                         StateDescriptor.Type.VALUE,
+                        IntSerializer.INSTANCE,
                         new ArrayListSerializer<>(IntSerializer.INSTANCE));
         LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();

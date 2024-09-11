@@ -197,7 +197,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                         stateDesc.getStateId(), db, columnFamilyOptionsFactory);
         switch (stateDesc.getType()) {
             case VALUE:
-                registerKvStateInformation(stateDesc, columnFamilyHandle);
+                registerKvStateInformation(stateDesc, namespaceSerializer, columnFamilyHandle);
                 return (S)
                         new ForStValueState<>(
                                 stateRequestHandler,
@@ -209,7 +209,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                                 valueSerializerView,
                                 valueDeserializerView);
             case LIST:
-                registerKvStateInformation(stateDesc, columnFamilyHandle);
+                registerKvStateInformation(stateDesc, namespaceSerializer, columnFamilyHandle);
                 return (S)
                         new ForStListState<>(
                                 stateRequestHandler,
@@ -250,8 +250,10 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
         }
     }
 
-    private <SV> void registerKvStateInformation(
-            @Nonnull StateDescriptor<SV> stateDesc, ColumnFamilyHandle columnFamilyHandle) {
+    private <N, SV> void registerKvStateInformation(
+            @Nonnull StateDescriptor<SV> stateDesc,
+            TypeSerializer<N> namespaceSerializer,
+            ColumnFamilyHandle columnFamilyHandle) {
         kvStateInformation.put(
                 stateDesc.getStateId(),
                 new ForStKvStateInfo(
@@ -259,6 +261,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                         new RegisteredKeyValueStateBackendMetaInfo<>(
                                 stateDesc.getStateId(),
                                 stateDesc.getType(),
+                                namespaceSerializer,
                                 stateDesc.getSerializer())));
     }
 
