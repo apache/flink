@@ -175,8 +175,7 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
             sinkV1State = globalCommitter.commit(sinkV1State);
         }
         for (CheckpointCommittableManager<CommT> committable : getCommittables(checkpointId)) {
-            boolean fullyReceived = committable.getCheckpointId() == lastCompletedCheckpointId;
-            committable.commit(fullyReceived, committer);
+            committable.commit(committer);
         }
     }
 
@@ -186,7 +185,7 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
                 committableCollector.getEndOfInputCommittable();
         if (endOfInputCommittable != null) {
             do {
-                endOfInputCommittable.commit(false, committer);
+                endOfInputCommittable.commit(committer);
             } while (!committableCollector.isFinished());
         }
     }

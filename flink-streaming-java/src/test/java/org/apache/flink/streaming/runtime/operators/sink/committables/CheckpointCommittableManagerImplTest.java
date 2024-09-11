@@ -75,17 +75,21 @@ class CheckpointCommittableManagerImplTest {
 
         final Committer<Integer> committer = new NoOpCommitter();
         // Only commit fully received committables
-        Collection<CommittableWithLineage<Integer>> commitRequests =
-                checkpointCommittables.commit(true, committer);
-        assertThat(commitRequests)
+        assertThat(checkpointCommittables.commit(committer))
                 .hasSize(1)
                 .satisfiesExactly(c -> assertThat(c.getCommittable()).isEqualTo(3));
 
+        // Even on retry
+        assertThat(checkpointCommittables.commit(committer)).isEmpty();
+
+        // Add missing committable
+        checkpointCommittables.addCommittable(new CommittableWithLineage<>(5, 1L, 2));
         // Commit all committables
-        commitRequests = checkpointCommittables.commit(false, committer);
-        assertThat(commitRequests)
-                .hasSize(1)
-                .satisfiesExactly(c -> assertThat(c.getCommittable()).isEqualTo(4));
+        assertThat(checkpointCommittables.commit(committer))
+                .hasSize(2)
+                .satisfiesExactly(
+                        c -> assertThat(c.getCommittable()).isEqualTo(4),
+                        c -> assertThat(c.getCommittable()).isEqualTo(5));
     }
 
     @Test
