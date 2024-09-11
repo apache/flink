@@ -46,15 +46,21 @@ public class ForStFlinkFileSystemTest {
 
     @Test
     void testReadAndWriteWithByteBuffer() throws Exception {
+        ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
                 (ForStFlinkFileSystem) ForStFlinkFileSystem.get(new URI(tempDir.toString()));
+        fileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         testReadAndWriteWithByteBuffer(fileSystem);
     }
 
     @Test
     void testPositionedRead() throws Exception {
+        ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
-                new ForStFlinkFileSystem(new ByteBufferReadableLocalFileSystem());
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        tempDir.toString(),
+                        tempDir.toString());
         testReadAndWriteWithByteBuffer(fileSystem);
     }
 
@@ -128,8 +134,13 @@ public class ForStFlinkFileSystemTest {
 
     @Test
     void testReadExceedingFileSize() throws Exception {
+        ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
-                new ForStFlinkFileSystem(new ByteBufferReadableLocalFileSystem());
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        tempDir.toString(),
+                        tempDir.toString());
+
         org.apache.flink.core.fs.Path testFilePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/temp-file");
         try (ByteBufferWritableFSDataOutputStream outputStream = fileSystem.create(testFilePath)) {
@@ -141,6 +152,34 @@ public class ForStFlinkFileSystemTest {
             inputStream.readFully(0, byteBuffer);
             inputStream.readFully(byteBuffer);
         }
+    }
+
+    @Test
+    void testMiscFileInLocal() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        ForStFlinkFileSystem.setupLocalBasePath(remotePath.toString(), localPath.toString());
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString());
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+
+        ByteBufferWritableFSDataOutputStream os =
+                fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "CURRENT"));
+        os.write(233);
+        os.sync();
+        os.close();
+        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(localPath, "CURRENT")))
+                .isTrue();
+        ByteBufferReadableFSDataInputStream is =
+                fileSystem.open(new org.apache.flink.core.fs.Path(remotePath, "CURRENT"));
+        assertThat(is.read()).isEqualTo(233);
+        is.close();
     }
 
     private static class ByteBufferReadableLocalFileSystem extends LocalFileSystem {
