@@ -93,11 +93,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
 
-    /**
-     * Release task executor only when each produced result partition is either consumed or failed.
-     */
-    private final boolean waitResultConsumedBeforeRelease;
-
     private final CPUResource maxTotalCpu;
     private final MemorySize maxTotalMem;
 
@@ -142,8 +137,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
         Preconditions.checkNotNull(slotManagerConfiguration);
         this.taskManagerTimeout = slotManagerConfiguration.getTaskManagerTimeout();
-        this.waitResultConsumedBeforeRelease =
-                slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
         this.requirementsCheckDelay =
                 Preconditions.checkNotNull(slotManagerConfiguration.getRequirementCheckDelay());
         this.declareNeededResourceDelay =
@@ -828,11 +821,7 @@ public class FineGrainedSlotManager implements SlotManager {
                 .forEach(taskManagerTracker::removePendingTaskManager);
 
         for (TaskManagerInfo taskManagerToRelease : reconcileResult.getTaskManagersToRelease()) {
-            if (waitResultConsumedBeforeRelease) {
-                releaseIdleTaskExecutorIfPossible(taskManagerToRelease);
-            } else {
-                releaseIdleTaskExecutor(taskManagerToRelease.getInstanceId());
-            }
+            releaseIdleTaskExecutorIfPossible(taskManagerToRelease);
         }
 
         reconcileResult.getPendingTaskManagersToAllocate().forEach(this::allocateResource);

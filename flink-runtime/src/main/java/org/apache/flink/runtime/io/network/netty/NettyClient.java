@@ -78,26 +78,15 @@ class NettyClient {
         bootstrap = new Bootstrap();
 
         // --------------------------------------------------------------------
-        // Transport-specific configuration
+        // Determine transport type automatically
         // --------------------------------------------------------------------
 
-        switch (config.getTransportType()) {
-            case NIO:
-                initNioBootstrap();
-                break;
-
-            case EPOLL:
-                initEpollBootstrap();
-                break;
-
-            case AUTO:
-                if (Epoll.isAvailable()) {
-                    initEpollBootstrap();
-                    LOG.info("Transport type 'auto': using EPOLL.");
-                } else {
-                    initNioBootstrap();
-                    LOG.info("Transport type 'auto': using NIO.");
-                }
+        if (Epoll.isAvailable()) {
+            initEpollBootstrap();
+            LOG.info("Transport type 'auto': using EPOLL.");
+        } else {
+            initNioBootstrap();
+            LOG.info("Transport type 'auto': using NIO.");
         }
 
         // --------------------------------------------------------------------

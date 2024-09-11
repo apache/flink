@@ -27,15 +27,10 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
-
 @Public
 public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 
     private static final long serialVersionUID = 1L;
-
-    /** The config parameter which defines the fixed length of a record. */
-    @Deprecated public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
 
     public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
@@ -63,18 +58,6 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
     @Override
     public void configure(Configuration parameters) {
         super.configure(parameters);
-
-        // read own parameters
-        this.blockSize =
-                parameters.get(getLongConfigOption(BLOCK_SIZE_PARAMETER_KEY), NATIVE_BLOCK_SIZE);
-        if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
-            throw new IllegalArgumentException(
-                    "The block size parameter must be set and larger than 0.");
-        }
-        if (this.blockSize > Integer.MAX_VALUE) {
-            throw new UnsupportedOperationException(
-                    "Currently only block size up to Integer.MAX_VALUE are supported");
-        }
     }
 
     protected BlockInfo createBlockInfo() {
