@@ -49,6 +49,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     AND gender = 'F')</pre>
  *
  * </blockquote>
+ *
+ * <p>FLINK modifications are at lines
+ *
+ * <ol>
+ *   <li>Should be removed after fixing CALCITE-6342 (Calcite 1.36.0): Lines 84-89
+ * </ol>
  */
 public class RexFieldAccess extends RexNode {
     // ~ Instance fields --------------------------------------------------------
@@ -74,7 +80,11 @@ public class RexFieldAccess extends RexNode {
                 fieldIdx >= 0
                         && fieldIdx < exprType.getFieldList().size()
                         && exprType.getFieldList().get(fieldIdx).equals(field),
-                "Field " + field + " does not exist for expression " + expr);
+                // FLINK MODIFICATION BEGIN
+                "Field %s does not exist for expression %s",
+                field,
+                expr);
+        // FLINK MODIFICATION END
     }
 
     public RelDataTypeField getField() {
