@@ -1832,7 +1832,6 @@ object ScalarOperatorGens {
         val leftTerm = args.head
         val rightTerm = args(1)
 
-        val resultTerm = newName(ctx, "compareResult")
         EqualiserCodeGenerator.generateRecordEqualiserCode(
           ctx,
           left.resultType,

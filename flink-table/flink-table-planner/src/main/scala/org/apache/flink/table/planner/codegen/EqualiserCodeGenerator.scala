@@ -195,7 +195,7 @@ object EqualiserCodeGenerator {
       rightFieldType: LogicalType,
       leftFieldTerm: String,
       rightFieldTerm: String,
-      generatedEqualiserName: String) = {
+      generatedEqualiserName: String): (String, String) = {
     val equaliserGenerator =
       new EqualiserCodeGenerator(
         getFieldTypes(leftFieldType).asScala.toArray,
