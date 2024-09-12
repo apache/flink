@@ -111,21 +111,22 @@ class SubtaskCommittableManagerTest {
                         1,
                         2L,
                         METRIC_GROUP);
-        subtaskCommittableManager.merge(
-                new SubtaskCommittableManager<>(
-                        Arrays.asList(
-                                new CommitRequestImpl<>(2, METRIC_GROUP),
-                                new CommitRequestImpl<>(3, METRIC_GROUP)),
-                        10,
-                        2,
-                        3,
-                        1,
-                        2L,
-                        METRIC_GROUP));
-        assertThat(subtaskCommittableManager.getNumCommittables()).isEqualTo(11);
-        assertThat(subtaskCommittableManager.getNumDrained()).isEqualTo(3);
-        assertThat(subtaskCommittableManager.isFinished()).isFalse();
-        assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(5);
-        assertThat(subtaskCommittableManager.getPendingRequests()).hasSize(3);
+        SubtaskCommittableManager<Integer> merged =
+                subtaskCommittableManager.merge(
+                        new SubtaskCommittableManager<>(
+                                Arrays.asList(
+                                        new CommitRequestImpl<>(2, METRIC_GROUP),
+                                        new CommitRequestImpl<>(3, METRIC_GROUP)),
+                                10,
+                                2,
+                                3,
+                                1,
+                                2L,
+                                METRIC_GROUP));
+        assertThat(merged.getNumCommittables()).isEqualTo(11);
+        assertThat(merged.getNumDrained()).isEqualTo(3);
+        assertThat(merged.isFinished()).isFalse();
+        assertThat(merged.getNumFailed()).isEqualTo(5);
+        assertThat(merged.getPendingRequests()).hasSize(3);
     }
 }

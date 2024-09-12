@@ -39,12 +39,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Manages the committables coming from one subtask. */
 class SubtaskCommittableManager<CommT> {
     private final Deque<CommitRequestImpl<CommT>> requests;
-    private int numExpectedCommittables;
+    private final int numExpectedCommittables;
     private final long checkpointId;
     private final int subtaskId;
     private int numDrained;
     private int numFailed;
-    private SinkCommitterMetricGroup metricGroup;
+    private final SinkCommitterMetricGroup metricGroup;
 
     SubtaskCommittableManager(
             int numExpectedCommittables,
@@ -186,12 +186,17 @@ class SubtaskCommittableManager<CommT> {
     }
 
     SubtaskCommittableManager<CommT> merge(SubtaskCommittableManager<CommT> other) {
-        checkArgument(other.getSubtaskId() == this.getSubtaskId());
-        this.numExpectedCommittables += other.numExpectedCommittables;
-        this.requests.addAll(other.requests);
-        this.numDrained += other.numDrained;
-        this.numFailed += other.numFailed;
-        return this;
+        checkArgument(other.getSubtaskId() == this.getSubtaskId(), "Different subtasks.");
+        checkArgument(other.getCheckpointId() == this.getCheckpointId(), "Different checkpoints.");
+        return new SubtaskCommittableManager<>(
+                Stream.concat(requests.stream(), other.requests.stream())
+                        .collect(Collectors.toList()),
+                numExpectedCommittables + other.numExpectedCommittables,
+                numDrained + other.numDrained,
+                numFailed + other.numFailed,
+                subtaskId,
+                checkpointId,
+                metricGroup);
     }
 
     SubtaskCommittableManager<CommT> copy() {
