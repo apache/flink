@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -27,13 +26,10 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperatorTest.TestKeySelector;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperatorV2;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -220,13 +216,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
             asyncExecutionController.handleRequest(null, StateRequestType.VALUE_GET, null);
             testOperator.postProcessElement();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
-            testOperator.snapshotState(
-                    1,
-                    1,
-                    new CheckpointOptions(CheckpointType.CHECKPOINT, locationReference),
-                    new JobManagerCheckpointStorage()
-                            .createCheckpointStorage(new JobID())
-                            .resolveCheckpointStorageLocation(1, locationReference));
+            testOperator.prepareSnapshotPreBarrier(1);
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }
     }
