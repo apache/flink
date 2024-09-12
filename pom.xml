@@ -2339,6 +2339,19 @@ under the License.
 								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130, should be removed in 2.0 -->
 								<exclude>org.apache.flink.configuration.Configuration#getBytes(java.lang.String,byte[])</exclude>
 								<exclude>org.apache.flink.configuration.Configuration#setBytes(java.lang.String,byte[])</exclude>
+								<!-- FLIP-344: Remove parameter in RichFunction#open in 2.0 -->
+								<exclude>org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.configuration.Configuration)</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichCoGroupFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichCrossFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichFilterFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichFlatJoinFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichFlatMapFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichGroupCombineFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichGroupReduceFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichJoinFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichMapFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichMapPartitionFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichReduceFunction</exclude>
 								<!-- FLINK-34085 Deprecated string config should be removed in 2.0 -->
 								<exclude>org.apache.flink.configuration.ConfigConstants</exclude>
 								<!-- FLINK-35886: WatermarksWithIdleness constructor was marked as deprecated -->

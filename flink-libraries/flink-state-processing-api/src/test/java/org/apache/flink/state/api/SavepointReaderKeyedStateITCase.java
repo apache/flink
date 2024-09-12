@@ -113,12 +113,6 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         }
 
         @Override
-        public void open(Configuration parameters) {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
-        }
-
-        @Override
         public void readKey(Integer key, Context ctx, Collector<Pojo> out) throws Exception {
             Pojo pojo = new Pojo();
             pojo.key = key;

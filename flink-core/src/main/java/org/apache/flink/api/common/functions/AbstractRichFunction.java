@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.Configuration;
 
 import java.io.Serializable;
 
@@ -69,7 +68,7 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void open(Configuration parameters) throws Exception {}
+    public void open(OpenContext openContext) throws Exception {}
 
     @Override
     public void close() throws Exception {}

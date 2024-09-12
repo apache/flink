@@ -18,12 +18,19 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.Configuration;
 
-/**
- * The {@link OpenContext} interface provides necessary information required by the {@link
- * RichFunction} when it is opened. The {@link OpenContext} is currently empty because it can be
- * used to add more methods without affecting the signature of {@code RichFunction#open}.
- */
-@Public
-public interface OpenContext {}
+/** A special {@link OpenContext} for passing configuration to udf. */
+@PublicEvolving
+public class WithConfigurationOpenContext implements OpenContext {
+    private final Configuration configuration;
+
+    public WithConfigurationOpenContext(Configuration configuration) {
+        this.configuration = configuration;
+    }
+
+    public Configuration getConfiguration() {
+        return configuration;
+    }
+}

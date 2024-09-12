@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -87,7 +88,7 @@ object WatermarkGeneratorCodeGenerator {
         }
 
         @Override
-        public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+        public void open(${classOf[OpenContext].getCanonicalName} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 

@@ -41,7 +41,7 @@ import org.apache.flink.annotation.Public;
  *
  *     private Map<Long, String> map;
  *
- *     public void open(Configuration cfg) throws Exception {
+ *     public void open(OpenContext ctx) throws Exception {
  *         getRuntimeContext().getBroadcastVariableWithInitializer("mapvar",
  *             new BroadcastVariableInitializer<Tuple2<Long, String>, Map<Long, String>>() {
  *

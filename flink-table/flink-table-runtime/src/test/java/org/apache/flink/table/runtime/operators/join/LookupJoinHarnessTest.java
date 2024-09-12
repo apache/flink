@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -332,7 +332,7 @@ class LookupJoinHarnessTest {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext context) throws Exception {
             // do nothing
         }
 

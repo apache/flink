@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -57,26 +58,10 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN>
         this.format = format;
     }
 
-    /**
-     * Initialization method for the {@link OutputFormatSinkFunction}.
-     *
-     * @param parameters The configuration containing the parameters attached to the contract.
-     * @throws Exception if an error happens.
-     * @deprecated This method is deprecated since Flink 1.19. The users are recommended to
-     *     implement {@code open(OpenContext openContext)} and override {@code open(Configuration
-     *     parameters)} with an empty body instead. 1. If you implement {@code open(OpenContext
-     *     openContext)}, the {@code open(OpenContext openContext)} will be invoked and the {@code
-     *     open(Configuration parameters)} won't be invoked. 2. If you don't implement {@code
-     *     open(OpenContext openContext)}, the {@code open(Configuration parameters)} will be
-     *     invoked in the default implementation of the {@code open(OpenContext openContext)}.
-     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=263425231">
-     *     FLIP-344: Remove parameter in RichFunction#open </a>
-     */
-    @Deprecated
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         RuntimeContext context = getRuntimeContext();
-        format.configure(parameters);
+        format.configure(new Configuration());
         int indexInSubtaskGroup = context.getTaskInfo().getIndexOfThisSubtask();
         int currentNumberOfSubtasks = context.getTaskInfo().getNumberOfParallelSubtasks();
         format.open(

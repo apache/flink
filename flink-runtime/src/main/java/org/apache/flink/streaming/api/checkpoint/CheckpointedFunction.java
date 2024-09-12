@@ -131,7 +131,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  *
  *     private ValueState<Long> count;
  *
- *     public void open(Configuration cfg) throws Exception {
+ *     public void open(OpenContext ctx) throws Exception {
  *         count = getRuntimeContext().getState(new ValueStateDescriptor<>("myCount", Long.class));
  *     }
  *

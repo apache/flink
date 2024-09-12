@@ -263,12 +263,6 @@ public class KeyedStateInputFormatTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
-        }
-
-        @Override
         public void readKey(
                 Integer key, KeyedStateReaderFunction.Context ctx, Collector<Integer> out)
                 throws Exception {
@@ -285,12 +279,6 @@ public class KeyedStateInputFormatTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
-        }
-
-        @Override
         public void readKey(
                 Integer key, KeyedStateReaderFunction.Context ctx, Collector<Integer> out)
                 throws Exception {
@@ -304,12 +292,6 @@ public class KeyedStateInputFormatTest {
         @Override
         public void open(OpenContext openContext) {
             getRuntimeContext().getState(stateDescriptor);
-        }
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
         }
 
         @Override
@@ -358,12 +340,6 @@ public class KeyedStateInputFormatTest {
         @Override
         public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
-        }
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
         }
 
         @Override

@@ -236,7 +236,7 @@ minutesByStartCell
 
 对其中的每一个接口，Flink 同样提供了一个所谓 "rich" 的变体，如 `RichFlatMapFunction`，其中增加了以下方法，包括：
 
-- `open(Configuration c)`
+- `open(OpenContext context)`
 - `close()`
 - `getRuntimeContext()`
 
@@ -280,7 +280,7 @@ public static class Deduplicator extends RichFlatMapFunction<Event, Event> {
     ValueState<Boolean> keyHasBeenSeen;
 
     @Override
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Boolean> desc = new ValueStateDescriptor<>("keyHasBeenSeen", Types.BOOLEAN);
         keyHasBeenSeen = getRuntimeContext().getState(desc);
     }
@@ -373,7 +373,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
     private ValueState<Boolean> blocked;
       
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         blocked = getRuntimeContext()
             .getState(new ValueStateDescriptor<>("blocked", Boolean.class));
     }

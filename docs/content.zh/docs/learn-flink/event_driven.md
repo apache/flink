@@ -79,7 +79,7 @@ public static class PseudoWindow extends
 
     @Override
     // 在初始化期间调用一次。
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         . . .
     }
 
@@ -126,7 +126,7 @@ public static class PseudoWindow extends
 private transient MapState<Long, Float> sumOfTips;
 
 @Override
-public void open(Configuration conf) {
+public void open(OpenContext ctx) {
 
     MapStateDescriptor<Long, Float> sumDesc =
             new MapStateDescriptor<>("sumOfTips", Long.class, Float.class);

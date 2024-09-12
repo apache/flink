@@ -114,7 +114,7 @@ class AbstractUdfStreamOperatorLifecycleTest {
 
     private static final String ALL_METHODS_RICH_FUNCTION =
             "[close[], getIterationRuntimeContext[], getRuntimeContext[]"
-                    + ", open[class org.apache.flink.configuration.Configuration], open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
+                    + ", open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
                     + "org.apache.flink.api.common.functions.RuntimeContext]]";
 
     private static final List<String> ACTUAL_ORDER_TRACKING =
