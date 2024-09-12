@@ -147,14 +147,15 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
 
     CheckpointCommittableManagerImpl<CommT> merge(CheckpointCommittableManagerImpl<CommT> other) {
         checkArgument(other.checkpointId == checkpointId);
+        CheckpointCommittableManagerImpl<CommT> merged = copy();
         for (Map.Entry<Integer, SubtaskCommittableManager<CommT>> subtaskEntry :
                 other.subtasksCommittableManagers.entrySet()) {
-            subtasksCommittableManagers.merge(
+            merged.subtasksCommittableManagers.merge(
                     subtaskEntry.getKey(),
                     subtaskEntry.getValue(),
                     SubtaskCommittableManager::merge);
         }
-        return this;
+        return merged;
     }
 
     CheckpointCommittableManagerImpl<CommT> copy() {
