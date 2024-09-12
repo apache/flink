@@ -2384,6 +2384,8 @@ under the License.
 								<exclude>
 									org.apache.flink.api.common.functions.RuntimeContext#getExecutionConfig()
 								</exclude>
+								<!-- FLINK-5336 Remove IOReadableWritable from Path in flink-2.0. -->
+								<exclude>org.apache.flink.core.fs.Path</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>
