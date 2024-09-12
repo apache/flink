@@ -192,7 +192,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
     }
 
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
                 new ValueStateDescriptor<>(
                         "average", // the state name
