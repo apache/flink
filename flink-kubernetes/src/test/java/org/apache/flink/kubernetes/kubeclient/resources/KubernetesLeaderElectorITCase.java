@@ -36,8 +36,6 @@ import java.time.Duration;
 import java.util.UUID;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -153,12 +151,7 @@ class KubernetesLeaderElectorITCase {
 
                 assertThat(kubeClient.getConfigMap(configMapName))
                         .hasValueSatisfying(
-                                configMap ->
-                                        assertThat(configMap.getLabels())
-                                                .hasSize(3)
-                                                .containsEntry(
-                                                        LABEL_CONFIGMAP_TYPE_KEY,
-                                                        LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+                                configMap -> assertThat(configMap.getLabels()).hasSize(2));
             } finally {
                 leaderElector.stop();
             }

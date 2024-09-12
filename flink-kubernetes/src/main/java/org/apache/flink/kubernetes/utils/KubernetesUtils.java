@@ -88,7 +88,6 @@ import static org.apache.flink.kubernetes.utils.Constants.COMPLETED_CHECKPOINT_F
 import static org.apache.flink.kubernetes.utils.Constants.DNS_POLICY_DEFAULT;
 import static org.apache.flink.kubernetes.utils.Constants.DNS_POLICY_HOSTNETWORK;
 import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.SUBMITTED_JOBGRAPH_FILE_PREFIX;
@@ -192,13 +191,10 @@ public class KubernetesUtils {
      * the resources.
      *
      * @param clusterId cluster id
-     * @param type the config map use case. It could only be {@link
-     *     Constants#LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY} now.
      * @return Return ConfigMap labels.
      */
-    public static Map<String, String> getConfigMapLabels(String clusterId, String type) {
+    public static Map<String, String> getConfigMapLabels(String clusterId) {
         final Map<String, String> labels = new HashMap<>(getCommonLabels(clusterId));
-        labels.put(Constants.LABEL_CONFIGMAP_TYPE_KEY, type);
         return Collections.unmodifiableMap(labels);
     }
 
@@ -561,9 +557,7 @@ public class KubernetesUtils {
                         new ConfigMapBuilder()
                                 .withNewMetadata()
                                 .withName(configMapName)
-                                .withLabels(
-                                        getConfigMapLabels(
-                                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
+                                .withLabels(getConfigMapLabels(clusterId))
                                 .endMetadata()
                                 .build());
 
