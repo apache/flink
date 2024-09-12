@@ -296,7 +296,6 @@ public class ForStKeyedStateBackendBuilder<K>
                             lastCompletedCheckpointId);
 
         } else {
-            // TODO: 2024/5/29 wangfeifan -
             throw new UnsupportedOperationException("Not implemented yet for ForStStateBackend");
         }
         return snapshotStrategy;
