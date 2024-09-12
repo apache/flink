@@ -562,35 +562,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
      * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
-     * restarted from the latest completed checkpoint.
-     *
-     * <p>The job draws checkpoints periodically, in the given interval. The state will be stored in
-     * the configured state backend.
-     *
-     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * If the "force" parameter is set to true, the system will execute the job nonetheless.
-     *
-     * @param interval Time interval between state checkpoints in millis.
-     * @param mode The checkpointing mode, selecting between "exactly once" and "at least once"
-     *     guaranteed.
-     * @param force If true checkpointing will be enabled for iterative jobs as well.
-     * @deprecated Use {@link #enableCheckpointing(long, CheckpointingMode)} instead. Forcing
-     *     checkpoints will be removed in the future.
-     */
-    @Deprecated
-    @SuppressWarnings("deprecation")
-    @PublicEvolving
-    public StreamExecutionEnvironment enableCheckpointing(
-            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
-        checkpointCfg.setCheckpointingMode(mode);
-        checkpointCfg.setCheckpointInterval(interval);
-        checkpointCfg.setForceCheckpointing(force);
-        return this;
-    }
-
-    /**
-     * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
-     * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
      * restarted from the latest completed checkpoint. This method selects {@link
      * CheckpointingMode#EXACTLY_ONCE} guarantees.
      *
@@ -618,18 +589,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     public long getCheckpointInterval() {
         return checkpointCfg.getCheckpointInterval();
-    }
-
-    /**
-     * Returns whether checkpointing is force-enabled.
-     *
-     * @deprecated Forcing checkpoints will be removed in future version.
-     */
-    @Deprecated
-    @SuppressWarnings("deprecation")
-    @PublicEvolving
-    public boolean isForceCheckpointing() {
-        return checkpointCfg.isForceCheckpointing();
     }
 
     /** Returns whether unaligned checkpoints are enabled. */

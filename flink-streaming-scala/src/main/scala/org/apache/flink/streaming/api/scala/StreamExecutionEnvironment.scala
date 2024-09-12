@@ -182,34 +182,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
    * restarted from the latest completed checkpoint.
    *
-   * The job draws checkpoints periodically, in the given interval. The state will be stored in the
-   * configured state backend.
-   *
-   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. If
-   * the "force" parameter is set to true, the system will execute the job nonetheless.
-   *
-   * @param interval
-   *   Time interval between state checkpoints in millis.
-   * @param mode
-   *   The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
-   * @param force
-   *   If true checkpointing will be enabled for iterative jobs as well.
-   */
-  @deprecated
-  @PublicEvolving
-  def enableCheckpointing(
-      interval: Long,
-      mode: org.apache.flink.streaming.api.CheckpointingMode,
-      force: Boolean): StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing(interval, mode, force)
-    this
-  }
-
-  /**
-   * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
-   * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
-   * restarted from the latest completed checkpoint.
-   *
    * The job draws checkpoints periodically, in the given interval. The system uses the given
    * [[org.apache.flink.streaming.api.CheckpointingMode]] for the checkpointing ("exactly once" vs
    * "at least once"). The state will be stored in the configured state backend.

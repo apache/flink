@@ -340,19 +340,6 @@ public class ExecutionCheckpointingOptions {
 
     /**
      * Access to this option is officially only supported via {@link
-     * CheckpointConfig#setForceCheckpointing(boolean)}, but there is no good reason behind this.
-     *
-     * @deprecated This will be removed once iterations properly participate in checkpointing.
-     */
-    @Internal @Deprecated @Documentation.ExcludeFromDocumentation
-    public static final ConfigOption<Boolean> FORCE_CHECKPOINTING =
-            key("execution.checkpointing.force")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("Flag to force checkpointing in iterative jobs.");
-
-    /**
-     * Access to this option is officially only supported via {@link
      * CheckpointConfig#enableApproximateLocalRecovery(boolean)}, but there is no good reason behind
      * this.
      *
