@@ -383,32 +383,6 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether checkpointing is forced, despite currently non-checkpointable iteration
-     * feedback.
-     *
-     * @return True, if checkpointing is forced, false otherwise.
-     * @deprecated This will be removed once iterations properly participate in checkpointing.
-     */
-    @Deprecated
-    @PublicEvolving
-    public boolean isForceCheckpointing() {
-        return configuration.get(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING);
-    }
-
-    /**
-     * Checks whether checkpointing is forced, despite currently non-checkpointable iteration
-     * feedback.
-     *
-     * @param forceCheckpointing The flag to force checkpointing.
-     * @deprecated This will be removed once iterations properly participate in checkpointing.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setForceCheckpointing(boolean forceCheckpointing) {
-        configuration.set(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING, forceCheckpointing);
-    }
-
-    /**
      * Checks whether unaligned checkpoints are forced, despite iteration feedback.
      *
      * @return True, if unaligned checkpoints are forced, false otherwise.

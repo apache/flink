@@ -163,13 +163,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
-    public StreamExecutionEnvironment enableCheckpointing(
-            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
-    }
-
-    @Override
     public StreamExecutionEnvironment enableCheckpointing() {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
@@ -178,11 +171,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     @Override
     public long getCheckpointInterval() {
         return realExecEnv.getCheckpointInterval();
-    }
-
-    @Override
-    public boolean isForceCheckpointing() {
-        return realExecEnv.isForceCheckpointing();
     }
 
     @Override
