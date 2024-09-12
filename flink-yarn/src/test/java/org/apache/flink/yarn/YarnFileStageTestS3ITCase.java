@@ -35,12 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -58,16 +53,16 @@ class YarnFileStageTestS3ITCase {
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
     @BeforeAll
-    static void checkCredentialsAndSetup(@TempDir File tempFolder) throws IOException {
+    static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
         S3TestCredentials.assumeCredentialsAvailable();
 
-        setupCustomHadoopConfig(tempFolder);
+        setupCustomHadoopConfig();
     }
 
     @AfterAll
     static void resetFileSystemConfiguration() {
-        FileSystem.initialize(new Configuration());
+        FileSystem.initialize(new Configuration(), null);
     }
 
     /**
@@ -77,38 +72,21 @@ class YarnFileStageTestS3ITCase {
      * contain a "/" (see <a
      * href="https://issues.apache.org/jira/browse/HADOOP-3733">HADOOP-3733</a>).
      */
-    private static void setupCustomHadoopConfig(File tempFolder) throws IOException {
-        File hadoopConfig =
-                Files.createTempFile(tempFolder.toPath(), UUID.randomUUID().toString(), "")
-                        .toFile();
-        Map<String /* key */, String /* value */> parameters = new HashMap<>();
-
-        // set all different S3 fs implementation variants' configuration keys
-        parameters.put("fs.s3a.access.key", S3TestCredentials.getS3AccessKey());
-        parameters.put("fs.s3a.secret.key", S3TestCredentials.getS3SecretKey());
-
-        parameters.put("fs.s3.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
-        parameters.put("fs.s3.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
-
-        parameters.put("fs.s3n.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
-        parameters.put("fs.s3n.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
-
-        try (PrintStream out = new PrintStream(new FileOutputStream(hadoopConfig))) {
-            out.println("<?xml version=\"1.0\"?>");
-            out.println("<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>");
-            out.println("<configuration>");
-            for (Map.Entry<String, String> entry : parameters.entrySet()) {
-                out.println("\t<property>");
-                out.println("\t\t<name>" + entry.getKey() + "</name>");
-                out.println("\t\t<value>" + entry.getValue() + "</value>");
-                out.println("\t</property>");
-            }
-            out.println("</configuration>");
-        }
+    private static void setupCustomHadoopConfig() {
 
         final Configuration conf = new Configuration();
-        conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3;s3a;s3n");
 
+        conf.setString("flink.hadoop.fs.s3a.access.key", S3TestCredentials.getS3AccessKey());
+        conf.setString("flink.hadoop.fs.s3a.secret.key", S3TestCredentials.getS3SecretKey());
+
+        conf.setString("flink.hadoop.fs.s3.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
+        conf.setString("flink.hadoop.fs.s3.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
+
+        conf.setString("flink.hadoop.fs.s3n.awsAccessKeyId", S3TestCredentials.getS3AccessKey());
+        conf.setString(
+                "flink.hadoop.fs.s3n.awsSecretAccessKey", S3TestCredentials.getS3SecretKey());
+
+        conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3;s3a;s3n");
         FileSystem.initialize(conf, null);
     }
 
