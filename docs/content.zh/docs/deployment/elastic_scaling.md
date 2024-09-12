@@ -43,25 +43,25 @@ Adaptive Scheduler builds on top of a feature called [Declarative Resource Manag
 
 {{< img src="/fig/adaptive_scheduler_rescale.png" >}}
 
-When JobMaster gets more resources during the runtime, it will automatically rescale the job using the latest available savepoint, eliminating the need for an external orchestration.
+当JobMaster在运行时获得更多资源时，它将使用最新的可用保存点（Savepoint）自动重新调整作业的运行规模，从而无需外部进行干预和编排这些作业。
 
-Starting from **Flink 1.18.x**, you can re-declare the resource requirements of a running job using [Externalized Declarative Resource Management](#externalized-declarative-resource-management), otherwise the Adaptive Scheduler won't be able to handle cases where the job needs to be rescaled due to a change in the input rate, or a change in the performance of the workload.
+从**Flink 1.18.x**开始， 您可以使用[外部声明式资源管理](#外部声明式资源管理), 重新定义正在运行的作业的资源需求，否则自适应调度器（Adaptive Scheduler）将无法处理因输入速率变化或工作负载性能变化而需要重新调整作业规模的情况。
 
-### Externalized Declarative Resource Management
+### 外部声明式资源管理
 
 {{< hint warning >}}
-Externalized Declarative Resource Management is an MVP ("minimum viable product") feature. The Flink community is actively looking for feedback by users through our mailing lists. Please check the limitations listed on this page.
+外部化声明性资源管理是一项 MVP（“最小可行产品”）功能。 Flink 社区正在通过我们的邮件列表积极寻求用户的反馈，在使用此功能前请检查本页功能描述相关的限制。
 {{< /hint >}}
 
 {{< hint info >}}
-You can use Externalized Declarative Resource Management with the [Apache Flink Kubernetes operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.6/docs/custom-resource/autoscaler/#flink-118-and-in-place-scaling-support) for a fully-fledged auto-scaling experience.
+您可以将此功能与[Apache Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.6/docs/custom-resource/autoscaler/#flink-118-and-in-place-scaling-support) 集成使用，以获得更佳的作业自动伸缩能力。
 {{< /hint >}}
 
-Externalized Declarative Resource Management aims to address two deployment scenarios:
-1. Adaptive Scheduler on Session Cluster, where multiple jobs can compete for resources, and you need a finer-grained control over the distribution of resources between jobs.
-2. Adaptive Scheduler on Application Cluster in combination with Active Resource Manager (e.g. [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})), where you rely on Flink to "greedily" spawn new TaskManagers, but you still want to leverage rescaling capabilities as with [Reactive Mode](#reactive-mode).
+外部化的声明式资源管理旨在解决两种部署场景：
+1. 在会话集群上（Session Cluster）的自适应调度器，其中多个作业可以争夺资源，您需要更细粒度地控制作业之间资源的分配。
+2. 在应用集群上（Application Cluster）(例如[原生 Kubernetes]({{<ref"docs/deployment/resource-providers/native_kubernetes" >}}))的自适应调度器上（Active Resource Manager），您依赖于Flink来“贪婪”地生成新的TaskManagers去满足你的资源需求，但是您仍然希望像Reactive 模式[Reactive 模式](#Reactive 模式).那样利用重新集群规模的能力。
 
-by introducing a new [REST API endpoint]({{< ref "docs/ops/rest_api" >}}#jobs-jobid-resource-requirements-1), that allows you to re-declare resource requirements of a running job, by setting per-vertex parallelism boundaries.
+通过引入一个新的 [REST API 入口]({{< ref "docs/ops/rest_api" >}}#jobs-jobid-resource-requirements-1), 它允许您重新声明正在运行的作业的并行度资源需求，通过设置每个顶点的并行度的最大值和最小值边界。
 
 ```
 PUT /jobs/<job-id>/resource-requirements
@@ -83,30 +83,30 @@ REQUEST BODY:
 }
 ```
 
-To a certain extent, the above endpoint could be thought about as a "re-scaling endpoint" and it introduces an important building block for building an auto-scaling experience for Flink.
+在某种程度上，上述端点可以被视为“重新调整作业并行度的入口”，它引入了为Flink构建自动扩缩体验的一个重要构建模块。
 
-You can manually try this feature out, by navigating the Job overview in the Flink UI and using up-scale/down-scale buttons in the task list.
+您可以手动尝试此功能，通过在Flink UI中的作业概览，并在任务列表中使用扩容/缩容按钮调整作业并行度。
 
 ### Usage
 
 {{< hint info >}}
-If you are using Adaptive Scheduler on a [session cluster]({{< ref "docs/deployment/overview" >}}/#session-mode), there are no guarantees regarding the distribution of slots between multiple running jobs in the same session, in case the cluster doesn't have enough resources. The [External Declarative Resource Management](#externalized-declarative-resource-management) can partially mitigate this issue, but it is still recommended to use Adaptive Scheduler on a [application cluster]({{< ref "docs/deployment/overview" >}}/#application-mode).
+如果您在[session cluster]({{< ref "docs/deployment/overview" >}}/#session-mode)上使用自适应调度器, 当集群中没有足够的资源时，同一Session中运行的多个作业之间的插槽分配没有保证。[外部声明式资源管理](#外部声明式资源管理) 可以部分地缓解这个问题，但仍然建议在[application cluster]({{< ref "docs/deployment/overview" >}}/#application-mode)上使用自适应调度器.
 {{< /hint >}}
 
-The `jobmanager.scheduler` needs to be set to on the cluster level for the adaptive scheduler to be used instead of default scheduler.
+**jobmanager.scheduler** 配置需要在集群级别上设置为自适应调度器（Adaptive Scheduler），以代替默认调度器。
 
 ```yaml
 jobmanager.scheduler: adaptive
 ```
 
-The behavior of Adaptive Scheduler is configured by [all configuration options prefixed with `jobmanager.adaptive-scheduler`]({{< ref "docs/deployment/config">}}#advanced-scheduling-options) in their name.
+自适应调度器的行为由名称中带有前缀为[`jobmanager.adaptive-scheduler`]({{< ref "docs/deployment/config">}}#advanced-scheduling-options) 进行配置。
 
-### Limitations
+### 使用限制
 
-- **Streaming jobs only**: The Adaptive Scheduler runs with streaming jobs only. When submitting a batch job, Flink will use the default scheduler of batch jobs, i.e. [Adaptive Batch Scheduler](#adaptive-batch-scheduler)
-- **No support for partial failover**: Partial failover means that the scheduler is able to restart parts ("regions" in Flink's internals) of a failed job, instead of the entire job. This limitation impacts only recovery time of embarrassingly parallel jobs: Flink's default scheduler can restart failed parts, while Adaptive Scheduler will restart the entire job.
-- Scaling events trigger job and task restarts, which will increase the number of Task attempts.
-- 
+- **仅仅支持流式作业**: 自适应调度程序仅与流作业一起运行。当提交批处理作业时，Flink 将使用批处理作业的默认调度程序，即 [Adaptive Batch Scheduler](#adaptive-batch-scheduler)
+- **不支持部分故障转移**: 部分故障转移意味着调度器能够重新启动失败作业的部分（在Flink的内部称为“区域”），而不是整个作业。这个限制只影响那些简单并行作业的恢复时间：Flink的默认调度器可以重新启动失败的部分，而自适应调度器会重新启动整个作业。
+扩展事件会触发作业和任务的重新启动，这将增加任务尝试的次数。
+
 ## Reactive 模式
 
 Reactive Mode is a special mode for Adaptive Scheduler, that assumes a single job per-cluster (enforced by the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). Reactive Mode configures a job so that it always uses all resources available in the cluster. Adding a TaskManager will scale up your job, removing resources will scale it down. Flink will manage the parallelism of the job, always setting it to the highest possible values.
