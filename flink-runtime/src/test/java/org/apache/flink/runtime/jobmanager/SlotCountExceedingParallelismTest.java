@@ -43,6 +43,8 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.BitSet;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+
 /**
  * Tests that Flink can execute jobs with a higher parallelism than available number of slots. This
  * effectively tests that Flink can execute jobs with blocking results in a staged fashion.
@@ -108,12 +110,15 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
         final JobVertex sender = new JobVertex("Sender");
         sender.setInvokableClass(RoundRobinSubtaskIndexSender.class);
         sender.getConfiguration()
-                .setInteger(RoundRobinSubtaskIndexSender.CONFIG_KEY, receiverParallelism);
+                .get(
+                        getIntConfigOption(RoundRobinSubtaskIndexSender.CONFIG_KEY),
+                        receiverParallelism);
         sender.setParallelism(senderParallelism);
 
         final JobVertex receiver = new JobVertex("Receiver");
         receiver.setInvokableClass(SubtaskIndexReceiver.class);
-        receiver.getConfiguration().setInteger(SubtaskIndexReceiver.CONFIG_KEY, senderParallelism);
+        receiver.getConfiguration()
+                .get(getIntConfigOption(SubtaskIndexReceiver.CONFIG_KEY), senderParallelism);
         receiver.setParallelism(receiverParallelism);
 
         receiver.connectNewDataSetAsInput(
@@ -138,7 +143,8 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
         public void invoke() throws Exception {
             RecordWriter<IntValue> writer =
                     new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
-            final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+            final int numberOfTimesToSend =
+                    getTaskConfiguration().get(getIntConfigOption(CONFIG_KEY), 0);
 
             final IntValue subtaskIndex =
                     new IntValue(getEnvironment().getTaskInfo().getIndexOfThisSubtask());
@@ -173,7 +179,7 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 
             try {
                 final int numberOfSubtaskIndexesToReceive =
-                        getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+                        getTaskConfiguration().get(getIntConfigOption(CONFIG_KEY), 0);
                 final BitSet receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
 
                 IntValue record;

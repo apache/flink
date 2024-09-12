@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TextInputFormat}. */
@@ -103,7 +104,7 @@ class TextInputFormatTest {
 
         // this is to check if the setter overrides the configuration (as expected)
         Configuration config = new Configuration();
-        config.setBoolean("recursive.file.enumeration", false);
+        config.set(getBooleanConfigOption("recursive.file.enumeration"), false);
         config.setString("delimited-format.numSamples", "20");
         inputFormat.configure(config);
 

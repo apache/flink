@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
+
 /**
  * Base class for all input formats that use blocks of fixed size. The input splits are aligned to
  * these blocks, meaning that each split will consist of one block. Without configuration, these
@@ -90,7 +92,9 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
         // overwriting the value set by the setter
 
         if (this.blockSize == NATIVE_BLOCK_SIZE) {
-            long blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
+            long blockSize =
+                    parameters.get(
+                            getLongConfigOption(BLOCK_SIZE_PARAMETER_KEY), NATIVE_BLOCK_SIZE);
             setBlockSize(blockSize);
         }
     }

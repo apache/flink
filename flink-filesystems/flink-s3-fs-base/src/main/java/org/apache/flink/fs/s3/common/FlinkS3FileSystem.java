@@ -148,7 +148,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                             s ->
                                     new S5CmdConfiguration(
                                             s,
-                                            flinkConfig.getString(S5CMD_EXTRA_ARGS),
+                                            flinkConfig.get(S5CMD_EXTRA_ARGS),
                                             flinkConfig.get(ACCESS_KEY),
                                             flinkConfig.get(SECRET_KEY),
                                             flinkConfig.get(ENDPOINT),

@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.TaskManagerOptions.FS_STREAM_OPENING_TIME_OUT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -459,7 +460,8 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         }
 
         if (!this.enumerateNestedFiles) {
-            this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
+            this.enumerateNestedFiles =
+                    parameters.get(getBooleanConfigOption(ENUMERATE_NESTED_FILES_FLAG), false);
         }
     }
 

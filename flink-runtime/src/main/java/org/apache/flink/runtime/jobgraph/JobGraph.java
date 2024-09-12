@@ -22,6 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.core.fs.Path;
@@ -68,7 +70,10 @@ public class JobGraph implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String INITIAL_CLIENT_HEARTBEAT_TIMEOUT = "initialClientHeartbeatTimeout";
+    private static final ConfigOption<Long> INITIAL_CLIENT_HEARTBEAT_TIMEOUT =
+            ConfigOptions.key("initialClientHeartbeatTimeout")
+                    .longType()
+                    .defaultValue(Long.MIN_VALUE);
 
     // --- job and configuration ---
 
@@ -656,10 +661,10 @@ public class JobGraph implements Serializable {
     }
 
     public void setInitialClientHeartbeatTimeout(long initialClientHeartbeatTimeout) {
-        jobConfiguration.setLong(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, initialClientHeartbeatTimeout);
+        jobConfiguration.set(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, initialClientHeartbeatTimeout);
     }
 
     public long getInitialClientHeartbeatTimeout() {
-        return jobConfiguration.getLong(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, Long.MIN_VALUE);
+        return jobConfiguration.get(INITIAL_CLIENT_HEARTBEAT_TIMEOUT);
     }
 }
