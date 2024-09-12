@@ -20,15 +20,9 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.AccessExecution;
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.JobExceptionsInfo;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -56,7 +50,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -130,47 +123,7 @@ public class JobExceptionsHandler
             ExecutionGraphInfo executionGraphInfo,
             int exceptionToReportMaxSize,
             List<FailureLabelFilterParameter.FailureLabel> failureLabelFilter) {
-        final ArchivedExecutionGraph executionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
-        if (executionGraph.getFailureInfo() == null) {
-            return new JobExceptionsInfoWithHistory(
-                    createJobExceptionHistory(
-                            executionGraphInfo.getExceptionHistory(),
-                            exceptionToReportMaxSize,
-                            failureLabelFilter));
-        }
-
-        List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();
-        boolean truncated = false;
-        for (AccessExecutionVertex task : executionGraph.getAllExecutionVertices()) {
-            for (AccessExecution execution : task.getCurrentExecutions()) {
-                Optional<ErrorInfo> failure = execution.getFailureInfo();
-                if (failure.isPresent()) {
-                    if (taskExceptionList.size() >= exceptionToReportMaxSize) {
-                        truncated = true;
-                        break;
-                    }
-
-                    TaskManagerLocation location = execution.getAssignedResourceLocation();
-                    String locationString = toString(location);
-                    long timestamp = execution.getStateTimestamp(ExecutionState.FAILED);
-                    taskExceptionList.add(
-                            new JobExceptionsInfo.ExecutionExceptionInfo(
-                                    failure.get().getExceptionAsString(),
-                                    task.getTaskNameWithSubtaskIndex(),
-                                    locationString,
-                                    timestamp == 0 ? -1 : timestamp,
-                                    toTaskManagerId(location)));
-                }
-            }
-        }
-
-        final ErrorInfo rootCause = executionGraph.getFailureInfo();
         return new JobExceptionsInfoWithHistory(
-                rootCause.getExceptionAsString(),
-                rootCause.getTimestamp(),
-                taskExceptionList,
-                truncated,
                 createJobExceptionHistory(
                         executionGraphInfo.getExceptionHistory(),
                         exceptionToReportMaxSize,

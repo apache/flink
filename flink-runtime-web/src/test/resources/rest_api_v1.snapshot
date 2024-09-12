@@ -1961,42 +1961,6 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory",
       "properties" : {
-        "root-exception" : {
-          "type" : "string"
-        },
-        "timestamp" : {
-          "type" : "integer"
-        },
-        "all-exceptions" : {
-          "type" : "array",
-          "items" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo:ExecutionExceptionInfo",
-            "properties" : {
-              "exception" : {
-                "type" : "string"
-              },
-              "task" : {
-                "type" : "string"
-              },
-              "location" : {
-                "type" : "string"
-              },
-              "endpoint" : {
-                "type" : "string"
-              },
-              "timestamp" : {
-                "type" : "integer"
-              },
-              "taskManagerId" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "truncated" : {
-          "type" : "boolean"
-        },
         "exceptionHistory" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:JobExceptionHistory",
