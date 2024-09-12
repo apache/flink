@@ -21,15 +21,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{FORSTDB_BACKEND, HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.CountAggFunction
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
@@ -37,9 +38,12 @@ import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.Duration
+import java.util
+
+import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
+class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncState: Boolean)
   extends StreamingWithMiniBatchTestBase(miniBatch, mode) {
 
   val data2 = List(
@@ -85,6 +89,9 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   override def before(): Unit = {
     super.before()
     tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
   }
 
   @TestTemplate
@@ -1808,5 +1815,20 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
     val expected = Seq("1,1,Hi,null,null", "2,2,Hello,null,null", "3,2,Hello world,null,null")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+}
+
+object JoinITCase {
+
+  @Parameters(name = "{0}, StateBackend={1}, EnableAsyncState={2}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, FORSTDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, FORSTDB_BACKEND, Boolean.box(true))
+    )
   }
 }

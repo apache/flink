@@ -18,14 +18,24 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -35,23 +45,50 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 
 /** Harness tests for {@link StreamingJoinOperator}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
 
+    @Parameters(name = "enableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(false, true);
+    }
+
+    @Parameter private boolean enableAsyncState;
+
     @Override
-    protected StreamingJoinOperator createJoinOperator(TestInfo testInfo) {
-        Boolean[] joinTypeSpec = JOIN_TYPE_EXTRACTOR.apply(testInfo.getDisplayName());
+    protected TwoInputStreamOperator<RowData, RowData, RowData> createJoinOperator(
+            TestInfo testInfo) {
+        Boolean[] joinTypeSpec =
+                JOIN_TYPE_EXTRACTOR.apply(
+                        testInfo.getTestMethod()
+                                .map(Method::getName)
+                                .orElse(testInfo.getDisplayName()));
         Long[] ttl = STATE_RETENTION_TIME_EXTRACTOR.apply(testInfo.getTags());
-        return new StreamingJoinOperator(
-                leftTypeInfo,
-                rightTypeInfo,
-                joinCondition,
-                leftInputSpec,
-                rightInputSpec,
-                joinTypeSpec[0],
-                joinTypeSpec[1],
-                new boolean[] {true},
-                ttl[0],
-                ttl[1]);
+        if (!enableAsyncState) {
+            return new StreamingJoinOperator(
+                    leftTypeInfo,
+                    rightTypeInfo,
+                    joinCondition,
+                    leftInputSpec,
+                    rightInputSpec,
+                    joinTypeSpec[0],
+                    joinTypeSpec[1],
+                    new boolean[] {true},
+                    ttl[0],
+                    ttl[1]);
+        } else {
+            return new AsyncStateStreamingJoinOperator(
+                    leftTypeInfo,
+                    rightTypeInfo,
+                    joinCondition,
+                    leftInputSpec,
+                    rightInputSpec,
+                    joinTypeSpec[0],
+                    joinTypeSpec[1],
+                    new boolean[] {true},
+                    ttl[0],
+                    ttl[1]);
+        }
     }
 
     @Override
@@ -75,7 +112,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
-    @Test
+    @TestTemplate
     void testInnerJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -141,7 +178,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * The equivalent SQL is same with {@link #testInnerJoinWithDifferentStateRetentionTime}. The
      * only difference is that the state retention is disabled.
      */
-    @Test
+    @TestTemplate
     void testInnerJoinWithStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -230,7 +267,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=4000")
-    @Test
+    @TestTemplate
     void testInnerJoinWithSameStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -299,7 +336,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
-    @Test
+    @TestTemplate
     void testLeftOuterJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -411,7 +448,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * #testLeftOuterJoinWithDifferentStateRetentionTime()}. The only difference is that the state
      * retention is disabled.
      */
-    @Test
+    @TestTemplate
     void testLeftOuterJoinWithStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -522,7 +559,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
-    @Test
+    @TestTemplate
     void testRightOuterJoinWithDifferentStateRetentionTime() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -593,7 +630,7 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * #testRightOuterJoinWithDifferentStateRetentionTime()}. The only difference is that the state
      * retention is disabled.
      */
-    @Test
+    @TestTemplate
     void testRightOuterJoinWithDStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(

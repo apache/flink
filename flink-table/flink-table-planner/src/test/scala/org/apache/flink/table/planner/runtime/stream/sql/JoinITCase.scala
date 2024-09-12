@@ -21,23 +21,27 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{FORSTDB_BACKEND, HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.util
+
 import scala.collection.{mutable, Seq}
+import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
+class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncState: Boolean)
   extends StreamingWithMiniBatchTestBase(miniBatch, state) {
 
   val smallTuple5Data = List(
@@ -65,6 +69,9 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
   @BeforeEach
   override def before(): Unit = {
     super.before()
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
     val tableA = failingDataSource(TestData.smallTupleData3)
       .toTable(tEnv, 'a1, 'a2, 'a3)
     val tableB = failingDataSource(TestData.tupleData5)
@@ -98,6 +105,33 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
 
   // Tests for inner join.
   override def after(): Unit = {}
+
+  @TestTemplate
+  def test(): Unit = {
+    val tableA = failingDataSource(
+      Seq[(Int, Long, String)]((1, 1L, "Hi"), (2, 2L, "Hello"), (3, 3L, "Hello world")))
+      .toTable(tEnv, 'a1, 'a2, 'a3)
+    val tableB = failingDataSource(
+      Seq[(Int, Long, String)]((1, 1L, "Hi"), (2, 2L, "Hello"), (3, 3L, "Hello world")))
+      .toTable(tEnv, 'b1, 'b2, 'b3)
+    tEnv.createTemporaryView("C", tableA)
+    tEnv.createTemporaryView("D", tableB)
+
+    val sqlQuery = "SELECT * FROM C, D WHERE a1 = b1 and a2 = 1"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.Seq(
+      "1,1,Hi,2,2,1,Hallo Welt,2",
+      "2,2,Hello,4,10,9,FGH,2",
+      "2,2,Hello,4,7,6,CDE,2",
+      "2,2,Hello,4,8,7,DEF,1",
+      "2,2,Hello,4,9,8,EFG,1")
+
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 
   @TestTemplate
   def testDependentConditionDerivationInnerJoin(): Unit = {
@@ -1665,5 +1699,20 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
         })
       .sorted
     assertThat(sink.getRetractResults.sorted).isEqualTo(expectedResult)
+  }
+}
+
+object JoinITCase {
+
+  @Parameters(name = "{0}, StateBackend={1}, EnableAsyncState={2}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, FORSTDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, FORSTDB_BACKEND, Boolean.box(true))
+    )
   }
 }
