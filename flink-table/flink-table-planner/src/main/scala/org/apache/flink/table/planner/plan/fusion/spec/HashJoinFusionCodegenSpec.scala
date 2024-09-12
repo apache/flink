@@ -569,7 +569,7 @@ class HashJoinFusionCodegenSpec(
          |      memorySize,
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
-         |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());
+         |      ${buildRowCount}L / getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
          |  }
          |
          |  @Override
