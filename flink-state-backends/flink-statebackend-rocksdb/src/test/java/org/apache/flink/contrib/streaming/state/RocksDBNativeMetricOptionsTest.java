@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+
 /** Test all native metrics can be set using configuration. */
 public class RocksDBNativeMetricOptionsTest {
     @Test
@@ -30,10 +32,9 @@ public class RocksDBNativeMetricOptionsTest {
         for (RocksDBProperty property : RocksDBProperty.values()) {
             Configuration config = new Configuration();
             if (property.getConfigKey().contains("num-files-at-level")) {
-                config.setBoolean(
-                        RocksDBNativeMetricOptions.MONITOR_NUM_FILES_AT_LEVEL.key(), true);
+                config.set(RocksDBNativeMetricOptions.MONITOR_NUM_FILES_AT_LEVEL, true);
             } else {
-                config.setBoolean(property.getConfigKey(), true);
+                config.set(getBooleanConfigOption(property.getConfigKey()), true);
             }
 
             RocksDBNativeMetricOptions options = RocksDBNativeMetricOptions.fromConfig(config);

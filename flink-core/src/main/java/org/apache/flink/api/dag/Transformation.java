@@ -21,6 +21,7 @@ package org.apache.flink.api.dag;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
@@ -187,6 +188,8 @@ public abstract class Transformation<T> {
     private Optional<SlotSharingGroup> slotSharingGroup;
 
     @Nullable private String coLocationGroupKey;
+
+    private Attribute attribute = new Attribute.Builder().build();
 
     /**
      * Creates a new {@code Transformation} with the given name, output type and parallelism.
@@ -648,5 +651,13 @@ public abstract class Transformation<T> {
     @Override
     public int hashCode() {
         return Objects.hash(id, name, outputType, parallelism, bufferTimeout);
+    }
+
+    public void setAttribute(Attribute attribute) {
+        this.attribute = attribute;
+    }
+
+    public Attribute getAttribute() {
+        return attribute;
     }
 }

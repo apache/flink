@@ -917,8 +917,8 @@ public class TaskTest extends TestLogger {
         final TaskManagerActions taskManagerActions = new ProhibitFatalErrorTaskManagerActions();
 
         final Configuration config = new Configuration();
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL.key(), 5);
-        config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT.key(), 60 * 1000);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(5));
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(60 * 1000));
 
         final Task task =
                 createTaskBuilder()

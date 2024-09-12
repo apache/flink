@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for {@link BinaryInputFormat} and {@link BinaryOutputFormat}. */
@@ -179,7 +180,8 @@ public abstract class SequentialFormatTestBase<T> {
         this.tempFile = File.createTempFile("BinaryInputFormat", null);
         this.tempFile.deleteOnExit();
         Configuration configuration = new Configuration();
-        configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
+        configuration.set(
+                getLongConfigOption(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY), this.blockSize);
         if (this.parallelism == 1) {
             BinaryOutputFormat<T> output =
                     createOutputFormat(this.tempFile.toURI().toString(), configuration);

@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ShuffleMaster}. */
@@ -97,7 +98,8 @@ class ShuffleMasterTest {
         configuration.set(
                 ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
                 TestShuffleServiceFactory.class.getName());
-        configuration.setBoolean(STOP_TRACKING_PARTITION_KEY, stopTrackingPartition);
+        configuration.set(
+                getBooleanConfigOption(STOP_TRACKING_PARTITION_KEY), stopTrackingPartition);
         return new MiniClusterConfiguration.Builder()
                 .withRandomPorts()
                 .setNumTaskManagers(1)
@@ -153,7 +155,8 @@ class ShuffleMasterTest {
 
         public TestShuffleMaster(Configuration conf) {
             super(new ShuffleMasterContextImpl(conf, throwable -> {}));
-            this.stopTrackingPartition = conf.getBoolean(STOP_TRACKING_PARTITION_KEY, false);
+            this.stopTrackingPartition =
+                    conf.get(getBooleanConfigOption(STOP_TRACKING_PARTITION_KEY), false);
             currentInstance.set(this);
         }
 

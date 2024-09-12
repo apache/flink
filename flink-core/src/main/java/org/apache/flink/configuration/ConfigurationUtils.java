@@ -650,4 +650,24 @@ public class ConfigurationUtils {
 
     // Make sure that we cannot instantiate this class
     private ConfigurationUtils() {}
+
+    public static ConfigOption<Boolean> getBooleanConfigOption(String key) {
+        return ConfigOptions.key(key).booleanType().noDefaultValue();
+    }
+
+    public static ConfigOption<Double> getDoubleConfigOption(String key) {
+        return ConfigOptions.key(key).doubleType().noDefaultValue();
+    }
+
+    public static ConfigOption<Float> getFloatConfigOption(String key) {
+        return ConfigOptions.key(key).floatType().noDefaultValue();
+    }
+
+    public static ConfigOption<Integer> getIntConfigOption(String key) {
+        return ConfigOptions.key(key).intType().noDefaultValue();
+    }
+
+    public static ConfigOption<Long> getLongConfigOption(String key) {
+        return ConfigOptions.key(key).longType().noDefaultValue();
+    }
 }

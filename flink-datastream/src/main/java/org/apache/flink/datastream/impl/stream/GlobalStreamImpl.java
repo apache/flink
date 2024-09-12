@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
@@ -33,6 +34,7 @@ import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.ProcessConfigurable;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
+import org.apache.flink.datastream.impl.attribute.AttributeParser;
 import org.apache.flink.datastream.impl.operators.ProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputNonBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoOutputProcessOperator;
@@ -69,7 +71,12 @@ public class GlobalStreamImpl<T> extends AbstractDataStream<T> implements Global
         TypeInformation<OUT> outType =
                 StreamUtils.getOutputTypeForOneInputProcessFunction(processFunction, getType());
         ProcessOperator<T, OUT> operator = new ProcessOperator<>(processFunction);
-        return StreamUtils.wrapWithConfigureHandle(transform("Global Process", outType, operator));
+        return StreamUtils.wrapWithConfigureHandle(
+                transform(
+                        "Global Process",
+                        outType,
+                        operator,
+                        AttributeParser.parseAttribute(processFunction)));
     }
 
     @Override
@@ -89,7 +96,11 @@ public class GlobalStreamImpl<T> extends AbstractDataStream<T> implements Global
         TwoOutputProcessOperator<T, OUT1, OUT2> operator =
                 new TwoOutputProcessOperator<>(processFunction, secondOutputTag);
         GlobalStreamImpl<OUT1> firstStream =
-                transform("Two-Output-Operator", firstOutputType, operator);
+                transform(
+                        "Two-Output-Operator",
+                        firstOutputType,
+                        operator,
+                        AttributeParser.parseAttribute(processFunction));
         GlobalStreamImpl<OUT2> secondStream =
                 new GlobalStreamImpl<>(
                         environment, firstStream.getSideOutputTransform(secondOutputTag));
@@ -122,6 +133,7 @@ public class GlobalStreamImpl<T> extends AbstractDataStream<T> implements Global
         // Operator parallelism should always be 1 for global stream.
         // parallelismConfigured should be true to avoid overwritten by AdaptiveBatchScheduler.
         outTransformation.setParallelism(1, true);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         return StreamUtils.wrapWithConfigureHandle(
                 new GlobalStreamImpl<>(environment, outTransformation));
@@ -162,7 +174,8 @@ public class GlobalStreamImpl<T> extends AbstractDataStream<T> implements Global
     private <R> GlobalStreamImpl<R> transform(
             String operatorName,
             TypeInformation<R> outputTypeInfo,
-            OneInputStreamOperator<T, R> operator) {
+            OneInputStreamOperator<T, R> operator,
+            Attribute attribute) {
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
 
@@ -177,7 +190,7 @@ public class GlobalStreamImpl<T> extends AbstractDataStream<T> implements Global
                         // parallelismConfigured should be true to avoid overwritten by
                         // AdaptiveBatchScheduler.
                         true);
-
+        resultTransform.setAttribute(attribute);
         GlobalStreamImpl<R> returnStream = new GlobalStreamImpl<>(environment, resultTransform);
 
         environment.addOperator(resultTransform);

@@ -150,7 +150,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getJobID());
 
         final boolean isJobRecoveryEnabled =
-                jobMasterConfiguration.getBoolean(BatchExecutionOptions.JOB_RECOVERY_ENABLED)
+                jobMasterConfiguration.get(BatchExecutionOptions.JOB_RECOVERY_ENABLED)
                         && shuffleMaster.supportsBatchSnapshot();
 
         BatchJobRecoveryHandler jobRecoveryHandler;

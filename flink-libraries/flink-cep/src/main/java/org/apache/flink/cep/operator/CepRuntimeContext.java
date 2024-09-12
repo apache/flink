@@ -19,7 +19,6 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -71,12 +70,6 @@ class CepRuntimeContext implements RuntimeContext {
     @Override
     public OperatorMetricGroup getMetricGroup() {
         return runtimeContext.getMetricGroup();
-    }
-
-    @Override
-    @Deprecated
-    public ExecutionConfig getExecutionConfig() {
-        return runtimeContext.getExecutionConfig();
     }
 
     @Override

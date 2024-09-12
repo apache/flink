@@ -356,8 +356,10 @@ class ExecutingTest {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
             ctx.setExpectRestarting(
-                    restartingArguments ->
-                            assertThat(restartingArguments.getBackoffTime()).isEqualTo(duration));
+                    restartingArguments -> {
+                        assertThat(restartingArguments.getBackoffTime()).isEqualTo(duration);
+                        assertThat(restartingArguments.isForcedRestart()).isFalse();
+                    });
             ctx.setHowToHandleFailure(f -> FailureResult.canRestart(f, duration));
             exec.handleGlobalFailure(
                     new RuntimeException("Recoverable error"),
@@ -439,7 +441,11 @@ class ExecutingTest {
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
-            ctx.setExpectRestarting(assertNonNull());
+            ctx.setExpectRestarting(
+                    restartingArguments -> {
+                        assertThat(restartingArguments).isNotNull();
+                        assertThat(restartingArguments.isForcedRestart()).isFalse();
+                    });
 
             Exception exception = new RuntimeException();
             TestingAccessExecution execution =
@@ -608,6 +614,17 @@ class ExecutingTest {
             assertThat(actualEvents.poll()).isEqualTo(onChangeEventLabel);
             assertThat(actualEvents.poll()).isEqualTo(onTriggerEventLabel);
             assertThat(actualEvents.isEmpty()).isTrue();
+        }
+    }
+
+    @Test
+    public void testOmitsWaitingForResourcesStateWhenRestarting() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final Executing testInstance = new ExecutingStateBuilder().build(ctx);
+            ctx.setExpectRestarting(
+                    restartingArguments ->
+                            assertThat(restartingArguments.isForcedRestart()).isTrue());
+            testInstance.transitionToSubsequentState();
         }
     }
 
@@ -815,13 +832,15 @@ class ExecutingTest {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
+                boolean forcedRestart,
                 List<ExceptionHistoryEntry> failureCollection) {
             restartingStateValidator.validateInput(
                     new RestartingArguments(
                             executionGraph,
                             executionGraphHandler,
                             operatorCoordinatorHandler,
-                            backoffTime));
+                            backoffTime,
+                            forcedRestart));
             hadStateTransition = true;
         }
 
@@ -937,18 +956,25 @@ class ExecutingTest {
 
     static class RestartingArguments extends CancellingArguments {
         private final Duration backoffTime;
+        private final boolean forcedRestart;
 
         public RestartingArguments(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Duration backoffTime) {
+                Duration backoffTime,
+                boolean forcedRestart) {
             super(executionGraph, executionGraphHandler, operatorCoordinatorHandler);
             this.backoffTime = backoffTime;
+            this.forcedRestart = forcedRestart;
         }
 
         public Duration getBackoffTime() {
             return backoffTime;
+        }
+
+        public boolean isForcedRestart() {
+            return forcedRestart;
         }
     }
 

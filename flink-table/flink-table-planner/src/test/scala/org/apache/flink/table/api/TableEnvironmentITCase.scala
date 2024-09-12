@@ -24,11 +24,13 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
 import org.apache.flink.table.api.config.TableConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.{row => buildRow}
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
-import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
@@ -665,12 +667,17 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
 
   @TestTemplate
   def testExecuteSelectWithTimeAttribute(): Unit = {
-    val data = Seq("Mary")
-    val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
-    val sourceType = Types.STRING
-    val tableSource = new TestTableSourceWithTime(true, schema, sourceType, data, null, "pt")
-    // TODO refactor this after FLINK-16160 is finished
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("T", tableSource)
+    val dataId = TestValuesTableFactory.registerData(Seq(buildRow("Mary")))
+    tEnv.executeSql(s"""
+                       |create table T (
+                       |  name string,
+                       |  pt as proctime()
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
 
     val tableResult = tEnv.executeSql("select * from T")
     assertTrue(tableResult.getJobClient.isPresent)
@@ -678,8 +685,9 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     assertEquals(
       ResolvedSchema.of(
         Column.physical("name", DataTypes.STRING()),
-        Column.physical("pt", DataTypes.TIMESTAMP_LTZ(3))),
-      tableResult.getResolvedSchema)
+        Column.physical("pt", DataTypes.TIMESTAMP_LTZ(3).notNull())),
+      tableResult.getResolvedSchema
+    )
     val it = tableResult.collect()
     assertTrue(it.hasNext)
     val row = it.next()

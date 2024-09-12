@@ -34,6 +34,7 @@ import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.ProcessConfigurable;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
+import org.apache.flink.datastream.impl.attribute.AttributeParser;
 import org.apache.flink.datastream.impl.operators.ProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputNonBroadcastProcessOperator;
@@ -75,13 +76,14 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
         ProcessOperator<T, OUT> operator = new ProcessOperator<>(processFunction);
         OneInputTransformation<T, OUT> outputTransform =
                 StreamUtils.getOneInputTransformation("Process", this, outType, operator);
+        outputTransform.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outputTransform);
         return StreamUtils.wrapWithConfigureHandle(
                 new NonKeyedPartitionStreamImpl<>(environment, outputTransform));
     }
 
     @Override
-    public <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    public <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction) {
         validateStates(
                 processFunction.usesStates(),
@@ -101,13 +103,15 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
         OneInputTransformation<T, OUT1> outTransformation =
                 StreamUtils.getOneInputTransformation(
                         "Two-Output-Operator", this, firstOutputType, operator);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         NonKeyedPartitionStreamImpl<OUT1> firstStream =
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
         NonKeyedPartitionStreamImpl<OUT2> secondStream =
                 new NonKeyedPartitionStreamImpl<>(
                         environment, firstStream.getSideOutputTransform(secondOutputTag));
         environment.addOperator(outTransformation);
-        return TwoNonKeyedPartitionStreamsImpl.of(firstStream, secondStream);
+        return new ProcessConfigurableAndTwoNonKeyedPartitionStreamImpl<>(
+                environment, outTransformation, firstStream, secondStream);
     }
 
     @Override
@@ -120,7 +124,11 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         Arrays.asList(
                                 StateDeclaration.RedistributionMode.NONE,
                                 StateDeclaration.RedistributionMode.IDENTICAL)));
-
+        other =
+                other instanceof ProcessConfigurableAndNonKeyedPartitionStreamImpl
+                        ? ((ProcessConfigurableAndNonKeyedPartitionStreamImpl) other)
+                                .getNonKeyedPartitionStream()
+                        : other;
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputNonBroadcastProcessFunction(
                         processFunction,
@@ -136,6 +144,7 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         (NonKeyedPartitionStreamImpl<T_OTHER>) other,
                         outTypeInfo,
                         processOperator);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         return StreamUtils.wrapWithConfigureHandle(
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
@@ -165,6 +174,7 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         (BroadcastStreamImpl<T_OTHER>) other,
                         outTypeInfo,
                         processOperator);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         return StreamUtils.wrapWithConfigureHandle(
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
@@ -204,36 +214,5 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     @Override
     public BroadcastStream<T> broadcast() {
         return new BroadcastStreamImpl<>(environment, getTransformation());
-    }
-
-    static class TwoNonKeyedPartitionStreamsImpl<OUT1, OUT2>
-            implements TwoNonKeyedPartitionStreams<OUT1, OUT2> {
-
-        private final NonKeyedPartitionStreamImpl<OUT1> firstStream;
-
-        private final NonKeyedPartitionStreamImpl<OUT2> secondStream;
-
-        public static <OUT1, OUT2> TwoNonKeyedPartitionStreamsImpl<OUT1, OUT2> of(
-                NonKeyedPartitionStreamImpl<OUT1> firstStream,
-                NonKeyedPartitionStreamImpl<OUT2> secondStream) {
-            return new TwoNonKeyedPartitionStreamsImpl<>(firstStream, secondStream);
-        }
-
-        private TwoNonKeyedPartitionStreamsImpl(
-                NonKeyedPartitionStreamImpl<OUT1> firstStream,
-                NonKeyedPartitionStreamImpl<OUT2> secondStream) {
-            this.firstStream = firstStream;
-            this.secondStream = secondStream;
-        }
-
-        @Override
-        public ProcessConfigurableAndNonKeyedPartitionStream<OUT1> getFirst() {
-            return StreamUtils.wrapWithConfigureHandle(firstStream);
-        }
-
-        @Override
-        public ProcessConfigurableAndNonKeyedPartitionStream<OUT2> getSecond() {
-            return StreamUtils.wrapWithConfigureHandle(secondStream);
-        }
     }
 }
