@@ -20,8 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Collection;
 
 class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
 
@@ -30,13 +29,11 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
                 (SupportsCommitter<String>)
-                        TestSink.newBuilder()
+                        TestSinkV2.<String>newBuilder()
                                 .setCommitter(committer)
-                                .setDefaultGlobalCommitter()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .build()
-                                .asV2(),
+                                .setWithPostCommitTopology(true)
+                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                                .build(),
                 () -> committer.successfulCommits);
     }
 
@@ -44,13 +41,11 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
     SinkAndCounters sinkWithPostCommitWithRetry() {
         return new SinkAndCounters(
                 (SupportsCommitter<String>)
-                        TestSink.newBuilder()
-                                .setCommitter(new TestSink.RetryOnceCommitter())
-                                .setDefaultGlobalCommitter()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .build()
-                                .asV2(),
+                        TestSinkV2.<String>newBuilder()
+                                .setCommitter(new TestSinkV2.RetryOnceCommitter())
+                                .setWithPostCommitTopology(true)
+                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                                .build(),
                 () -> 0);
     }
 
@@ -59,22 +54,19 @@ class WithAdapterCommitterOperatorTest extends CommitterOperatorTestBase {
         ForwardingCommitter committer = new ForwardingCommitter();
         return new SinkAndCounters(
                 (SupportsCommitter<String>)
-                        TestSink.newBuilder()
+                        TestSinkV2.<String>newBuilder()
                                 .setCommitter(committer)
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .build()
-                                .asV2(),
+                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                                .build(),
                 () -> committer.successfulCommits);
     }
 
-    private static class ForwardingCommitter extends TestSink.DefaultCommitter {
+    private static class ForwardingCommitter extends TestSinkV2.DefaultCommitter {
         private int successfulCommits = 0;
 
         @Override
-        public List<String> commit(List<String> committables) {
+        public void commit(Collection<CommitRequest<String>> committables) {
             successfulCommits += committables.size();
-            return Collections.emptyList();
         }
 
         @Override
