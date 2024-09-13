@@ -42,7 +42,6 @@ import java.util.Optional;
 public abstract class JarRequestBody implements RequestBody {
 
     static final String FIELD_NAME_ENTRY_CLASS = "entryClass";
-    static final String FIELD_NAME_PROGRAM_ARGUMENTS = "programArgs";
     static final String FIELD_NAME_PROGRAM_ARGUMENTS_LIST = "programArgsList";
     static final String FIELD_NAME_PARALLELISM = "parallelism";
     static final String FIELD_NAME_FLINK_CONFIGURATION = "flinkConfiguration";
@@ -51,10 +50,6 @@ public abstract class JarRequestBody implements RequestBody {
     @JsonProperty(FIELD_NAME_ENTRY_CLASS)
     @Nullable
     private String entryClassName;
-
-    @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS)
-    @Nullable
-    private String programArguments;
 
     @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
     @Nullable
@@ -75,13 +70,12 @@ public abstract class JarRequestBody implements RequestBody {
     private Map<String, String> flinkConfiguration;
 
     JarRequestBody() {
-        this(null, null, null, null, null, null);
+        this(null, null, null, null, null);
     }
 
     @JsonCreator
     JarRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
-            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
             @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
                     List<String> programArgumentsList,
             @Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
@@ -89,7 +83,6 @@ public abstract class JarRequestBody implements RequestBody {
             @Nullable @JsonProperty(FIELD_NAME_FLINK_CONFIGURATION)
                     Map<String, String> flinkConfiguration) {
         this.entryClassName = entryClassName;
-        this.programArguments = programArguments;
         this.programArgumentsList = programArgumentsList;
         this.parallelism = parallelism;
         this.jobId = jobId;
@@ -100,12 +93,6 @@ public abstract class JarRequestBody implements RequestBody {
     @JsonIgnore
     public String getEntryClassName() {
         return entryClassName;
-    }
-
-    @Nullable
-    @JsonIgnore
-    public String getProgramArguments() {
-        return programArguments;
     }
 
     @Nullable
