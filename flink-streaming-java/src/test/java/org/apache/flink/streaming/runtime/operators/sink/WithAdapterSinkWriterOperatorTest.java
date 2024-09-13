@@ -19,7 +19,8 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 import java.util.ArrayList;
@@ -28,42 +29,53 @@ import java.util.List;
 class WithAdapterSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
     @Override
     InspectableSink sinkWithoutCommitter() {
-        TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
-        return new InspectableSink(TestSink.newBuilder().setWriter(sinkWriter).build());
+        TestSinkV2.DefaultSinkWriter<Integer> sinkWriter = new TestSinkV2.DefaultSinkWriter<>();
+        return new InspectableSink(TestSinkV2.<Integer>newBuilder().setWriter(sinkWriter).build());
     }
 
     @Override
     InspectableSink sinkWithCommitter() {
-        TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
+        TestSinkV2.DefaultSinkWriter<Integer> sinkWriter =
+                new TestSinkV2.DefaultCommittingSinkWriter<>();
         return new InspectableSink(
-                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter().build());
+                TestSinkV2.<Integer>newBuilder()
+                        .setWriter(sinkWriter)
+                        .setDefaultCommitter()
+                        .build());
     }
 
     @Override
     InspectableSink sinkWithTimeBasedWriter() {
-        TestSink.DefaultSinkWriter<Integer> sinkWriter = new TimeBasedBufferingSinkWriter();
+        TestSinkV2.DefaultSinkWriter<Integer> sinkWriter = new TimeBasedBufferingSinkWriter();
         return new InspectableSink(
-                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter().build());
+                TestSinkV2.<Integer>newBuilder()
+                        .setWriter(sinkWriter)
+                        .setDefaultCommitter()
+                        .build());
     }
 
     @Override
     InspectableSink sinkWithState(boolean withState, String stateName) {
-        TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
-        TestSink.Builder<Integer> builder =
-                TestSink.newBuilder().setWriter(sinkWriter).setDefaultCommitter();
-        if (withState) {
-            builder.withWriterState();
-            if (stateName != null) {
-                builder.setCompatibleStateNames(stateName);
-            }
+        TestSinkV2.DefaultSinkWriter<Integer> sinkWriter =
+                new TestSinkV2.DefaultStatefulSinkWriter<>();
+        TestSinkV2.Builder<Integer> builder =
+                TestSinkV2.<Integer>newBuilder()
+                        .setWriter(sinkWriter)
+                        .setDefaultCommitter()
+                        .setWithPostCommitTopology(true);
+        builder.setWriterState(withState);
+        if (stateName != null) {
+            builder.setCompatibleStateNames(stateName);
         }
         return new InspectableSink(builder.build());
     }
 
-    private static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter<Integer>
-            implements Sink.ProcessingTimeService.ProcessingTimeCallback {
+    private static class TimeBasedBufferingSinkWriter
+            extends TestSinkV2.DefaultStatefulSinkWriter<Integer>
+            implements ProcessingTimeService.ProcessingTimeCallback {
 
         private final List<String> cachedCommittables = new ArrayList<>();
+        private ProcessingTimeService processingTimeService;
 
         @Override
         public void write(Integer element, Context context) {
@@ -71,25 +83,26 @@ class WithAdapterSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
                     Tuple3.of(element, context.timestamp(), context.currentWatermark()).toString());
         }
 
-        void setProcessingTimerService(Sink.ProcessingTimeService processingTimerService) {
-            super.setProcessingTimerService(processingTimerService);
-            this.processingTimerService.registerProcessingTimer(1000, this);
-        }
-
         @Override
         public void onProcessingTime(long time) {
             elements.addAll(cachedCommittables);
             cachedCommittables.clear();
-            this.processingTimerService.registerProcessingTimer(time + 1000, this);
+            this.processingTimeService.registerTimer(time + 1000, this);
+        }
+
+        @Override
+        public void init(Sink.InitContext context) {
+            this.processingTimeService = context.getProcessingTimeService();
+            this.processingTimeService.registerTimer(1000, this);
         }
     }
 
-    class InspectableSink
+    static class InspectableSink
             extends AbstractInspectableSink<org.apache.flink.api.connector.sink2.Sink<Integer>> {
-        private final TestSink<Integer> sink;
+        private final TestSinkV2<Integer> sink;
 
-        InspectableSink(TestSink<Integer> sink) {
-            super(sink.asV2());
+        InspectableSink(TestSinkV2<Integer> sink) {
+            super(sink);
             this.sink = sink;
         }
 
@@ -110,7 +123,13 @@ class WithAdapterSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
 
         @Override
         public int getRecordCountFromState() {
-            return sink.getWriter().getRecordCount();
+            TestSinkV2.DefaultSinkWriter<Integer> sinkWriter = sink.getWriter();
+            if (sinkWriter instanceof TestSinkV2.DefaultStatefulSinkWriter) {
+                return ((TestSinkV2.DefaultStatefulSinkWriter<Integer>) sinkWriter)
+                        .getRecordCount();
+            } else {
+                return 0;
+            }
         }
     }
 }

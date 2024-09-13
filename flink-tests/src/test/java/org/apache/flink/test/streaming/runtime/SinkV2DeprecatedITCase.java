@@ -43,7 +43,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
- * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
+ * Integration test for {@link org.apache.flink.api.connector.sink2.Sink} run time implementation.
  *
  * <p>Should be removed along with {@link
  * org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}

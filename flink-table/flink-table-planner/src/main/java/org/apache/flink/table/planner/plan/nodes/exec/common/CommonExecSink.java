@@ -184,8 +184,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             outputObject = ((OutputFormatProvider) runtimeProvider).createOutputFormat();
         } else if (runtimeProvider instanceof SinkFunctionProvider) {
             outputObject = ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
-        } else if (runtimeProvider instanceof SinkProvider) {
-            outputObject = ((SinkProvider) runtimeProvider).createSink();
         } else if (runtimeProvider instanceof SinkV2Provider) {
             outputObject = ((SinkV2Provider) runtimeProvider).createSink();
         }
@@ -531,20 +529,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         rowtimeFieldIndex,
                         sinkMeta,
                         sinkParallelism);
-            } else if (runtimeProvider instanceof SinkProvider) {
-                Transformation<RowData> sinkTransformation =
-                        applyRowtimeTransformation(
-                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
-                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
-                final Transformation<?> transformation =
-                        DataStreamSink.forSinkV1(
-                                        dataStream,
-                                        ((SinkProvider) runtimeProvider).createSink(),
-                                        CustomSinkOperatorUidHashes.DEFAULT)
-                                .getTransformation();
-                transformation.setParallelism(sinkParallelism, sinkParallelismConfigured);
-                sinkMeta.fill(transformation);
-                return transformation;
             } else if (runtimeProvider instanceof SinkV2Provider) {
                 Transformation<RowData> sinkTransformation =
                         applyRowtimeTransformation(

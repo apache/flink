@@ -35,9 +35,9 @@ import java.util.Optional;
  * DynamicTableSink}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
- * consist of a single entity expressed via {@link SinkProvider}, {@link SinkFunctionProvider}, or
- * {@link OutputFormatProvider}. When using a {@link DataStream} an implementer needs to pay
- * attention to how changes are shuffled to not mess up the changelog per parallel subtask.
+ * consist of a single entity expressed via {@link SinkFunctionProvider}, or {@link
+ * OutputFormatProvider}. When using a {@link DataStream} an implementer needs to pay attention to
+ * how changes are shuffled to not mess up the changelog per parallel subtask.
  */
 @PublicEvolving
 public interface DataStreamSinkProvider

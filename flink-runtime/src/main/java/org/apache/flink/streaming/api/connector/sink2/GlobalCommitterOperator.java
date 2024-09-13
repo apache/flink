@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
@@ -34,7 +33,6 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
@@ -52,7 +50,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator<Void>
         implements OneInputStreamOperator<CommittableMessage<CommT>, Void>, BoundedOneInput {
@@ -73,7 +70,6 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
     private SimpleVersionedSerializer<CommT> committableSerializer;
     private SinkCommitterMetricGroup metricGroup;
 
-    @Nullable private GlobalCommitter<CommT, GlobalCommT> globalCommitter;
     @Nullable private SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
     private List<GlobalCommT> sinkV1State = new ArrayList<>();
 
@@ -94,12 +90,6 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
         metricGroup = InternalSinkCommitterMetricGroup.wrap(metrics);
         committableCollector = CommittableCollector.of(getRuntimeContext(), metricGroup);
         committableSerializer = committableSerializerFactory.get();
-        if (committer instanceof SinkV1Adapter.GlobalCommitterAdapter) {
-            final SinkV1Adapter<?, CommT, ?, GlobalCommT>.GlobalCommitterAdapter gc =
-                    ((SinkV1Adapter<?, CommT, ?, GlobalCommT>.GlobalCommitterAdapter) committer);
-            globalCommitter = gc.getGlobalCommitter();
-            globalCommittableSerializer = gc.getGlobalCommittableSerializer();
-        }
     }
 
     @Override
@@ -142,9 +132,6 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
                                 committableCollector.merge(cc.getCommittableCollector());
                             });
             lastCompletedCheckpointId = context.getRestoredCheckpointId().getAsLong();
-            if (globalCommitter != null) {
-                sinkV1State = globalCommitter.filterRecoveredCommittables(sinkV1State);
-            }
             // try to re-commit recovered transactions as quickly as possible
             commit(lastCompletedCheckpointId);
         }
@@ -153,9 +140,6 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        checkState(
-                globalCommitter != null || sinkV1State.isEmpty(),
-                "GlobalCommitter is required to commit SinkV1 state.");
         lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
         commit(lastCompletedCheckpointId);
     }
@@ -171,9 +155,6 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
     }
 
     private void commit(long checkpointId) throws IOException, InterruptedException {
-        if (globalCommitter != null && !sinkV1State.isEmpty()) {
-            sinkV1State = globalCommitter.commit(sinkV1State);
-        }
         for (CheckpointCommittableManager<CommT> committable : getCommittables(checkpointId)) {
             committable.commit(committer);
         }

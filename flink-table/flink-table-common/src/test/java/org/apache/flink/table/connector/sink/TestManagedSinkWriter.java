@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.connector.sink;
 
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.data.GenericRowData;
@@ -37,7 +38,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Managed {@link SinkWriter} for testing compaction. */
-public class TestManagedSinkWriter implements SinkWriter<RowData, TestManagedCommittable, Void> {
+public class TestManagedSinkWriter
+        implements CommittingSinkWriter<RowData, TestManagedCommittable> {
 
     private final Map<String, CatalogPartitionSpec> processedPartitions = new HashMap<>();
     private final Map<CatalogPartitionSpec, List<RowData>> stagingElements = new HashMap<>();
@@ -65,8 +67,10 @@ public class TestManagedSinkWriter implements SinkWriter<RowData, TestManagedCom
     }
 
     @Override
-    public List<TestManagedCommittable> prepareCommit(boolean flush)
-            throws IOException, InterruptedException {
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {}
+
+    @Override
+    public List<TestManagedCommittable> prepareCommit() throws IOException, InterruptedException {
         return Collections.singletonList(new TestManagedCommittable(stagingElements, toDelete));
     }
 

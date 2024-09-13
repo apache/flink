@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -94,14 +93,6 @@ public class DataStreamSink<T> {
 
         executionEnvironment.addOperator(transformation);
         return new DataStreamSink<>(transformation);
-    }
-
-    @Internal
-    public static <T> DataStreamSink<T> forSinkV1(
-            DataStream<T> inputStream,
-            org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink,
-            CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
-        return forSink(inputStream, SinkV1Adapter.wrap(sink), customSinkOperatorUidHashes);
     }
 
     /** Returns the transformation that contains the actual sink operator of this sink. */

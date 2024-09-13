@@ -34,7 +34,7 @@ import org.apache.flink.table.legacy.connector.sink.SinkProvider;
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
  * consist of a single entity expressed via {@link OutputFormatProvider}, {@link
- * SinkFunctionProvider}, or {@link SinkProvider}.
+ * SinkFunctionProvider}.
  */
 @Internal
 public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntimeProvider {

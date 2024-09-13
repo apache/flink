@@ -55,7 +55,7 @@ import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An operator that processes committables of a {@link org.apache.flink.api.connector.sink.Sink}.
+ * An operator that processes committables of a {@link org.apache.flink.api.connector.sink2.Sink}.
  *
  * <p>The operator may be part of a sink pipeline, and it always follows {@link SinkWriterOperator},
  * which initially outputs the committables.
