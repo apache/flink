@@ -1244,7 +1244,11 @@ class StateAssignmentOperationTest {
                         operatorID.toHexString(),
                         new JobVertexID(),
                         singletonList(
-                                OperatorIDPair.of(operatorID, userDefinedOperatorId, "", "")));
+                                OperatorIDPair.of(
+                                        operatorID,
+                                        userDefinedOperatorId,
+                                        "operatorName",
+                                        "operatorUid")));
         jobVertex.setInvokableClass(NoOpInvokable.class);
         jobVertex.setParallelism(parallelism);
         return jobVertex;
