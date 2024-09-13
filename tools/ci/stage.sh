@@ -53,7 +53,6 @@ flink-external-resources,\
 flink-external-resources/flink-external-resource-gpu,\
 flink-libraries,\
 flink-libraries/flink-cep,\
-flink-libraries/flink-cep-scala,\
 flink-libraries/flink-state-processing-api,\
 flink-queryable-state,\
 flink-queryable-state/flink-queryable-state-runtime,\

@@ -46,9 +46,6 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 {{< tab "Java" >}}
 {{< artifact flink-cep >}}
 {{< /tab >}}
-{{< tab "Scala" >}}
-{{< artifact flink-cep-scala withScalaVersion >}}
-{{< /tab >}}
 {{< /tabs >}}
 
 FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution 
