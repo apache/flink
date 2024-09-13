@@ -35,13 +35,6 @@ class ForwardHashExchangeTest extends TableTestBase {
     @BeforeEach
     void before() {
         util = batchTestUtil(TableConfig.getDefault());
-
-        util.tableEnv()
-                .getConfig()
-                .getConfiguration()
-                .set(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
-                        false);
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE T (\n"
@@ -51,7 +44,8 @@ class ForwardHashExchangeTest extends TableTestBase {
                                 + "  d BIGINT\n"
                                 + ") WITH (\n"
                                 + " 'connector' = 'values',\n"
-                                + " 'bounded' = 'true'\n"
+                                + " 'bounded' = 'true',\n"
+                                + " 'enable-aggregate-push-down' = 'false'\n"
                                 + ")");
         util.tableEnv()
                 .executeSql(
@@ -62,7 +56,8 @@ class ForwardHashExchangeTest extends TableTestBase {
                                 + "  d1 BIGINT\n"
                                 + ") WITH (\n"
                                 + " 'connector' = 'values',\n"
-                                + " 'bounded' = 'true'\n"
+                                + " 'bounded' = 'true',\n"
+                                + " 'enable-aggregate-push-down' = 'false'\n"
                                 + ")");
         util.tableEnv()
                 .executeSql(
@@ -73,7 +68,8 @@ class ForwardHashExchangeTest extends TableTestBase {
                                 + "  d2 BIGINT\n"
                                 + ") WITH (\n"
                                 + " 'connector' = 'values',\n"
-                                + " 'bounded' = 'true'\n"
+                                + " 'bounded' = 'true',\n"
+                                + " 'enable-aggregate-push-down' = 'false'\n"
                                 + ")");
     }
 
