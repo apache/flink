@@ -64,14 +64,13 @@ public class JarRunRequestBody extends JarRequestBody {
     private RecoveryClaimMode recoveryClaimMode;
 
     public JarRunRequestBody() {
-        this(null, null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null);
     }
 
     /** Fallback constructor ONLY for tests. */
     @VisibleForTesting
     public JarRunRequestBody(
             @Nullable String entryClassName,
-            @Nullable String programArguments,
             @Nullable List<String> programArgumentsList,
             @Nullable Integer parallelism,
             @Nullable JobID jobId,
@@ -81,7 +80,6 @@ public class JarRunRequestBody extends JarRequestBody {
             @Nullable Map<String, String> flinkConfiguration) {
         this(
                 entryClassName,
-                programArguments,
                 programArgumentsList,
                 parallelism,
                 jobId,
@@ -95,7 +93,6 @@ public class JarRunRequestBody extends JarRequestBody {
     @JsonCreator
     public JarRunRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
-            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
             @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
                     List<String> programArgumentsList,
             @Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
@@ -109,13 +106,7 @@ public class JarRunRequestBody extends JarRequestBody {
                     RecoveryClaimMode recoveryClaimMode,
             @Nullable @JsonProperty(FIELD_NAME_FLINK_CONFIGURATION)
                     Map<String, String> flinkConfiguration) {
-        super(
-                entryClassName,
-                programArguments,
-                programArgumentsList,
-                parallelism,
-                jobId,
-                flinkConfiguration);
+        super(entryClassName, programArgumentsList, parallelism, jobId, flinkConfiguration);
         this.allowNonRestoredState = allowNonRestoredState;
         this.savepointPath = savepointPath;
         this.deprecatedRecoveryClaimMode = deprecatedRecoveryClaimMode;
