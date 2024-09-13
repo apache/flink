@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2;
+package org.apache.flink.runtime.state.v2.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.v2.State;
 
 /** A state that is partitioned into different namespaces. */
 @Internal
-public interface InternalPartitionedState<N> extends State {
+public interface InternalPartitionedState<N> {
 
     /**
      * Set current namespace and access state under specified namespace afterward.

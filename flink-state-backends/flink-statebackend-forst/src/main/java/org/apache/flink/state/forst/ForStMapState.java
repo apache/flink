@@ -30,7 +30,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalMapState;
+import org.apache.flink.runtime.state.v2.AbstractMapState;
 import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Preconditions;
@@ -43,14 +43,14 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalMapState} implement for ForStDB.
+ * The {@link AbstractMapState} implement for ForStDB.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <UK> The type of the user key.
  * @param <UV> The type of the user value.
  */
-public class ForStMapState<K, N, UK, UV> extends InternalMapState<K, N, UK, UV>
+public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
         implements MapState<UK, UV>, ForStInnerTable<K, N, UV> {
 
     /** The column family which this internal value state belongs to. */

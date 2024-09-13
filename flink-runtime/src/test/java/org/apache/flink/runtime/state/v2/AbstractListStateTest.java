@@ -26,16 +26,16 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Tests for {@link InternalListState}. */
-public class InternalListStateTest extends InternalKeyedStateTestBase {
+/** Tests for {@link AbstractListState}. */
+public class AbstractListStateTest extends AbstractKeyedStateTestBase {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testEachOperation() {
         ListStateDescriptor<Integer> descriptor =
                 new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
-        InternalListState<String, Void, Integer> listState =
-                new InternalListState<>(aec, descriptor);
+        AbstractListState<String, Void, Integer> listState =
+                new AbstractListState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         listState.asyncClear();

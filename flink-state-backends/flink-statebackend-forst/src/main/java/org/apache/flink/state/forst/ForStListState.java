@@ -29,7 +29,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalListState;
+import org.apache.flink.runtime.state.v2.AbstractListState;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalListState} implement for ForStDB.
+ * The {@link AbstractListState} implement for ForStDB.
  *
  * <p>{@link ForStStateBackend} must ensure that we set the {@link org.rocksdb.StringAppendOperator}
  * on the column family that we use for our state since we use the {@code merge()} call.
@@ -50,7 +50,7 @@ import java.util.function.Supplier;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class ForStListState<K, N, V> extends InternalListState<K, N, V>
+public class ForStListState<K, N, V> extends AbstractListState<K, N, V>
         implements ListState<V>, ForStInnerTable<K, N, List<V>> {
 
     /** The column family which this internal value state belongs to. */

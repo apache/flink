@@ -27,7 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.v2.InternalKeyedState;
+import org.apache.flink.runtime.state.v2.AbstractKeyedState;
 
 import org.junit.jupiter.api.Test;
 import org.rocksdb.WriteOptions;
@@ -230,7 +230,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private <K, N, V, R> StateRequest<?, ?, ?, ?> buildStateRequest(
-            InternalKeyedState<K, N, V> innerTable,
+            AbstractKeyedState<K, N, V> innerTable,
             StateRequestType requestType,
             K key,
             V value,

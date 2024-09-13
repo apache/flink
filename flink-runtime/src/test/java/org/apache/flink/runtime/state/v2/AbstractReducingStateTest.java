@@ -40,8 +40,8 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Tests for {@link InternalReducingState}. */
-public class InternalReducingStateTest extends InternalKeyedStateTestBase {
+/** Tests for {@link AbstractReducingState}. */
+public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
 
     @Test
     @SuppressWarnings({"unchecked"})
@@ -49,8 +49,8 @@ public class InternalReducingStateTest extends InternalKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
-        InternalReducingState<String, Void, Integer> reducingState =
-                new InternalReducingState<>(aec, descriptor);
+        AbstractReducingState<String, Void, Integer> reducingState =
+                new AbstractReducingState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         reducingState.asyncClear();
@@ -88,8 +88,8 @@ public class InternalReducingStateTest extends InternalKeyedStateTestBase {
                         100,
                         10000,
                         1);
-        InternalReducingState<String, String, Integer> reducingState =
-                new InternalReducingState<>(aec, descriptor);
+        AbstractReducingState<String, String, Integer> reducingState =
+                new AbstractReducingState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(reducingState, "1");
         reducingState.asyncAdd(1);

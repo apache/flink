@@ -24,10 +24,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 /**
- * The {@code InternalKeyedState} is the root of the internal state type hierarchy, similar to the
- * {@link State} being the root of the public API state hierarchy.
+ * The {@code AbstractKeyedState} is the root of the abstract state implementation hierarchy,
+ * similar to the {@link State} being the root of the public API state hierarchy.
  *
  * <p>The public API state hierarchy is intended to be programmed against by Flink applications. The
  * internal state hierarchy holds all the auxiliary methods that communicates with {@link
@@ -37,16 +38,16 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <V> The type of values kept internally in state.
  */
 @Internal
-public abstract class InternalKeyedState<K, N, V> implements InternalPartitionedState<N> {
+public abstract class AbstractKeyedState<K, N, V> implements InternalKeyedState<K, N, V> {
 
     protected final StateRequestHandler stateRequestHandler;
 
     private final StateDescriptor<V> stateDescriptor;
 
     /**
-     * Creates a new InternalKeyedState with the given asyncExecutionController and stateDescriptor.
+     * Creates a new AbstractKeyedState with the given asyncExecutionController and stateDescriptor.
      */
-    public InternalKeyedState(
+    public AbstractKeyedState(
             StateRequestHandler stateRequestHandler, StateDescriptor<V> stateDescriptor) {
         this.stateRequestHandler = stateRequestHandler;
         this.stateDescriptor = stateDescriptor;
