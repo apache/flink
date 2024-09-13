@@ -118,8 +118,7 @@ public class ForStReducingState<K, N, V> extends InternalReducingState<K, N, V>
     @SuppressWarnings("unchecked")
     @Override
     public ForStDBGetRequest<K, N, V, V> buildDBGetRequest(StateRequest<?, ?, ?, ?> stateRequest) {
-        Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET);
+        Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.REDUCING_GET);
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
@@ -132,14 +131,16 @@ public class ForStReducingState<K, N, V> extends InternalReducingState<K, N, V>
     @Override
     public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD
+                stateRequest.getRequestType() == StateRequestType.REDUCING_ADD
+                        || stateRequest.getRequestType() == StateRequestType.REDUCING_REMOVE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
                         (N) stateRequest.getNamespace());
         V value =
-                (stateRequest.getRequestType() == StateRequestType.CLEAR)
+                (stateRequest.getRequestType() == StateRequestType.REDUCING_REMOVE
+                                || stateRequest.getRequestType() == StateRequestType.CLEAR)
                         ? null // "Delete(key)" is equivalent to "Put(key, null)"
                         : (V) stateRequest.getPayload();
         return ForStDBPutRequest.of(

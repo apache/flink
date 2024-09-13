@@ -87,21 +87,25 @@ public class InternalReducingState<K, N, V> extends InternalMergingState<K, N, V
         if (sources == null || sources.isEmpty()) {
             return StateFutureUtils.completedVoidFuture();
         }
-        List<StateFuture<V>> futures = new ArrayList<>();
+        // phase 1: read from the sources and target
+        List<StateFuture<V>> futures = new ArrayList<>(sources.size() + 1);
         for (N source : sources) {
             if (source != null) {
                 setCurrentNamespace(source);
                 futures.add(handleRequest(StateRequestType.REDUCING_GET, null));
             }
         }
+        setCurrentNamespace(target);
+        futures.add(handleRequest(StateRequestType.REDUCING_GET, null));
+        // phase 2: merge the sources to the target
         return StateFutureUtils.combineAll(futures)
                 .thenCompose(
                         values -> {
-                            List<StateFuture<V>> removeFutures = new ArrayList<>();
+                            List<StateFuture<V>> removeFutures = new ArrayList<>(sources.size());
                             V current = null;
-                            Iterator<N> sourceIter = sources.iterator();
-                            for (V value : values) {
-                                N source = sourceIter.next();
+                            Iterator<V> valueIterator = values.iterator();
+                            for (N source : sources) {
+                                V value = valueIterator.next();
                                 if (value != null) {
                                     setCurrentNamespace(source);
                                     removeFutures.add(
@@ -113,6 +117,10 @@ public class InternalReducingState<K, N, V> extends InternalMergingState<K, N, V
                                     }
                                 }
                             }
+                            V targetValue = valueIterator.next();
+                            if (current != null && targetValue != null) {
+                                current = reduceFunction.reduce(current, targetValue);
+                            }
                             V finalCurrent = current;
                             return StateFutureUtils.combineAll(removeFutures)
                                     .thenApply(ignore -> finalCurrent);
@@ -123,20 +131,7 @@ public class InternalReducingState<K, N, V> extends InternalMergingState<K, N, V
                                 return;
                             }
                             setCurrentNamespace(target);
-                            handleRequest(StateRequestType.REDUCING_GET, null)
-                                    .thenAccept(
-                                            targetValue -> {
-                                                if (targetValue == null) {
-                                                    handleRequest(
-                                                            StateRequestType.REDUCING_ADD,
-                                                            currentValue);
-                                                } else {
-                                                    handleRequest(
-                                                            StateRequestType.REDUCING_ADD,
-                                                            reduceFunction.reduce(
-                                                                    currentValue, (V) targetValue));
-                                                }
-                                            });
+                            handleRequest(StateRequestType.REDUCING_ADD, currentValue);
                         });
     }
 
