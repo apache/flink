@@ -38,11 +38,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.Files;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.setEnv;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.Assumptions.assumeThatThrownBy;
 
@@ -56,9 +57,11 @@ import static org.assertj.core.api.Assumptions.assumeThatThrownBy;
 class YarnFileStageTestS3ITCase {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+    private static Map<String, String> originalEnv;
 
     @BeforeAll
     static void checkCredentialsAndSetup(@TempDir File tempFolder) throws IOException {
+        originalEnv = System.getenv();
         // check whether credentials exist
         S3TestCredentials.assumeCredentialsAvailable();
 
@@ -67,6 +70,7 @@ class YarnFileStageTestS3ITCase {
 
     @AfterAll
     static void resetFileSystemConfiguration() {
+        setEnv(originalEnv);
         FileSystem.initialize(new Configuration());
     }
 
@@ -78,9 +82,7 @@ class YarnFileStageTestS3ITCase {
      * href="https://issues.apache.org/jira/browse/HADOOP-3733">HADOOP-3733</a>).
      */
     private static void setupCustomHadoopConfig(File tempFolder) throws IOException {
-        File hadoopConfig =
-                Files.createTempFile(tempFolder.toPath(), UUID.randomUUID().toString(), "")
-                        .toFile();
+        final File hadoopConfig = new File(tempFolder, "hdfs-site.xml");
         Map<String /* key */, String /* value */> parameters = new HashMap<>();
 
         // set all different S3 fs implementation variants' configuration keys
@@ -107,6 +109,7 @@ class YarnFileStageTestS3ITCase {
         }
 
         final Configuration conf = new Configuration();
+        setEnv(Collections.singletonMap("HADOOP_CONF_DIR", tempFolder.getAbsolutePath()));
         conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3;s3a;s3n");
 
         FileSystem.initialize(conf, null);
