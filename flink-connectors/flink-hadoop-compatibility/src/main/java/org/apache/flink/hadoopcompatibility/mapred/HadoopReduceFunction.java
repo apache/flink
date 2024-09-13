@@ -21,7 +21,7 @@ package org.apache.flink.hadoopcompatibility.mapred;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
@@ -49,7 +49,7 @@ import java.io.Serializable;
 @SuppressWarnings("rawtypes")
 @Public
 public final class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
-        extends RichGroupReduceFunction<Tuple2<KEYIN, VALUEIN>, Tuple2<KEYOUT, VALUEOUT>>
+        extends RichMapPartitionFunction<Tuple2<KEYIN, VALUEIN>, Tuple2<KEYOUT, VALUEOUT>>
         implements ResultTypeQueryable<Tuple2<KEYOUT, VALUEOUT>>, Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -106,11 +106,9 @@ public final class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     }
 
     @Override
-    public void reduce(
-            final Iterable<Tuple2<KEYIN, VALUEIN>> values,
-            final Collector<Tuple2<KEYOUT, VALUEOUT>> out)
+    public void mapPartition(
+            Iterable<Tuple2<KEYIN, VALUEIN>> values, Collector<Tuple2<KEYOUT, VALUEOUT>> out)
             throws Exception {
-
         reduceCollector.setFlinkCollector(out);
         valueIterator.set(values.iterator());
         reducer.reduce(valueIterator.getCurrentKey(), valueIterator, reduceCollector, reporter);

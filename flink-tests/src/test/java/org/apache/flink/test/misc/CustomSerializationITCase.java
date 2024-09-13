@@ -19,8 +19,6 @@
 package org.apache.flink.test.misc;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -29,6 +27,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.TestLogger;
@@ -70,10 +70,10 @@ public class CustomSerializationITCase extends TestLogger {
     @Test
     public void testIncorrectSerializer1() {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
 
-            env.generateSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARLLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooMuch>() {
                                 @Override
@@ -82,7 +82,7 @@ public class CustomSerializationITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .output(new DiscardingOutputFormat<ConsumesTooMuch>());
+                    .sinkTo(new DiscardingSink<>());
 
             env.execute();
         } catch (JobExecutionException e) {
@@ -98,10 +98,10 @@ public class CustomSerializationITCase extends TestLogger {
     @Test
     public void testIncorrectSerializer2() {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
 
-            env.generateSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARLLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooMuchSpanning>() {
                                 @Override
@@ -110,7 +110,7 @@ public class CustomSerializationITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .output(new DiscardingOutputFormat<ConsumesTooMuchSpanning>());
+                    .sinkTo(new DiscardingSink<>());
 
             env.execute();
         } catch (JobExecutionException e) {
@@ -126,10 +126,10 @@ public class CustomSerializationITCase extends TestLogger {
     @Test
     public void testIncorrectSerializer3() {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
 
-            env.generateSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARLLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooLittle>() {
                                 @Override
@@ -138,7 +138,7 @@ public class CustomSerializationITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .output(new DiscardingOutputFormat<ConsumesTooLittle>());
+                    .sinkTo(new DiscardingSink<>());
 
             env.execute();
         } catch (JobExecutionException e) {
@@ -154,10 +154,10 @@ public class CustomSerializationITCase extends TestLogger {
     @Test
     public void testIncorrectSerializer4() {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
 
-            env.generateSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARLLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooLittleSpanning>() {
                                 @Override
@@ -166,7 +166,7 @@ public class CustomSerializationITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .output(new DiscardingOutputFormat<ConsumesTooLittleSpanning>());
+                    .sinkTo(new DiscardingSink<>());
 
             env.execute();
         } catch (ProgramInvocationException e) {

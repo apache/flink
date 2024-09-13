@@ -22,12 +22,12 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.formats.avro.AvroInputFormat;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
@@ -204,7 +204,8 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
             fileModTime = file.f0.lastModified();
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
+        AvroInputFormat format =
+                new AvroInputFormat(new Path(testFolder.getAbsolutePath()), String.class);
 
         final ContinuousFileMonitoringFunction<String> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(
@@ -274,7 +275,8 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
         File testFolder = tempFolder.newFolder();
 
-        TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
+        AvroInputFormat format =
+                new AvroInputFormat(new Path(testFolder.getAbsolutePath()), String.class);
 
         final ContinuousFileMonitoringFunction<String> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(

@@ -23,16 +23,12 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink2.Committer;
@@ -47,8 +43,6 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -60,8 +54,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
-import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -71,10 +63,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -89,14 +78,12 @@ import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -125,7 +112,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
@@ -599,150 +585,6 @@ class StreamingJobGraphGeneratorTest {
         assertThat(reduceSinkVertex.getPreferredResources()).isEqualTo(resource4.merge(resource5));
     }
 
-    /**
-     * Verifies that the resources are merged correctly for chained operators (covers middle
-     * chaining and iteration cases) when generating job graph.
-     */
-    @Test
-    void testResourcesForIteration() throws Exception {
-        ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
-        ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
-        ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
-        ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
-        ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
-
-        Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
-        Method sinkMethod = getSetResourcesMethodAndSetAccessible(DataStreamSink.class);
-
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<Integer> source =
-                env.addSource(
-                                new ParallelSourceFunction<Integer>() {
-                                    @Override
-                                    public void run(SourceContext<Integer> ctx) throws Exception {}
-
-                                    @Override
-                                    public void cancel() {}
-                                })
-                        .name("test_source");
-        opMethod.invoke(source, resource1);
-
-        IterativeStream<Integer> iteration = source.iterate(3000);
-        opMethod.invoke(iteration, resource2);
-
-        DataStream<Integer> flatMap =
-                iteration
-                        .flatMap(
-                                new FlatMapFunction<Integer, Integer>() {
-                                    @Override
-                                    public void flatMap(Integer value, Collector<Integer> out)
-                                            throws Exception {
-                                        out.collect(value);
-                                    }
-                                })
-                        .name("test_flatMap");
-        opMethod.invoke(flatMap, resource3);
-
-        // CHAIN(flatMap -> Filter)
-        DataStream<Integer> increment =
-                flatMap.filter(
-                                new FilterFunction<Integer>() {
-                                    @Override
-                                    public boolean filter(Integer value) throws Exception {
-                                        return false;
-                                    }
-                                })
-                        .name("test_filter");
-        opMethod.invoke(increment, resource4);
-
-        DataStreamSink<Integer> sink =
-                iteration
-                        .closeWith(increment)
-                        .addSink(
-                                new SinkFunction<Integer>() {
-                                    @Override
-                                    public void invoke(Integer value) throws Exception {}
-                                })
-                        .disableChaining()
-                        .name("test_sink");
-        sinkMethod.invoke(sink, resource5);
-
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            if (jobVertex.getName().contains("test_source")) {
-                assertThat(jobVertex.getMinResources()).isEqualTo(resource1);
-            } else if (jobVertex.getName().contains("Iteration_Source")) {
-                assertThat(jobVertex.getPreferredResources()).isEqualTo(resource2);
-            } else if (jobVertex.getName().contains("test_flatMap")) {
-                assertThat(jobVertex.getMinResources()).isEqualTo(resource3.merge(resource4));
-            } else if (jobVertex.getName().contains("Iteration_Tail")) {
-                assertThat(jobVertex.getPreferredResources()).isEqualTo(ResourceSpec.DEFAULT);
-            } else if (jobVertex.getName().contains("test_sink")) {
-                assertThat(jobVertex.getMinResources()).isEqualTo(resource5);
-            }
-        }
-    }
-
-    @Test
-    void testInputOutputFormat() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<Long> source =
-                env.addSource(
-                                new InputFormatSourceFunction<>(
-                                        new TypeSerializerInputFormat<>(
-                                                TypeInformation.of(Long.class)),
-                                        TypeInformation.of(Long.class)),
-                                TypeInformation.of(Long.class))
-                        .name("source");
-
-        source.writeUsingOutputFormat(new DiscardingOutputFormat<>()).name("sink1");
-        source.writeUsingOutputFormat(new DiscardingOutputFormat<>()).name("sink2");
-
-        StreamGraph streamGraph = env.getStreamGraph();
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(1);
-
-        JobVertex jobVertex = jobGraph.getVertices().iterator().next();
-        assertThat(jobVertex).isInstanceOf(InputOutputFormatVertex.class);
-
-        InputOutputFormatContainer formatContainer =
-                new InputOutputFormatContainer(
-                        new TaskConfig(jobVertex.getConfiguration()),
-                        Thread.currentThread().getContextClassLoader());
-        Map<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> inputFormats =
-                formatContainer.getInputFormats();
-        Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats =
-                formatContainer.getOutputFormats();
-        assertThat(inputFormats).hasSize(1);
-        assertThat(outputFormats).hasSize(2);
-
-        Map<String, OperatorID> nameToOperatorIds = new HashMap<>();
-        StreamConfig headConfig = new StreamConfig(jobVertex.getConfiguration());
-        nameToOperatorIds.put(headConfig.getOperatorName(), headConfig.getOperatorID());
-
-        Map<Integer, StreamConfig> chainedConfigs =
-                headConfig.getTransitiveChainedTaskConfigs(
-                        Thread.currentThread().getContextClassLoader());
-        for (StreamConfig config : chainedConfigs.values()) {
-            nameToOperatorIds.put(config.getOperatorName(), config.getOperatorID());
-        }
-
-        InputFormat<?, ?> sourceFormat =
-                inputFormats.get(nameToOperatorIds.get("Source: source")).getUserCodeObject();
-        assertThat(sourceFormat).isInstanceOf(TypeSerializerInputFormat.class);
-
-        OutputFormat<?> sinkFormat1 =
-                outputFormats.get(nameToOperatorIds.get("Sink: sink1")).getUserCodeObject();
-        assertThat(sinkFormat1).isInstanceOf(DiscardingOutputFormat.class);
-
-        OutputFormat<?> sinkFormat2 =
-                outputFormats.get(nameToOperatorIds.get("Sink: sink2")).getUserCodeObject();
-        assertThat(sinkFormat2).isInstanceOf(DiscardingOutputFormat.class);
-    }
-
     @Test
     void testCoordinatedOperator() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -1068,49 +910,6 @@ class StreamingJobGraphGeneratorTest {
                 assertThat(output.getBufferTimeout()).isEqualTo(-1L);
             }
         }
-    }
-
-    /** Test iteration job, check slot sharing group and co-location group. */
-    @Test
-    void testIteration() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
-        IterativeStream<Integer> iteration = source.iterate(3000);
-        iteration.name("iteration").setParallelism(2);
-        DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
-        DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
-        iteration.closeWith(filter).print();
-
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-
-        SlotSharingGroup slotSharingGroup = jobGraph.getVerticesAsArray()[0].getSlotSharingGroup();
-        assertThat(slotSharingGroup).isNotNull();
-
-        CoLocationGroup iterationSourceCoLocationGroup = null;
-        CoLocationGroup iterationSinkCoLocationGroup = null;
-
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            // all vertices have same slot sharing group by default
-            assertThat(jobVertex.getSlotSharingGroup()).isEqualTo(slotSharingGroup);
-
-            // all iteration vertices have same co-location group,
-            // others have no co-location group by default
-            if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
-                iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertThat(iterationSourceCoLocationGroup.getVertexIds())
-                        .contains(jobVertex.getID());
-            } else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
-                iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertThat(iterationSinkCoLocationGroup.getVertexIds()).contains(jobVertex.getID());
-            } else {
-                assertThat(jobVertex.getCoLocationGroup()).isNull();
-            }
-        }
-
-        assertThat(iterationSourceCoLocationGroup).isNotNull();
-        assertThat(iterationSinkCoLocationGroup).isNotNull();
-        assertThat(iterationSinkCoLocationGroup).isEqualTo(iterationSourceCoLocationGroup);
     }
 
     /** Test default job type. */

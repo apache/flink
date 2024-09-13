@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -40,6 +39,7 @@ import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 
 import org.junit.Assert;
 

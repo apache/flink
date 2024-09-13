@@ -21,11 +21,12 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -62,14 +63,16 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
     @Override
     public void testTaskManagerFailure(Configuration configuration, final File coordinateDir)
             throws Exception {
-        ExecutionEnvironment env =
-                ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, configuration);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createRemoteEnvironment(
+                        "localhost", 1337, configuration);
         env.setParallelism(PARALLELISM);
         env.getConfig().setExecutionMode(executionMode);
 
         final long numElements = 100000L;
-        final DataSet<Long> result =
-                env.generateSequence(1, numElements)
+        final DataStream<Long> result =
+                env.fromSequence(1, numElements)
+                        .setParallelism(PARALLELISM)
 
                         // make sure every mapper is involved (no one is skipped because of lazy
                         // split assignment)
@@ -110,6 +113,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                         return value;
                                     }
                                 })
+                        .fullWindowPartition()
                         .reduce(
                                 new ReduceFunction<Long>() {
                                     @Override
@@ -118,7 +122,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                     }
                                 });
 
-        long sum = result.collect().get(0);
+        long sum = CollectionUtil.iteratorToList(result.executeAndCollect()).get(0);
         assertThat(numElements * (numElements + 1L) / 2L).isEqualTo(sum);
     }
 }

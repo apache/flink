@@ -19,9 +19,9 @@
 package org.apache.flink.test.misc;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.test.operators.util.CollectionDataSets;
+import org.apache.flink.util.Utils;
 
 import org.junit.Assert;
 import org.junit.Test;

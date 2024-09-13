@@ -34,7 +34,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -42,8 +41,6 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -108,6 +105,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.Utils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -1389,73 +1387,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                 operatorName,
                 typeInfo,
                 Boundedness.BOUNDED);
-    }
-
-    /**
-     * Reads the given file line-by-line and creates a data stream that contains a string with the
-     * contents of each such line. The file will be read with the UTF-8 character set.
-     *
-     * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the {@link
-     * org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to
-     * the downstream readers to read the actual data, and exits, without waiting for the readers to
-     * finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-     * the source exits, thus having no checkpoints after that point.
-     *
-     * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
-     *     "hdfs://host:port/file/path").
-     * @return The data stream that represents the data read from the given file as text lines
-     * @deprecated Use {@code
-     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
-     *     example of reading a file using a simple {@code TextLineInputFormat}:
-     *     <pre>{@code
-     * FileSource<String> source =
-     *        FileSource.forRecordStreamFormat(
-     *           new TextLineInputFormat(), new Path("/foo/bar"))
-     *        .build();
-     * }</pre>
-     */
-    @Deprecated
-    public DataStreamSource<String> readTextFile(String filePath) {
-        return readTextFile(filePath, "UTF-8");
-    }
-
-    /**
-     * Reads the given file line-by-line and creates a data stream that contains a string with the
-     * contents of each such line. The {@link java.nio.charset.Charset} with the given name will be
-     * used to read the files.
-     *
-     * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the {@link
-     * org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to
-     * the downstream readers to read the actual data, and exits, without waiting for the readers to
-     * finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-     * the source exits, thus having no checkpoints after that point.
-     *
-     * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
-     *     "hdfs://host:port/file/path")
-     * @param charsetName The name of the character set used to read the file
-     * @return The data stream that represents the data read from the given file as text lines
-     * @deprecated Use {@code
-     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
-     *     example of reading a file using a simple {@code TextLineInputFormat}:
-     *     <pre>{@code
-     * FileSource<String> source =
-     *        FileSource.forRecordStreamFormat(
-     *         new TextLineInputFormat("UTF-8"), new Path("/foo/bar"))
-     *        .build();
-     * }</pre>
-     */
-    @Deprecated
-    public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-        Preconditions.checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(filePath),
-                "The file path must not be null or blank.");
-
-        TextInputFormat format = new TextInputFormat(new Path(filePath));
-        format.setFilesFilter(FilePathFilter.createDefaultFilter());
-        TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
-        format.setCharsetName(charsetName);
-
-        return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1, typeInfo);
     }
 
     /**

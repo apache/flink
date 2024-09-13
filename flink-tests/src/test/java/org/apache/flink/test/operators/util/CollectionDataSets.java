@@ -27,6 +27,8 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.hadoop.io.IntWritable;
 
@@ -53,8 +55,8 @@ import scala.math.BigInt;
  */
 public class CollectionDataSets {
 
-    public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(
-            ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple3<Integer, Long, String>> get3TupleDataSet(
+            StreamExecutionEnvironment env) {
 
         List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
         data.add(new Tuple3<>(1, 1L, "Hi"));
@@ -81,11 +83,11 @@ public class CollectionDataSets {
 
         Collections.shuffle(data);
 
-        return env.fromCollection(data);
+        return env.fromData(data);
     }
 
-    public static DataSet<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(
-            ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple3<Integer, Long, String>> getSmall3TupleDataSet(
+            StreamExecutionEnvironment env) {
 
         List<Tuple3<Integer, Long, String>> data = new ArrayList<>();
         data.add(new Tuple3<>(1, 1L, "Hi"));
@@ -94,11 +96,11 @@ public class CollectionDataSets {
 
         Collections.shuffle(data);
 
-        return env.fromCollection(data);
+        return env.fromData(data);
     }
 
-    public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataSet(
-            ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataSet(
+            StreamExecutionEnvironment env) {
 
         List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<>();
         data.add(new Tuple5<>(1, 1L, 0, "Hallo", 1L));
@@ -127,11 +129,11 @@ public class CollectionDataSets {
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.LONG_TYPE_INFO);
 
-        return env.fromCollection(data, type);
+        return env.fromData(data, type);
     }
 
-    public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> getSmall5TupleDataSet(
-            ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple5<Integer, Long, Integer, String, Long>>
+            getSmall5TupleDataSet(StreamExecutionEnvironment env) {
 
         List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<>();
         data.add(new Tuple5<>(1, 1L, 0, "Hallo", 1L));
@@ -148,11 +150,11 @@ public class CollectionDataSets {
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.LONG_TYPE_INFO);
 
-        return env.fromCollection(data, type);
+        return env.fromData(data, type);
     }
 
-    public static DataSet<Tuple2<Tuple2<Integer, Integer>, String>> getSmallNestedTupleDataSet(
-            ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple2<Tuple2<Integer, Integer>, String>>
+            getSmallNestedTupleDataSet(StreamExecutionEnvironment env) {
 
         List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<>();
         data.add(new Tuple2<>(new Tuple2<>(1, 1), "one"));
@@ -165,11 +167,11 @@ public class CollectionDataSets {
                                 BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
                         BasicTypeInfo.STRING_TYPE_INFO);
 
-        return env.fromCollection(data, type);
+        return env.fromData(data, type);
     }
 
-    public static DataSet<Tuple2<Tuple2<Integer, Integer>, String>>
-            getGroupSortedNestedTupleDataSet(ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple2<Tuple2<Integer, Integer>, String>>
+            getGroupSortedNestedTupleDataSet(StreamExecutionEnvironment env) {
 
         List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<>();
         data.add(new Tuple2<>(new Tuple2<>(1, 3), "a"));
@@ -186,11 +188,11 @@ public class CollectionDataSets {
                                 BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
                         BasicTypeInfo.STRING_TYPE_INFO);
 
-        return env.fromCollection(data, type);
+        return env.fromData(data, type);
     }
 
-    public static DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>>
-            getGroupSortedNestedTupleDataSet2(ExecutionEnvironment env) {
+    public static DataStreamSource<Tuple3<Tuple2<Integer, Integer>, String, Integer>>
+            getGroupSortedNestedTupleDataSet2(StreamExecutionEnvironment env) {
 
         List<Tuple3<Tuple2<Integer, Integer>, String, Integer>> data = new ArrayList<>();
         data.add(new Tuple3<>(new Tuple2<>(1, 3), "a", 2));
@@ -208,7 +210,7 @@ public class CollectionDataSets {
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.INT_TYPE_INFO);
 
-        return env.fromCollection(data, type);
+        return env.fromData(data, type);
     }
 
     public static DataSet<Tuple2<byte[], Integer>> getTuple2WithByteArrayDataSet(

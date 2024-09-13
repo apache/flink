@@ -211,14 +211,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.assertEqual(type_list,
                          ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
 
-    def test_auto_type_registration(self):
-
-        self.assertFalse(self.execution_config.is_auto_type_registration_disabled())
-
-        self.execution_config.disable_auto_type_registration()
-
-        self.assertTrue(self.execution_config.is_auto_type_registration_disabled())
-
     def test_get_set_use_snapshot_compression(self):
 
         self.execution_config.set_use_snapshot_compression(False)

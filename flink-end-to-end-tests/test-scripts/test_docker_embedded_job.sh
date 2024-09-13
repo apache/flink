@@ -24,7 +24,7 @@ DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 DOCKER_IMAGE_BUILD_RETRIES=3
 BUILD_BACKOFF_TIME=5
 
-export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
+export FLINK_JOB=org.apache.flink.streaming.examples.wordcount.WordCount
 export FLINK_DOCKER_IMAGE_NAME=test_docker_embedded_job
 export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
 export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
@@ -41,7 +41,7 @@ case $INPUT_TYPE in
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
         INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
-        RESULT_HASH="0e5bd0a3dd7d5a7110aa85ff70adb54b"
+        RESULT_HASH="d41d8cd98f00b204e9800998ecf8427e"
     ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"
@@ -60,7 +60,7 @@ if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} "build_image 
     exit 1
 fi
 
-export USER_LIB=${FLINK_DIR}/examples/batch
+export USER_LIB=${FLINK_DIR}/examples/streaming
 docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
 docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > $FLINK_LOG_DIR/jobmanager.log
 docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs taskmanager > $FLINK_LOG_DIR/taskmanager.log

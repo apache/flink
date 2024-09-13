@@ -23,13 +23,13 @@ import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.formats.avro.AvroInputFormat;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
@@ -141,7 +141,7 @@ public class ContinuousFileProcessingTest {
                         + ":"
                         + hdfsCluster.getNameNodePort()
                         + "/invalid/";
-        TextInputFormat format = new TextInputFormat(new Path(invalidPath));
+        AvroInputFormat format = new AvroInputFormat(new Path(invalidPath), String.class);
 
         ContinuousFileMonitoringFunction<String> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(
@@ -181,7 +181,7 @@ public class ContinuousFileProcessingTest {
             expectedFileContents.put(i, file.f1);
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
 
         final long watermarkInterval = 10;
 
@@ -373,7 +373,7 @@ public class ContinuousFileProcessingTest {
             expectedFileContents.put(i, file.f1);
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
         TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
@@ -618,7 +618,7 @@ public class ContinuousFileProcessingTest {
             filesKept.add(file.f0.getName());
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
         format.setFilesFilter(
                 new FilePathFilter() {
 
@@ -687,7 +687,7 @@ public class ContinuousFileProcessingTest {
             filesToBeRead.add(file.f0.getName());
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
         format.setFilesFilter(FilePathFilter.createDefaultFilter());
         format.setNestedFileEnumeration(true);
 
@@ -726,7 +726,7 @@ public class ContinuousFileProcessingTest {
             modTimes[i] = hdfs.getFileStatus(file.f0).getModificationTime();
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
         format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
         // this is just to verify that all splits have been forwarded later.
@@ -763,7 +763,7 @@ public class ContinuousFileProcessingTest {
         final Set<String> filesToBeRead = new TreeSet<>();
         filesToBeRead.add(bootstrap.f0.getName());
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
         format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
         final ContinuousFileMonitoringFunction<String> monitoringFunction =
@@ -830,7 +830,7 @@ public class ContinuousFileProcessingTest {
             fileModTime = hdfs.getFileStatus(file.f0).getModificationTime();
         }
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
 
         final ContinuousFileMonitoringFunction<String> monitoringFunction =
                 createTestContinuousFileMonitoringFunction(
@@ -919,7 +919,7 @@ public class ContinuousFileProcessingTest {
         final Set<String> filesToBeRead = new TreeSet<>();
         filesToBeRead.add(bootstrap.f0.getName());
 
-        TextInputFormat format = new TextInputFormat(new Path(testBasePath));
+        AvroInputFormat format = new AvroInputFormat(new Path(testBasePath), String.class);
         format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
         final ContinuousFileMonitoringFunction<String> monitoringFunction =

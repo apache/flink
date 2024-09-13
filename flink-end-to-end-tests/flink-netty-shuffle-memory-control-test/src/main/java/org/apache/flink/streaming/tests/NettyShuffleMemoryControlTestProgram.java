@@ -19,12 +19,12 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.util.ParameterTool;
 
 import org.apache.flink.shaded.netty4.io.netty.util.internal.OutOfDirectMemoryError;
 

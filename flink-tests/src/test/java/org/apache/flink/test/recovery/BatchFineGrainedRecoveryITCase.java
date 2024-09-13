@@ -21,8 +21,6 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -49,7 +47,11 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
@@ -215,18 +217,21 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
     @Test
     public void testProgram() throws Exception {
-        ExecutionEnvironment env = createExecutionEnvironment();
+        StreamExecutionEnvironment env = createExecutionEnvironment();
 
-        DataSet<Long> input = env.generateSequence(0, EMITTED_RECORD_NUMBER - 1);
+        DataStream<Long> input = env.fromSequence(0, EMITTED_RECORD_NUMBER - 1);
+
         for (int trackingIndex = 0; trackingIndex < MAP_NUMBER; trackingIndex++) {
             input =
-                    input.mapPartition(
+                    input.fullWindowPartition()
+                            .mapPartition(
                                     new TestPartitionMapper(
                                             trackingIndex, createFailureStrategy(trackingIndex)))
                             .name(TASK_NAME_PREFIX + trackingIndex);
         }
 
-        assertThat(input.collect(), is(EXPECTED_JOB_OUTPUT));
+        assertThat(
+                CollectionUtil.iteratorToList(input.executeAndCollect()), is(EXPECTED_JOB_OUTPUT));
         failureTracker.verify(getMapperAttempts());
     }
 
@@ -262,10 +267,11 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         return failureStrategy;
     }
 
-    private static ExecutionEnvironment createExecutionEnvironment() {
+    private static StreamExecutionEnvironment createExecutionEnvironment() {
         @SuppressWarnings("StaticVariableUsedBeforeInitialization")
-        ExecutionEnvironment env = new TestEnvironment(miniCluster, 1, true);
-
+        StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, 1);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                env, MAX_JOB_RESTART_ATTEMPTS, Duration.ofMillis(10));
         env.getConfig()
                 .setExecutionMode(
                         ExecutionMode.BATCH_FORCED); // forces all partitions to be blocking

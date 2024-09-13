@@ -44,17 +44,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -108,6 +103,7 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -503,42 +499,6 @@ public class DataStream<T> {
     @PublicEvolving
     public DataStream<T> global() {
         return setConnectionType(new GlobalPartitioner<T>());
-    }
-
-    /**
-     * Initiates an iterative part of the program that feeds back data streams. The iterative part
-     * needs to be closed by calling {@link IterativeStream#closeWith(DataStream)}. The
-     * transformation of this IterativeStream will be the iteration head. The data stream given to
-     * the {@link IterativeStream#closeWith(DataStream)} method is the data stream that will be fed
-     * back and used as the input for the iteration head. The user can also use different feedback
-     * type than the input of the iteration and treat the input and feedback streams as a {@link
-     * ConnectedStreams} be calling {@link IterativeStream#withFeedbackType(TypeInformation)}
-     *
-     * <p>A common usage pattern for streaming iterations is to use output splitting to send a part
-     * of the closing data stream to the head. Refer to {@link
-     * ProcessFunction.Context#output(OutputTag, Object)} for more information.
-     *
-     * <p>The iteration edge will be partitioned the same way as the first input of the iteration
-     * head unless it is changed in the {@link IterativeStream#closeWith(DataStream)} call.
-     *
-     * <p>By default a DataStream with iteration will never terminate, but the user can use the
-     * maxWaitTime parameter to set a max waiting time for the iteration head. If no data received
-     * in the set time, the stream terminates.
-     *
-     * @return The iterative data stream created.
-     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
-     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
-     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
-     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
-     *     the Flink ML iteration implementation a separate common library.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
-     *     FLIP-357: Deprecate Iteration API of DataStream </a>
-     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
-     */
-    @Deprecated
-    public IterativeStream<T> iterate() {
-        return new IterativeStream<>(this, 0);
     }
 
     /**
@@ -1004,125 +964,6 @@ public class DataStream<T> {
     public DataStreamSink<T> printToErr(String sinkIdentifier) {
         PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, true);
         return addSink(printFunction).name("Print to Std. Err");
-    }
-
-    /**
-     * Writes a DataStream to the file specified by path in text format.
-     *
-     * <p>For every element of the DataStream the result of {@link Object#toString()} is written.
-     *
-     * @param path The path pointing to the location the text file is written to.
-     * @return The closed DataStream.
-     * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
-     */
-    @Deprecated
-    @PublicEvolving
-    public DataStreamSink<T> writeAsText(String path) {
-        return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
-    }
-
-    /**
-     * Writes a DataStream to the file specified by path in text format.
-     *
-     * <p>For every element of the DataStream the result of {@link Object#toString()} is written.
-     *
-     * @param path The path pointing to the location the text file is written to
-     * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
-     *     OVERWRITE.
-     * @return The closed DataStream.
-     * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
-     */
-    @Deprecated
-    @PublicEvolving
-    public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
-        TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
-        tof.setWriteMode(writeMode);
-        return writeUsingOutputFormat(tof);
-    }
-
-    /**
-     * Writes a DataStream to the file specified by the path parameter.
-     *
-     * <p>For every field of an element of the DataStream the result of {@link Object#toString()} is
-     * written. This method can only be used on data streams of tuples.
-     *
-     * @param path the path pointing to the location the text file is written to
-     * @return the closed DataStream
-     * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
-     */
-    @Deprecated
-    @PublicEvolving
-    public DataStreamSink<T> writeAsCsv(String path) {
-        return writeAsCsv(
-                path,
-                null,
-                CsvOutputFormat.DEFAULT_LINE_DELIMITER,
-                CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-    }
-
-    /**
-     * Writes a DataStream to the file specified by the path parameter.
-     *
-     * <p>For every field of an element of the DataStream the result of {@link Object#toString()} is
-     * written. This method can only be used on data streams of tuples.
-     *
-     * @param path the path pointing to the location the text file is written to
-     * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
-     *     OVERWRITE.
-     * @return the closed DataStream
-     * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
-     */
-    @Deprecated
-    @PublicEvolving
-    public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
-        return writeAsCsv(
-                path,
-                writeMode,
-                CsvOutputFormat.DEFAULT_LINE_DELIMITER,
-                CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-    }
-
-    /**
-     * Writes a DataStream to the file specified by the path parameter. The writing is performed
-     * periodically every millis milliseconds.
-     *
-     * <p>For every field of an element of the DataStream the result of {@link Object#toString()} is
-     * written. This method can only be used on data streams of tuples.
-     *
-     * @param path the path pointing to the location the text file is written to
-     * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
-     *     OVERWRITE.
-     * @param rowDelimiter the delimiter for two rows
-     * @param fieldDelimiter the delimiter for two fields
-     * @return the closed DataStream
-     * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
-     */
-    @SuppressWarnings("unchecked")
-    @Deprecated
-    @PublicEvolving
-    public <X extends Tuple> DataStreamSink<T> writeAsCsv(
-            String path, WriteMode writeMode, String rowDelimiter, String fieldDelimiter) {
-        Preconditions.checkArgument(
-                getType().isTupleType(),
-                "The writeAsCsv() method can only be used on data streams of tuples.");
-
-        CsvOutputFormat<X> of = new CsvOutputFormat<>(new Path(path), rowDelimiter, fieldDelimiter);
-
-        if (writeMode != null) {
-            of.setWriteMode(writeMode);
-        }
-
-        return writeUsingOutputFormat((OutputFormat<T>) of);
     }
 
     /**

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.tpcds;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
@@ -34,6 +33,7 @@ import org.apache.flink.table.tpcds.schema.TpcdsSchema;
 import org.apache.flink.table.tpcds.schema.TpcdsSchemaProvider;
 import org.apache.flink.table.tpcds.stats.TpcdsStatsProvider;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.util.ParameterTool;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

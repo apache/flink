@@ -87,6 +87,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Utils;
 
 import java.io.IOException;
 import java.util.ArrayList;

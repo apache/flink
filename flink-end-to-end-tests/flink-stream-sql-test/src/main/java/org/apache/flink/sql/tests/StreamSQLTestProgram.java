@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.Path;
@@ -54,6 +53,7 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.PrintStream;
 import java.time.Duration;

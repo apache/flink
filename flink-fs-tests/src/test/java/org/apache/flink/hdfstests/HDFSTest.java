@@ -20,21 +20,21 @@ package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.examples.java.wordcount.WordCount;
+import org.apache.flink.formats.avro.AvroOutputFormat;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TestingBlobHelpers;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
+import org.apache.flink.streaming.examples.wordcount.WordCount;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.IOUtils;
@@ -166,7 +166,7 @@ public class HDFSTest {
         Path path = new Path(hdfsPath.toString());
 
         String type = "one";
-        TextOutputFormat<String> outputFormat = new TextOutputFormat<>(path);
+        AvroOutputFormat<String> outputFormat = new AvroOutputFormat<>(path, String.class);
 
         outputFormat.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
         outputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
@@ -292,17 +292,18 @@ public class HDFSTest {
         }
     }
 
-    abstract static class DopOneTestEnvironment extends ExecutionEnvironment {
+    abstract static class DopOneTestEnvironment extends StreamExecutionEnvironment {
 
         public static void setAsContext() {
-            final LocalEnvironment le = new LocalEnvironment();
+            final LocalStreamEnvironment le = new LocalStreamEnvironment();
             le.setParallelism(1);
 
             initializeContextEnvironment(
-                    new ExecutionEnvironmentFactory() {
+                    new StreamExecutionEnvironmentFactory() {
 
                         @Override
-                        public ExecutionEnvironment createExecutionEnvironment() {
+                        public StreamExecutionEnvironment createExecutionEnvironment(
+                                org.apache.flink.configuration.Configuration configuration) {
                             return le;
                         }
                     });

@@ -27,7 +27,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -37,7 +36,6 @@ import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -604,40 +602,6 @@ class StreamGraphGeneratorTest {
         }
         // IllegalArgumentException will be thrown without FLINK-9216
         env.getStreamGraph().getStreamingPlanAsJSON();
-    }
-
-    /** Test iteration job, check slot sharing group and co-location group. */
-    @Test
-    void testIteration() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
-        IterativeStream<Integer> iteration = source.iterate(3000);
-        iteration.name("iteration").setParallelism(2);
-        DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
-        DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
-        iteration.closeWith(filter).print();
-
-        final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-        iteration.getTransformation().setResources(resources, resources);
-
-        StreamGraph streamGraph = env.getStreamGraph();
-        for (Tuple2<StreamNode, StreamNode> iterationPair :
-                streamGraph.getIterationSourceSinkPairs()) {
-            assertThat(iterationPair.f0.getCoLocationGroup()).isNotNull();
-            assertThat(iterationPair.f1.getCoLocationGroup())
-                    .isEqualTo(iterationPair.f0.getCoLocationGroup());
-
-            assertThat(iterationPair.f0.getSlotSharingGroup())
-                    .isEqualTo(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP);
-            assertThat(iterationPair.f1.getSlotSharingGroup())
-                    .isEqualTo(iterationPair.f0.getSlotSharingGroup());
-
-            final ResourceSpec sourceMinResources = iterationPair.f0.getMinResources();
-            final ResourceSpec sinkMinResources = iterationPair.f1.getMinResources();
-            final ResourceSpec iterationResources = sourceMinResources.merge(sinkMinResources);
-            assertThat(iterationResources).is(matching(equalsResourceSpec(resources)));
-        }
     }
 
     private Matcher<ResourceSpec> equalsResourceSpec(ResourceSpec resources) {

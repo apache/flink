@@ -23,9 +23,6 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -50,6 +47,9 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
@@ -143,8 +143,8 @@ class JobManagerHAProcessFailureRecoveryITCase {
         config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
         config.set(HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
 
-        ExecutionEnvironment env =
-                ExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
         env.setParallelism(PARALLELISM);
         Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
@@ -156,8 +156,8 @@ class JobManagerHAProcessFailureRecoveryITCase {
         env.getConfig().setExecutionMode(executionMode);
 
         final long numElements = 100000L;
-        final DataSet<Long> result =
-                env.generateSequence(1, numElements)
+        final DataStream<Long> result =
+                env.fromSequence(1, numElements)
                         // make sure every mapper is involved (no one is skipped because of lazy
                         // split assignment)
                         .rebalance()
@@ -197,6 +197,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                         return value;
                                     }
                                 })
+                        .fullWindowPartition()
                         .reduce(
                                 new ReduceFunction<Long>() {
                                     @Override
@@ -226,7 +227,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                     }
                                 });
 
-        result.output(new DiscardingOutputFormat<>());
+        result.sinkTo(new DiscardingSink<>());
 
         env.execute();
     }

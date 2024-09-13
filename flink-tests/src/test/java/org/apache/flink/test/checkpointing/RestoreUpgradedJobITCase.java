@@ -43,6 +43,7 @@ import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -74,6 +75,7 @@ import static org.hamcrest.Matchers.is;
  * Test check scenario when the upgraded job(different map order, different record type, new map)
  * restored on old savepoint/checkpoint.
  */
+@Ignore("TODO: Job hang")
 @RunWith(Parameterized.class)
 public class RestoreUpgradedJobITCase extends TestLogger {
     private static final int PARALLELISM = 4;

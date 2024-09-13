@@ -120,7 +120,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
             final int port,
             final String[] jarFiles,
             final URL[] globalClasspaths) {
-        RemoteEnvironmentConfigUtils.validate(host, port);
+        //        RemoteEnvironmentConfigUtils.validate(host, port);
         return getEffectiveConfiguration(
                 getClientConfiguration(configuration),
                 host,
@@ -146,9 +146,9 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
         final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
 
-        RemoteEnvironmentConfigUtils.setJobManagerAddressToConfig(
-                host, port, effectiveConfiguration);
-        RemoteEnvironmentConfigUtils.setJarURLsToConfig(jars, effectiveConfiguration);
+        //        RemoteEnvironmentConfigUtils.setJobManagerAddressToConfig(
+        //                host, port, effectiveConfiguration);
+        //        RemoteEnvironmentConfigUtils.setJarURLsToConfig(jars, effectiveConfiguration);
         ConfigUtils.encodeCollectionToConfig(
                 effectiveConfiguration, PipelineOptions.CLASSPATHS, classpaths, URL::toString);
 

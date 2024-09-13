@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -118,11 +120,12 @@ public class CsvTableSink implements AppendStreamTableSink<Row> {
                 dataStream.map(new CsvFormatter(fieldDelim == null ? "," : fieldDelim));
 
         DataStreamSink<String> sink;
+        TextOutputFormat<String> textOutputFormat = new TextOutputFormat<>(new Path(path));
         if (writeMode != null) {
-            sink = csvRows.writeAsText(path, writeMode);
-        } else {
-            sink = csvRows.writeAsText(path);
+            textOutputFormat.setWriteMode(writeMode);
         }
+
+        sink = csvRows.addSink(new OutputFormatSinkFunction<>(textOutputFormat));
 
         if (numFiles > 0) {
             csvRows.setParallelism(numFiles);

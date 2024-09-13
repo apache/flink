@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
@@ -46,6 +45,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.ParameterTool;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;

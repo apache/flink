@@ -19,9 +19,10 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
+import org.apache.flink.util.CollectionUtil;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -54,13 +55,13 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
     @Test
     public void testRegisterTypeWithKryoSerializer() throws Exception {
         int numElements = 10;
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.registerTypeWithKryoSerializer(TestClass.class, new TestClassSerializer());
 
-        DataSet<Long> input = env.generateSequence(0, numElements - 1);
+        DataStream<Long> input = env.fromSequence(0, numElements - 1);
 
-        DataSet<TestClass> mapped =
+        DataStream<TestClass> mapped =
                 input.map(
                         new MapFunction<Long, TestClass>() {
                             private static final long serialVersionUID = -529116076312998262L;
@@ -79,7 +80,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
 
         compareResultCollections(
                 expected,
-                mapped.collect(),
+                CollectionUtil.iteratorToList(mapped.executeAndCollect()),
                 new Comparator<TestClass>() {
                     @Override
                     public int compare(TestClass o1, TestClass o2) {

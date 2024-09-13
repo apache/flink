@@ -21,6 +21,7 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;

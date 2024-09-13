@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -52,6 +51,7 @@ import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapp
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialListStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueStateBuilder;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.IOException;
 import java.time.Duration;

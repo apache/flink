@@ -81,7 +81,7 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 
 "$FLINK_DIR"/bin/flink run -e kubernetes-session \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    ${FLINK_DIR}/examples/batch/WordCount.jar ${INPUT_ARGS} ${OUTPUT_ARGS}
+    ${FLINK_DIR}/examples/streaming/WordCount.jar ${INPUT_ARGS} ${OUTPUT_ARGS}
 
 if ! check_logs_output $jm_pod_name 'Starting KubernetesSessionClusterEntrypoint'; then
   echo "JobManager logs are not accessible via kubectl logs."

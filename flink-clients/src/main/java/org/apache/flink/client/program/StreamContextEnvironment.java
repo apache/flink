@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.configuration.Configuration;
@@ -61,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
     private final boolean suppressSysout;
 
