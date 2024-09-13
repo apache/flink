@@ -47,5 +47,5 @@ public abstract class InternalMergingState<K, N, V> extends InternalKeyedState<K
     public abstract StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources)
             throws Exception;
 
-    public abstract void mergeNamespaces(N target, Collection<N> sources) throws Exception;
+    public abstract void mergeNamespaces(N target, Collection<N> sources);
 }

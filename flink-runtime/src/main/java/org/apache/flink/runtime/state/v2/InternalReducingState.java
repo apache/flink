@@ -136,39 +136,43 @@ public class InternalReducingState<K, N, V> extends InternalMergingState<K, N, V
     }
 
     @Override
-    public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+    public void mergeNamespaces(N target, Collection<N> sources) {
         if (sources == null || sources.isEmpty()) {
             return;
         }
-        V current = null;
-        // merge the sources to the target
-        for (N source : sources) {
-            if (source != null) {
-                setCurrentNamespace(source);
-                V oldValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+        try {
+            V current = null;
+            // merge the sources to the target
+            for (N source : sources) {
+                if (source != null) {
+                    setCurrentNamespace(source);
+                    V oldValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
 
-                if (oldValue != null) {
-                    handleRequestSync(StateRequestType.REDUCING_REMOVE, null);
+                    if (oldValue != null) {
+                        handleRequestSync(StateRequestType.REDUCING_REMOVE, null);
 
-                    if (current != null) {
-                        current = reduceFunction.reduce(current, oldValue);
-                    } else {
-                        current = oldValue;
+                        if (current != null) {
+                            current = reduceFunction.reduce(current, oldValue);
+                        } else {
+                            current = oldValue;
+                        }
                     }
                 }
             }
-        }
 
-        // if something came out of merging the sources, merge it or write it to the target
-        if (current != null) {
-            // create the target full-binary-key
-            setCurrentNamespace(target);
-            V targetValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+            // if something came out of merging the sources, merge it or write it to the target
+            if (current != null) {
+                // create the target full-binary-key
+                setCurrentNamespace(target);
+                V targetValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
 
-            if (targetValue != null) {
-                current = reduceFunction.reduce(current, targetValue);
+                if (targetValue != null) {
+                    current = reduceFunction.reduce(current, targetValue);
+                }
+                handleRequestSync(StateRequestType.REDUCING_ADD, current);
             }
-            handleRequestSync(StateRequestType.REDUCING_ADD, current);
+        } catch (Exception e) {
+            throw new RuntimeException("merge namespace fail.", e);
         }
     }
 }
