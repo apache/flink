@@ -160,7 +160,11 @@ public class ForStFlinkFileSystem extends FileSystem {
         if (localFileFilter.apply(src.getName())) {
             Path localSrc = tryBuildLocalPath(src).f1;
             Path localDst = tryBuildLocalPath(dst).f1;
-            return localFS.rename(localSrc, localDst);
+            FileStatus fileStatus = localFS.getFileStatus(localSrc);
+            boolean success = localFS.rename(localSrc, localDst);
+            if (!fileStatus.isDir()) {
+                return success;
+            }
         }
 
         if (delegateFS.exists(dst)) {
@@ -276,8 +280,8 @@ public class ForStFlinkFileSystem extends FileSystem {
                         }
                     };
         }
-        if (remoteFiles != null) {
-            System.arraycopy(remoteFiles, 0, fileStatuses, localFileNum, remoteFiles.length);
+        if (remoteFileNum != 0) {
+            System.arraycopy(remoteFiles, 0, fileStatuses, localFileNum, remoteFileNum);
         }
         return fileStatuses;
     }
