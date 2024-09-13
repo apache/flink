@@ -82,8 +82,7 @@ public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
     }
 
     @Override
-    public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources)
-            throws Exception {
+    public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
         if (sources == null || sources.isEmpty()) {
             return StateFutureUtils.completedVoidFuture();
         }
@@ -101,14 +100,15 @@ public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
         return StateFutureUtils.combineAll(futures)
                 .thenCompose(
                         values -> {
-                            List<StateFuture<V>> removeFutures = new ArrayList<>(sources.size());
+                            List<StateFuture<V>> updateFutures =
+                                    new ArrayList<>(sources.size() + 1);
                             V current = null;
                             Iterator<V> valueIterator = values.iterator();
                             for (N source : sources) {
                                 V value = valueIterator.next();
                                 if (value != null) {
                                     setCurrentNamespace(source);
-                                    removeFutures.add(
+                                    updateFutures.add(
                                             handleRequest(StateRequestType.REDUCING_REMOVE, null));
                                     if (current != null) {
                                         current = reduceFunction.reduce(current, value);
@@ -118,20 +118,16 @@ public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
                                 }
                             }
                             V targetValue = valueIterator.next();
-                            if (current != null && targetValue != null) {
-                                current = reduceFunction.reduce(current, targetValue);
+                            if (current != null) {
+                                if (targetValue != null) {
+                                    current = reduceFunction.reduce(current, targetValue);
+                                }
+                                setCurrentNamespace(target);
+                                updateFutures.add(
+                                        handleRequest(StateRequestType.REDUCING_ADD, current));
                             }
-                            V finalCurrent = current;
-                            return StateFutureUtils.combineAll(removeFutures)
-                                    .thenApply(ignore -> finalCurrent);
-                        })
-                .thenAccept(
-                        currentValue -> {
-                            if (currentValue == null) {
-                                return;
-                            }
-                            setCurrentNamespace(target);
-                            handleRequest(StateRequestType.REDUCING_ADD, currentValue);
+                            return StateFutureUtils.combineAll(updateFutures)
+                                    .thenAccept(ignores -> {});
                         });
     }
 

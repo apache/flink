@@ -34,9 +34,8 @@ public interface InternalMergingState<N> extends InternalPartitionedState<N> {
      *
      * @param target The target namespace where the merged state should be stored.
      * @param sources The source namespaces whose state should be merged.
-     * @throws Exception The method may forward exception thrown internally (by I/O or functions).
      */
-    StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) throws Exception;
+    StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources);
 
     void mergeNamespaces(N target, Collection<N> sources);
 }
