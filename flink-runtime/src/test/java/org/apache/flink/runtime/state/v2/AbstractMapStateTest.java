@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Tests for {@link InternalMapState}. */
-public class InternalMapStateTest extends InternalKeyedStateTestBase {
+/** Tests for {@link AbstractMapState}. */
+public class AbstractMapStateTest extends AbstractKeyedStateTestBase {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -36,8 +36,8 @@ public class InternalMapStateTest extends InternalKeyedStateTestBase {
         MapStateDescriptor<String, Integer> descriptor =
                 new MapStateDescriptor<>(
                         "testState", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-        InternalMapState<String, Void, String, Integer> mapState =
-                new InternalMapState<>(aec, descriptor);
+        AbstractMapState<String, Void, String, Integer> mapState =
+                new AbstractMapState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         mapState.asyncClear();

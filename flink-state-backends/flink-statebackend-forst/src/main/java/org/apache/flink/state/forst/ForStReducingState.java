@@ -27,7 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalReducingState;
+import org.apache.flink.runtime.state.v2.AbstractReducingState;
 import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
@@ -37,13 +37,13 @@ import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalReducingState} implement for ForStDB.
+ * The {@link AbstractReducingState} implement for ForStDB.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class ForStReducingState<K, N, V> extends InternalReducingState<K, N, V>
+public class ForStReducingState<K, N, V> extends AbstractReducingState<K, N, V>
         implements ForStInnerTable<K, N, V> {
 
     /** The column family which this internal value state belongs to. */

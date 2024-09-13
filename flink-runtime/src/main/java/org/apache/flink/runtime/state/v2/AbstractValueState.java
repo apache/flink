@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.state.v2.internal.InternalValueState;
 
 /**
  * A default implementation of {@link ValueState} which delegates all async requests to {@link
@@ -30,10 +31,10 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalValueState<K, N, V> extends InternalKeyedState<K, N, V>
-        implements ValueState<V> {
+public class AbstractValueState<K, N, V> extends AbstractKeyedState<K, N, V>
+        implements InternalValueState<K, N, V> {
 
-    public InternalValueState(
+    public AbstractValueState(
             StateRequestHandler stateRequestHandler, ValueStateDescriptor<V> valueStateDescriptor) {
         super(stateRequestHandler, valueStateDescriptor);
     }

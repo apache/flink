@@ -28,7 +28,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalValueState;
+import org.apache.flink.runtime.state.v2.AbstractValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
@@ -38,12 +38,12 @@ import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalValueState} implement for ForStDB.
+ * The {@link AbstractValueState} implement for ForStDB.
  *
  * @param <K> The type of the key.
  * @param <V> The type of the value.
  */
-public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
+public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
         implements ValueState<V>, ForStInnerTable<K, N, V> {
 
     /** The column family which this internal value state belongs to. */

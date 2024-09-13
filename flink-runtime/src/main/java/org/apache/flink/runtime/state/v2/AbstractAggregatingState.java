@@ -23,6 +23,9 @@ import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
+
+import java.util.Collection;
 
 /**
  * The default implementation of {@link AggregatingState}, which delegates all async requests to
@@ -33,18 +36,18 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <ACC> TThe type of the accumulator (intermediate aggregation state).
  * @param <OUT> The type of the values that are returned from the state.
  */
-public class InternalAggregatingState<K, N, IN, ACC, OUT> extends InternalKeyedState<K, N, ACC>
-        implements AggregatingState<IN, OUT> {
+public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedState<K, N, ACC>
+        implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
     protected final AggregateFunction<IN, ACC, OUT> aggregateFunction;
 
     /**
-     * Creates a new InternalKeyedState with the given asyncExecutionController and stateDescriptor.
+     * Creates a new AbstractKeyedState with the given asyncExecutionController and stateDescriptor.
      *
      * @param stateRequestHandler The async request handler for handling all requests.
      * @param stateDescriptor The properties of the state.
      */
-    public InternalAggregatingState(
+    public AbstractAggregatingState(
             StateRequestHandler stateRequestHandler,
             AggregatingStateDescriptor<IN, ACC, OUT> stateDescriptor) {
         super(stateRequestHandler, stateDescriptor);
@@ -69,5 +72,15 @@ public class InternalAggregatingState<K, N, IN, ACC, OUT> extends InternalKeyedS
     @Override
     public void add(IN value) {
         handleRequestSync(StateRequestType.AGGREGATING_ADD, value);
+    }
+
+    @Override
+    public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
+        throw new UnsupportedOperationException("To be implemented.");
+    }
+
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        throw new UnsupportedOperationException("To be implemented.");
     }
 }

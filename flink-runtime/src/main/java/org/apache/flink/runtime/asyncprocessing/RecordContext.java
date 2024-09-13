@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
-import org.apache.flink.runtime.state.v2.InternalPartitionedState;
+import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
 import javax.annotation.Nullable;
 

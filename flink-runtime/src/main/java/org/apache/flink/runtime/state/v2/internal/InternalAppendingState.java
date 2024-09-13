@@ -15,27 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2;
+package org.apache.flink.runtime.state.v2.internal;
 
-import org.apache.flink.api.common.state.v2.StateFuture;
-
-import java.util.Collection;
+import org.apache.flink.api.common.state.v2.AppendingState;
 
 /**
- * This class defines the internal interface for merging state.
+ * This class defines the internal interface for appending state.
  *
- * @param <N> The type of the namespace
+ * @param <K> The type of key the state is associated to.
+ * @param <N> The namespace type.
+ * @param <IN> The type of the values that are added into the state.
+ * @param <SV> The type of the intermediate state.
+ * @param <OUT> The type of the values that are returned from the state.
+ * @param <SYNCOUT> Type of the value that can be retrieved from the state by synchronous interface.
  */
-public interface InternalMergingState<N> extends InternalPartitionedState<N> {
-
-    /**
-     * Merges the state of the current key for the given source namespaces into the state of the
-     * target namespace.
-     *
-     * @param target The target namespace where the merged state should be stored.
-     * @param sources The source namespaces whose state should be merged.
-     */
-    StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources);
-
-    void mergeNamespaces(N target, Collection<N> sources);
-}
+public interface InternalAppendingState<K, N, IN, SV, OUT, SYNCOUT>
+        extends InternalKeyedState<K, N, SV>, AppendingState<IN, OUT, SYNCOUT> {}

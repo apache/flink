@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.state.v2.internal.InternalListState;
 
 import java.util.List;
 
@@ -32,10 +33,10 @@ import java.util.List;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalListState<K, N, V> extends InternalKeyedState<K, N, V>
-        implements ListState<V> {
+public class AbstractListState<K, N, V> extends AbstractKeyedState<K, N, V>
+        implements InternalListState<K, N, V> {
 
-    public InternalListState(
+    public AbstractListState(
             StateRequestHandler stateRequestHandler, ListStateDescriptor<V> stateDescriptor) {
         super(stateRequestHandler, stateDescriptor);
     }

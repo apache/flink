@@ -23,16 +23,16 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 import org.junit.jupiter.api.Test;
 
-/** Tests for {@link InternalValueState}. */
-public class InternalValueStateTest extends InternalKeyedStateTestBase {
+/** Tests for {@link AbstractValueState}. */
+public class AbstractValueStateTest extends AbstractKeyedStateTestBase {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testEachOperation() {
         ValueStateDescriptor<Integer> descriptor =
                 new ValueStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
-        InternalValueState<String, Void, Integer> valueState =
-                new InternalValueState<>(aec, descriptor);
+        AbstractValueState<String, Void, Integer> valueState =
+                new AbstractValueState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         valueState.asyncClear();

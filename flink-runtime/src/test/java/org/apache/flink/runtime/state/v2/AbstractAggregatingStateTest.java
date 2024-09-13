@@ -24,8 +24,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 import org.junit.jupiter.api.Test;
 
-/** Tests for {@link InternalAggregatingState}. */
-class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
+/** Tests for {@link AbstractAggregatingState}. */
+class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
 
     @Test
     @SuppressWarnings({"unchecked"})
@@ -55,8 +55,8 @@ class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
                 new AggregatingStateDescriptor<>(
                         "testAggState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
-        InternalAggregatingState<String, Void, Integer, Integer, Integer> state =
-                new InternalAggregatingState<>(aec, descriptor);
+        AbstractAggregatingState<String, Void, Integer, Integer, Integer> state =
+                new AbstractAggregatingState<>(aec, descriptor);
 
         aec.setCurrentContext(aec.buildContext("test", "test"));
 

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.runtime.state.v2.InternalPartitionedState;
+import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

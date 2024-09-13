@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.state.v2.internal.InternalReducingState;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,12 +37,12 @@ import java.util.List;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
-        implements ReducingState<V>, InternalMergingState<N> {
+public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
+        implements InternalReducingState<K, N, V> {
 
     protected final ReduceFunction<V> reduceFunction;
 
-    public InternalReducingState(
+    public AbstractReducingState(
             StateRequestHandler stateRequestHandler, ReducingStateDescriptor<V> stateDescriptor) {
         super(stateRequestHandler, stateDescriptor);
         this.reduceFunction = stateDescriptor.getReduceFunction();

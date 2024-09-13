@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.state.v2.internal.InternalMapState;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -35,10 +36,10 @@ import java.util.Map;
  * @param <UK> The type of user key of this state.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalMapState<K, N, UK, V> extends InternalKeyedState<K, N, V>
-        implements MapState<UK, V> {
+public class AbstractMapState<K, N, UK, V> extends AbstractKeyedState<K, N, V>
+        implements InternalMapState<K, N, UK, V> {
 
-    public InternalMapState(
+    public AbstractMapState(
             StateRequestHandler stateRequestHandler, MapStateDescriptor<UK, V> stateDescriptor) {
         super(stateRequestHandler, stateDescriptor);
     }

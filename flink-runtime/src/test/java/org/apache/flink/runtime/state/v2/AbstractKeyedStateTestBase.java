@@ -52,8 +52,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Tests for the common/shared functionality of {@link InternalKeyedState}. */
-public class InternalKeyedStateTestBase {
+/** Tests for the common/shared functionality of {@link AbstractKeyedState}. */
+public class AbstractKeyedStateTestBase {
 
     @SuppressWarnings({"rawtypes"})
     AsyncExecutionController aec;
