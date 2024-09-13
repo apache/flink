@@ -36,8 +36,8 @@ import java.util.List;
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalReducingState<K, N, V> extends InternalMergingState<K, N, V>
-        implements ReducingState<V> {
+public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
+        implements ReducingState<V>, InternalMergingState<N> {
 
     protected final ReduceFunction<V> reduceFunction;
 

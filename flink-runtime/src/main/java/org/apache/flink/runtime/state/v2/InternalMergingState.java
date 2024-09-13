@@ -18,23 +18,15 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 
 import java.util.Collection;
 
 /**
  * This class defines the internal interface for merging state.
  *
- * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
- * @param <V> The type of values kept internally in state
  */
-public abstract class InternalMergingState<K, N, V> extends InternalKeyedState<K, N, V> {
-
-    public InternalMergingState(
-            StateRequestHandler stateRequestHandler, StateDescriptor<V> stateDescriptor) {
-        super(stateRequestHandler, stateDescriptor);
-    }
+public interface InternalMergingState<N> extends InternalPartitionedState<N> {
 
     /**
      * Merges the state of the current key for the given source namespaces into the state of the
@@ -44,8 +36,7 @@ public abstract class InternalMergingState<K, N, V> extends InternalKeyedState<K
      * @param sources The source namespaces whose state should be merged.
      * @throws Exception The method may forward exception thrown internally (by I/O or functions).
      */
-    public abstract StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources)
-            throws Exception;
+    StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) throws Exception;
 
-    public abstract void mergeNamespaces(N target, Collection<N> sources);
+    void mergeNamespaces(N target, Collection<N> sources);
 }
