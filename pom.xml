@@ -2348,6 +2348,17 @@ under the License.
 								<!-- FLINK-35812 move tuple interfaces into flink-core-api, should be removed in 2.0 -->
 								<exclude>org.apache.flink.api.java.tuple.*</exclude>
 								<exclude>org.apache.flink.types.NullFieldException</exclude>
+								<!-- FLINK-36225 Remove deprecated methods marked in FLIP-382 -->
+								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getAttemptNumber()</exclude>
+								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getIndexOfThisSubtask()</exclude>
+								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
+								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getNumberOfParallelSubtasks()</exclude>
+								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getTaskName()</exclude>
+								<exclude>org.apache.flink.api.common.functions.RuntimeContext#getTaskNameWithSubtasks()</exclude>
+								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getAttemptNumber()</exclude>
+								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getJobId()</exclude>
+								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getNumberOfParallelSubtasks()</exclude>
+								<exclude>org.apache.flink.api.connector.sink2.Sink$InitContextWrapper#getSubtaskId()</exclude>
 								<!-- The following exclusions are due to classes being relocated from the flink-streaming-java
 									module to the flink-runtime module. -->
 								<exclude>org.apache.flink.streaming.api.functions.windowing.AllWindowFunction</exclude>

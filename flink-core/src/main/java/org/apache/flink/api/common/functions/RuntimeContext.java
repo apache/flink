@@ -20,7 +20,6 @@ package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -60,37 +59,6 @@ import java.util.Set;
  */
 @Public
 public interface RuntimeContext {
-
-    /**
-     * The ID of the current job. Note that Job ID can change in particular upon manual restart. The
-     * returned ID should NOT be used for any job management tasks.
-     *
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the job should be
-     *     provided uniformly by {@link #getJobInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default JobID getJobId() {
-        return getJobInfo().getJobId();
-    }
-
-    /**
-     * Returns the name of the task in which the UDF runs, as assigned during plan construction.
-     *
-     * @return The name of the task in which the UDF runs.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default String getTaskName() {
-        return getTaskInfo().getTaskName();
-    }
-
     /**
      * Returns the metric group for this parallel subtask.
      *
@@ -98,85 +66,6 @@ public interface RuntimeContext {
      */
     @PublicEvolving
     OperatorMetricGroup getMetricGroup();
-
-    /**
-     * Gets the parallelism with which the parallel task runs.
-     *
-     * @return The parallelism with which the parallel task runs.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default int getNumberOfParallelSubtasks() {
-        return getTaskInfo().getNumberOfParallelSubtasks();
-    }
-
-    /**
-     * Gets the number of max-parallelism with which the parallel task runs.
-     *
-     * @return The max-parallelism with which the parallel task runs.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    @PublicEvolving
-    default int getMaxNumberOfParallelSubtasks() {
-        return getTaskInfo().getMaxNumberOfParallelSubtasks();
-    }
-
-    /**
-     * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
-     * parallelism-1.
-     *
-     * @return The index of the parallel subtask.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default int getIndexOfThisSubtask() {
-        return getTaskInfo().getIndexOfThisSubtask();
-    }
-
-    /**
-     * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
-     *
-     * @return Attempt number of the subtask.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default int getAttemptNumber() {
-        return getTaskInfo().getAttemptNumber();
-    }
-
-    /**
-     * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
-     * where 3 would be (task index + 1), and 6 would be task parallelism, and 1 would be attempt
-     * number.
-     *
-     * @return The name of the task, with subtask indicator.
-     * @deprecated This method is deprecated since Flink 1.19. All metadata about the task should be
-     *     provided uniformly by {@link #getTaskInfo()}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-382%3A+Unify+the+Provision+of+Diverse+Metadata+for+Context-like+APIs">
-     *     FLIP-382: Unify the Provision of Diverse Metadata for Context-like APIs </a>
-     */
-    @Deprecated
-    default String getTaskNameWithSubtasks() {
-        return getTaskInfo().getTaskNameWithSubtasks();
-    }
 
     /**
      * Create a serializer for a given type.

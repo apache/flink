@@ -761,7 +761,7 @@ public class EndOfStreamWindows extends WindowAssigner<Object, TimeWindow> {
 public static class AddSubtaskIDMapFunction<T> extends RichMapFunction<T, Tuple2<String, T>> {
     @Override
     public Tuple2<String, T> map(T value) {
-        return Tuple2.of(String.valueOf(getRuntimeContext().getIndexOfThisSubtask()), value);
+        return Tuple2.of(String.valueOf(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()), value);
     }
 }
 ```
