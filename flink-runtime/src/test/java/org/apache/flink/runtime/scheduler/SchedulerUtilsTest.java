@@ -153,7 +153,7 @@ class SchedulerUtilsTest {
 
     private CompletedCheckpoint buildCheckpoint(KeyedStateHandle incremental) {
         OperatorID operatorID = new OperatorID();
-        OperatorState operatorState = new OperatorState(operatorID, 1, 1);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 1);
         operatorState.putState(
                 0, OperatorSubtaskState.builder().setManagedKeyedState(incremental).build());
         return new CompletedCheckpoint(

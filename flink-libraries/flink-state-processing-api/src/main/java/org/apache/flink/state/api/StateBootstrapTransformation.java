@@ -29,7 +29,6 @@ import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.output.BootstrapStreamTaskRunner;
 import org.apache.flink.state.api.output.OperatorSubtaskStateReducer;
@@ -115,7 +114,7 @@ public class StateBootstrapTransformation<T> {
     }
 
     /**
-     * @param operatorID The operator id for the stream operator.
+     * @param operatorIdentifier The operator identifier for the stream operator.
      * @param stateBackend The state backend for the job.
      * @param config Additional configurations applied to the bootstrap stream tasks.
      * @param globalMaxParallelism Global max parallelism set for the savepoint.
@@ -123,7 +122,7 @@ public class StateBootstrapTransformation<T> {
      * @return The operator subtask states for this bootstrap transformation.
      */
     DataStream<OperatorState> writeOperatorState(
-            OperatorID operatorID,
+            OperatorIdentifier operatorIdentifier,
             StateBackend stateBackend,
             Configuration config,
             int globalMaxParallelism,
@@ -131,27 +130,36 @@ public class StateBootstrapTransformation<T> {
         int localMaxParallelism = getMaxParallelism(globalMaxParallelism);
 
         return writeOperatorSubtaskStates(
-                        operatorID, stateBackend, config, savepointPath, localMaxParallelism)
+                        operatorIdentifier,
+                        stateBackend,
+                        config,
+                        savepointPath,
+                        localMaxParallelism)
                 .transform(
                         "reduce(OperatorSubtaskState)",
                         TypeInformation.of(OperatorState.class),
                         new GroupReduceOperator<>(
-                                new OperatorSubtaskStateReducer(operatorID, localMaxParallelism)))
+                                new OperatorSubtaskStateReducer(
+                                        operatorIdentifier, localMaxParallelism)))
                 .forceNonParallel();
     }
 
     @VisibleForTesting
     SingleOutputStreamOperator<TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
-            OperatorID operatorID,
+            OperatorIdentifier operatorIdentifier,
             StateBackend stateBackend,
             Path savepointPath,
             int localMaxParallelism) {
         return writeOperatorSubtaskStates(
-                operatorID, stateBackend, new Configuration(), savepointPath, localMaxParallelism);
+                operatorIdentifier,
+                stateBackend,
+                new Configuration(),
+                savepointPath,
+                localMaxParallelism);
     }
 
     private SingleOutputStreamOperator<TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
-            OperatorID operatorID,
+            OperatorIdentifier operatorIdentifier,
             StateBackend stateBackend,
             Configuration additionalConfig,
             Path savepointPath,
@@ -161,7 +169,8 @@ public class StateBootstrapTransformation<T> {
 
         operator = stream.getExecutionEnvironment().clean(operator);
 
-        final StreamConfig config = getConfig(operatorID, stateBackend, additionalConfig, operator);
+        final StreamConfig config =
+                getConfig(operatorIdentifier, stateBackend, additionalConfig, operator);
 
         BootstrapStreamTaskRunner<T> operatorRunner =
                 new BootstrapStreamTaskRunner<>(config, localMaxParallelism);
@@ -173,7 +182,7 @@ public class StateBootstrapTransformation<T> {
 
         SingleOutputStreamOperator<TaggedOperatorSubtaskState> subtaskStates =
                 input.transform(
-                                operatorID.toHexString(),
+                                operatorIdentifier.getOperatorId().toHexString(),
                                 TypeInformation.of(TaggedOperatorSubtaskState.class),
                                 operatorRunner)
                         .setMaxParallelism(localMaxParallelism);
@@ -191,7 +200,7 @@ public class StateBootstrapTransformation<T> {
 
     @VisibleForTesting
     StreamConfig getConfig(
-            OperatorID operatorID,
+            OperatorIdentifier operatorIdentifier,
             StateBackend stateBackend,
             Configuration additionalConfig,
             StreamOperator<TaggedOperatorSubtaskState> operator) {
@@ -217,8 +226,8 @@ public class StateBootstrapTransformation<T> {
         }
 
         config.setStreamOperator(operator);
-        config.setOperatorName(operatorID.toHexString());
-        config.setOperatorID(operatorID);
+        config.setOperatorName(operatorIdentifier.getOperatorId().toHexString());
+        config.setOperatorID(operatorIdentifier.getOperatorId());
         config.setStateBackend(stateBackend);
         config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
         config.serializeAllConfigs();

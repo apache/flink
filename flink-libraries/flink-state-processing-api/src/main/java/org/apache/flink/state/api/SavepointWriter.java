@@ -377,7 +377,7 @@ public class SavepointWriter {
                                 newOperatorState
                                         .getBootstrapTransformation()
                                         .writeOperatorState(
-                                                newOperatorState.getOperatorID(),
+                                                newOperatorState.getOperatorIdentifier(),
                                                 stateBackend,
                                                 config,
                                                 metadata.getMaxParallelism(),
@@ -402,16 +402,24 @@ public class SavepointWriter {
                     value.getOperatorStates().stream()
                             .map(
                                     operatorState -> {
-                                        OperatorIdentifier operatorIdentifier =
-                                                OperatorIdentifier.forUidHash(
-                                                        operatorState
-                                                                .getOperatorID()
-                                                                .toHexString());
+                                        OperatorIdentifier operatorIdentifier;
+                                        if (operatorState.getOperatorUid().isPresent()) {
+                                            operatorIdentifier =
+                                                    OperatorIdentifier.forUid(
+                                                            operatorState.getOperatorUid().get());
+                                        } else {
+                                            operatorIdentifier =
+                                                    OperatorIdentifier.forUidHash(
+                                                            operatorState
+                                                                    .getOperatorID()
+                                                                    .toHexString());
+                                        }
 
                                         final OperatorIdentifier transformedIdentifier =
                                                 uidTransformationMap.remove(operatorIdentifier);
                                         if (transformedIdentifier != null) {
-                                            return operatorState.copyWithNewOperatorID(
+                                            return operatorState.copyWithNewIDs(
+                                                    transformedIdentifier.getUid().orElse(null),
                                                     transformedIdentifier.getOperatorId());
                                         }
                                         return operatorState;
