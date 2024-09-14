@@ -124,6 +124,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.DEFAULT_DATABASE;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HADOOP_CONF_DIR;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HIVE_CONF_DIR;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.HIVE_VERSION;
+import static org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions.PROPERTIES_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_COL_CASCADE;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_DATABASE_OP;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
@@ -154,6 +159,7 @@ public class HiveCatalog extends AbstractCatalog {
     public static final String DEFAULT_DB = "default";
 
     public static final String HIVE_SITE_FILE = "hive-site.xml";
+    public static final String HIVE_METASTORE_SITE_FILE = "hivemetastore-site.xml";
 
     // Prefix used to distinguish scala/python functions
     private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
@@ -185,6 +191,19 @@ public class HiveCatalog extends AbstractCatalog {
             @Nullable String hadoopConfDir,
             @Nullable String hiveVersion) {
         this(catalogName, defaultDatabase, createHiveConf(hiveConfDir, hadoopConfDir), hiveVersion);
+    }
+
+    public HiveCatalog(
+            String catalogName, org.apache.flink.configuration.Configuration tableOptions) {
+        this(
+                catalogName,
+                tableOptions.get(DEFAULT_DATABASE),
+                setHiveProperties(
+                        tableOptions.toMap(),
+                        createHiveConf(
+                                tableOptions.get(HIVE_CONF_DIR),
+                                tableOptions.get(HADOOP_CONF_DIR))),
+                tableOptions.get(HIVE_VERSION));
     }
 
     public HiveCatalog(
@@ -223,6 +242,20 @@ public class HiveCatalog extends AbstractCatalog {
         this.hiveConf.set(HiveCatalogFactoryOptions.HIVE_VERSION.key(), hiveVersion);
 
         LOG.info("Created HiveCatalog '{}'", catalogName);
+    }
+
+    private static HiveConf setHiveProperties(Map<String, String> tableOptions, HiveConf hiveConf) {
+        if (tableOptions == null) {
+            return hiveConf;
+        }
+        tableOptions.entrySet().stream()
+                .filter(e -> e.getKey().startsWith(PROPERTIES_PREFIX))
+                .forEach(
+                        e ->
+                                hiveConf.set(
+                                        e.getKey().substring(PROPERTIES_PREFIX.length()),
+                                        e.getValue()));
+        return hiveConf;
     }
 
     public static HiveConf createHiveConf(
@@ -276,6 +309,20 @@ public class HiveCatalog extends AbstractCatalog {
                 throw new CatalogException(
                         "Failed to load hive-site.xml from specified path:" + hiveSite, e);
             }
+            Path hiveMetastoreSite = new Path(hiveConfDir, HIVE_METASTORE_SITE_FILE);
+            if (!hiveMetastoreSite.toUri().isAbsolute()) {
+                // treat relative URI as local file to be compatible with previous behavior
+                hiveMetastoreSite = new Path(new File(hiveMetastoreSite.toString()).toURI());
+            }
+            try (InputStream inputStream =
+                    hiveMetastoreSite.getFileSystem(hadoopConf).open(hiveMetastoreSite)) {
+                hiveConf.addResource(inputStream, hiveMetastoreSite.toString());
+            } catch (IOException e) {
+                LOG.warn(
+                        "Failed to load hivemetastore-site.xml from specified path {}",
+                        hiveMetastoreSite,
+                        e);
+            }
         } else {
             // user doesn't provide hive conf dir, we try to find it in classpath
             URL hiveSite =
@@ -283,6 +330,14 @@ public class HiveCatalog extends AbstractCatalog {
             if (hiveSite != null) {
                 LOG.info("Found {} in classpath: {}", HIVE_SITE_FILE, hiveSite);
                 hiveConf.addResource(hiveSite);
+            }
+            URL hiveMetastoreSite =
+                    Thread.currentThread()
+                            .getContextClassLoader()
+                            .getResource(HIVE_METASTORE_SITE_FILE);
+            if (hiveMetastoreSite != null) {
+                LOG.info("Found {} in classpath: {}", HIVE_METASTORE_SITE_FILE, hiveMetastoreSite);
+                hiveConf.addResource(hiveMetastoreSite);
             }
         }
         return hiveConf;
