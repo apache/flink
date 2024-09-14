@@ -18,15 +18,11 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -158,32 +154,7 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::enableUnalignedCheckpointsInterruptibleTimers)
                         .getterVia(
                                 CheckpointConfig::isUnalignedCheckpointsInterruptibleTimersEnabled)
-                        .nonDefaultValue(true),
-                TestSpec.testValue(
-                                (CheckpointStorage)
-                                        new FileSystemCheckpointStorage(
-                                                "file:///path/to/checkpoint/dir"))
-                        .whenSetFromFile(
-                                CheckpointingOptions.CHECKPOINTS_DIRECTORY.key(),
-                                "file:///path/to/checkpoint/dir")
-                        .viaSetter(CheckpointConfig::setCheckpointStorage)
-                        .getterVia(CheckpointConfig::getCheckpointStorage)
-                        .nonDefaultValue(
-                                new FileSystemCheckpointStorage("file:///path/to/checkpoint/dir"))
-                        .customMatcher(
-                                (actualValue, expectedValue) ->
-                                        assertThat(actualValue)
-                                                .hasSameClassAs(expectedValue)
-                                                .asInstanceOf(
-                                                        InstanceOfAssertFactories.type(
-                                                                FileSystemCheckpointStorage.class))
-                                                .extracting(
-                                                        FileSystemCheckpointStorage
-                                                                ::getCheckpointPath)
-                                                .isEqualTo(
-                                                        ((FileSystemCheckpointStorage)
-                                                                        expectedValue)
-                                                                .getCheckpointPath())));
+                        .nonDefaultValue(true));
     }
 
     @ParameterizedTest

@@ -57,6 +57,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
@@ -195,7 +196,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                         restartAttempts,
                         materializationInterval,
                         materializationMaxFailure);
-        env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpointFile.toURI());
         return env;
     }
 

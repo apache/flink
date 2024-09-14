@@ -87,6 +87,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
@@ -470,7 +471,8 @@ public class SavepointITCase extends TestLogger {
         env.getCheckpointConfig()
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        env.getCheckpointConfig().setCheckpointStorage(folder.newFolder().toURI());
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                env, folder.newFolder().toURI());
         env.setParallelism(parallelism);
 
         final SharedReference<CountDownLatch> counter =
