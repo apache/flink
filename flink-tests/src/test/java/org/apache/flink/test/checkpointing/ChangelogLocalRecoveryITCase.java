@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CollectionSink;
 import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CountFunction;
@@ -167,7 +168,7 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 3, 10L);
         env.configure(new Configuration().set(LOCAL_RECOVERY, true));
 
-        env.getCheckpointConfig().setCheckpointStorage(checkpointFile.toURI());
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpointFile.toURI());
         env.enableChangelogStateBackend(changelogEnabled);
         env.configure(
                 new Configuration()

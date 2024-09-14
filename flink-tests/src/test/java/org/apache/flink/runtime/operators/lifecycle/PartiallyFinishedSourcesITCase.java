@@ -27,6 +27,7 @@ import org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.Testin
 import org.apache.flink.runtime.operators.lifecycle.validation.DrainingValidator;
 import org.apache.flink.runtime.operators.lifecycle.validation.FinishingValidator;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
@@ -175,10 +176,10 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                             .setTolerableCheckpointFailureNumber(Integer.MAX_VALUE);
                     // explicitly set to one to ease avoiding race conditions
                     env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-                    env.getCheckpointConfig()
-                            // with unaligned checkpoints state size can grow beyond the default
-                            // limits of in-memory storage
-                            .setCheckpointStorage(TEMPORARY_FOLDER.newFolder().toURI());
+                    // with unaligned checkpoints state size can grow beyond the default
+                    // limits of in-memory storage
+                    CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                            env, TEMPORARY_FOLDER.newFolder().toURI());
                 });
     }
 

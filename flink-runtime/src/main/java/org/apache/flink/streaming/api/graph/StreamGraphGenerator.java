@@ -39,7 +39,6 @@ import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -161,8 +160,6 @@ public class StreamGraphGenerator {
 
     private StateBackend stateBackend;
 
-    private CheckpointStorage checkpointStorage;
-
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     private SavepointRestoreSettings savepointRestoreSettings;
@@ -232,7 +229,6 @@ public class StreamGraphGenerator {
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
         this.configuration = checkNotNull(configuration);
-        this.checkpointStorage = this.checkpointConfig.getCheckpointStorage();
         this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
 
@@ -362,7 +358,6 @@ public class StreamGraphGenerator {
         graph.setJobName(deriveJobName(DEFAULT_STREAMING_JOB_NAME));
 
         graph.setStateBackend(stateBackend);
-        graph.setCheckpointStorage(checkpointStorage);
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
     }
 

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -48,7 +49,9 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        firstEnv.getCheckpointConfig().setCheckpointStorage(firstCheckpointFolder.toURI());
+
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                firstEnv, firstCheckpointFolder.toURI());
         JobGraph firstJobGraph =
                 firstNormalJobGraph(firstEnv, miniCluster, currentMaterializationId);
 
@@ -61,7 +64,8 @@ public abstract class ChangelogRecoverySwitchEnvTestBase extends ChangelogRecove
         }
 
         File secondCheckpointFolder = TEMPORARY_FOLDER.newFolder();
-        secondEnv.getCheckpointConfig().setCheckpointStorage(secondCheckpointFolder.toURI());
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                secondEnv, secondCheckpointFolder.toURI());
         JobGraph jobGraph = nextNormalJobGraph(secondEnv, miniCluster, currentMaterializationId);
         File checkpointFile = getMostRecentCompletedCheckpoint(firstCheckpointFolder);
         jobGraph.setSavepointRestoreSettings(

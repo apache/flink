@@ -46,12 +46,12 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
@@ -223,7 +223,7 @@ public class FileSinkCompactionSwitchITCase {
 
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
         RestartStrategyUtils.configureNoRestartStrategy(env);
-        env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage(cpPath));
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, cpPath);
         env.setStateBackend(new HashMapStateBackend());
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))

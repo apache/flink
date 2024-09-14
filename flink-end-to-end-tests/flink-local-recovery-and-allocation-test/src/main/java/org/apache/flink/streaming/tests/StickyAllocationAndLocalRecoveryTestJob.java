@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.RestartStrategyOptions;
@@ -98,6 +99,8 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
                 Duration.ofMillis(pt.getInt("restartDelay", 0)));
+        String checkpointDir = pt.getRequired("checkpointDir");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 
         env.configure(configuration);
         if (pt.getBoolean("externalizedCheckpoints", false)) {
@@ -105,9 +108,6 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                     .setExternalizedCheckpointRetention(
                             ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         }
-
-        String checkpointDir = pt.getRequired("checkpointDir");
-        env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
 
         boolean killJvmOnFail = pt.getBoolean("killJvmOnFail", false);
 
