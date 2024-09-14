@@ -28,6 +28,7 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.OperatorTranslation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Visitor;
 
 import org.slf4j.Logger;
@@ -52,17 +53,21 @@ public class PlanGenerator {
     private final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile;
     private final String jobName;
 
+    private final Configuration jobConfiguration;
+
     public PlanGenerator(
             List<DataSink<?>> sinks,
             ExecutionConfig config,
             int defaultParallelism,
             List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile,
-            String jobName) {
+            String jobName,
+            Configuration jobConfiguration) {
         this.sinks = checkNotNull(sinks);
         this.config = checkNotNull(config);
         this.cacheFile = checkNotNull(cacheFile);
         this.jobName = checkNotNull(jobName);
         this.defaultParallelism = defaultParallelism;
+        this.jobConfiguration = checkNotNull(jobConfiguration);
     }
 
     public Plan generate() {
@@ -87,6 +92,7 @@ public class PlanGenerator {
             plan.setDefaultParallelism(defaultParallelism);
         }
         plan.setExecutionConfig(config);
+        plan.setJobConfiguration(jobConfiguration);
         return plan;
     }
 

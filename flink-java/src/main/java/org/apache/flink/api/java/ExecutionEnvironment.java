@@ -133,7 +133,7 @@ public class ExecutionEnvironment {
 
     private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
-    private final ExecutionConfig config = new ExecutionConfig();
+    private final ExecutionConfig config;
 
     /**
      * Result from the latest execution, to make it retrievable when using eager execution methods.
@@ -186,6 +186,7 @@ public class ExecutionEnvironment {
             final ClassLoader userClassloader) {
         this.executorServiceLoader = checkNotNull(executorServiceLoader);
         this.configuration = new Configuration(checkNotNull(configuration));
+        this.config = new ExecutionConfig(this.configuration);
         this.userClassloader =
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
@@ -1183,7 +1184,8 @@ public class ExecutionEnvironment {
         }
 
         final PlanGenerator generator =
-                new PlanGenerator(sinks, config, getParallelism(), cacheFile, jobName);
+                new PlanGenerator(
+                        sinks, config, getParallelism(), cacheFile, jobName, configuration);
         final Plan plan = generator.generate();
 
         // clear all the sinks such that the next execution does not redo everything
