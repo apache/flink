@@ -381,7 +381,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      */
     @Deprecated
     public void setIdleStateRetentionTime(Duration minTime, Duration maxTime) {
-        if (maxTime.toMillis() - minTime.toMillis() < 300000
+        if (maxTime.minus(minTime).toMillis() < 300000
                 && !(maxTime.toMillis() == 0 && minTime.toMillis() == 0)) {
             throw new IllegalArgumentException(
                     "Difference between minTime: "

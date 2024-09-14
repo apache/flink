@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.util.Preconditions;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -92,12 +91,13 @@ public final class DayTimeIntervalType extends LogicalType {
     private static final String SECOND_FORMAT = "INTERVAL SECOND(%2$d)";
 
     private static final Set<String> NULL_OUTPUT_CONVERSION =
-            conversionSet(Duration.class.getName(), Long.class.getName());
+            conversionSet(java.time.Duration.class.getName(), Long.class.getName());
 
     private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION =
-            conversionSet(Duration.class.getName(), Long.class.getName(), long.class.getName());
+            conversionSet(
+                    java.time.Duration.class.getName(), Long.class.getName(), long.class.getName());
 
-    private static final Class<?> DEFAULT_CONVERSION = Duration.class;
+    private static final Class<?> DEFAULT_CONVERSION = java.time.Duration.class;
 
     /**
      * Supported resolutions of this type.

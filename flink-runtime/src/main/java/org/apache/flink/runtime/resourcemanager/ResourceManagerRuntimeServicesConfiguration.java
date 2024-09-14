@@ -53,9 +53,7 @@ public class ResourceManagerRuntimeServicesConfiguration {
             Configuration configuration, WorkerResourceSpecFactory defaultWorkerResourceSpecFactory)
             throws ConfigurationException {
 
-        final Duration strJobTimeout = configuration.get(ResourceManagerOptions.JOB_TIMEOUT);
         final Duration jobTimeout;
-
         try {
             jobTimeout = configuration.get(ResourceManagerOptions.JOB_TIMEOUT);
         } catch (IllegalArgumentException e) {
