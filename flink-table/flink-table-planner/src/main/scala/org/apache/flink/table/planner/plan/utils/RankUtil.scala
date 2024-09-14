@@ -23,12 +23,12 @@ import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
+import org.apache.flink.table.runtime.operators.rank._
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelCollation
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 
 import java.util
@@ -77,9 +77,7 @@ object RankUtil {
       tableConfig: TableConfig,
       classLoader: ClassLoader): (Option[RankRange], Option[RexNode]) = {
     val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
-    // Converts the condition to conjunctive normal form (CNF)
-    val cnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
-    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
+    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, predicate)
 
     // split the condition into sort limit condition and other condition
     val (limitPreds: Seq[LimitPredicate], otherPreds: Seq[RexNode]) = cnfCondition match {

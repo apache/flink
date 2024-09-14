@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.jupiter.api.Test
@@ -31,7 +30,6 @@ class SortTest extends TableTestBase {
 
   @Test
   def testNonRangeSortOnSingleFieldWithoutForceLimit(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(false))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, Integer.valueOf(-1))
     util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
@@ -39,7 +37,6 @@ class SortTest extends TableTestBase {
 
   @Test
   def testNonRangeSortOnMultiFieldsWithoutForceLimit(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(false))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, Integer.valueOf(-1))
     util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC, b")
@@ -47,7 +44,6 @@ class SortTest extends TableTestBase {
 
   @Test
   def testNonRangeSortWithForceLimit(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(false))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, Integer.valueOf(200))
     util.verifyExecPlan("SELECT * FROM MyTable ORDER BY a DESC")
@@ -55,7 +51,6 @@ class SortTest extends TableTestBase {
 
   @Test
   def testRangeSortWithoutForceLimit(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, Integer.valueOf(-1))
     // exec node does not support range sort yet, so we verify rel plan here
@@ -64,7 +59,6 @@ class SortTest extends TableTestBase {
 
   @Test
   def testRangeSortWithForceLimit(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, Integer.valueOf(200))
     // exec node does not support range sort yet, so we verify rel plan here

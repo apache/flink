@@ -17,11 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule.JOIN_NULL_FILTER_THRESHOLD
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -31,8 +28,6 @@ import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableIntList
-
-import java.lang.{Long => JLong}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -58,9 +53,6 @@ class JoinDeriveNullFilterRule
 
     val rexBuilder = join.getCluster.getRexBuilder
     val mq = FlinkRelMetadataQuery.reuseOrCreate(join.getCluster.getMetadataQuery)
-    val tableConfig = unwrapTableConfig(join)
-    val minNullCount =
-      tableConfig.get(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
 
     def createIsNotNullFilter(input: RelNode, keys: ImmutableIntList): RelNode = {
       val relBuilder = call.builder()
@@ -68,7 +60,7 @@ class JoinDeriveNullFilterRule
       keys.foreach {
         key =>
           val nullCount = mq.getColumnNullCount(input, key)
-          if (nullCount != null && nullCount > minNullCount) {
+          if (nullCount != null && nullCount > JOIN_NULL_FILTER_THRESHOLD) {
             filters += relBuilder.call(
               SqlStdOperatorTable.IS_NOT_NULL,
               rexBuilder.makeInputRef(input, key))
@@ -95,15 +87,8 @@ class JoinDeriveNullFilterRule
 object JoinDeriveNullFilterRule {
   val INSTANCE = new JoinDeriveNullFilterRule
 
-  /** This configuration will be removed in Flink 2.0. */
-  @Deprecated
-  @Experimental
-  val TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
-    key("table.optimizer.join.null-filter-threshold")
-      .longType()
-      .defaultValue(JLong.valueOf(2000000L))
-      .withDescription(
-        "To avoid the impact of null values on the single join node, " +
-          "We will add a null filter (possibly be pushed down) before the join to filter" +
-          " null values when the source of InnerJoin has nullCount more than this value.")
+  // To avoid the impact of null values on the single join node,
+  // We will add a null filter (possibly be pushed down) before the join to filter
+  // null values when the source of InnerJoin has nullCount more than this value.
+  val JOIN_NULL_FILTER_THRESHOLD = 2000000L
 }
