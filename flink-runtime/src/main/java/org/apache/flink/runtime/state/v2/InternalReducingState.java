@@ -20,8 +20,14 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.v2.ReducingState;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * A default implementation of {@link ReducingState} which delegates all async requests to {@link
@@ -31,7 +37,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
  * @param <V> The type of values kept internally in state.
  */
 public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
-        implements ReducingState<V> {
+        implements ReducingState<V>, InternalMergingState<N> {
 
     protected final ReduceFunction<V> reduceFunction;
 
@@ -48,7 +54,15 @@ public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
 
     @Override
     public StateFuture<Void> asyncAdd(V value) {
-        return handleRequest(StateRequestType.REDUCING_ADD, value);
+        return handleRequest(StateRequestType.REDUCING_GET, null)
+                .thenAccept(
+                        oldValue -> {
+                            V newValue =
+                                    oldValue == null
+                                            ? value
+                                            : reduceFunction.reduce((V) oldValue, value);
+                            handleRequest(StateRequestType.REDUCING_ADD, newValue);
+                        });
     }
 
     @Override
@@ -58,6 +72,103 @@ public class InternalReducingState<K, N, V> extends InternalKeyedState<K, N, V>
 
     @Override
     public void add(V value) {
-        handleRequestSync(StateRequestType.REDUCING_ADD, value);
+        V oldValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+        try {
+            V newValue = oldValue == null ? value : reduceFunction.reduce(oldValue, value);
+            handleRequestSync(StateRequestType.REDUCING_ADD, newValue);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return StateFutureUtils.completedVoidFuture();
+        }
+        // phase 1: read from the sources and target
+        List<StateFuture<V>> futures = new ArrayList<>(sources.size() + 1);
+        for (N source : sources) {
+            if (source != null) {
+                setCurrentNamespace(source);
+                futures.add(handleRequest(StateRequestType.REDUCING_GET, null));
+            }
+        }
+        setCurrentNamespace(target);
+        futures.add(handleRequest(StateRequestType.REDUCING_GET, null));
+        // phase 2: merge the sources to the target
+        return StateFutureUtils.combineAll(futures)
+                .thenCompose(
+                        values -> {
+                            List<StateFuture<V>> updateFutures =
+                                    new ArrayList<>(sources.size() + 1);
+                            V current = null;
+                            Iterator<V> valueIterator = values.iterator();
+                            for (N source : sources) {
+                                V value = valueIterator.next();
+                                if (value != null) {
+                                    setCurrentNamespace(source);
+                                    updateFutures.add(
+                                            handleRequest(StateRequestType.REDUCING_REMOVE, null));
+                                    if (current != null) {
+                                        current = reduceFunction.reduce(current, value);
+                                    } else {
+                                        current = value;
+                                    }
+                                }
+                            }
+                            V targetValue = valueIterator.next();
+                            if (current != null) {
+                                if (targetValue != null) {
+                                    current = reduceFunction.reduce(current, targetValue);
+                                }
+                                setCurrentNamespace(target);
+                                updateFutures.add(
+                                        handleRequest(StateRequestType.REDUCING_ADD, current));
+                            }
+                            return StateFutureUtils.combineAll(updateFutures)
+                                    .thenAccept(ignores -> {});
+                        });
+    }
+
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return;
+        }
+        try {
+            V current = null;
+            // merge the sources to the target
+            for (N source : sources) {
+                if (source != null) {
+                    setCurrentNamespace(source);
+                    V oldValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+
+                    if (oldValue != null) {
+                        handleRequestSync(StateRequestType.REDUCING_REMOVE, null);
+
+                        if (current != null) {
+                            current = reduceFunction.reduce(current, oldValue);
+                        } else {
+                            current = oldValue;
+                        }
+                    }
+                }
+            }
+
+            // if something came out of merging the sources, merge it or write it to the target
+            if (current != null) {
+                // create the target full-binary-key
+                setCurrentNamespace(target);
+                V targetValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+
+                if (targetValue != null) {
+                    current = reduceFunction.reduce(current, targetValue);
+                }
+                handleRequestSync(StateRequestType.REDUCING_ADD, current);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("merge namespace fail.", e);
+        }
     }
 }

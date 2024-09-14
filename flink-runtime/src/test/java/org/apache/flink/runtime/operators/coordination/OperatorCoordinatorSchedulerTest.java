@@ -668,7 +668,8 @@ class OperatorCoordinatorSchedulerTest {
             throws Exception {
 
         final OperatorIDPair opIds =
-                OperatorIDPair.of(new OperatorID(), provider.getOperatorId(), "", "");
+                OperatorIDPair.of(
+                        new OperatorID(), provider.getOperatorId(), "operatorName", "operatorUid");
         final JobVertex vertex =
                 new JobVertex(
                         "Vertex with OperatorCoordinator",

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
+import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -191,6 +192,17 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                         keyDeserializerView,
                         valueDeserializerView,
                         keyGroupPrefixBytes);
+            case REDUCING:
+                return (S)
+                        new ForStReducingState<>(
+                                stateRequestHandler,
+                                columnFamilyHandle,
+                                (ReducingStateDescriptor<SV>) stateDesc,
+                                serializedKeyBuilder,
+                                defaultNamespace,
+                                namespaceSerializer::duplicate,
+                                valueSerializerView,
+                                valueDeserializerView);
             default:
                 throw new UnsupportedOperationException(
                         String.format("Unsupported state type: %s", stateDesc.getType()));

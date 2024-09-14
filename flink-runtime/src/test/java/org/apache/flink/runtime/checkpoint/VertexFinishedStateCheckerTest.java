@@ -69,7 +69,9 @@ class VertexFinishedStateCheckerTest {
         final JobVertexID jobVertexID1 = new JobVertexID();
         final JobVertexID jobVertexID2 = new JobVertexID();
         // The op1 has uidHash set.
-        OperatorIDPair op1 = OperatorIDPair.of(new OperatorID(), new OperatorID(), "", "");
+        OperatorIDPair op1 =
+                OperatorIDPair.of(
+                        new OperatorID(), new OperatorID(), "operatorName", "operatorUid");
         OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
         OperatorIDPair op3 = OperatorIDPair.generatedIDOnly(new OperatorID());
 
