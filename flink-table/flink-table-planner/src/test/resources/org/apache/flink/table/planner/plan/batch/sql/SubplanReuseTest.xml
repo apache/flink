@@ -1332,7 +1332,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftSorted=[true], rightSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])(reuse_id=[1])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- Reused(reference_id=[1])\n])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])(reuse_id=[1])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- Reused(reference_id=[1])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[LIKE(c, 'He%')])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

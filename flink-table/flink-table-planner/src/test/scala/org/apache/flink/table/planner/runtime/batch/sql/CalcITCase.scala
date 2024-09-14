@@ -32,7 +32,6 @@ import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -1578,22 +1577,19 @@ class CalcITCase extends BatchTestBase {
       nullablesOfNullData3
     )
     tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
-    tableConfig.set(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
 
-    assertThatThrownBy(
-      () =>
-        checkResult(
-          "select * from BinaryT order by c",
-          nullData3
-            .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
-            .map(
-              r =>
-                row(
-                  r.getField(0),
-                  r.getField(1),
-                  r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
-          isSorted = true
-        )).isInstanceOf(classOf[UnsupportedOperationException])
+    checkResult(
+      "select * from BinaryT order by c",
+      nullData3
+        .sortBy((x: Row) => x.getField(2).asInstanceOf[String])
+        .map(
+          r =>
+            row(
+              r.getField(0),
+              r.getField(1),
+              r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
+      isSorted = true
+    )
   }
 
   @Test

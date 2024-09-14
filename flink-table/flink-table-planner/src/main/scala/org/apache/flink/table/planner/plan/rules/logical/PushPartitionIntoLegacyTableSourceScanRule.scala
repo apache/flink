@@ -25,7 +25,7 @@ import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
+import org.apache.flink.table.planner.plan.utils.{PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
 import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
@@ -84,11 +84,9 @@ class PushPartitionIntoLegacyTableSourceScanRule
 
     val relBuilder = call.builder()
     val rexBuilder = relBuilder.getRexBuilder
-    val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (partitionPredicates, nonPartitionPredicates) =
       RexNodeExtractor.extractPartitionPredicateList(
         filter.getCondition,
-        maxCnfNodeCount,
         inputFields,
         rexBuilder,
         partitionFieldNames
