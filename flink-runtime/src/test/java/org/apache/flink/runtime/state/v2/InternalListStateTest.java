@@ -39,37 +39,37 @@ public class InternalListStateTest extends InternalKeyedStateTestBase {
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         listState.asyncClear();
-        validateRequestRun(listState, StateRequestType.CLEAR, null);
+        validateRequestRun(listState, StateRequestType.CLEAR, null, 0);
 
         listState.asyncGet();
-        validateRequestRun(listState, StateRequestType.LIST_GET, null);
+        validateRequestRun(listState, StateRequestType.LIST_GET, null, 0);
 
         listState.asyncAdd(1);
-        validateRequestRun(listState, StateRequestType.LIST_ADD, 1);
+        validateRequestRun(listState, StateRequestType.LIST_ADD, 1, 0);
 
         List<Integer> list = new ArrayList<>();
         listState.asyncUpdate(list);
-        validateRequestRun(listState, StateRequestType.LIST_UPDATE, list);
+        validateRequestRun(listState, StateRequestType.LIST_UPDATE, list, 0);
 
         list = new ArrayList<>();
         listState.asyncAddAll(list);
-        validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list);
+        validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list, 0);
 
         listState.clear();
-        validateRequestRun(listState, StateRequestType.CLEAR, null);
+        validateRequestRun(listState, StateRequestType.CLEAR, null, 0);
 
         listState.get().iterator();
-        validateRequestRun(listState, StateRequestType.LIST_GET, null);
+        validateRequestRun(listState, StateRequestType.LIST_GET, null, 0);
 
         listState.add(1);
-        validateRequestRun(listState, StateRequestType.LIST_ADD, 1);
+        validateRequestRun(listState, StateRequestType.LIST_ADD, 1, 0);
 
         list = new ArrayList<>();
         listState.update(list);
-        validateRequestRun(listState, StateRequestType.LIST_UPDATE, list);
+        validateRequestRun(listState, StateRequestType.LIST_UPDATE, list, 0);
 
         list = new ArrayList<>();
         listState.addAll(list);
-        validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list);
+        validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list, 0);
     }
 }

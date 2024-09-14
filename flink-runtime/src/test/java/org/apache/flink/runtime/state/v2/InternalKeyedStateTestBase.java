@@ -86,10 +86,13 @@ public class InternalKeyedStateTestBase {
     }
 
     <IN> void validateRequestRun(
-            @Nullable State state, StateRequestType type, @Nullable IN payload) {
+            @Nullable State state,
+            StateRequestType type,
+            @Nullable IN payload,
+            int remainingRequests) {
         aec.triggerIfNeeded(true);
         testStateExecutor.validate(state, type, payload);
-        assertThat(testStateExecutor.receivedRequest.isEmpty()).isTrue();
+        assertThat(testStateExecutor.receivedRequest.size()).isEqualTo(remainingRequests);
     }
 
     /**

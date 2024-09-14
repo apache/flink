@@ -62,6 +62,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
             case MAP_GET:
             case MAP_IS_EMPTY:
             case MAP_CONTAINS:
+            case REDUCING_GET:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
@@ -74,6 +75,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
             case LIST_ADD_ALL:
             case MAP_PUT:
             case MAP_REMOVE:
+            case REDUCING_ADD:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
