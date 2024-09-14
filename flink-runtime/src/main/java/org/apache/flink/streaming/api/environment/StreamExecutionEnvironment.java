@@ -398,7 +398,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             this.slotSharingGroupResources.put(
                     slotSharingGroup.getName(),
                     ResourceProfile.fromResourceSpec(
-                            SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup),
+                            resourceSpec,
                             MemorySize.ZERO));
         }
         return this;
