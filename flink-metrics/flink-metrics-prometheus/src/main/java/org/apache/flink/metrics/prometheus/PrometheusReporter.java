@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.util.PortRange;
 import org.apache.flink.util.Preconditions;
 
 import io.prometheus.client.exporter.HTTPServer;
@@ -43,9 +44,10 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
         return port;
     }
 
-    PrometheusReporter(Iterator<Integer> ports) {
-        while (ports.hasNext()) {
-            port = ports.next();
+    PrometheusReporter(PortRange portRange) {
+        Iterator<Integer> portsIterator = portRange.getPortsIterator();
+        while (portsIterator.hasNext()) {
+            port = portsIterator.next();
             try {
                 httpServer = new HTTPServer(new InetSocketAddress(port), this.registry);
                 log.info("Started PrometheusReporter HTTP server on port {}.", port);
@@ -58,7 +60,7 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
         if (httpServer == null) {
             throw new RuntimeException(
                     "Could not start PrometheusReporter HTTP server on any configured port. Ports: "
-                            + ports);
+                            + portRange);
         }
     }
 
