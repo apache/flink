@@ -33,10 +33,14 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -66,6 +70,38 @@ public class SplitFetcherManagerTest {
         fetcherManager.close(1000L);
         assertThatThrownBy(fetcherManager::checkErrors)
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
+    }
+
+    @Test
+    public void testGetRunningFetcherSurvivesFetcherRemovalInToctouWindow() throws Exception {
+        final SingleThreadFetcherManager<Object, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(TestingSplitReader::new, new Configuration());
+
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                fetcherManager.createSplitFetcher();
+
+        final Map<Integer, SplitFetcher<Object, TestingSourceSplit>> racyFetchers =
+                new ConcurrentHashMap<Integer, SplitFetcher<Object, TestingSourceSplit>>() {
+                    private boolean removed;
+
+                    @Override
+                    public Collection<SplitFetcher<Object, TestingSourceSplit>> values() {
+                        // The shutdown callback (fetchers.remove(...)) fires here: after
+                        // getRunningFetcher()'s isEmpty() check saw the entry, before it is read.
+                        if (!removed) {
+                            removed = true;
+                            clear();
+                        }
+                        return super.values();
+                    }
+                };
+        racyFetchers.put(0, fetcher);
+
+        final Field fetchersField = SplitFetcherManager.class.getDeclaredField("fetchers");
+        fetchersField.setAccessible(true);
+        fetchersField.set(fetcherManager, racyFetchers);
+
+        assertThat(fetcherManager.getRunningFetcher()).isNull();
     }
 
     // the final modifier is important so that '@SafeVarargs' is accepted on Java 8
