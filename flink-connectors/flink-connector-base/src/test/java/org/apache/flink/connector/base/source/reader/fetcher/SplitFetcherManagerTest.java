@@ -44,14 +44,18 @@ import org.slf4j.MDC;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.util.TestUtils.waitUntil;
@@ -307,6 +311,38 @@ class SplitFetcherManagerTest {
         } finally {
             fetcherManager.close(30_000);
         }
+    }
+
+    @Test
+    void testGetRunningFetcherSurvivesFetcherRemovalInToctouWindow() throws Exception {
+        final SingleThreadFetcherManager<Object, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(TestingSplitReader::new, new Configuration());
+
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                fetcherManager.createSplitFetcher();
+
+        final Map<Integer, SplitFetcher<Object, TestingSourceSplit>> racyFetchers =
+                new ConcurrentHashMap<Integer, SplitFetcher<Object, TestingSourceSplit>>() {
+                    private boolean removed;
+
+                    @Override
+                    public Collection<SplitFetcher<Object, TestingSourceSplit>> values() {
+                        // The shutdown callback (fetchers.remove(...)) fires here: after
+                        // getRunningFetcher()'s isEmpty() check saw the entry, before it is read.
+                        if (!removed) {
+                            removed = true;
+                            clear();
+                        }
+                        return super.values();
+                    }
+                };
+        racyFetchers.put(0, fetcher);
+
+        final Field fetchersField = SplitFetcherManager.class.getDeclaredField("fetchers");
+        fetchersField.setAccessible(true);
+        fetchersField.set(fetcherManager, racyFetchers);
+
+        assertThat(fetcherManager.getRunningFetcher()).isNull();
     }
 
     // the final modifier is important so that '@SafeVarargs' is accepted on Java 8
