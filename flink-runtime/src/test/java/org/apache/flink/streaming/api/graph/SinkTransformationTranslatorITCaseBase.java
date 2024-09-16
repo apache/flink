@@ -109,6 +109,7 @@ abstract class SinkTransformationTranslatorITCaseBase<SinkT> {
                 findNodeName(streamGraph, name -> name.contains("Committer"));
 
         assertThat(streamGraph.getStreamNodes()).hasSize(3);
+        assertNoUnalignedOutput(writerNode);
 
         validateTopology(
                 writerNode,
@@ -211,6 +212,10 @@ abstract class SinkTransformationTranslatorITCaseBase<SinkT> {
         assertThat(dest.getOperatorFactory().getChainingStrategy())
                 .isEqualTo(ChainingStrategy.ALWAYS);
         assertThat(dest.getSlotSharingGroup()).isEqualTo(SLOT_SHARE_GROUP);
+    }
+
+    protected static void assertNoUnalignedOutput(StreamNode src) {
+        assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
     }
 
     StreamGraph buildGraph(SinkT sink, RuntimeExecutionMode runtimeExecutionMode) {
