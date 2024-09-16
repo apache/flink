@@ -237,7 +237,7 @@ hive_catalog = HiveCatalog(catalog_name, default_database, hive_conf_dir)
 t_env.register_catalog("myhive", hive_catalog)
 
 # set the HiveCatalog as the current catalog of the session
-tableEnv.use_catalog("myhive")
+t_env.use_catalog("myhive")
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
