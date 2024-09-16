@@ -195,9 +195,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
         ColumnFamilyHandle columnFamilyHandle =
                 ForStOperationUtils.createColumnFamilyHandle(
                         stateDesc.getStateId(), db, columnFamilyOptionsFactory);
+
+        registerKvStateInformation(stateDesc, namespaceSerializer, columnFamilyHandle);
+
         switch (stateDesc.getType()) {
             case VALUE:
-                registerKvStateInformation(stateDesc, namespaceSerializer, columnFamilyHandle);
                 return (S)
                         new ForStValueState<>(
                                 stateRequestHandler,
@@ -209,7 +211,6 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                                 valueSerializerView,
                                 valueDeserializerView);
             case LIST:
-                registerKvStateInformation(stateDesc, namespaceSerializer, columnFamilyHandle);
                 return (S)
                         new ForStListState<>(
                                 stateRequestHandler,
