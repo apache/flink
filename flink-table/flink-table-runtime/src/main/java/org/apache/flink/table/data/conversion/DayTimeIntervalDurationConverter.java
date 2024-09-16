@@ -21,6 +21,8 @@ package org.apache.flink.table.data.conversion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 
+import java.time.Duration;
+
 /** Converter for {@link DayTimeIntervalType} of {@link java.time.Duration} external type. */
 @Internal
 public class DayTimeIntervalDurationConverter
@@ -38,6 +40,6 @@ public class DayTimeIntervalDurationConverter
 
     @Override
     public java.time.Duration toExternal(Long internal) {
-        return java.time.Duration.ofMillis(internal);
+        return Duration.ofMillis(internal);
     }
 }
