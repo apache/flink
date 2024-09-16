@@ -50,7 +50,8 @@ The following Flink features have not been tested with Java 11:
 
 ## Java 17
 
-Experimental support for Java 17 was added in 1.18.0. ([FLINK-15736](https://issues.apache.org/jira/browse/FLINK-15736))
+Since version 1.19.0 Flink works reasonably well with Java 17, with the caveat that the integration is incomplete.
+Importantly, as per popular demand Java Records are supported ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380)).
 
 ### Untested Flink features
 
@@ -73,5 +74,5 @@ The list of configured arguments must not be shortened, but only extended.
 
 ### Known issues
 
-* Java records are not supported. See [FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380) for updates.
+* Mandatory Kryo dependency upgrade, [FLIP-371](https://cwiki.apache.org/confluence/display/FLINK/FLIP-317%3A+Upgrade+Kryo+from+2.24.0+to+5.5.0).
 * SIGSEGV in C2 Compiler thread: Early Java 17 builds are affected by a bug where the JVM can fail abruptly. Update your Java 17 installation to resolve the issue. See [JDK-8277529](https://bugs.openjdk.org/browse/JDK-8277529) for details.
