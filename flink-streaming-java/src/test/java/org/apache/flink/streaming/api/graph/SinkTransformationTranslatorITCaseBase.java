@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactor
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -111,6 +112,7 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
                 findNodeName(streamGraph, name -> name.contains("Committer"));
 
         assertThat(streamGraph.getStreamNodes().size(), equalTo(3));
+        assertNoUnalignedOutput(writerNode);
 
         validateTopology(
                 writerNode,
@@ -211,6 +213,10 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         assertThat(dest.getMaxParallelism(), equalTo(expectedMaxParallelism));
         assertThat(dest.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.ALWAYS));
         assertThat(dest.getSlotSharingGroup(), equalTo(SLOT_SHARE_GROUP));
+    }
+
+    protected static void assertNoUnalignedOutput(StreamNode src) {
+        Assertions.assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
     }
 
     StreamGraph buildGraph(SinkT sink, RuntimeExecutionMode runtimeExecutionMode) {

@@ -102,6 +102,11 @@ public class ForwardForConsecutiveHashPartitioner<T> extends ForwardPartitioner<
     }
 
     @Override
+    public void disableUnalignedCheckpoints() {
+        hashPartitioner.disableUnalignedCheckpoints();
+    }
+
+    @Override
     public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
         throw new RuntimeException(
                 "ForwardForConsecutiveHashPartitioner is a intermediate partitioner in optimization phase, "

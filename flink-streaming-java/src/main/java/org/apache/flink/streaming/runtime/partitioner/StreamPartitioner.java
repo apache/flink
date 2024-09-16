@@ -34,6 +34,13 @@ public abstract class StreamPartitioner<T>
 
     protected int numberOfChannels;
 
+    /**
+     * By default, all partitioner except {@link #isBroadcast()} or {@link #isPointwise()} support
+     * unaligned checkpoints. However, transformations may disable unaligned checkpoints for
+     * specific cases.
+     */
+    private boolean supportsUnalignedCheckpoint = true;
+
     @Override
     public void setup(int numberOfChannels) {
         this.numberOfChannels = numberOfChannels;
@@ -78,4 +85,12 @@ public abstract class StreamPartitioner<T>
     public abstract SubtaskStateMapper getDownstreamSubtaskStateMapper();
 
     public abstract boolean isPointwise();
+
+    public boolean isSupportsUnalignedCheckpoint() {
+        return supportsUnalignedCheckpoint && !isPointwise() && !isBroadcast();
+    }
+
+    public void disableUnalignedCheckpoints() {
+        this.supportsUnalignedCheckpoint = false;
+    }
 }
