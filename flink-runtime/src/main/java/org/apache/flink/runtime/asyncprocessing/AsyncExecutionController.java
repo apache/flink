@@ -351,7 +351,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         try {
             while (inFlightRecordNum.get() > targetNum) {
                 if (!mailboxExecutor.tryYield()) {
-                    triggerIfNeeded(true);
+                    // We force trigger the buffer if targetNum == 0 (for draining) or the state
+                    // executor is not fully loaded.
+                    if (targetNum == 0 || !stateExecutor.fullyLoaded()) {
+                        triggerIfNeeded(true);
+                    }
                     Thread.sleep(1);
                 }
             }

@@ -42,5 +42,10 @@ public class MockStateExecutor implements StateExecutor {
     }
 
     @Override
+    public boolean fullyLoaded() {
+        return false;
+    }
+
+    @Override
     public void shutdown() {}
 }

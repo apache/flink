@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The {@link StateExecutor} implementation which executing batch {@link StateRequest}s for
@@ -58,11 +59,16 @@ public class ForStStateExecutor implements StateExecutor {
     /** The worker thread that actually executes the write {@link StateRequest}s. */
     private final ExecutorService writeThreads;
 
+    private final int readThreadCount;
+
     private final RocksDB db;
 
     private final WriteOptions writeOptions;
 
     private Throwable executionError;
+
+    /** The ongoing sub-processes count. */
+    private final AtomicLong ongoing;
 
     public ForStStateExecutor(
             int readIoParallelism, int writeIoParallelism, RocksDB db, WriteOptions writeOptions) {
@@ -71,17 +77,17 @@ public class ForStStateExecutor implements StateExecutor {
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
         if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
+            this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
             this.readThreads =
                     Executors.newFixedThreadPool(
-                            Math.max(readIoParallelism, writeIoParallelism),
-                            new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
+                            readThreadCount, new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
             this.writeThreads = null;
         } else {
+            this.readThreadCount = readIoParallelism;
             this.readThreads =
                     Executors.newFixedThreadPool(
                             readIoParallelism,
                             new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
-
             this.writeThreads =
                     Executors.newFixedThreadPool(
                             writeIoParallelism,
@@ -89,6 +95,7 @@ public class ForStStateExecutor implements StateExecutor {
         }
         this.db = db;
         this.writeOptions = writeOptions;
+        this.ongoing = new AtomicLong();
     }
 
     @Override
@@ -98,6 +105,18 @@ public class ForStStateExecutor implements StateExecutor {
         Preconditions.checkArgument(stateRequestContainer instanceof ForStStateRequestClassifier);
         ForStStateRequestClassifier stateRequestClassifier =
                 (ForStStateRequestClassifier) stateRequestContainer;
+        // Calculate ongoing sub-processes. Only count read ones.
+        // The fully loaded only consider read requests for now, since the write ones are quick.
+        final List<ForStDBGetRequest<?, ?, ?, ?>> getRequests =
+                stateRequestClassifier.pollDbGetRequests();
+        final List<ForStDBIterRequest<?, ?, ?, ?, ?>> iterRequests =
+                stateRequestClassifier.pollDbIterRequests();
+        if (!getRequests.isEmpty()) {
+            ongoing.addAndGet(1);
+        }
+        if (!iterRequests.isEmpty()) {
+            ongoing.addAndGet(1);
+        }
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         coordinatorThread.execute(
                 () -> {
@@ -115,19 +134,21 @@ public class ForStStateExecutor implements StateExecutor {
                         futures.add(writeOperations.process());
                     }
 
-                    List<ForStDBGetRequest<?, ?, ?, ?>> getRequests =
-                            stateRequestClassifier.pollDbGetRequests();
                     if (!getRequests.isEmpty()) {
                         ForStGeneralMultiGetOperation getOperations =
-                                new ForStGeneralMultiGetOperation(db, getRequests, readThreads);
+                                new ForStGeneralMultiGetOperation(
+                                        db, getRequests, readThreads, ongoing::decrementAndGet);
+                        // sub process count should -1, since we have added 1 on top.
+                        ongoing.addAndGet(getOperations.subProcessCount() - 1);
                         futures.add(getOperations.process());
                     }
 
-                    List<ForStDBIterRequest<?, ?, ?, ?, ?>> iterRequests =
-                            stateRequestClassifier.pollDbIterRequests();
                     if (!iterRequests.isEmpty()) {
                         ForStIterateOperation iterOperations =
-                                new ForStIterateOperation(db, iterRequests, readThreads);
+                                new ForStIterateOperation(
+                                        db, iterRequests, readThreads, ongoing::decrementAndGet);
+                        // sub process count should -1, since we have added 1 on top.
+                        ongoing.addAndGet(iterOperations.subProcessCount() - 1);
                         futures.add(iterOperations.process());
                     }
 
@@ -166,6 +187,11 @@ public class ForStStateExecutor implements StateExecutor {
     public StateRequestContainer createStateRequestContainer() {
         checkState();
         return new ForStStateRequestClassifier();
+    }
+
+    @Override
+    public boolean fullyLoaded() {
+        return ongoing.get() >= readThreadCount;
     }
 
     private void checkState() {

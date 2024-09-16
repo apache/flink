@@ -221,6 +221,11 @@ public class AbstractKeyedStateTestBase {
         }
 
         @Override
+        public boolean fullyLoaded() {
+            return false;
+        }
+
+        @Override
         public void shutdown() {}
 
         static class TestStateRequestContainer implements StateRequestContainer {
