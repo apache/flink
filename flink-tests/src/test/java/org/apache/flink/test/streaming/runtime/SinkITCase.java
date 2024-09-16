@@ -29,6 +29,8 @@ import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -148,7 +150,7 @@ class SinkITCase extends AbstractTestBase {
                                 (Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
                         .build());
 
-        env.execute();
+        executeAndVerifyStreamGraph(env);
 
         // TODO: At present, for a bounded scenario, the occurrence of final checkpoint is not a
         // deterministic event, so
@@ -178,7 +180,7 @@ class SinkITCase extends AbstractTestBase {
                                                 () -> GLOBAL_COMMIT_QUEUE)
                                 .build());
 
-        env.execute();
+        executeAndVerifyStreamGraph(env);
 
         assertThat(COMMIT_QUEUE).containsExactlyInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE);
 
@@ -202,7 +204,9 @@ class SinkITCase extends AbstractTestBase {
                         .setDefaultCommitter(
                                 (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
                         .build());
-        env.execute();
+
+        executeAndVerifyStreamGraph(env);
+
         assertThat(COMMIT_QUEUE)
                 .containsExactlyInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE);
     }
@@ -254,7 +258,9 @@ class SinkITCase extends AbstractTestBase {
                                 .setDefaultCommitter(
                                         (Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
                                 .build());
-        env.execute();
+
+        executeAndVerifyStreamGraph(env);
+
         assertThat(COMMIT_QUEUE).containsExactlyInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE);
     }
 
@@ -275,7 +281,7 @@ class SinkITCase extends AbstractTestBase {
                                 (Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
                         .build());
 
-        env.execute();
+        executeAndVerifyStreamGraph(env);
 
         // TODO: At present, for a bounded scenario, the occurrence of final checkpoint is not a
         // deterministic event, so
@@ -299,10 +305,27 @@ class SinkITCase extends AbstractTestBase {
                                         (Supplier<Queue<String>> & Serializable)
                                                 () -> GLOBAL_COMMIT_QUEUE)
                                 .build());
-        env.execute();
+
+        executeAndVerifyStreamGraph(env);
 
         assertThat(GLOBAL_COMMIT_QUEUE)
                 .containsExactlyInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_BATCH_MODE);
+    }
+
+    private void executeAndVerifyStreamGraph(StreamExecutionEnvironment env) throws Exception {
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertNoUnalignedCheckpointInSink(streamGraph);
+        env.execute(streamGraph);
+    }
+
+    private void assertNoUnalignedCheckpointInSink(StreamGraph streamGraph) {
+        // all the edges out of the sink nodes should not support unaligned checkpoints
+        // we rely on other tests that this property is correctly used.
+        assertThat(streamGraph.getStreamNodes())
+                .filteredOn(t -> t.getOperatorName().contains("Sink"))
+                .flatMap(StreamNode::getOutEdges)
+                .allMatch(e -> !e.supportsUnalignedCheckpoints())
+                .isNotEmpty();
     }
 
     private static List<String> getSplitGlobalCommittedData() {

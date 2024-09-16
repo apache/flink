@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
@@ -48,10 +49,14 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -170,11 +175,9 @@ public class SinkTransformationTranslator<Input, Output>
                         sink instanceof SupportsConcurrentExecutionAttempts);
             }
 
-            final List<Transformation<?>> sinkTransformations =
-                    executionEnvironment
-                            .getTransformations()
-                            .subList(sizeBefore, executionEnvironment.getTransformations().size());
-            sinkTransformations.forEach(context::transform);
+            getSinkTransformations(sizeBefore).forEach(context::transform);
+
+            disallowUnalignedCheckpoint(getSinkTransformations(sizeBefore));
 
             // Remove all added sink subtransformations to avoid duplications and allow additional
             // expansions
@@ -183,6 +186,58 @@ public class SinkTransformationTranslator<Input, Output>
                         .getTransformations()
                         .remove(executionEnvironment.getTransformations().size() - 1);
             }
+        }
+
+        private List<Transformation<?>> getSinkTransformations(int sizeBefore) {
+            return executionEnvironment
+                    .getTransformations()
+                    .subList(sizeBefore, executionEnvironment.getTransformations().size());
+        }
+
+        /**
+         * Disables UC for all connections of operators within the sink expansion. This is necessary
+         * because committables need to be at the respective operators on notifyCheckpointComplete
+         * or else we can't commit all side-effects, which violates the contract of
+         * notifyCheckpointComplete.
+         */
+        private void disallowUnalignedCheckpoint(List<Transformation<?>> sinkTransformations) {
+            Optional<Transformation<?>> writerOpt =
+                    sinkTransformations.stream().filter(SinkExpander::isWriter).findFirst();
+            Preconditions.checkState(writerOpt.isPresent(), "Writer transformation not found.");
+            Transformation<?> writer = writerOpt.get();
+            int indexOfWriter = sinkTransformations.indexOf(writer);
+
+            // check all transformation after the writer and recursively disable UC for all inputs
+            // up to the writer
+            Set<Integer> seen = new HashSet<>(writer.getId());
+            Queue<Transformation<?>> pending =
+                    new ArrayDeque<>(
+                            sinkTransformations.subList(
+                                    indexOfWriter + 1, sinkTransformations.size()));
+
+            while (!pending.isEmpty()) {
+                Transformation<?> current = pending.poll();
+                seen.add(current.getId());
+
+                for (Transformation<?> input : current.getInputs()) {
+                    if (input instanceof PartitionTransformation) {
+                        ((PartitionTransformation<?>) input)
+                                .getPartitioner()
+                                .disableUnalignedCheckpoints();
+                    }
+                    if (seen.add(input.getId())) {
+                        pending.add(input);
+                    }
+                }
+            }
+        }
+
+        private static boolean isWriter(Transformation<?> t) {
+            if (!(t instanceof OneInputTransformation)) {
+                return false;
+            }
+            return ((OneInputTransformation<?, ?>) t).getOperatorFactory()
+                    instanceof SinkWriterOperatorFactory;
         }
 
         private <CommT, WriteResultT> void addCommittingTopology(
