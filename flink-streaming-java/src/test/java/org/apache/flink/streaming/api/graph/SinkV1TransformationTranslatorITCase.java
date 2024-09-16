@@ -84,8 +84,8 @@ class SinkV1TransformationTranslatorITCase
                 SinkWriterOperatorFactory.class,
                 PARALLELISM,
                 -1);
+        assertNoUnalignedOutput(writerNode);
 
-        StreamNode lastNode;
         if (runtimeExecutionMode == RuntimeExecutionMode.STREAMING) {
             // in streaming writer and committer are merged into one operator
 
@@ -99,12 +99,12 @@ class SinkV1TransformationTranslatorITCase
                     CommitterOperatorFactory.class,
                     PARALLELISM,
                     -1);
+            assertNoUnalignedOutput(committerNode);
         }
-        lastNode = committerNode;
 
         final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
         validateTopology(
-                lastNode,
+                committerNode,
                 SimpleVersionedSerializerTypeSerializerProxy.class,
                 globalCommitterNode,
                 SimpleOperatorFactory.class,
@@ -138,6 +138,7 @@ class SinkV1TransformationTranslatorITCase
         final StreamNode committerNode = findCommitter(streamGraph);
         final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
 
+        assertNoUnalignedOutput(writerNode);
         validateTopology(
                 writerNode,
                 SimpleVersionedSerializerTypeSerializerProxy.class,
@@ -146,6 +147,7 @@ class SinkV1TransformationTranslatorITCase
                 PARALLELISM,
                 -1);
 
+        assertNoUnalignedOutput(committerNode);
         validateTopology(
                 committerNode,
                 SimpleVersionedSerializerTypeSerializerProxy.class,
