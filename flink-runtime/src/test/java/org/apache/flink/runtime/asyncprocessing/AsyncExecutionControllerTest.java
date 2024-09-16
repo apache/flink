@@ -921,6 +921,11 @@ class AsyncExecutionControllerTest {
         }
 
         @Override
+        public boolean fullyLoaded() {
+            return false;
+        }
+
+        @Override
         public void shutdown() {}
     }
 

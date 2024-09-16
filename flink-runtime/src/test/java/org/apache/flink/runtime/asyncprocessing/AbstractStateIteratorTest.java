@@ -202,6 +202,11 @@ public class AbstractStateIteratorTest {
         }
 
         @Override
+        public boolean fullyLoaded() {
+            return false;
+        }
+
+        @Override
         public void shutdown() {}
 
         static class TestIterator extends AbstractStateIterator<Integer> {

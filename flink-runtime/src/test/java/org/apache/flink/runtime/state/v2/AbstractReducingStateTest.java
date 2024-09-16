@@ -184,6 +184,11 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         }
 
         @Override
+        public boolean fullyLoaded() {
+            return false;
+        }
+
+        @Override
         public void shutdown() {}
     }
 }
