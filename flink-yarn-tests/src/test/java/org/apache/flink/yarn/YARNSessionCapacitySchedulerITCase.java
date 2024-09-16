@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -64,6 +63,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -136,7 +136,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             YarnTestBase.teardown();
         } finally {
             if (restClient != null) {
-                restClient.shutdown(Time.seconds(5));
+                restClient.shutdown(Duration.ofSeconds(5));
             }
 
             if (restClientExecutor != null) {

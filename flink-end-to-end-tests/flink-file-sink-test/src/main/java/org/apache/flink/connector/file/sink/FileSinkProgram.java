@@ -22,7 +22,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -40,8 +39,8 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.io.PrintStream;
+import java.time.Duration;
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Test program for the {@link StreamingFileSink} and {@link FileSink}.
@@ -67,8 +66,7 @@ public enum FileSinkProgram {
         env.setParallelism(4);
         env.enableCheckpointing(5000L);
         env.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(
-                        Integer.MAX_VALUE, Time.of(10L, TimeUnit.SECONDS)));
+                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, Duration.ofSeconds(10L)));
 
         // generate data, shuffle, sink
         DataStream<Tuple2<Integer, Integer>> source = env.addSource(new Generator(10, 10, 60));

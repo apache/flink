@@ -30,7 +30,6 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
@@ -757,7 +756,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             env.setRestartStrategy(
                     RestartStrategies.fixedDelayRestart(
                             generateCheckpoint ? expectedFailures / 2 : expectedFailures,
-                            Time.milliseconds(100)));
+                            Duration.ofMillis(100)));
             env.getCheckpointConfig().enableUnalignedCheckpoints(true);
             // for custom partitioner
             env.getCheckpointConfig().setForceUnalignedCheckpoints(true);

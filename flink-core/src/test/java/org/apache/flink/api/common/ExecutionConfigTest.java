@@ -20,7 +20,6 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -37,6 +36,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -304,7 +304,7 @@ public class ExecutionConfigTest {
     void testNotOverridingRestartStrategiesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
         RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
-                RestartStrategies.fixedDelayRestart(10, Time.minutes(2));
+                RestartStrategies.fixedDelayRestart(10, Duration.ofMinutes(2));
         config.setRestartStrategy(restartStrategyConfiguration);
 
         // mutate config according to configuration

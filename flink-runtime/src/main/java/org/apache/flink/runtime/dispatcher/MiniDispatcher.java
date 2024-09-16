@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -35,6 +34,7 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -100,7 +100,7 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
+    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Duration timeout) {
         final CompletableFuture<Acknowledge> acknowledgeCompletableFuture =
                 super.submitJob(jobGraph, timeout);
 
@@ -120,7 +120,7 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
+    public CompletableFuture<JobResult> requestJobResult(JobID jobId, Duration timeout) {
         final CompletableFuture<JobResult> jobResultFuture = super.requestJobResult(jobId, timeout);
 
         if (executionMode == ClusterEntrypoint.ExecutionMode.NORMAL) {
@@ -147,7 +147,7 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+    public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Duration timeout) {
         jobCancelled = true;
         return super.cancelJob(jobId, timeout);
     }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.utils;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -29,6 +28,8 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
+
+import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -53,6 +54,6 @@ public class MockResourceManagerRuntimeServices {
                 new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         rpcService.getScheduledExecutor(),
-                        Time.minutes(5L));
+                        Duration.ofMinutes(5L));
     }
 }

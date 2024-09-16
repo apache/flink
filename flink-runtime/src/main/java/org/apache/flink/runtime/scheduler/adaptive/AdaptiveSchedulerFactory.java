@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -67,10 +67,10 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             ScheduledExecutorService futureExecutor,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             BlobWriter blobWriter,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            Time slotRequestTimeout,
+            Duration slotRequestTimeout,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,

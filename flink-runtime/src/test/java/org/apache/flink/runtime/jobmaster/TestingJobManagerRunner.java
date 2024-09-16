@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -104,22 +104,22 @@ public class TestingJobManagerRunner implements JobManagerRunner {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return CompletableFuture.completedFuture(jobStatus);
     }
 
     @Override
-    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+    public CompletableFuture<JobDetails> requestJobDetails(Duration timeout) {
         return CompletableFuture.completedFuture(jobDetailsFunction.get());
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         throw new UnsupportedOperationException();
     }
 

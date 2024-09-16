@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -62,6 +61,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -76,7 +76,7 @@ class DefaultDispatcherRunnerITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunnerITCase.class);
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     @RegisterExtension
     public static AllCallbackWrapper<TestingRpcServiceExtension> rpcServiceExtensionWrapper =

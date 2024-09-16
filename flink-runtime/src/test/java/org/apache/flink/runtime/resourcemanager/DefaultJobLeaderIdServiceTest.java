@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -30,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
@@ -69,7 +69,7 @@ class DefaultJobLeaderIdServiceTest {
         highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
-        Time timeout = Time.milliseconds(5000L);
+        Duration timeout = Duration.ofMillis(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         JobLeaderIdService jobLeaderIdService =
@@ -102,7 +102,7 @@ class DefaultJobLeaderIdServiceTest {
         highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
-        Time timeout = Time.milliseconds(5000L);
+        Duration timeout = Duration.ofMillis(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         JobLeaderIdService jobLeaderIdService =
@@ -140,7 +140,7 @@ class DefaultJobLeaderIdServiceTest {
         highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
-        Time timeout = Time.milliseconds(5000L);
+        Duration timeout = Duration.ofMillis(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         JobLeaderIdService jobLeaderIdService =
@@ -200,7 +200,7 @@ class DefaultJobLeaderIdServiceTest {
                 .when(scheduledExecutor)
                 .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
-        Time timeout = Time.milliseconds(5000L);
+        Duration timeout = Duration.ofMillis(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
 
         final AtomicReference<UUID> lastTimeoutId = new AtomicReference<>();
@@ -286,7 +286,7 @@ class DefaultJobLeaderIdServiceTest {
                 new DefaultJobLeaderIdService(
                         highAvailabilityServices,
                         new ManuallyTriggeredScheduledExecutor(),
-                        Time.milliseconds(5000L));
+                        Duration.ofMillis(5000L));
 
         jobLeaderIdService.start(new NoOpJobLeaderIdActions());
 
@@ -320,7 +320,7 @@ class DefaultJobLeaderIdServiceTest {
                 new SettableLeaderRetrievalService(null, null);
         highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
         ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
-        Time timeout = Time.milliseconds(5000L);
+        Duration timeout = Duration.ofMillis(5000L);
         JobLeaderIdActions jobLeaderIdActions = mock(JobLeaderIdActions.class);
         DefaultJobLeaderIdService jobLeaderIdService =
                 new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);

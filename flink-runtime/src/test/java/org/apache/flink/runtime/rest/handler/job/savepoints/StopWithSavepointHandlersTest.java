@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -48,6 +47,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,7 +67,7 @@ import static org.assertj.core.api.Assertions.fail;
  */
 class StopWithSavepointHandlersTest {
 
-    private static final Time TIMEOUT = Time.seconds(10);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private static final JobID JOB_ID = new JobID();
 

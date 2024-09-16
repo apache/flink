@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -111,7 +110,7 @@ public abstract class AbstractAsynchronousOperationHandlers<
 
         protected TriggerHandler(
                 GatewayRetriever<? extends T> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 MessageHeaders<B, TriggerResponse, M> messageHeaders) {
             super(leaderRetriever, timeout, responseHeaders, messageHeaders);
@@ -167,7 +166,7 @@ public abstract class AbstractAsynchronousOperationHandlers<
 
         protected StatusHandler(
                 GatewayRetriever<? extends T> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M>
                         messageHeaders) {

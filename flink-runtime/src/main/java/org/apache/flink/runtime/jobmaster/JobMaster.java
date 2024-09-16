@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
@@ -165,7 +164,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final JobGraph jobGraph;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final HighAvailabilityServices highAvailabilityServices;
 
@@ -494,7 +493,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     // ----------------------------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         schedulerNG.cancel();
 
         return CompletableFuture.completedFuture(Acknowledge.get());
@@ -710,7 +709,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
-            final ResourceID taskManagerId, final Collection<SlotOffer> slots, final Time timeout) {
+            final ResourceID taskManagerId,
+            final Collection<SlotOffer> slots,
+            final Duration timeout) {
 
         TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.get(taskManagerId);
 
@@ -773,7 +774,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<RegistrationResponse> registerTaskManager(
             final JobID jobId,
             final TaskManagerRegistrationInformation taskManagerRegistrationInformation,
-            final Time timeout) {
+            final Duration timeout) {
 
         if (!jobGraph.getJobID().equals(jobId)) {
             log.debug(
@@ -903,23 +904,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJobStatus());
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJob());
     }
 
     @Override
-    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Time timeout) {
+    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestCheckpointStats());
     }
 
     @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
-            final CheckpointType checkpointType, final Time timeout) {
+            final CheckpointType checkpointType, final Duration timeout) {
         return schedulerNG.triggerCheckpoint(checkpointType);
     }
 
@@ -928,7 +929,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             @Nullable final String targetDirectory,
             final boolean cancelJob,
             final SavepointFormatType formatType,
-            final Time timeout) {
+            final Duration timeout) {
 
         return schedulerNG.triggerSavepoint(targetDirectory, cancelJob, formatType);
     }
@@ -938,7 +939,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,
             final boolean terminate,
-            final Time timeout) {
+            final Duration timeout) {
 
         return schedulerNG.stopWithSavepoint(targetDirectory, terminate, formatType);
     }
@@ -976,7 +977,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
-            Time timeout) {
+            Duration timeout) {
         return this.sendRequestToCoordinator(operatorId, serializedRequest);
     }
 
@@ -1539,7 +1540,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         ResourceManagerGateway gateway,
                         ResourceManagerId fencingToken,
                         long timeoutMillis) {
-                    Time timeout = Time.milliseconds(timeoutMillis);
+                    Duration timeout = Duration.ofMillis(timeoutMillis);
 
                     return gateway.registerJobMaster(
                             jobMasterId,

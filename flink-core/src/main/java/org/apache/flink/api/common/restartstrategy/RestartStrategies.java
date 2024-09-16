@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.restartstrategy;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType;
@@ -28,7 +27,6 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class defines methods to generate RestartStrategyConfigurations. These configurations are
@@ -81,22 +79,7 @@ public class RestartStrategies {
      */
     public static RestartStrategyConfiguration fixedDelayRestart(
             int restartAttempts, long delayBetweenAttempts) {
-        return fixedDelayRestart(
-                restartAttempts, Time.of(delayBetweenAttempts, TimeUnit.MILLISECONDS));
-    }
-
-    /**
-     * Generates a FixedDelayRestartStrategyConfiguration.
-     *
-     * @param restartAttempts Number of restart attempts for the FixedDelayRestartStrategy
-     * @param delayInterval Delay in-between restart attempts for the FixedDelayRestartStrategy
-     * @return FixedDelayRestartStrategy
-     * @deprecated Use {@link #fixedDelayRestart(int, Duration)}
-     */
-    @Deprecated
-    public static RestartStrategyConfiguration fixedDelayRestart(
-            int restartAttempts, Time delayInterval) {
-        return fixedDelayRestart(restartAttempts, Time.toDuration(delayInterval));
+        return fixedDelayRestart(restartAttempts, Duration.ofMillis(delayBetweenAttempts));
     }
 
     /**
@@ -118,53 +101,11 @@ public class RestartStrategies {
      *     before failing a job
      * @param failureInterval Time interval for failures
      * @param delayInterval Delay in-between restart attempts
-     * @deprecated Use {@link #failureRateRestart(int, Duration, Duration)}
-     */
-    @Deprecated
-    public static FailureRateRestartStrategyConfiguration failureRateRestart(
-            int failureRate, Time failureInterval, Time delayInterval) {
-        return failureRateRestart(
-                failureRate, Time.toDuration(failureInterval), Time.toDuration(delayInterval));
-    }
-
-    /**
-     * Generates a FailureRateRestartStrategyConfiguration.
-     *
-     * @param failureRate Maximum number of restarts in given interval {@code failureInterval}
-     *     before failing a job
-     * @param failureInterval Time interval for failures
-     * @param delayInterval Delay in-between restart attempts
      */
     public static FailureRateRestartStrategyConfiguration failureRateRestart(
             int failureRate, Duration failureInterval, Duration delayInterval) {
         return new FailureRateRestartStrategyConfiguration(
                 failureRate, failureInterval, delayInterval);
-    }
-
-    /**
-     * Generates a ExponentialDelayRestartStrategyConfiguration.
-     *
-     * @param initialBackoff Starting duration between restarts
-     * @param maxBackoff The highest possible duration between restarts
-     * @param backoffMultiplier Delay multiplier how many times is the delay longer than before
-     * @param resetBackoffThreshold How long the job must run smoothly to reset the time interval
-     * @param jitterFactor How much the delay may differ (in percentage)
-     * @deprecated Use {@link #exponentialDelayRestart(Duration, Duration, double, Duration,
-     *     double)}
-     */
-    @Deprecated
-    public static ExponentialDelayRestartStrategyConfiguration exponentialDelayRestart(
-            Time initialBackoff,
-            Time maxBackoff,
-            double backoffMultiplier,
-            Time resetBackoffThreshold,
-            double jitterFactor) {
-        return exponentialDelayRestart(
-                Time.toDuration(initialBackoff),
-                Time.toDuration(maxBackoff),
-                backoffMultiplier,
-                Time.toDuration(resetBackoffThreshold),
-                jitterFactor);
     }
 
     /**
@@ -249,12 +190,6 @@ public class RestartStrategies {
             return restartAttempts;
         }
 
-        /** @deprecated Use {@link #getDurationBetweenAttempts()} */
-        @Deprecated
-        public Time getDelayBetweenAttemptsInterval() {
-            return Time.fromDuration(getDurationBetweenAttempts());
-        }
-
         public Duration getDurationBetweenAttempts() {
             return delayBetweenAttemptsInterval;
         }
@@ -303,26 +238,6 @@ public class RestartStrategies {
         private final Duration resetBackoffThreshold;
         private final double jitterFactor;
 
-        /**
-         * @deprecated Use {@link
-         *     ExponentialDelayRestartStrategyConfiguration#ExponentialDelayRestartStrategyConfiguration(Duration,
-         *     Duration, double, Duration, double)}
-         */
-        @Deprecated
-        public ExponentialDelayRestartStrategyConfiguration(
-                Time initialBackoff,
-                Time maxBackoff,
-                double backoffMultiplier,
-                Time resetBackoffThreshold,
-                double jitterFactor) {
-            this(
-                    Time.toDuration(initialBackoff),
-                    Time.toDuration(maxBackoff),
-                    backoffMultiplier,
-                    Time.toDuration(resetBackoffThreshold),
-                    jitterFactor);
-        }
-
         public ExponentialDelayRestartStrategyConfiguration(
                 Duration initialBackoff,
                 Duration maxBackoff,
@@ -336,20 +251,8 @@ public class RestartStrategies {
             this.jitterFactor = jitterFactor;
         }
 
-        /** @deprecated Use {@link #getInitialBackoffDuration()} */
-        @Deprecated
-        public Time getInitialBackoff() {
-            return Time.fromDuration(getInitialBackoffDuration());
-        }
-
         public Duration getInitialBackoffDuration() {
             return initialBackoff;
-        }
-
-        /** @deprecated Use {@link #getMaxBackoffDuration()} */
-        @Deprecated
-        public Time getMaxBackoff() {
-            return Time.fromDuration(maxBackoff);
         }
 
         public Duration getMaxBackoffDuration() {
@@ -358,12 +261,6 @@ public class RestartStrategies {
 
         public double getBackoffMultiplier() {
             return backoffMultiplier;
-        }
-
-        /** @deprecated Use {@link #getResetBackoffDurationThreshold()} */
-        @Deprecated
-        public Time getResetBackoffThreshold() {
-            return Time.fromDuration(resetBackoffThreshold);
         }
 
         public Duration getResetBackoffDurationThreshold() {
@@ -424,18 +321,6 @@ public class RestartStrategies {
         private final Duration failureInterval;
         private final Duration delayBetweenAttemptsInterval;
 
-        /**
-         * @deprecated Use {@link #FailureRateRestartStrategyConfiguration(int, Duration, Duration)}
-         */
-        @Deprecated
-        public FailureRateRestartStrategyConfiguration(
-                int maxFailureRate, Time failureInterval, Time delayBetweenAttemptsInterval) {
-            this(
-                    maxFailureRate,
-                    Time.toDuration(failureInterval),
-                    Time.toDuration(delayBetweenAttemptsInterval));
-        }
-
         public FailureRateRestartStrategyConfiguration(
                 int maxFailureRate,
                 Duration failureInterval,
@@ -449,20 +334,8 @@ public class RestartStrategies {
             return maxFailureRate;
         }
 
-        /** @deprecated Use {@link #getFailureIntervalDuration()} */
-        @Deprecated
-        public Time getFailureInterval() {
-            return Time.fromDuration(getFailureIntervalDuration());
-        }
-
         public Duration getFailureIntervalDuration() {
             return failureInterval;
-        }
-
-        /** @deprecated Use {@link #getDurationBetweenAttempts()} */
-        @Deprecated
-        public Time getDelayBetweenAttemptsInterval() {
-            return Time.fromDuration(getDurationBetweenAttempts());
         }
 
         public Duration getDurationBetweenAttempts() {
@@ -594,10 +467,7 @@ public class RestartStrategies {
                 Duration failureRateDelay =
                         configuration.get(
                                 RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY);
-                return failureRateRestart(
-                        maxFailures,
-                        Time.milliseconds(failureRateInterval.toMillis()),
-                        Time.milliseconds(failureRateDelay.toMillis()));
+                return failureRateRestart(maxFailures, failureRateInterval, failureRateDelay);
             default:
                 throw new IllegalArgumentException(
                         "Unknown restart strategy " + restartstrategyKind + ".");

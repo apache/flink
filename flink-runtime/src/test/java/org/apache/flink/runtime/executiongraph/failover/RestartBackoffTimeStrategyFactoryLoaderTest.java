@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 
@@ -60,7 +59,7 @@ class RestartBackoffTimeStrategyFactoryLoaderTest {
 
         final RestartBackoffTimeStrategy.Factory factory =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                        RestartStrategies.fixedDelayRestart(1, Time.milliseconds(1000)),
+                        RestartStrategies.fixedDelayRestart(1, Duration.ofMillis(1000)),
                         conf,
                         conf,
                         false);

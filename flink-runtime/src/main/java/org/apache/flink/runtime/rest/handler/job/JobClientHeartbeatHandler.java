@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -35,6 +34,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -50,7 +50,7 @@ public class JobClientHeartbeatHandler
 
     public JobClientHeartbeatHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> headers,
             MessageHeaders<
                             JobClientHeartbeatRequestBody,

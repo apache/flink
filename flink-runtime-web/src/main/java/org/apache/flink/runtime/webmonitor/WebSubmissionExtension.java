@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
@@ -44,6 +43,7 @@ import org.apache.flink.util.concurrent.SeparateThreadExecutor;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -68,7 +68,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
             CompletableFuture<String> localAddressFuture,
             Path jarDir,
             Executor executor,
-            Time timeout)
+            Duration timeout)
             throws Exception {
         this(
                 configuration,
@@ -89,7 +89,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
             CompletableFuture<String> localAddressFuture,
             Path jarDir,
             Executor executor,
-            Time timeout,
+            Duration timeout,
             Supplier<ApplicationRunner> applicationRunnerSupplier)
             throws Exception {
 

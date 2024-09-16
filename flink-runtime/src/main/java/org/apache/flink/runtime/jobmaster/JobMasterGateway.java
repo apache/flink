@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blocklist.BlocklistListener;
@@ -76,7 +75,7 @@ public interface JobMasterGateway
      * @param timeout of this operation
      * @return Future acknowledge of the operation
      */
-    CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
+    CompletableFuture<Acknowledge> cancel(@RpcTimeout Duration timeout);
 
     /**
      * Updates the task execution state for a given task.
@@ -141,7 +140,7 @@ public interface JobMasterGateway
     CompletableFuture<Collection<SlotOffer>> offerSlots(
             final ResourceID taskManagerId,
             final Collection<SlotOffer> slots,
-            @RpcTimeout final Time timeout);
+            @RpcTimeout final Duration timeout);
 
     /**
      * Fails the slot with the given allocation id and cause.
@@ -166,7 +165,7 @@ public interface JobMasterGateway
     CompletableFuture<RegistrationResponse> registerTaskManager(
             final JobID jobId,
             final TaskManagerRegistrationInformation taskManagerRegistrationInformation,
-            @RpcTimeout final Time timeout);
+            @RpcTimeout final Duration timeout);
 
     /**
      * Sends the heartbeat to job manager from task manager.
@@ -192,7 +191,7 @@ public interface JobMasterGateway
      * @param timeout for the rpc call
      * @return Future containing the current job status
      */
-    CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Time timeout);
+    CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Duration timeout);
 
     /**
      * Requests the {@link ExecutionGraphInfo} of the executed job.
@@ -200,7 +199,7 @@ public interface JobMasterGateway
      * @param timeout for the rpc call
      * @return Future which is completed with the {@link ExecutionGraphInfo} of the executed job
      */
-    CompletableFuture<ExecutionGraphInfo> requestJob(@RpcTimeout Time timeout);
+    CompletableFuture<ExecutionGraphInfo> requestJob(@RpcTimeout Duration timeout);
 
     /**
      * Requests the {@link CheckpointStatsSnapshot} of the job.
@@ -208,7 +207,7 @@ public interface JobMasterGateway
      * @param timeout for the rpc call
      * @return Future which is completed with the {@link CheckpointStatsSnapshot} of the job
      */
-    CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(@RpcTimeout Time timeout);
+    CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(@RpcTimeout Duration timeout);
 
     /**
      * Triggers taking a savepoint of the executed job.
@@ -223,7 +222,7 @@ public interface JobMasterGateway
             @Nullable final String targetDirectory,
             final boolean cancelJob,
             final SavepointFormatType formatType,
-            @RpcTimeout final Time timeout);
+            @RpcTimeout final Duration timeout);
 
     /**
      * Triggers taking a checkpoint of the executed job.
@@ -233,7 +232,7 @@ public interface JobMasterGateway
      * @return Future which is completed with the CompletedCheckpoint once completed
      */
     CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
-            final CheckpointType checkpointType, @RpcTimeout final Time timeout);
+            final CheckpointType checkpointType, @RpcTimeout final Duration timeout);
 
     /**
      * Triggers taking a checkpoint of the executed job.
@@ -241,7 +240,7 @@ public interface JobMasterGateway
      * @param timeout for the rpc call
      * @return Future which is completed with the checkpoint path once completed
      */
-    default CompletableFuture<String> triggerCheckpoint(@RpcTimeout final Time timeout) {
+    default CompletableFuture<String> triggerCheckpoint(@RpcTimeout final Duration timeout) {
         return triggerCheckpoint(CheckpointType.DEFAULT, timeout)
                 .thenApply(CompletedCheckpoint::getExternalPointer);
     }
@@ -259,7 +258,7 @@ public interface JobMasterGateway
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,
             final boolean terminate,
-            @RpcTimeout final Time timeout);
+            @RpcTimeout final Duration timeout);
 
     /**
      * Notifies that not enough resources are available to fulfill the resource requirements of a
@@ -295,7 +294,7 @@ public interface JobMasterGateway
     CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
-            @RpcTimeout Time timeout);
+            @RpcTimeout Duration timeout);
 
     /**
      * Notifies the {@link org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker}

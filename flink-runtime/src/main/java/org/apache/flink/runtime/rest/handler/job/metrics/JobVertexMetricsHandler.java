@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsMessag
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -46,7 +46,7 @@ public class JobVertexMetricsHandler
 
     public JobVertexMetricsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> headers,
             MetricFetcher metricFetcher) {
 

@@ -57,7 +57,7 @@ abstract class AbstractTtlDecorator<T> {
         this.returnExpired =
                 config.getStateVisibility()
                         == StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp;
-        this.ttl = config.getTtl().toMilliseconds();
+        this.ttl = config.getTimeToLive().toMillis();
     }
 
     <V> V getUnexpired(TtlValue<V> ttlValue) {

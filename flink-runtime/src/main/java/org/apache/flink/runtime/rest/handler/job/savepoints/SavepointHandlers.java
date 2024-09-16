@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
@@ -56,6 +55,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -126,7 +126,7 @@ public class SavepointHandlers {
 
         SavepointHandlerBase(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+                final Duration timeout,
                 Map<String, String> responseHeaders,
                 final MessageHeaders<B, TriggerResponse, SavepointTriggerMessageParameters>
                         messageHeaders) {
@@ -172,7 +172,7 @@ public class SavepointHandlers {
 
         public StopWithSavepointHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+                final Duration timeout,
                 final Map<String, String> responseHeaders) {
             super(
                     leaderRetriever,
@@ -220,7 +220,7 @@ public class SavepointHandlers {
 
         public SavepointTriggerHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+                final Duration timeout,
                 final Map<String, String> responseHeaders) {
             super(leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
         }
@@ -269,7 +269,7 @@ public class SavepointHandlers {
 
         public SavepointStatusHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+                final Duration timeout,
                 final Map<String, String> responseHeaders) {
             super(leaderRetriever, timeout, responseHeaders, SavepointStatusHeaders.getInstance());
         }

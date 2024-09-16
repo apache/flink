@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -84,8 +83,8 @@ class ActiveResourceManagerTest {
             new AllCallbackWrapper<>(new TestingRpcServiceExtension());
 
     private static final long TIMEOUT_SEC = 5L;
-    private static final Time TIMEOUT_TIME = Time.seconds(TIMEOUT_SEC);
-    private static final Time TESTING_START_WORKER_INTERVAL = Time.milliseconds(50);
+    private static final Duration TIMEOUT_TIME = Duration.ofSeconds(TIMEOUT_SEC);
+    private static final Duration TESTING_START_WORKER_INTERVAL = Duration.ofMillis(50);
     private static final long TESTING_START_WORKER_TIMEOUT_MS = 50;
 
     private static final WorkerResourceSpec WORKER_RESOURCE_SPEC = WorkerResourceSpec.ZERO;
@@ -692,7 +691,7 @@ class ActiveResourceManagerTest {
                 flinkConfig.set(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1d);
                 flinkConfig.set(
                         ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
-                        Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));
+                        TESTING_START_WORKER_INTERVAL);
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
@@ -753,7 +752,7 @@ class ActiveResourceManagerTest {
                             // validate trying creating worker twice, with proper interval
                             assertThat((t2 - t1))
                                     .isGreaterThanOrEqualTo(
-                                            TESTING_START_WORKER_INTERVAL.toMilliseconds());
+                                            TESTING_START_WORKER_INTERVAL.toMillis());
                             // second worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
                                     registerTaskExecutor(tmResourceIds.get(1));
@@ -772,7 +771,7 @@ class ActiveResourceManagerTest {
                 flinkConfig.set(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1d);
                 flinkConfig.set(
                         ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
-                        Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));
+                        TESTING_START_WORKER_INTERVAL);
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
                 final ResourceID tmResourceId = ResourceID.generate();
@@ -833,7 +832,7 @@ class ActiveResourceManagerTest {
                             // validate trying creating worker twice, with proper interval
                             assertThat((t2 - t1))
                                     .isGreaterThanOrEqualTo(
-                                            TESTING_START_WORKER_INTERVAL.toMilliseconds());
+                                            TESTING_START_WORKER_INTERVAL.toMillis());
 
                             // second worker registered, verify registration succeed
                             resourceIdFutures.get(1).complete(tmResourceId);
@@ -1180,7 +1179,7 @@ class ActiveResourceManagerTest {
             activeResourceManager.start();
             activeResourceManager
                     .getStartedFuture()
-                    .get(TIMEOUT_TIME.getSize(), TIMEOUT_TIME.getUnit());
+                    .get(TIMEOUT_TIME.toMillis(), TimeUnit.MILLISECONDS);
 
             return activeResourceManager;
         }

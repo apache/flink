@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -37,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -77,7 +77,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
     private final PhysicalSlotRequestBulkChecker bulkChecker;
 
-    private final Time allocationTimeout;
+    private final Duration allocationTimeout;
 
     private final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever;
 
@@ -87,7 +87,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
             SlotSharingStrategy slotSharingStrategy,
             SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory,
             PhysicalSlotRequestBulkChecker bulkChecker,
-            Time allocationTimeout,
+            Duration allocationTimeout,
             Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever) {
         this.slotProvider = checkNotNull(slotProvider);
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;

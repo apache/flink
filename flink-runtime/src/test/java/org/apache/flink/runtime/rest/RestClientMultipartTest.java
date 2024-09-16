@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -35,6 +34,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -70,7 +70,7 @@ class RestClientMultipartTest {
     @AfterAll
     static void teardownClient() {
         if (restClient != null) {
-            restClient.shutdown(Time.seconds(10));
+            restClient.shutdown(Duration.ofSeconds(10));
         }
     }
 

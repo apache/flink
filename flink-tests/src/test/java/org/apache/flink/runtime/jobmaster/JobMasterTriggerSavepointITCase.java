@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -51,6 +50,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -69,7 +69,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean,
- * Time)}.
+ * Duration)}.
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */

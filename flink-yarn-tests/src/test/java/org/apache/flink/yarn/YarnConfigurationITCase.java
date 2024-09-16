@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
@@ -50,6 +49,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test cases which ensure that the Yarn containers are started with the correct settings. */
 class YarnConfigurationITCase extends YarnTestBase {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     /** Tests that the Flink components are started with the correct memory settings. */
     @Test

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
@@ -41,6 +40,7 @@ import org.apache.flink.util.function.TriConsumer;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -101,7 +101,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
-                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
+                configuration.get(RpcOptions.ASK_TIMEOUT_DURATION),
                 ioExecutor);
     }
 
@@ -184,7 +184,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 ClusterInformation clusterInformation,
                 FatalErrorHandler fatalErrorHandler,
                 ResourceManagerMetricGroup resourceManagerMetricGroup,
-                Time rpcTimeout,
+                Duration rpcTimeout,
                 Executor ioExecutor) {
             super(
                     rpcService,

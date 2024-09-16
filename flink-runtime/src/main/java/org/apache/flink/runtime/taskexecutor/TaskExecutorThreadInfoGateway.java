@@ -17,12 +17,12 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,5 +40,5 @@ public interface TaskExecutorThreadInfoGateway {
     CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
             Collection<ExecutionAttemptID> taskExecutionAttemptIds,
             ThreadInfoSamplesRequest requestParams,
-            @RpcTimeout Time timeout);
+            @RpcTimeout Duration timeout);
 }

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -122,7 +122,7 @@ class ShuffleMasterTest {
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
         ExecutionConfig config = new ExecutionConfig();
-        config.setRestartStrategy(fixedDelayRestart(2, Time.seconds(2)));
+        config.setRestartStrategy(fixedDelayRestart(2, Duration.ofSeconds(2)));
         jobGraph.setExecutionConfig(config);
         return jobGraph;
     }

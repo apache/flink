@@ -107,7 +107,7 @@ class WatermarksWithIdlenessTest {
         final IdlenessTimer timer = new IdlenessTimer(clock, idleTimeout);
 
         timer.checkIfIdle(); // start timer
-        clock.advanceTime(Duration.ofMillis(idleTimeout.toMillis() + 1));
+        clock.advanceTime(idleTimeout.plusMillis(1));
         assertThat(timer.checkIfIdle()).isTrue(); // rigger timer
 
         return timer;

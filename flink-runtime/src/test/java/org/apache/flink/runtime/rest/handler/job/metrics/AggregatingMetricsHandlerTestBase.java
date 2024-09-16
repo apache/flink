@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -40,6 +39,7 @@ import org.apache.flink.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,7 +61,7 @@ abstract class AggregatingMetricsHandlerTestBase<
 
     private static final DispatcherGateway MOCK_DISPATCHER_GATEWAY;
     private static final GatewayRetriever<DispatcherGateway> LEADER_RETRIEVER;
-    private static final Time TIMEOUT = Time.milliseconds(50);
+    private static final Duration TIMEOUT = Duration.ofMillis(50);
     private static final Map<String, String> TEST_HEADERS = Collections.emptyMap();
 
     static {
@@ -116,7 +116,7 @@ abstract class AggregatingMetricsHandlerTestBase<
 
     protected abstract H getHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             Executor executor,
             MetricFetcher fetcher);

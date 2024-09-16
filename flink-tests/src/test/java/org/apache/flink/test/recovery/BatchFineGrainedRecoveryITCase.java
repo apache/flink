@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -73,6 +72,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -261,7 +261,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         ExecutionEnvironment env = new TestEnvironment(miniCluster, 1, true);
         env.setRestartStrategy(
                 RestartStrategies.fixedDelayRestart(
-                        MAX_JOB_RESTART_ATTEMPTS, Time.milliseconds(10)));
+                        MAX_JOB_RESTART_ATTEMPTS, Duration.ofMillis(10)));
         env.getConfig()
                 .setExecutionMode(
                         ExecutionMode.BATCH_FORCED); // forces all partitions to be blocking

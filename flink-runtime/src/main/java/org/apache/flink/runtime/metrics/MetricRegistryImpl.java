@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
@@ -389,7 +388,7 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
             } else {
                 isShutdown = true;
                 final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
-                final Time gracePeriod = Time.seconds(1L);
+                final Duration gracePeriod = Duration.ofSeconds(1L);
 
                 if (metricQueryServiceRpcService != null) {
                     final CompletableFuture<Void> metricQueryServiceRpcServiceTerminationFuture =
@@ -417,14 +416,14 @@ public class MetricRegistryImpl implements MetricRegistry, AutoCloseableAsync {
 
                 final CompletableFuture<Void> reporterExecutorShutdownFuture =
                         ExecutorUtils.nonBlockingShutdown(
-                                gracePeriod.toMilliseconds(),
+                                gracePeriod.toMillis(),
                                 TimeUnit.MILLISECONDS,
                                 reporterScheduledExecutor);
                 terminationFutures.add(reporterExecutorShutdownFuture);
 
                 final CompletableFuture<Void> viewUpdaterExecutorShutdownFuture =
                         ExecutorUtils.nonBlockingShutdown(
-                                gracePeriod.toMilliseconds(),
+                                gracePeriod.toMillis(),
                                 TimeUnit.MILLISECONDS,
                                 viewUpdaterScheduledExecutor);
 

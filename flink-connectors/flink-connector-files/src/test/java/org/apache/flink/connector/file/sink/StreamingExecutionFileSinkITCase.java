@@ -22,7 +22,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -39,6 +38,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -82,7 +82,7 @@ class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
 
         if (triggerFailover) {
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(100)));
+            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Duration.ofMillis(100)));
         } else {
             env.setRestartStrategy(RestartStrategies.noRestart());
         }

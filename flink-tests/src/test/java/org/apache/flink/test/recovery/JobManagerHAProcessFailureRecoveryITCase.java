@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -429,12 +428,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
             int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft)
             throws ExecutionException, InterruptedException {
         FutureUtils.retrySuccessfulWithDelay(
-                        () ->
-                                dispatcherGateway.requestClusterOverview(
-                                        Time.milliseconds(timeLeft.toMillis())),
+                        () -> dispatcherGateway.requestClusterOverview(timeLeft),
                         Duration.ofMillis(50L),
-                        org.apache.flink.api.common.time.Deadline.fromNow(
-                                Duration.ofMillis(timeLeft.toMillis())),
+                        org.apache.flink.api.common.time.Deadline.fromNow(timeLeft),
                         clusterOverview ->
                                 clusterOverview.getNumTaskManagersConnected()
                                         >= numberOfTaskManagers,
