@@ -1078,9 +1078,7 @@ public class AdaptiveScheduler
 
     @Override
     public boolean hasDesiredResources() {
-        final Collection<? extends SlotInfo> freeSlots =
-                declarativeSlotPool.getFreeSlotTracker().getFreeSlotsInformation();
-        return hasDesiredResources(desiredResources, freeSlots);
+        return hasDesiredResources(desiredResources, declarativeSlotPool.getAllSlotsInformation());
     }
 
     @VisibleForTesting
