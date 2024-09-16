@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -54,7 +55,14 @@ public class ForStStateDataTransfer implements Closeable {
 
     protected final ExecutorService executorService;
 
+    private final ForStFlinkFileSystem forStFs;
+
     public ForStStateDataTransfer(int threadNum) {
+        this(threadNum, null);
+    }
+
+    public ForStStateDataTransfer(int threadNum, ForStFlinkFileSystem forStFs) {
+        this.forStFs = forStFs;
         if (threadNum > 1) {
             executorService =
                     Executors.newFixedThreadPool(
@@ -170,7 +178,7 @@ public class ForStStateDataTransfer implements Closeable {
         try {
             final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
-            FileSystem sourceFilesystem = filePath.getFileSystem();
+            FileSystem sourceFilesystem = forStFs == null ? filePath.getFileSystem() : forStFs;
             inputStream = sourceFilesystem.open(filePath, READ_BUFFER_SIZE);
             closeableRegistry.registerCloseable(inputStream);
 

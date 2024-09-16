@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateBackendBuilder;
 import org.apache.flink.runtime.state.StateSerializerProvider;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreResult;
@@ -51,6 +52,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.SortedMap;
@@ -273,12 +275,19 @@ public class ForStKeyedStateBackendBuilder<K>
             @Nonnull
                     SortedMap<Long, Collection<IncrementalKeyedStateHandle.HandleAndLocalPath>>
                             uploadedStateHandles,
-            long lastCompletedCheckpointId) {
+            long lastCompletedCheckpointId)
+            throws IOException {
 
         ForStSnapshotStrategyBase<K, ?> snapshotStrategy;
 
+        ForStFlinkFileSystem forStFs =
+                optionsContainer.getRemoteForStPath() != null
+                        ? (ForStFlinkFileSystem)
+                                ForStFlinkFileSystem.get(
+                                        optionsContainer.getRemoteForStPath().toUri())
+                        : null;
         ForStStateDataTransfer stateTransfer =
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM);
+                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
 
         if (enableIncrementalCheckpointing) {
             snapshotStrategy =
