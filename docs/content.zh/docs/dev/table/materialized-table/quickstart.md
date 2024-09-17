@@ -76,7 +76,7 @@ mkdir -p {savepoints_path}
 tar -xzf flink-*.tgz
 ```
 
-[下载](https://https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) test-filesystem 连接器， 并将其放入 lib 目录：
+[下载](https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) test-filesystem 连接器， 并将其放入 lib 目录：
 
 ```
 cp flink-table-filesystem-test-utils-{VERSION}.jar flink-*/lib/
