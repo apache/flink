@@ -19,63 +19,59 @@
 package org.apache.flink.runtime.state.v2.adaptor;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.state.v2.internal.InternalValueState;
 
 import java.io.IOException;
 
 /**
- * A wrapper that transforms {@link org.apache.flink.api.common.state.ValueState} into {@link
- * ValueState}.
- *
- * @param <V> Type of the value in the state.
+ * An adaptor that transforms {@link org.apache.flink.runtime.state.internal.InternalValueState}
+ * into {@link org.apache.flink.runtime.state.v2.internal.InternalValueState}.
  */
-public class ValueStateWrapper<V> implements ValueState<V> {
-    private final org.apache.flink.api.common.state.ValueState<V> valueState;
+public class ValueStateAdaptor<K, N, V>
+        extends StateAdaptor<
+                K, N, org.apache.flink.runtime.state.internal.InternalValueState<K, N, V>>
+        implements InternalValueState<K, N, V> {
 
-    public ValueStateWrapper(org.apache.flink.api.common.state.ValueState<V> valueState) {
-        this.valueState = valueState;
+    public ValueStateAdaptor(
+            org.apache.flink.runtime.state.internal.InternalValueState<K, N, V> valueState) {
+        super(valueState);
     }
 
+    @Override
     public StateFuture<V> asyncValue() {
         try {
-            return StateFutureUtils.completedFuture(valueState.value());
+            return StateFutureUtils.completedFuture(delegatedState.value());
         } catch (Exception e) {
             throw new RuntimeException("Error while getting value from raw ValueState", e);
         }
     }
 
+    @Override
     public StateFuture<Void> asyncUpdate(V value) {
         try {
-            valueState.update(value);
+            delegatedState.update(value);
         } catch (IOException e) {
-            throw new RuntimeException("Error while updating value from raw ValueState", e);
+            throw new RuntimeException("Error while updating value to raw ValueState", e);
         }
         return StateFutureUtils.completedVoidFuture();
     }
 
+    @Override
     public V value() {
         try {
-            return valueState.value();
+            return delegatedState.value();
         } catch (Exception e) {
             throw new RuntimeException("Error while getting value from raw ValueState", e);
         }
     }
 
+    @Override
     public void update(V value) {
         try {
-            valueState.update(value);
+            delegatedState.update(value);
         } catch (IOException e) {
-            throw new RuntimeException("Error while updating value from raw ValueState", e);
+            throw new RuntimeException("Error while updating value to raw ValueState", e);
         }
-    }
-
-    public StateFuture<Void> asyncClear() {
-        valueState.clear();
-        return StateFutureUtils.completedVoidFuture();
-    }
-
-    public void clear() {
-        valueState.clear();
     }
 }
