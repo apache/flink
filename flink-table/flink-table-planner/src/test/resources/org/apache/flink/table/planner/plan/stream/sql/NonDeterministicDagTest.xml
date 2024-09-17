@@ -3330,7 +3330,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d], upsertMaterialize=[true])
-+- GroupAggregate(groupBy=[a, b, c, d], select=[a, b, c, d])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a, b, c, d], orderBy=[a ASC, b ASC, c ASC, d ASC], select=[a, b, c, d])
    +- Exchange(distribution=[hash[a, b, c, d]])
       +- Union(all=[true], union=[a, b, c, d])
          :- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])

@@ -210,7 +210,7 @@ LogicalAggregate(group=[{0}])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupAggregate(groupBy=[EXPR$0], select=[EXPR$0])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[EXPR$0], orderBy=[EXPR$0 ASC], select=[EXPR$0])
 +- Exchange(distribution=[hash[EXPR$0]])
    +- Calc(select=[EXPR$0])
       +- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS EXPR$0])
