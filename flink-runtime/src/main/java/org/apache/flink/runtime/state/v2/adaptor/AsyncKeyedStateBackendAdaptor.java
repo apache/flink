@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.v2.adaptor;
 
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
@@ -32,6 +31,11 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.internal.InternalAggregatingState;
+import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.internal.InternalReducingState;
+import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
 
@@ -57,6 +61,7 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend 
 
     @Nonnull
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public <N, S extends State, SV> S createState(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
@@ -65,10 +70,19 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend 
         org.apache.flink.api.common.state.StateDescriptor rawStateDesc =
                 StateDescriptorUtils.transformFromV2ToV1(stateDesc);
         org.apache.flink.api.common.state.State rawState =
-                keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, rawStateDesc);
+                keyedStateBackend.getPartitionedState(
+                        defaultNamespace, namespaceSerializer, rawStateDesc);
         switch (rawStateDesc.getType()) {
             case VALUE:
-                return (S) new ValueStateWrapper((ValueState) rawState);
+                return (S) new ValueStateAdaptor((InternalValueState) rawState);
+            case LIST:
+                return (S) new ListStateAdaptor<>((InternalListState) rawState);
+            case REDUCING:
+                return (S) new ReducingStateAdaptor<>((InternalReducingState) rawState);
+            case AGGREGATING:
+                return (S) new AggregatingStateAdaptor<>((InternalAggregatingState) rawState);
+            case MAP:
+                return (S) new MapStateAdaptor<>((InternalMapState) rawState);
             default:
                 throw new UnsupportedOperationException(
                         String.format("Unsupported state type: %s", rawStateDesc.getType()));

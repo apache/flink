@@ -18,35 +18,35 @@
 
 package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
-import org.apache.flink.runtime.state.Keyed;
-import org.apache.flink.runtime.state.KeyedStateFunction;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.PriorityComparable;
-import org.apache.flink.runtime.state.SavepointResources;
-import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
+import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
+import org.apache.flink.runtime.state.v2.internal.InternalReducingState;
 
 import org.junit.jupiter.api.Test;
 
-import javax.annotation.Nonnull;
-
-import java.io.IOException;
-import java.util.concurrent.RunnableFuture;
-import java.util.stream.Stream;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,10 +54,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class AsyncKeyedStateBackendAdaptorTest {
 
     @Test
-    public void testAdapt() throws Exception {
-        CheckpointableKeyedStateBackend<Integer> keyedStateBackend = new TestKeyedStateBackend();
-        AsyncKeyedStateBackendAdaptor<Integer> adaptor =
+    public void testValueStateAdaptor() throws Exception {
+        CheckpointableKeyedStateBackend<String> keyedStateBackend = createBackend();
+        AsyncKeyedStateBackendAdaptor<String> adaptor =
                 new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
+        keyedStateBackend.setCurrentKey("test");
         StateDescriptor<Integer> descriptor =
                 new ValueStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
 
@@ -74,159 +75,373 @@ public class AsyncKeyedStateBackendAdaptorTest {
         // test asynchronous interfaces.
         valueState
                 .asyncClear()
-                .thenAccept(
+                .thenCompose(
                         clear -> {
                             assertThat(valueState.value()).isNull();
-                            valueState
-                                    .asyncUpdate(20)
-                                    .thenCompose(
-                                            empty -> {
-                                                assertThat(valueState.value()).isEqualTo(20);
-                                                return valueState.asyncValue();
-                                            })
-                                    .thenAccept(
-                                            value -> {
-                                                assertThat(value).isEqualTo(20);
-                                            });
+                            return valueState.asyncUpdate(20);
+                        })
+                .thenCompose(
+                        empty -> {
+                            assertThat(valueState.value()).isEqualTo(20);
+                            return valueState.asyncValue();
+                        })
+                .thenAccept(
+                        value -> {
+                            assertThat(value).isEqualTo(20);
                         });
+        adaptor.close();
     }
 
-    static class TestValueState implements ValueState<Integer> {
-        private Integer value;
+    @Test
+    public void testListStateAdaptor() throws Exception {
+        CheckpointableKeyedStateBackend<String> keyedStateBackend = createBackend();
+        AsyncKeyedStateBackendAdaptor<String> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
+        keyedStateBackend.setCurrentKey("test");
+        StateDescriptor<Integer> descriptor =
+                new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
 
-        TestValueState() {
-            this.value = null;
-        }
+        org.apache.flink.api.common.state.v2.ListState<Integer> listState =
+                adaptor.createState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
-        @Override
-        public Integer value() throws IOException {
-            return value;
-        }
+        // test synchronous interfaces.
+        listState.clear();
+        assertThat(listState.get()).isNull();
+        listState.add(10);
+        assertThat(listState.get()).containsExactlyInAnyOrderElementsOf(Arrays.asList(10));
+        listState.addAll(Arrays.asList(20, 30));
+        assertThat(listState.get()).containsExactlyInAnyOrderElementsOf(Arrays.asList(10, 20, 30));
+        listState.update(Arrays.asList(40, 50));
+        assertThat(listState.get()).containsExactlyInAnyOrderElementsOf(Arrays.asList(40, 50));
 
-        @Override
-        public void update(Integer value) throws IOException {
-            this.value = value;
-        }
-
-        @Override
-        public void clear() {
-            this.value = null;
-        }
+        // test asynchronous interfaces.
+        listState
+                .asyncClear()
+                .thenCompose(
+                        clear -> {
+                            assertThat(listState.get()).isNull();
+                            return listState.asyncAdd(10);
+                        })
+                .thenCompose(
+                        empty -> {
+                            assertThat(listState.get())
+                                    .containsExactlyInAnyOrderElementsOf(Arrays.asList(10));
+                            return listState.asyncAddAll(Arrays.asList(20, 30));
+                        })
+                .thenCompose(
+                        empty -> {
+                            assertThat(listState.get())
+                                    .containsExactlyInAnyOrderElementsOf(Arrays.asList(10, 20, 30));
+                            return listState.asyncUpdate(Arrays.asList(40, 50));
+                        })
+                .thenAccept(
+                        empty -> {
+                            assertThat(listState.get())
+                                    .containsExactlyInAnyOrderElementsOf(Arrays.asList(40, 50));
+                        });
+        adaptor.close();
     }
 
-    static class TestKeyedStateBackend implements CheckpointableKeyedStateBackend<Integer> {
+    @Test
+    public void testMapStateAdaptor() throws Exception {
+        CheckpointableKeyedStateBackend<String> keyedStateBackend = createBackend();
+        AsyncKeyedStateBackendAdaptor<String> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
+        keyedStateBackend.setCurrentKey("test");
+        StateDescriptor<Integer> descriptor =
+                new MapStateDescriptor<>(
+                        "testState", BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
-        @Override
-        public void setCurrentKey(Integer newKey) {}
+        org.apache.flink.api.common.state.v2.MapState<Integer, Integer> mapState =
+                adaptor.createState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
-        @Override
-        public Integer getCurrentKey() {
-            return 0;
-        }
+        final HashMap<Integer, Integer> groundTruth =
+                new HashMap<Integer, Integer>() {
+                    {
+                        put(10, 100);
+                        put(20, 200);
+                    }
+                };
 
-        @Override
-        public TypeSerializer<Integer> getKeySerializer() {
-            return null;
-        }
+        // test synchronous interfaces.
+        mapState.clear();
+        assertThat(mapState.isEmpty()).isTrue();
+        mapState.put(10, 100);
+        assertThat(mapState.get(10)).isEqualTo(100);
+        mapState.putAll(
+                new HashMap<Integer, Integer>() {
+                    {
+                        put(20, 200);
+                    }
+                });
+        assertThat(mapState.get(20)).isEqualTo(200);
+        assertThat(mapState.contains(20)).isTrue();
+        assertThat(mapState.entries()).containsExactlyInAnyOrderElementsOf(groundTruth.entrySet());
+        assertThat(mapState.keys()).containsExactlyInAnyOrderElementsOf(groundTruth.keySet());
+        assertThat(mapState.values()).containsExactlyInAnyOrderElementsOf(groundTruth.values());
+        assertThat(mapState.iterator())
+                .toIterable()
+                .containsExactlyInAnyOrderElementsOf(groundTruth.entrySet());
 
-        @Override
-        public <N, S extends State, T> void applyToAllKeys(
-                N namespace,
-                TypeSerializer<N> namespaceSerializer,
-                org.apache.flink.api.common.state.StateDescriptor<S, T> stateDescriptor,
-                KeyedStateFunction<Integer, S> function)
-                throws Exception {}
+        // test asynchronous interfaces.
+        mapState.asyncClear()
+                .thenCompose(
+                        clear -> {
+                            assertThat(mapState.isEmpty()).isTrue();
+                            return mapState.asyncPut(10, 100);
+                        })
+                .thenCompose(
+                        empty -> {
+                            assertThat(mapState.get(10)).isEqualTo(100);
+                            return mapState.asyncPutAll(groundTruth);
+                        })
+                .thenCompose(
+                        empty -> {
+                            assertThat(mapState.get(20)).isEqualTo(200);
+                            return mapState.asyncContains(20);
+                        })
+                .thenCompose(
+                        contains -> {
+                            assertThat(contains).isTrue();
+                            return mapState.asyncEntries();
+                        })
+                .thenCompose(
+                        iterator -> {
+                            HashMap<Integer, Integer> iterated = new HashMap<>();
+                            iterator.onNext(
+                                    entry -> {
+                                        iterated.put(entry.getKey(), entry.getValue());
+                                    });
+                            assertThat(iterated.entrySet())
+                                    .containsExactlyInAnyOrderElementsOf(groundTruth.entrySet());
+                            return mapState.asyncKeys();
+                        })
+                .thenCompose(
+                        iterator -> {
+                            HashSet<Integer> iterated = new HashSet<>();
+                            iterator.onNext(iterated::add);
+                            assertThat(iterated)
+                                    .containsExactlyInAnyOrderElementsOf(groundTruth.keySet());
+                            return mapState.asyncValues();
+                        })
+                .thenAccept(
+                        iterator -> {
+                            HashSet<Integer> iterated = new HashSet<>();
+                            iterator.onNext(iterated::add);
+                            assertThat(iterated)
+                                    .containsExactlyInAnyOrderElementsOf(groundTruth.values());
+                        });
+        adaptor.close();
+    }
 
-        @Override
-        public <N> Stream<Integer> getKeys(String state, N namespace) {
-            return Stream.empty();
-        }
+    @Test
+    public void testReducingStateAdaptor() throws Exception {
+        CheckpointableKeyedStateBackend<String> keyedStateBackend = createBackend();
+        AsyncKeyedStateBackendAdaptor<String> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
+        keyedStateBackend.setCurrentKey("test");
+        StateDescriptor<Integer> descriptor =
+                new ReducingStateDescriptor<>(
+                        "testState", Integer::sum, BasicTypeInfo.INT_TYPE_INFO);
 
-        @Override
-        public <N> Stream<Tuple2<Integer, N>> getKeysAndNamespaces(String state) {
-            return Stream.empty();
-        }
+        InternalReducingState<String, Long, Integer> reducingState =
+                adaptor.createState(0L, LongSerializer.INSTANCE, descriptor);
 
-        @Override
-        public <N, S extends State, T> S getOrCreateKeyedState(
-                TypeSerializer<N> namespaceSerializer,
-                org.apache.flink.api.common.state.StateDescriptor<S, T> stateDescriptor)
-                throws Exception {
-            switch (stateDescriptor.getType()) {
-                case VALUE:
-                    return (S) new TestValueState();
-                default:
-                    throw new IllegalArgumentException(
-                            "Unsupported state type: " + stateDescriptor.getType());
-            }
-        }
+        // test synchronous interfaces.
+        reducingState.clear();
+        assertThat(reducingState.get()).isNull();
+        reducingState.add(10);
+        assertThat(reducingState.get()).isEqualTo(10);
+        reducingState.add(20);
+        assertThat(reducingState.get()).isEqualTo(30);
+        reducingState.setCurrentNamespace(1L);
+        assertThat(reducingState.get()).isNull();
+        reducingState.add(30);
+        reducingState.mergeNamespaces(0L, Arrays.asList(0L, 1L));
+        reducingState.setCurrentNamespace(0L);
+        assertThat(reducingState.get()).isEqualTo(60);
+        reducingState.setCurrentNamespace(1L);
+        assertThat(reducingState.get()).isNull();
 
-        @Override
-        public <N, S extends State> S getPartitionedState(
-                N namespace,
-                TypeSerializer<N> namespaceSerializer,
-                org.apache.flink.api.common.state.StateDescriptor<S, ?> stateDescriptor)
-                throws Exception {
-            return null;
-        }
+        // test asynchronous interfaces.
+        reducingState.setCurrentNamespace(0L);
+        reducingState
+                .asyncClear()
+                .thenCompose(
+                        clear -> {
+                            assertThat(reducingState.get()).isNull();
+                            return reducingState.asyncAdd(10);
+                        })
+                .thenCompose(
+                        empty -> {
+                            return reducingState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isEqualTo(10);
+                            return reducingState.asyncAdd(20);
+                        })
+                .thenCompose(
+                        empty -> {
+                            return reducingState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isEqualTo(30);
+                            reducingState.setCurrentNamespace(1L);
+                            return reducingState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isNull();
+                            return reducingState.asyncAdd(30);
+                        })
+                .thenCompose(
+                        empty -> {
+                            return reducingState.asyncMergeNamespaces(0L, Arrays.asList(0L, 1L));
+                        })
+                .thenCompose(
+                        empty -> {
+                            reducingState.setCurrentNamespace(0L);
+                            return reducingState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isEqualTo(60);
+                            reducingState.setCurrentNamespace(1L);
+                            return reducingState.asyncGet();
+                        })
+                .thenAccept(
+                        value -> {
+                            assertThat(value).isNull();
+                        });
+        adaptor.close();
+    }
 
-        @Override
-        public void dispose() {}
+    @Test
+    public void testAggregatingStateAdaptor() throws Exception {
+        CheckpointableKeyedStateBackend<String> keyedStateBackend = createBackend();
+        AsyncKeyedStateBackendAdaptor<String> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
+        keyedStateBackend.setCurrentKey("test");
+        StateDescriptor<Integer> descriptor =
+                new AggregatingStateDescriptor<>(
+                        "testState",
+                        new AggregateFunction<Integer, Integer, String>() {
+                            @Override
+                            public Integer createAccumulator() {
+                                return 0;
+                            }
 
-        @Override
-        public void registerKeySelectionListener(KeySelectionListener<Integer> listener) {}
+                            @Override
+                            public Integer add(Integer value, Integer accumulator) {
+                                return accumulator + value;
+                            }
 
-        @Override
-        public boolean deregisterKeySelectionListener(KeySelectionListener<Integer> listener) {
-            return false;
-        }
+                            @Override
+                            public String getResult(Integer accumulator) {
+                                return accumulator.toString();
+                            }
 
-        @Nonnull
-        @Override
-        public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(
-                @Nonnull TypeSerializer<N> namespaceSerializer,
-                @Nonnull org.apache.flink.api.common.state.StateDescriptor<S, SV> stateDesc,
-                @Nonnull
-                        StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
-                                snapshotTransformFactory)
-                throws Exception {
-            return null;
-        }
+                            @Override
+                            public Integer merge(Integer a, Integer b) {
+                                return a + b;
+                            }
+                        },
+                        BasicTypeInfo.INT_TYPE_INFO);
 
-        @Nonnull
-        @Override
-        public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
-                KeyGroupedInternalPriorityQueue<T> create(
-                        @Nonnull String stateName,
-                        @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-            return null;
-        }
+        InternalAggregatingState<String, Long, Integer, Integer, String> aggState =
+                adaptor.createState(0L, LongSerializer.INSTANCE, descriptor);
 
-        @Override
-        public KeyGroupRange getKeyGroupRange() {
-            throw new UnsupportedOperationException();
-        }
+        // test synchronous interfaces.
+        aggState.clear();
+        assertThat(aggState.get()).isNull();
+        aggState.add(10);
+        assertThat(aggState.get()).isEqualTo("10");
+        aggState.add(20);
+        assertThat(aggState.get()).isEqualTo("30");
+        aggState.setCurrentNamespace(1L);
+        assertThat(aggState.get()).isNull();
+        aggState.add(30);
+        aggState.mergeNamespaces(0L, Arrays.asList(0L, 1L));
+        aggState.setCurrentNamespace(0L);
+        assertThat(aggState.get()).isEqualTo("60");
+        aggState.setCurrentNamespace(1L);
+        assertThat(aggState.get()).isNull();
 
-        @Nonnull
-        @Override
-        public SavepointResources<Integer> savepoint() throws Exception {
-            throw new UnsupportedOperationException();
-        }
+        // test asynchronous interfaces.
+        aggState.setCurrentNamespace(0L);
+        aggState.asyncClear()
+                .thenCompose(
+                        clear -> {
+                            assertThat(aggState.get()).isNull();
+                            return aggState.asyncAdd(10);
+                        })
+                .thenCompose(
+                        empty -> {
+                            return aggState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isEqualTo("10");
+                            return aggState.asyncAdd(20);
+                        })
+                .thenCompose(
+                        empty -> {
+                            return aggState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isEqualTo("30");
+                            aggState.setCurrentNamespace(1L);
+                            return aggState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isNull();
+                            return aggState.asyncAdd(30);
+                        })
+                .thenCompose(
+                        empty -> {
+                            return aggState.asyncMergeNamespaces(0L, Arrays.asList(0L, 1L));
+                        })
+                .thenCompose(
+                        empty -> {
+                            aggState.setCurrentNamespace(0L);
+                            return aggState.asyncGet();
+                        })
+                .thenCompose(
+                        value -> {
+                            assertThat(value).isEqualTo("60");
+                            aggState.setCurrentNamespace(1L);
+                            return aggState.asyncGet();
+                        })
+                .thenAccept(
+                        value -> {
+                            assertThat(value).isNull();
+                        });
+        adaptor.close();
+    }
 
-        @Override
-        public void close() throws IOException {
-            // nothing to do
-        }
-
-        @Nonnull
-        @Override
-        public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
-                long checkpointId,
-                long timestamp,
-                @Nonnull CheckpointStreamFactory streamFactory,
-                @Nonnull CheckpointOptions checkpointOptions)
-                throws Exception {
-            throw new UnsupportedOperationException();
-        }
+    private static CheckpointableKeyedStateBackend<String> createBackend() throws Exception {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        return new HeapKeyedStateBackendBuilder<String>(
+                        new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+                        StringSerializer.INSTANCE,
+                        ClassLoader.getSystemClassLoader(),
+                        128,
+                        new KeyGroupRange(0, 127),
+                        executionConfig,
+                        TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
+                        Collections.EMPTY_LIST,
+                        AbstractStateBackend.getCompressionDecorator(executionConfig),
+                        TestLocalRecoveryConfig.disabled(),
+                        new HeapPriorityQueueSetFactory(new KeyGroupRange(0, 127), 128, 128),
+                        true,
+                        new CloseableRegistry())
+                .build();
     }
 }
