@@ -42,6 +42,10 @@ public class TestSlotInfo implements SlotInfo {
         this(new AllocationID(), resourceProfile);
     }
 
+    public TestSlotInfo(TaskManagerLocation tml) {
+        this(new AllocationID(), ResourceProfile.ANY, tml);
+    }
+
     public TestSlotInfo(AllocationID allocationId, ResourceProfile resourceProfile) {
         this(allocationId, resourceProfile, new LocalTaskManagerLocation());
     }
