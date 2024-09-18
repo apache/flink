@@ -58,59 +58,6 @@ public class CheckpointConfig implements java.io.Serializable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointConfig.class);
 
-    @Deprecated
-    /**
-     * The default checkpoint mode: exactly once.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE} instead.
-     */
-    public static final org.apache.flink.streaming.api.CheckpointingMode DEFAULT_MODE =
-            ExecutionCheckpointingOptions.CHECKPOINTING_MODE.defaultValue();
-
-    /**
-     * The default timeout of a checkpoint attempt: 10 minutes.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT} instead.
-     */
-    @Deprecated
-    public static final long DEFAULT_TIMEOUT =
-            ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue().toMillis();
-
-    /**
-     * The default minimum pause to be made between checkpoints: none.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS} instead.
-     */
-    @Deprecated
-    public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS =
-            ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS.defaultValue().toMillis();
-
-    /**
-     * The default limit of concurrently happening checkpoints: one.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS} instead.
-     */
-    @Deprecated
-    public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS =
-            ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue();
-
-    /** @deprecated This field is no longer used. */
-    @Deprecated public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
-
-    /**
-     * Default id of checkpoint for which in-flight data should be ignored on recovery.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
-     */
-    @Deprecated
-    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
-            StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA.defaultValue().intValue();
-
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -163,7 +110,8 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated
     public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
-        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE);
+        return org.apache.flink.streaming.api.CheckpointingMode.convertFromCheckpointingMode(
+                configuration.get(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE));
     }
 
     /**
@@ -175,7 +123,10 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     public void setCheckpointingMode(
             org.apache.flink.streaming.api.CheckpointingMode checkpointingMode) {
-        configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, checkpointingMode);
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode(
+                        checkpointingMode));
     }
 
     /**
@@ -567,13 +518,13 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * Only relevant if {@link #isUnalignedCheckpointsEnabled} is enabled.
      *
-     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to
-     * <code>0</code>, checkpoints will always start unaligned.
+     * <p>If {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to <code>0
+     * </code>, checkpoints will always start unaligned.
      *
-     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value greater then
-     * <code>0</code>, checkpoints will start aligned. If during checkpointing, checkpoint start
-     * delay exceeds this {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT},
-     * alignment will timeout and checkpoint will start working as unaligned checkpoint.
+     * <p>If {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value greater then <code>0
+     * </code>, checkpoints will start aligned. If during checkpointing, checkpoint start delay
+     * exceeds this {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}, alignment will timeout
+     * and checkpoint will start working as unaligned checkpoint.
      *
      * @deprecated Use {@link #setAlignedCheckpointTimeout(Duration)} instead.
      */
@@ -585,7 +536,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     /**
      * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
-     *     or {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+     *     or {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}.
      * @deprecated User {@link #getAlignedCheckpointTimeout()} instead.
      */
     @Deprecated
@@ -605,7 +556,7 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Only relevant if {@link CheckpointingOptions.ENABLE_UNALIGNED} is enabled.
+     * Only relevant if {@link CheckpointingOptions#ENABLE_UNALIGNED} is enabled.
      *
      * <p>If {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to <code>0
      * </code>, checkpoints will

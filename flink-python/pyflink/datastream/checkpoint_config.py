@@ -27,31 +27,7 @@ __all__ = ['CheckpointConfig']
 class CheckpointConfig(object):
     """
     Configuration that captures all checkpointing related settings.
-
-    :data:`DEFAULT_MODE`:
-
-    The default checkpoint mode: exactly once.
-
-    :data:`DEFAULT_TIMEOUT`:
-
-    The default timeout of a checkpoint attempt: 10 minutes.
-
-    :data:`DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS`:
-
-    The default minimum pause to be made between checkpoints: none.
-
-    :data:`DEFAULT_MAX_CONCURRENT_CHECKPOINTS`:
-
-    The default limit of concurrently happening checkpoints: one.
     """
-
-    DEFAULT_MODE = CheckpointingMode.EXACTLY_ONCE
-
-    DEFAULT_TIMEOUT = 10 * 60 * 1000
-
-    DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS = 0
-
-    DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1
 
     def __init__(self, j_checkpoint_config):
         self._j_checkpoint_config = j_checkpoint_config

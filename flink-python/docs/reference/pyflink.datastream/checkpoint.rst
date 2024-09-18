@@ -26,32 +26,11 @@ CheckpointConfig
 
 Configuration that captures all checkpointing related settings.
 
-:data:`DEFAULT_MODE`:
-
-The default checkpoint mode: exactly once.
-
-:data:`DEFAULT_TIMEOUT`:
-
-The default timeout of a checkpoint attempt: 10 minutes.
-
-:data:`DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS`:
-
-The default minimum pause to be made between checkpoints: none.
-
-:data:`DEFAULT_MAX_CONCURRENT_CHECKPOINTS`:
-
-The default limit of concurrently happening checkpoints: one.
-
 .. currentmodule:: pyflink.datastream.checkpoint_config
 
 .. autosummary::
     :toctree: api/
 
-    CheckpointConfig.DEFAULT_MODE
-    CheckpointConfig.DEFAULT_TIMEOUT
-    CheckpointConfig.DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS
-    CheckpointConfig.DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS
-    CheckpointConfig.DEFAULT_MAX_CONCURRENT_CHECKPOINTS
     CheckpointConfig.is_checkpointing_enabled
     CheckpointConfig.get_checkpointing_mode
     CheckpointConfig.set_checkpointing_mode
