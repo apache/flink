@@ -120,7 +120,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static final String NUM_FAILURES = "failures";
     protected static final String NUM_DUPLICATES = "duplicates";
     protected static final String NUM_LOST = "lost";
-    protected static final int BUFFER_PER_CHANNEL = 1;
     /** For multi-gate tests. */
     protected static final int NUM_SOURCES = 3;
 
@@ -684,7 +683,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 CheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue();
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
-        private int buffersPerChannel = 1;
         private long sourceSleepMs = 0;
 
         public UnalignedSettings(DagCreator dagCreator) {
@@ -736,11 +734,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
-        public UnalignedSettings setBuffersPerChannel(int buffersPerChannel) {
-            this.buffersPerChannel = buffersPerChannel;
-            return this;
-        }
-
         public UnalignedSettings setSourceSleepMs(long sourceSleepMs) {
             this.sourceSleepMs = sourceSleepMs;
             return this;
@@ -779,7 +772,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             conf.set(
                     ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
                     SharedPoolNettyShuffleServiceFactory.class.getName());
-            conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
             // half memory consumption of network buffers (default is 64mb), as some tests spawn a
             // large number of task managers (25)

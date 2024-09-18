@@ -31,7 +31,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -102,22 +101,16 @@ public class RescalingITCase extends TestLogger {
     private static final int slotsPerTaskManager = 2;
     private static final int numSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}")
+    @Parameterized.Parameters(name = "backend = {0}")
     public static Collection<Object[]> data() {
-        return Arrays.asList(
-                new Object[][] {
-                    {"filesystem", 2}, {"rocksdb", 0}, {"filesystem", 0}, {"rocksdb", 2}
-                });
+        return Arrays.asList(new Object[][] {{"filesystem"}, {"rocksdb"}});
     }
 
-    public RescalingITCase(String backend, int buffersPerChannel) {
+    public RescalingITCase(String backend) {
         this.backend = backend;
-        this.buffersPerChannel = buffersPerChannel;
     }
 
     private final String backend;
-
-    private final int buffersPerChannel;
 
     private String currentBackend = null;
 
@@ -149,8 +142,6 @@ public class RescalingITCase extends TestLogger {
             config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
             config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-            config.set(
-                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             cluster =
                     new MiniClusterWithClientResource(

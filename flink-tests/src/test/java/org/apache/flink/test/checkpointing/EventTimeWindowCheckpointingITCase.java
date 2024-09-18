@@ -29,7 +29,6 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
@@ -109,8 +108,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
     public StateBackendEnum stateBackendEnum;
 
-    private final int buffersPerChannel;
-
     enum StateBackendEnum {
         MEM,
         FILE,
@@ -119,18 +116,16 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         ROCKSDB_INCREMENTAL_ZK,
     }
 
-    @Parameterized.Parameters(name = "statebackend type ={0}, buffersPerChannel = {1}")
+    @Parameterized.Parameters(name = "statebackend type ={0}")
     public static Collection<Object[]> parameter() {
         return Arrays.stream(StateBackendEnum.values())
-                .map((type) -> new Object[][] {{type, 0}, {type, 2}})
+                .map((type) -> new Object[][] {{type}})
                 .flatMap(Arrays::stream)
                 .collect(Collectors.toList());
     }
 
-    public EventTimeWindowCheckpointingITCase(
-            StateBackendEnum stateBackendEnum, int buffersPerChannel) {
+    public EventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
         this.stateBackendEnum = stateBackendEnum;
-        this.buffersPerChannel = buffersPerChannel;
     }
 
     protected StateBackendEnum getStateBackend() {
@@ -168,7 +163,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         Configuration config = createClusterConfig();
-        config.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
         switch (stateBackendEnum) {
             case MEM:

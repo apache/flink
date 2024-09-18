@@ -53,9 +53,7 @@ class NettyShuffleEnvironmentConfigurationTest {
      * Verifies that {@link NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration,
      * MemorySize, boolean, InetAddress)} returns the correct result for new configurations via
      * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL}, {@link
-     * NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX}, {@link
-     * NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and {@link
-     * NettyShuffleEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
+     * NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX}
      */
     @Test
     void testNetworkRequestBackoffAndBuffers() {
@@ -64,8 +62,6 @@ class NettyShuffleEnvironmentConfigurationTest {
         final Configuration config = new Configuration();
         config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
         config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        config.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
-        config.set(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
         final NettyShuffleEnvironmentConfiguration networkConfig =
                 NettyShuffleEnvironmentConfiguration.fromConfiguration(
@@ -73,8 +69,6 @@ class NettyShuffleEnvironmentConfigurationTest {
 
         assertThat(networkConfig.partitionRequestInitialBackoff()).isEqualTo(100);
         assertThat(networkConfig.partitionRequestMaxBackoff()).isEqualTo(200);
-        assertThat(networkConfig.networkBuffersPerChannel()).isEqualTo(10);
-        assertThat(networkConfig.floatingNetworkBuffersPerGate()).isEqualTo(100);
     }
 
     /** Verifies the correlation of sort-merge blocking shuffle config options. */

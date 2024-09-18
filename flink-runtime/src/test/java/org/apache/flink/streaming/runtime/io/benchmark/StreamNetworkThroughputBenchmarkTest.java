@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -82,11 +80,7 @@ class StreamNetworkThroughputBenchmarkTest {
                                         100,
                                         false,
                                         writers * channels - 1,
-                                        writers
-                                                * channels
-                                                * NettyShuffleEnvironmentOptions
-                                                        .NETWORK_BUFFERS_PER_CHANNEL
-                                                        .defaultValue()))
+                                        writers * channels * 2))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Insufficient number of network buffers");
     }
@@ -105,12 +99,7 @@ class StreamNetworkThroughputBenchmarkTest {
                                         100,
                                         false,
                                         writers * channels,
-                                        writers
-                                                        * channels
-                                                        * NettyShuffleEnvironmentOptions
-                                                                .NETWORK_BUFFERS_PER_CHANNEL
-                                                                .defaultValue()
-                                                - 1))
+                                        writers * channels * 2 - 1))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Insufficient number of network buffers");
     }
@@ -127,11 +116,7 @@ class StreamNetworkThroughputBenchmarkTest {
                 100,
                 false,
                 writers * channels + writers,
-                writers
-                        + writers
-                                * channels
-                                * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL
-                                        .defaultValue());
+                writers + writers * channels * 2);
         env.executeBenchmark(10_000);
         env.tearDown();
     }

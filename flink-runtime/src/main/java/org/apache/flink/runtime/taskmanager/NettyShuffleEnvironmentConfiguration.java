@@ -304,17 +304,14 @@ public class NettyShuffleEnvironmentConfiguration {
                                                 .NETWORK_PARTITION_REQUEST_TIMEOUT)
                                 .toMillis();
 
-        int buffersPerChannel =
-                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
-        int extraBuffersPerGate =
-                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+        int buffersPerChannel = 2;
+        int extraBuffersPerGate = 8;
 
         Optional<Integer> maxRequiredBuffersPerGate =
                 configuration.getOptional(
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE);
 
-        int maxBuffersPerChannel =
-                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
+        int maxBuffersPerChannel = 10;
 
         long batchShuffleReadMemoryBytes =
                 configuration.get(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY).getBytes();
@@ -349,18 +346,12 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.get(
                         NettyShuffleEnvironmentOptions.TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED);
 
-        checkArgument(buffersPerChannel >= 0, "Must be non-negative.");
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
                 String.format(
                         "At least one buffer is required for each gate, please increase the value of %s.",
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE
                                 .key()));
-        checkArgument(
-                extraBuffersPerGate >= 1,
-                String.format(
-                        "The configured floating buffer should be at least 1, please increase the value of %s.",
-                        NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.key()));
 
         TieredStorageConfiguration tieredStorageConfiguration = null;
         if ((configuration.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_FULL
