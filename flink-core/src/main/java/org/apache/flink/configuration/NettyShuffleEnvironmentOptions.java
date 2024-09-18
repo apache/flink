@@ -119,18 +119,6 @@ public class NettyShuffleEnvironmentOptions {
                             "Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
     /**
-     * Number of buffers used in the network stack. This defines the number of possible tasks and
-     * shuffles.
-     *
-     * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION}, {@link
-     *     TaskManagerOptions#NETWORK_MEMORY_MIN}, and {@link TaskManagerOptions#NETWORK_MEMORY_MAX}
-     *     instead
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
-            key("taskmanager.network.numberOfBuffers").intType().defaultValue(2048);
-
-    /**
      * The maximum number of network read buffers that are required by an input gate. (An input gate
      * is responsible for reading data from all subtasks of an upstream task.) The number of buffers
      * needed by an input gate is dynamically calculated in runtime, depending on various factors
