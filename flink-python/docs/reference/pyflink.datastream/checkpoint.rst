@@ -67,10 +67,7 @@ The default limit of concurrently happening checkpoints: one.
     CheckpointConfig.set_fail_on_checkpointing_errors
     CheckpointConfig.get_tolerable_checkpoint_failure_number
     CheckpointConfig.set_tolerable_checkpoint_failure_number
-    CheckpointConfig.enable_externalized_checkpoints
-    CheckpointConfig.set_externalized_checkpoint_cleanup
     CheckpointConfig.is_externalized_checkpoints_enabled
-    CheckpointConfig.get_externalized_checkpoint_cleanup
     CheckpointConfig.is_unaligned_checkpoints_enabled
     CheckpointConfig.enable_unaligned_checkpoints
     CheckpointConfig.disable_unaligned_checkpoints
@@ -78,7 +75,6 @@ The default limit of concurrently happening checkpoints: one.
     CheckpointConfig.get_alignment_timeout
     CheckpointConfig.set_force_unaligned_checkpoints
     CheckpointConfig.is_force_unaligned_checkpoints
-    ExternalizedCheckpointCleanup
     ExternalizedCheckpointRetention
 
 
