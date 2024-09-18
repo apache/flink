@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.json;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -78,13 +78,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Deserializes a <code>byte[]</code> message as a JSON object and reads the specified fields.
  *
  * <p>Failures during deserialization are forwarded as wrapped IOExceptions.
- *
- * @deprecated The format was developed for the Table API users and will not be maintained for
- *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
- *     own {@link DeserializationSchema}.
  */
-@PublicEvolving
-@Deprecated
+@Internal
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {
 
     private static final long serialVersionUID = -228294330688809195L;
@@ -92,14 +87,14 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
     /** Type information describing the result type. */
     private final RowTypeInfo typeInfo;
 
-    private boolean failOnMissingField;
+    private final boolean failOnMissingField;
 
     private final boolean hasDecimalType;
 
     /** Object mapper for parsing the JSON. */
     private transient ObjectMapper objectMapper;
 
-    private DeserializationRuntimeConverter runtimeConverter;
+    private final DeserializationRuntimeConverter runtimeConverter;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
@@ -128,24 +123,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         }
     }
 
-    /** @deprecated Use the provided {@link Builder} instead. */
-    @Deprecated
     public JsonRowDeserializationSchema(TypeInformation<Row> typeInfo) {
         this(typeInfo, false, false);
     }
 
-    /** @deprecated Use the provided {@link Builder} instead. */
-    @Deprecated
     public JsonRowDeserializationSchema(String jsonSchema) {
         this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false, false);
-    }
-
-    /** @deprecated Use the provided {@link Builder} instead. */
-    @Deprecated
-    public void setFailOnMissingField(boolean failOnMissingField) {
-        // TODO make this class immutable once we drop this method
-        this.failOnMissingField = failOnMissingField;
-        this.runtimeConverter = createConverter(this.typeInfo);
     }
 
     @Override
