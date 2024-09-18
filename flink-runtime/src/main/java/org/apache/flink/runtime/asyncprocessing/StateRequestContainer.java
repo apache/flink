@@ -29,7 +29,7 @@ package org.apache.flink.runtime.asyncprocessing;
 public interface StateRequestContainer {
 
     /** Preserve a stateRequest into the {@code StateRequestContainer}. */
-    void offer(StateRequest<?, ?, ?> stateRequest);
+    void offer(StateRequest<?, ?, ?, ?> stateRequest);
 
     /** Returns whether the container is empty. */
     boolean isEmpty();

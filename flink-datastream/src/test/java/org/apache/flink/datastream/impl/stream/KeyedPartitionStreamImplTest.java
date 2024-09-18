@@ -113,12 +113,14 @@ public class KeyedPartitionStreamImplTest {
     void testProcessTwoOutput() throws Exception {
         ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
         KeyedPartitionStream<Integer, Integer> stream = createKeyedStream(env);
-        NonKeyedPartitionStream.TwoNonKeyedPartitionStreams<Integer, Long> resultStream1 =
-                stream.process(new NoOpTwoOutputStreamProcessFunction());
-        assertThat(resultStream1.getFirst()).isInstanceOf(NonKeyedPartitionStream.class);
-        assertThat(resultStream1.getSecond()).isInstanceOf(NonKeyedPartitionStream.class);
-        KeyedPartitionStream.TwoKeyedPartitionStreams<Integer, Integer, Long> resultStream2 =
-                stream.process(new NoOpTwoOutputStreamProcessFunction(), x -> x, Math::toIntExact);
+        NonKeyedPartitionStream.ProcessConfigurableAndTwoNonKeyedPartitionStream<Integer, Long>
+                resultStream = stream.process(new NoOpTwoOutputStreamProcessFunction());
+        assertThat(resultStream.getFirst()).isInstanceOf(NonKeyedPartitionStream.class);
+        assertThat(resultStream.getSecond()).isInstanceOf(NonKeyedPartitionStream.class);
+        KeyedPartitionStream.ProcessConfigurableAndTwoKeyedPartitionStreams<Integer, Integer, Long>
+                resultStream2 =
+                        stream.process(
+                                new NoOpTwoOutputStreamProcessFunction(), x -> x, Math::toIntExact);
         assertThat(resultStream2.getFirst()).isInstanceOf(KeyedPartitionStream.class);
         assertThat(resultStream2.getSecond()).isInstanceOf(KeyedPartitionStream.class);
         List<Transformation<?>> transformations = env.getTransformations();

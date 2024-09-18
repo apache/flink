@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -280,6 +281,10 @@ public final class ForStResourceContainer implements AutoCloseable {
             prepareDirectories(
                     new Path(localBasePath.getPath()), new Path(localForStPath.getPath()));
         }
+        if (remoteForStPath != null && localForStPath != null) {
+            ForStFlinkFileSystem.setupLocalBasePath(
+                    remoteForStPath.toString(), localForStPath.toString());
+        }
     }
 
     private static void prepareDirectories(Path basePath, Path dbPath) throws IOException {
@@ -309,6 +314,7 @@ public final class ForStResourceContainer implements AutoCloseable {
     public void clearDirectories() throws Exception {
         if (remoteBasePath != null) {
             clearDirectories(remoteBasePath);
+            ForStFlinkFileSystem.unregisterLocalBasePath(remoteForStPath.toString());
         }
         if (localBasePath != null) {
             clearDirectories(new Path(localBasePath.getPath()));

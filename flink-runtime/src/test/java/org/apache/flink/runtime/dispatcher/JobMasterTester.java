@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -51,6 +50,7 @@ import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,7 +70,7 @@ import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.serializeTas
  */
 public class JobMasterTester implements Closeable {
 
-    private static final Time TIMEOUT = Time.minutes(1);
+    private static final Duration TIMEOUT = Duration.ofMinutes(1);
 
     private static TaskStateSnapshot createNonEmptyStateSnapshot(TaskInformation taskInformation) {
         final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();

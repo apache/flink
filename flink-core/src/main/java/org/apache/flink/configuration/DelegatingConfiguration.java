@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getFloatConfigOption;
 import static org.apache.flink.configuration.FallbackKey.createDeprecatedKey;
 
 /**
@@ -183,7 +184,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public float getFloat(String key, float defaultValue) {
-        return this.backingConfig.getFloat(this.prefix + key, defaultValue);
+        return this.backingConfig.get(getFloatConfigOption(this.prefix + key), defaultValue);
     }
 
     @Override
@@ -322,19 +323,15 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public Map<String, String> toFileWritableMap() {
-        if (backingConfig.standardYaml) {
-            Map<String, String> map = backingConfig.toFileWritableMap();
-            Map<String, String> prefixed = new HashMap<>();
-            for (Map.Entry<String, String> entry : map.entrySet()) {
-                if (entry.getKey().startsWith(prefix)) {
-                    String keyWithoutPrefix = entry.getKey().substring(prefix.length());
-                    prefixed.put(keyWithoutPrefix, YamlParserUtils.toYAMLString(entry.getValue()));
-                }
+        Map<String, String> map = backingConfig.toFileWritableMap();
+        Map<String, String> prefixed = new HashMap<>();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+                prefixed.put(keyWithoutPrefix, YamlParserUtils.toYAMLString(entry.getValue()));
             }
-            return prefixed;
-        } else {
-            return toMap();
         }
+        return prefixed;
     }
 
     @Override

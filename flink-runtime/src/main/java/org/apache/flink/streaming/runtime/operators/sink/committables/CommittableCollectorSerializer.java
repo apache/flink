@@ -166,19 +166,9 @@ public final class CommittableCollectorSerializer<CommT>
             for (SubtaskCommittableManager<CommT> subtaskCommittableManager :
                     subtaskCommittableManagers) {
 
-                // check if we already have manager for current
-                // subtaskCommittableManager.getSubtaskId() if yes,
-                // then merge them.
-                SubtaskCommittableManager<CommT> mergedManager =
-                        subtasksCommittableManagers.computeIfPresent(
-                                subtaskId,
-                                (key, manager) -> manager.merge(subtaskCommittableManager));
-
-                // This is new subtaskId, lets add the mapping.
-                if (mergedManager == null) {
-                    subtasksCommittableManagers.put(
-                            subtaskCommittableManager.getSubtaskId(), subtaskCommittableManager);
-                }
+                // merge in case we already have a manager for that subtaskId
+                subtasksCommittableManagers.merge(
+                        subtaskId, subtaskCommittableManager, SubtaskCommittableManager::merge);
             }
 
             return new CheckpointCommittableManagerImpl<>(

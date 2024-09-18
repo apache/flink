@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 
@@ -55,7 +54,7 @@ public enum HighAvailabilityMode {
 
         if (haMode == null) {
             return HighAvailabilityMode.NONE;
-        } else if (haMode.equalsIgnoreCase(ConfigConstants.DEFAULT_RECOVERY_MODE)) {
+        } else if (haMode.equalsIgnoreCase("standalone")) {
             // Map old default to new default
             return HighAvailabilityMode.NONE;
         } else {

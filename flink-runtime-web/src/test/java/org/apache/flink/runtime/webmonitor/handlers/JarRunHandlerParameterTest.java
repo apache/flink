@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -104,7 +103,7 @@ class JarRunHandlerParameterTest
         init(tempDir);
         final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
                 () -> CompletableFuture.completedFuture(restfulGateway);
-        final Time timeout = Time.seconds(10);
+        final Duration timeout = Duration.ofSeconds(10);
         final Map<String, String> responseHeaders = Collections.emptyMap();
 
         final Path jarLocation = Paths.get(System.getProperty("targetDir"));

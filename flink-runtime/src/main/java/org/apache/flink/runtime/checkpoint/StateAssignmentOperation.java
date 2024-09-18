@@ -119,6 +119,8 @@ public class StateAssignmentOperation {
                 if (operatorState == null) {
                     operatorState =
                             new OperatorState(
+                                    operatorIDPair.getUserDefinedOperatorName(),
+                                    operatorIDPair.getUserDefinedOperatorUid(),
                                     operatorID,
                                     executionJobVertex.getParallelism(),
                                     executionJobVertex.getMaxParallelism());

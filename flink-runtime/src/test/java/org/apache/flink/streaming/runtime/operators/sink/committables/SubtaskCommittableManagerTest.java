@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SubtaskCommittableManagerTest {
@@ -40,10 +41,9 @@ class SubtaskCommittableManagerTest {
     void testDrainCommittables() {
         final SubtaskCommittableManager<Integer> subtaskCommittableManager =
                 new SubtaskCommittableManager<>(3, 1, 1L, METRIC_GROUP);
-        final CommittableWithLineage<Integer> first = new CommittableWithLineage<Integer>(1, 1L, 1);
-        final CommittableWithLineage<Integer> second =
-                new CommittableWithLineage<Integer>(2, 1L, 1);
-        final CommittableWithLineage<Integer> third = new CommittableWithLineage<Integer>(3, 1L, 1);
+        final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, 1L, 1);
+        final CommittableWithLineage<Integer> second = new CommittableWithLineage<>(2, 1L, 1);
+        final CommittableWithLineage<Integer> third = new CommittableWithLineage<>(3, 1L, 1);
 
         assertThat(subtaskCommittableManager.getPendingRequests()).hasSize(0);
 
@@ -68,20 +68,8 @@ class SubtaskCommittableManagerTest {
         final List<CommittableWithLineage<Integer>> committables =
                 subtaskCommittableManager.drainCommitted();
         assertThat(committables).hasSize(2);
-        assertThat(committables.get(0))
-                .satisfies(
-                        c -> {
-                            assertThat(c.getSubtaskId()).isEqualTo(1);
-                            assertThat(c.getCommittable()).isEqualTo(1);
-                            assertThat(c.getCheckpointId()).hasValue(1L);
-                        });
-        assertThat(committables.get(1))
-                .satisfies(
-                        c -> {
-                            assertThat(c.getSubtaskId()).isEqualTo(1);
-                            assertThat(c.getCommittable()).isEqualTo(2);
-                            assertThat(c.getCheckpointId()).hasValue(1L);
-                        });
+        assertThat(committables.get(0)).hasSubtaskId(1).hasCommittable(1).hasCheckpointId(1);
+        assertThat(committables.get(1)).hasSubtaskId(1).hasCommittable(2).hasCheckpointId(1);
         assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(0);
 
         // Drain again should not yield anything
@@ -111,21 +99,22 @@ class SubtaskCommittableManagerTest {
                         1,
                         2L,
                         METRIC_GROUP);
-        subtaskCommittableManager.merge(
-                new SubtaskCommittableManager<>(
-                        Arrays.asList(
-                                new CommitRequestImpl<>(2, METRIC_GROUP),
-                                new CommitRequestImpl<>(3, METRIC_GROUP)),
-                        10,
-                        2,
-                        3,
-                        1,
-                        2L,
-                        METRIC_GROUP));
-        assertThat(subtaskCommittableManager.getNumCommittables()).isEqualTo(11);
-        assertThat(subtaskCommittableManager.getNumDrained()).isEqualTo(3);
-        assertThat(subtaskCommittableManager.isFinished()).isFalse();
-        assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(5);
-        assertThat(subtaskCommittableManager.getPendingRequests()).hasSize(3);
+        SubtaskCommittableManager<Integer> merged =
+                subtaskCommittableManager.merge(
+                        new SubtaskCommittableManager<>(
+                                Arrays.asList(
+                                        new CommitRequestImpl<>(2, METRIC_GROUP),
+                                        new CommitRequestImpl<>(3, METRIC_GROUP)),
+                                10,
+                                2,
+                                3,
+                                1,
+                                2L,
+                                METRIC_GROUP));
+        assertThat(merged.getNumCommittables()).isEqualTo(11);
+        assertThat(merged.getNumDrained()).isEqualTo(3);
+        assertThat(merged.isFinished()).isFalse();
+        assertThat(merged.getNumFailed()).isEqualTo(5);
+        assertThat(merged.getPendingRequests()).hasSize(3);
     }
 }

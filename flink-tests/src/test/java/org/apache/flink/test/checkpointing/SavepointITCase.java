@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -88,6 +87,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.testutils.TestingUtils;
@@ -252,7 +252,7 @@ public class SavepointITCase extends TestLogger {
                                 .build());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.addSource(new InfiniteTestSource())
                 .setParallelism(1)
                 .name("Infinite Source")
@@ -315,7 +315,7 @@ public class SavepointITCase extends TestLogger {
                                 .build());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 3, 10);
         env.setParallelism(1);
         env.addSource(new InfiniteTestSource())
                 .name("Infinite Source")
@@ -1049,8 +1049,7 @@ public class SavepointITCase extends TestLogger {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
-        env.getConfig()
-                .setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
         env.addSource(new InfiniteTestSource())
                 .name("Infinite test source")
                 .sinkTo(new DiscardingSink<>());
@@ -1135,9 +1134,8 @@ public class SavepointITCase extends TestLogger {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        env.getConfig()
-                .setRestartStrategy(
-                        RestartStrategies.fixedDelayRestart(expectedMaximumNumberOfRestarts, 0));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                env, expectedMaximumNumberOfRestarts, 0L);
         env.addSource(failingSource)
                 .name("Failing Source")
                 .map(
@@ -1361,9 +1359,7 @@ public class SavepointITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.disableOperatorChaining();
-        env.getConfig()
-                .setRestartStrategy(
-                        RestartStrategies.fixedDelayRestart(numberOfRetries, restartDelay));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, numberOfRetries, restartDelay);
 
         DataStream<Integer> stream =
                 env.addSource(new InfiniteTestSource()).shuffle().map(new StatefulCounter());

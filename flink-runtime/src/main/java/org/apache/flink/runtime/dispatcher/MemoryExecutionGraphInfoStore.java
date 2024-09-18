@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
@@ -38,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -58,15 +58,15 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     private final Thread shutdownHook;
 
     public MemoryExecutionGraphInfoStore() {
-        this(Time.milliseconds(0), 0, null, null);
+        this(Duration.ofMillis(0), 0, null, null);
     }
 
     public MemoryExecutionGraphInfoStore(
-            Time expirationTime,
+            Duration expirationTime,
             int maximumCapacity,
             @Nullable ScheduledExecutor scheduledExecutor,
             @Nullable Ticker ticker) {
-        final long expirationMills = expirationTime.toMilliseconds();
+        final long expirationMills = expirationTime.toMillis();
         CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         if (expirationMills > 0) {
             cacheBuilder.expireAfterWrite(expirationMills, TimeUnit.MILLISECONDS);
@@ -83,8 +83,8 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
             this.cleanupFuture =
                     scheduledExecutor.scheduleWithFixedDelay(
                             serializableExecutionGraphInfos::cleanUp,
-                            expirationTime.toMilliseconds(),
-                            expirationTime.toMilliseconds(),
+                            expirationTime.toMillis(),
+                            expirationTime.toMillis(),
                             TimeUnit.MILLISECONDS);
         } else {
             this.cleanupFuture = null;

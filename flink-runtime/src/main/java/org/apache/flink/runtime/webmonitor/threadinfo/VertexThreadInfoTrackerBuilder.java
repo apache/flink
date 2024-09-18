@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTracker.ExecutionVertexKey;
@@ -38,7 +37,7 @@ public class VertexThreadInfoTrackerBuilder {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
     private final ScheduledExecutorService executor;
-    private final Time restTimeout;
+    private final Duration restTimeout;
 
     private ThreadInfoRequestCoordinator coordinator;
     private Duration cleanUpInterval;
@@ -52,7 +51,7 @@ public class VertexThreadInfoTrackerBuilder {
     VertexThreadInfoTrackerBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             ScheduledExecutorService executor,
-            Time restTimeout) {
+            Duration restTimeout) {
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
         this.executor = executor;
         this.restTimeout = restTimeout;
@@ -198,7 +197,7 @@ public class VertexThreadInfoTrackerBuilder {
     public static VertexThreadInfoTrackerBuilder newBuilder(
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             ScheduledExecutorService executor,
-            Time restTimeout) {
+            Duration restTimeout) {
         return new VertexThreadInfoTrackerBuilder(
                 resourceManagerGatewayRetriever, executor, restTimeout);
     }

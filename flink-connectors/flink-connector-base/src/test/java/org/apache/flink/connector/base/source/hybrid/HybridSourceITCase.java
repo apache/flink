@@ -20,7 +20,6 @@ package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -122,10 +122,11 @@ public class HybridSourceITCase extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(
-                FailoverType.NONE == failoverType
-                        ? RestartStrategies.noRestart()
-                        : RestartStrategies.fixedDelayRestart(1, 0));
+        if (FailoverType.NONE == failoverType) {
+            RestartStrategyUtils.configureNoRestartStrategy(env);
+        } else {
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0);
+        }
 
         final DataStream<Integer> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "hybrid-source")

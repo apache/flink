@@ -44,7 +44,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
     }
 
     @Override
-    public void offer(StateRequest<?, ?, ?> stateRequest) {
+    public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
         convertStateRequestsToForStDBRequests(stateRequest);
     }
 
@@ -54,7 +54,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void convertStateRequestsToForStDBRequests(StateRequest<?, ?, ?> stateRequest) {
+    private void convertStateRequestsToForStDBRequests(StateRequest<?, ?, ?, ?> stateRequest) {
         StateRequestType stateRequestType = stateRequest.getRequestType();
         switch (stateRequestType) {
             case VALUE_GET:
@@ -62,6 +62,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
             case MAP_GET:
             case MAP_IS_EMPTY:
             case MAP_CONTAINS:
+            case REDUCING_GET:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();
@@ -74,6 +75,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
             case LIST_ADD_ALL:
             case MAP_PUT:
             case MAP_REMOVE:
+            case REDUCING_ADD:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();

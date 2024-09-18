@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -269,21 +268,6 @@ class SerializerConfigImplTest {
                 .containsExactly(
                         new AbstractMap.SimpleEntry<>(
                                 SerializerConfigImplTest.class, TestTypeInfoFactory.class));
-    }
-
-    @Test
-    void testLoadingSerializationConfigWithLegacyParser() {
-        GlobalConfiguration.setStandardYaml(false);
-        String serializationConfigStr =
-                "{org.apache.flink.api.common.serialization.SerializerConfigImplTest:"
-                        + " {type: pojo},"
-                        + " org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1:"
-                        + " {type: pojo}}";
-        assertThatThrownBy(() -> getConfiguredSerializerConfig(serializationConfigStr))
-                .isInstanceOf(UnsupportedOperationException.class);
-
-        // Clear the standard yaml flag to avoid impact to other cases.
-        GlobalConfiguration.setStandardYaml(true);
     }
 
     @Test

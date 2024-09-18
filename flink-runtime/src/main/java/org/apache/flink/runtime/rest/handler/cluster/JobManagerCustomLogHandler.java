@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogFileNamePathParameter;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Map;
 
 /** Rest handler which serves the custom log file from JobManager. */
@@ -40,7 +40,7 @@ public class JobManagerCustomLogHandler
 
     public JobManagerCustomLogHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             UntypedResponseMessageHeaders<EmptyRequestBody, FileMessageParameters> messageHeaders,
             @Nullable File logDir) {

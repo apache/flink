@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -35,6 +34,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,7 +47,7 @@ public class JobManagerProfilingHandler
 
     public JobManagerProfilingHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<ProfilingRequestBody, ProfilingInfo, EmptyMessageParameters>
                     messageHeaders,

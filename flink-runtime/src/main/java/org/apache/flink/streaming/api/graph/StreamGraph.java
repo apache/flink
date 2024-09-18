@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -1083,6 +1084,12 @@ public class StreamGraph implements Pipeline {
         final StreamNode streamNode = getStreamNode(vertexId);
         if (streamNode != null) {
             streamNode.setSupportsConcurrentExecutionAttempts(supportsConcurrentExecutionAttempts);
+        }
+    }
+
+    public void setAttribute(Integer vertexId, Attribute attribute) {
+        if (getStreamNode(vertexId) != null) {
+            getStreamNode(vertexId).setAttribute(attribute);
         }
     }
 }

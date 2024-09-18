@@ -21,7 +21,6 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.BatchExecutionOptions;
@@ -39,6 +38,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -102,7 +102,7 @@ class BatchShuffleITCaseBase {
                 enableAdaptiveAutoParallelism);
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 2, 0L);
         env.setParallelism(NUM_SLOTS_PER_TASK_MANAGER);
 
         DataStream<String> source =

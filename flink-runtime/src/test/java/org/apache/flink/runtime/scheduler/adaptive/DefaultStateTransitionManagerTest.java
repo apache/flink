@@ -18,16 +18,11 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransitionManager.Idling;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
-
-import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -49,31 +44,6 @@ import static org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransition
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DefaultStateTransitionManagerTest {
-
-    @Test
-    void testProperConfiguration() throws ConfigurationException {
-        final Duration cooldownTimeout = Duration.ofMillis(1337);
-        final Duration resourceStabilizationTimeout = Duration.ofMillis(7331);
-        final Duration maximumDelayForRescaleTrigger = Duration.ofMillis(4242);
-
-        final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, cooldownTimeout);
-        configuration.set(
-                JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, resourceStabilizationTimeout);
-        configuration.set(
-                JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTrigger);
-
-        final DefaultStateTransitionManager testInstance =
-                DefaultStateTransitionManager.Factory.fromSettings(
-                                AdaptiveScheduler.Settings.of(configuration))
-                        .create(
-                                TestingStateTransitionManagerContext.stableContext(),
-                                Instant.now());
-        assertThat(testInstance.cooldownTimeout).isEqualTo(cooldownTimeout);
-        assertThat(testInstance.resourceStabilizationTimeout)
-                .isEqualTo(resourceStabilizationTimeout);
-        assertThat(testInstance.maxTriggerDelay).isEqualTo(maximumDelayForRescaleTrigger);
-    }
 
     @Test
     void testTriggerWithoutChangeEventNoopInCooldownPhase() {
@@ -184,12 +154,14 @@ class DefaultStateTransitionManagerTest {
     @Test
     void testDesiredResourcesInStabilizingPhaseAfterMaxTriggerDelay() {
         final TestingStateTransitionManagerContext ctx =
-                TestingStateTransitionManagerContext.stableContext().withSufficientResources();
+                TestingStateTransitionManagerContext.stableContext()
+                        .withSufficientResources()
+                        .withMaxTriggerDelay(Duration.ofSeconds(10));
         final DefaultStateTransitionManager testInstance =
-                ctx.createTestInstanceWithoutStabilizationTimeout(
+                ctx.createTestInstance(
                         manager -> {
                             manager.onChange();
-                            ctx.passTime(TestingStateTransitionManagerContext.COOLDOWN_TIMEOUT);
+                            ctx.transitionOutOfCooldownPhase();
                         });
 
         assertPhaseWithoutStateTransition(ctx, testInstance, Stabilizing.class);
@@ -235,12 +207,14 @@ class DefaultStateTransitionManagerTest {
     @Test
     void testSufficientResourcesInStabilizingPhaseAfterMaxTriggerDelay() {
         final TestingStateTransitionManagerContext ctx =
-                TestingStateTransitionManagerContext.stableContext().withSufficientResources();
+                TestingStateTransitionManagerContext.stableContext()
+                        .withSufficientResources()
+                        .withMaxTriggerDelay(Duration.ofSeconds(10));
         final DefaultStateTransitionManager testInstance =
-                ctx.createTestInstanceWithoutStabilizationTimeout(
+                ctx.createTestInstance(
                         manager -> {
                             manager.onChange();
-                            ctx.passTime(TestingStateTransitionManagerContext.COOLDOWN_TIMEOUT);
+                            ctx.transitionOutOfCooldownPhase();
                         });
 
         assertPhaseWithoutStateTransition(ctx, testInstance, Stabilizing.class);
@@ -474,6 +448,10 @@ class DefaultStateTransitionManagerTest {
         private static final Duration MAX_TRIGGER_DELAY =
                 RESOURCE_STABILIZATION_TIMEOUT.plus(Duration.ofMinutes(10));
 
+        private final Duration cooldownTimeout = COOLDOWN_TIMEOUT;
+        private final Duration resourceStabilizationTimeout = RESOURCE_STABILIZATION_TIMEOUT;
+        private Duration maxTriggerDelay = MAX_TRIGGER_DELAY;
+
         // configuration that defines what kind of rescaling would be possible
         private boolean hasSufficientResources = false;
         private boolean hasDesiredResources = false;
@@ -498,6 +476,11 @@ class DefaultStateTransitionManagerTest {
         private TestingStateTransitionManagerContext() {
             // no rescaling is enabled by default
             withRevokeResources();
+        }
+
+        public TestingStateTransitionManagerContext withMaxTriggerDelay(Duration maxTriggerDelay) {
+            this.maxTriggerDelay = maxTriggerDelay;
+            return this;
         }
 
         public TestingStateTransitionManagerContext withRevokeResources() {
@@ -601,35 +584,20 @@ class DefaultStateTransitionManagerTest {
         }
 
         /**
-         * Initializes the test instance with set stabilization timeout and sets the context's
-         * elapsed time based on the passed callback.
+         * Initializes the test instance with a given max trigger delay timeout and sets the
+         * context's elapsed time based on the passed callback.
          */
         public DefaultStateTransitionManager createTestInstance(
                 Consumer<DefaultStateTransitionManager> callback) {
-            return createTestInstance(callback, RESOURCE_STABILIZATION_TIMEOUT);
-        }
-
-        /**
-         * Initializes the test instance without stabilization timeout and sets the context's
-         * elapsed time based on the passed callback.
-         */
-        public DefaultStateTransitionManager createTestInstanceWithoutStabilizationTimeout(
-                Consumer<DefaultStateTransitionManager> callback) {
-            return createTestInstance(callback, null);
-        }
-
-        private DefaultStateTransitionManager createTestInstance(
-                Consumer<DefaultStateTransitionManager> callback,
-                @Nullable Duration resourceStabilizationTimeout) {
             final DefaultStateTransitionManager testInstance =
                     new DefaultStateTransitionManager(
-                            initializationTime,
                             // clock that returns the time based on the configured elapsedTime
                             () -> Objects.requireNonNull(initializationTime).plus(elapsedTime),
                             this,
-                            TestingStateTransitionManagerContext.COOLDOWN_TIMEOUT,
+                            cooldownTimeout,
                             resourceStabilizationTimeout,
-                            TestingStateTransitionManagerContext.MAX_TRIGGER_DELAY) {
+                            maxTriggerDelay,
+                            initializationTime) {
                         @Override
                         public void onChange() {
                             super.onChange();
@@ -662,25 +630,25 @@ class DefaultStateTransitionManagerTest {
          * phase.
          */
         public void transitionIntoCooldownTimeframe() {
-            setElapsedTime(COOLDOWN_TIMEOUT.dividedBy(2));
+            setElapsedTime(cooldownTimeout.dividedBy(2));
             this.triggerOutdatedTasks();
         }
 
         public void transitionOutOfCooldownPhase() {
-            this.setElapsedTime(COOLDOWN_TIMEOUT.plusMillis(1));
+            this.setElapsedTime(cooldownTimeout.plusMillis(1));
         }
 
         public void passResourceStabilizationTimeout() {
             // resource stabilization is based on the current time
-            this.passTime(RESOURCE_STABILIZATION_TIMEOUT.plusMillis(1));
+            this.passTime(resourceStabilizationTimeout.plusMillis(1));
         }
 
         public void transitionToInclusiveCooldownEnd() {
-            setElapsedTime(COOLDOWN_TIMEOUT.minusMillis(1));
+            setElapsedTime(cooldownTimeout.minusMillis(1));
         }
 
         public void passMaxDelayTriggerTimeout() {
-            this.passTime(MAX_TRIGGER_DELAY.plusMillis(1));
+            this.passTime(maxTriggerDelay.plusMillis(1));
         }
 
         public void passTime(Duration elapsed) {

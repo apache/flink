@@ -19,6 +19,8 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.execution.CancelTaskException;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -29,11 +31,14 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.WriteOptions;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -42,6 +47,58 @@ import static org.junit.Assert.assertTrue;
 public class RocksDBWriteBatchWrapperTest {
 
     @Rule public TemporaryFolder folder = new TemporaryFolder();
+
+    @Test(expected = CancelTaskException.class)
+    public void testAsyncCancellation() throws Exception {
+        final CompletableFuture<Void> writeStartedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> cancellationRequestedFuture = new CompletableFuture<>();
+        final CloseableRegistry registry = new CloseableRegistry();
+        new Thread(
+                        () -> {
+                            writeStartedFuture.join();
+                            try {
+                                registry.close();
+                                cancellationRequestedFuture.complete(null);
+                            } catch (IOException e) {
+                                cancellationRequestedFuture.completeExceptionally(e);
+                            }
+                        })
+                .start();
+
+        final int capacity = 1000; // max
+        final int cancellationCheckInterval = 1;
+        long batchSizeBytes = WRITE_BATCH_SIZE.defaultValue().getBytes();
+
+        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+                WriteOptions options = new WriteOptions().setDisableWAL(true);
+                ColumnFamilyHandle handle =
+                        db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
+                RocksDBWriteBatchWrapper writeBatchWrapper =
+                        new RocksDBWriteBatchWrapper(
+                                db,
+                                options,
+                                capacity,
+                                batchSizeBytes,
+                                cancellationCheckInterval,
+                                batchSizeBytes)) {
+            registry.registerCloseable(writeBatchWrapper.getCancelCloseable());
+            writeStartedFuture.complete(null);
+
+            //noinspection InfiniteLoopStatement
+            for (int i = 0; ; i++) {
+                try {
+                    writeBatchWrapper.put(
+                            handle, ("key:" + i).getBytes(), ("value:" + i).getBytes());
+                } catch (Exception e) {
+                    cancellationRequestedFuture.join(); // shouldn't have any errors
+                    throw e;
+                }
+                // make sure that cancellation is triggered earlier than periodic flush
+                // but allow some delay of cancellation propagation
+                assertThat(i).isLessThan(cancellationCheckInterval * 2);
+            }
+        }
+    }
 
     @Test
     public void basicTest() throws Exception {

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -52,6 +51,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -312,7 +312,7 @@ public abstract class SourceTestSuiteBase<T> {
         execEnv.getCheckpointConfig()
                 .setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         execEnv.enableCheckpointing(50);
-        execEnv.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(execEnv);
         DataStreamSource<T> source =
                 execEnv.fromSource(
                                 tryCreateSource(externalContext, sourceSettings),

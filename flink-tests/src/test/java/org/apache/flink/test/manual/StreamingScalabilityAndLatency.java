@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.junit.Assert.fail;
 
 /** Manual test to evaluate impact of checkpointing on latency. */
@@ -53,8 +54,8 @@ public class StreamingScalabilityAndLatency {
             config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
             config.set(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 20000);
 
-            config.setInteger("taskmanager.net.server.numThreads", 1);
-            config.setInteger("taskmanager.net.client.numThreads", 1);
+            config.set(getIntConfigOption("taskmanager.net.server.numThreads"), 1);
+            config.set(getIntConfigOption("taskmanager.net.client.numThreads"), 1);
 
             cluster =
                     new MiniClusterWithClientResource(

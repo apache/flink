@@ -130,7 +130,6 @@ public class NettyShuffleServiceFactory
                                 resultPartitionManager,
                                 taskEventPublisher,
                                 nettyConfig,
-                                config.getMaxNumberOfConnections(),
                                 config.isConnectionReuseEnabled())
                         : new LocalConnectionManager();
         return createNettyShuffleEnvironment(

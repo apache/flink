@@ -457,10 +457,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
                 setFilePath(filePath);
             }
         }
-
-        if (!this.enumerateNestedFiles) {
-            this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
-        }
     }
 
     /**
@@ -1135,8 +1131,4 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
     /** The config parameter which defines the input file path. */
     private static final String FILE_PARAMETER_KEY = "input.file.path";
-
-    /** The config parameter which defines whether input directories are recursively traversed. */
-    @Deprecated
-    public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 }

@@ -84,6 +84,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -467,7 +468,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // disposed, as
         // working on the disposed object results in SEGFAULTS.
         if (db != null) {
-
             IOUtils.closeQuietly(writeBatchWrapper);
 
             // Metric collection occurs on a background thread. When this method returns
@@ -841,7 +841,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         try (RocksIteratorWrapper iterator =
                         RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
                 RocksDBWriteBatchWrapper batchWriter =
-                        new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())) {
+                        new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize());
+                Closeable ignored =
+                        cancelStreamRegistry.registerCloseableTemporarily(
+                                writeBatchWrapper.getCancelCloseable())) {
             iterator.seekToFirst();
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();
@@ -1018,6 +1021,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         return writeBatchSize;
     }
 
+    @VisibleForTesting
     public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
         return Optional.ofNullable(asyncCompactAfterRestoreFuture);
     }

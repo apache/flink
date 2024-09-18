@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -181,7 +180,7 @@ public class DefaultSchedulerTest {
 
     private TestingJobMasterPartitionTracker partitionTracker;
 
-    private Time timeout;
+    private Duration timeout;
 
     @BeforeEach
     void setUp() {
@@ -203,7 +202,7 @@ public class DefaultSchedulerTest {
         shuffleMaster = new TestingShuffleMaster();
         partitionTracker = new TestingJobMasterPartitionTracker();
 
-        timeout = Time.seconds(60);
+        timeout = Duration.ofSeconds(60);
     }
 
     @AfterEach
@@ -1615,7 +1614,7 @@ public class DefaultSchedulerTest {
                                         .addJob(new JobID(), "jobName"))
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
-                                        slotProvider, Time.fromDuration(slotTimeout)))
+                                        slotProvider, slotTimeout))
                         .build();
 
         final AdaptiveSchedulerTest.SubmissionBufferingTaskManagerGateway taskManagerGateway =
@@ -1719,7 +1718,7 @@ public class DefaultSchedulerTest {
 
             final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
 
-            timeout = Time.milliseconds(1);
+            timeout = Duration.ofMillis(1);
             createSchedulerAndStartScheduling(jobGraph, mainThreadExecutor);
 
             testExecutionOperations.awaitCanceledExecutions(2);

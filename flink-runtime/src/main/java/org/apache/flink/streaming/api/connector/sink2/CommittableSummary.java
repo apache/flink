@@ -20,9 +20,7 @@ package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 
-import javax.annotation.Nullable;
-
-import java.util.OptionalLong;
+import java.util.Objects;
 
 /**
  * This class tracks the information about committables belonging to one checkpoint coming from one
@@ -38,7 +36,7 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
     /** May change after recovery. */
     private final int numberOfSubtasks;
 
-    @Nullable private final Long checkpointId;
+    private final long checkpointId;
     /** The number of committables coming from the given subtask in the particular checkpoint. */
     private final int numberOfCommittables;
     /** The number of committables that have not been successfully committed. */
@@ -49,7 +47,7 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
     public CommittableSummary(
             int subtaskId,
             int numberOfSubtasks,
-            @Nullable Long checkpointId,
+            long checkpointId,
             int numberOfCommittables,
             int numberOfPendingCommittables,
             int numberOfFailedCommittables) {
@@ -69,8 +67,8 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
         return numberOfSubtasks;
     }
 
-    public OptionalLong getCheckpointId() {
-        return checkpointId == null ? OptionalLong.empty() : OptionalLong.of(checkpointId);
+    public long getCheckpointIdOrEOI() {
+        return checkpointId;
     }
 
     public int getNumberOfCommittables() {
@@ -87,6 +85,52 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
 
     public <NewCommT> CommittableSummary<NewCommT> map() {
         return new CommittableSummary<>(
+                subtaskId,
+                numberOfSubtasks,
+                checkpointId,
+                numberOfCommittables,
+                numberOfPendingCommittables,
+                numberOfFailedCommittables);
+    }
+
+    @Override
+    public String toString() {
+        return "CommittableSummary{"
+                + "subtaskId="
+                + subtaskId
+                + ", numberOfSubtasks="
+                + numberOfSubtasks
+                + ", checkpointId="
+                + checkpointId
+                + ", numberOfCommittables="
+                + numberOfCommittables
+                + ", numberOfPendingCommittables="
+                + numberOfPendingCommittables
+                + ", numberOfFailedCommittables="
+                + numberOfFailedCommittables
+                + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CommittableSummary<?> that = (CommittableSummary<?>) o;
+        return subtaskId == that.subtaskId
+                && numberOfSubtasks == that.numberOfSubtasks
+                && checkpointId == that.checkpointId
+                && numberOfCommittables == that.numberOfCommittables
+                && numberOfPendingCommittables == that.numberOfPendingCommittables
+                && numberOfFailedCommittables == that.numberOfFailedCommittables;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
                 subtaskId,
                 numberOfSubtasks,
                 checkpointId,

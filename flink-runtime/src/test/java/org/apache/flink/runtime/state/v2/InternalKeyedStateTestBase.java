@@ -86,10 +86,13 @@ public class InternalKeyedStateTestBase {
     }
 
     <IN> void validateRequestRun(
-            @Nullable State state, StateRequestType type, @Nullable IN payload) {
+            @Nullable State state,
+            StateRequestType type,
+            @Nullable IN payload,
+            int remainingRequests) {
         aec.triggerIfNeeded(true);
         testStateExecutor.validate(state, type, payload);
-        assertThat(testStateExecutor.receivedRequest.isEmpty()).isTrue();
+        assertThat(testStateExecutor.receivedRequest.size()).isEqualTo(remainingRequests);
     }
 
     /**
@@ -154,7 +157,7 @@ public class InternalKeyedStateTestBase {
      */
     static class TestStateExecutor implements StateExecutor {
 
-        private Deque<StateRequest<?, ?, ?>> receivedRequest;
+        private Deque<StateRequest<?, ?, ?, ?>> receivedRequest;
 
         TestStateExecutor() {
             receivedRequest = new ConcurrentLinkedDeque<>();
@@ -162,7 +165,7 @@ public class InternalKeyedStateTestBase {
 
         <IN> void validate(@Nullable State state, StateRequestType type, @Nullable IN payload) {
             assertThat(receivedRequest.isEmpty()).isFalse();
-            StateRequest<?, ?, ?> request = receivedRequest.pop();
+            StateRequest<?, ?, ?, ?> request = receivedRequest.pop();
             assertThat(request.getState()).isEqualTo(state);
             assertThat(request.getRequestType()).isEqualTo(type);
             assertThat(request.getPayload()).isEqualTo(payload);
@@ -194,10 +197,10 @@ public class InternalKeyedStateTestBase {
         public void shutdown() {}
 
         static class TestStateRequestContainer implements StateRequestContainer {
-            ArrayList<StateRequest<?, ?, ?>> requests = new ArrayList<>();
+            ArrayList<StateRequest<?, ?, ?, ?>> requests = new ArrayList<>();
 
             @Override
-            public void offer(StateRequest<?, ?, ?> stateRequest) {
+            public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
                 requests.add(stateRequest);
             }
 

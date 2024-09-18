@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -40,10 +39,12 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Implementation of {@link ResourceManagerService} for testing purpose. */
 public class TestingResourceManagerService implements ResourceManagerService {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     private final ResourceManagerServiceImpl rmService;
     private final TestingLeaderElection leaderElection;
@@ -131,7 +132,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
         rmService
                 .closeAsync()
                 .thenCompose((ignore) -> this.stopRpcServiceIfNeeded())
-                .get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private CompletableFuture<Void> stopRpcServiceIfNeeded() {

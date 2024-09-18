@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
@@ -389,12 +388,6 @@ public final class SerializerConfigImpl implements SerializerConfig {
                     .getOptional(PipelineOptions.SERIALIZATION_CONFIG)
                     .ifPresent(c -> parseSerializationConfigWithExceptionHandling(classLoader, c));
         } catch (Exception e) {
-            if (!GlobalConfiguration.isStandardYaml()) {
-                throw new UnsupportedOperationException(
-                        String.format(
-                                "%s is only supported with the standard YAML config parser, please use \"config.yaml\" as the config file.",
-                                PipelineOptions.SERIALIZATION_CONFIG.key()));
-            }
             throw e;
         }
     }

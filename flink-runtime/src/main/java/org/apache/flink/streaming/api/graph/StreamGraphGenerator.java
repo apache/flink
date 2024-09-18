@@ -29,10 +29,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
@@ -425,19 +423,10 @@ public class StreamGraphGenerator {
 
     private void setFineGrainedGlobalStreamExchangeMode(StreamGraph graph) {
         // There might be a resource deadlock when applying fine-grained resource management in
-        // batch jobs with PIPELINE edges. Users need to trigger the
-        // fine-grained.shuffle-mode.all-blocking to convert all edges to BLOCKING before we fix
+        // batch jobs with PIPELINE edges. We convert all edges to BLOCKING before we fix
         // that issue.
         if (shouldExecuteInBatchMode && graph.hasFineGrainedResource()) {
-            if (configuration.get(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING)) {
-                graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
-            } else {
-                throw new IllegalConfigurationException(
-                        "At the moment, fine-grained resource management requires batch workloads to "
-                                + "be executed with types of all edges being BLOCKING. To do that, you need to configure '"
-                                + ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING.key()
-                                + "' to 'true'. Notice that this may affect the performance. See FLINK-20865 for more details.");
-            }
+            graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         }
     }
 

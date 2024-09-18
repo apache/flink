@@ -47,12 +47,13 @@ import org.apache.flink.runtime.state.StateBackend.CustomInitializationMetrics;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.clock.SystemClock;
-import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -68,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.File;
@@ -84,13 +86,10 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
 import static org.apache.flink.runtime.metrics.MetricNames.DOWNLOAD_STATE_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_ASYNC_COMPACTION_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_STATE_DURATION;
@@ -114,7 +113,19 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
     private final RocksDBHandle rocksHandle;
     private final Collection<IncrementalKeyedStateHandle> restoreStateHandles;
-    private final CloseableRegistry cancelStreamRegistry;
+
+    /**
+     * This registry will be closed after restore and should only contain Closeables that are closed
+     * by the end of the restore operation.
+     */
+    private final CloseableRegistry cancelStreamRegistryForRestore;
+
+    /**
+     * This registry will only be closed when the created backend is closed and should be used for
+     * all Closeables that are closed at some later point after restore.
+     */
+    private final CloseableRegistry cancelRegistryForBackend;
+
     private final KeyGroupRange keyGroupRange;
     private final File instanceBasePath;
     private final int numberOfTransferringThreads;
@@ -122,6 +133,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private final StateSerializerProvider<K> keySerializerProvider;
     private final ClassLoader userCodeClassLoader;
     private final CustomInitializationMetrics customInitializationMetrics;
+    private final ResourceGuard dbResourceGuard;
+
     private long lastCompletedCheckpointId;
     private UUID backendUID;
     private final long writeBatchSize;
@@ -137,12 +150,16 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
     private final ExecutorService ioExecutor;
 
+    private final AsyncExceptionHandler asyncExceptionHandler;
+
     public RocksDBIncrementalRestoreOperation(
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
             int keyGroupPrefixBytes,
             int numberOfTransferringThreads,
-            CloseableRegistry cancelStreamRegistry,
+            ResourceGuard dbResourceGuard,
+            CloseableRegistry cancelStreamRegistryForRestore,
+            CloseableRegistry cancelRegistryForBackend,
             ClassLoader userCodeClassLoader,
             Map<String, RocksDbKvStateInfo> kvStateInformation,
             StateSerializerProvider<K> keySerializerProvider,
@@ -161,7 +178,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             boolean useIngestDbRestoreMode,
             boolean asyncCompactAfterRescale,
             boolean useDeleteFilesInRange,
-            ExecutorService ioExecutor) {
+            ExecutorService ioExecutor,
+            AsyncExceptionHandler asyncExceptionHandler) {
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -180,7 +198,9 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.overlapFractionThreshold = overlapFractionThreshold;
         this.customInitializationMetrics = customInitializationMetrics;
         this.restoreStateHandles = restoreStateHandles;
-        this.cancelStreamRegistry = cancelStreamRegistry;
+        this.dbResourceGuard = dbResourceGuard;
+        this.cancelStreamRegistryForRestore = cancelStreamRegistryForRestore;
+        this.cancelRegistryForBackend = cancelRegistryForBackend;
         this.keyGroupRange = keyGroupRange;
         this.instanceBasePath = instanceBasePath;
         this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -191,6 +211,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.asyncCompactAfterRescale = asyncCompactAfterRescale;
         this.useDeleteFilesInRange = useDeleteFilesInRange;
         this.ioExecutor = ioExecutor;
+        this.asyncExceptionHandler = asyncExceptionHandler;
     }
 
     /**
@@ -233,57 +254,11 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             runAndReportDuration(
                     () -> restoreFromLocalState(localKeyedStateHandles), RESTORE_STATE_DURATION);
 
-            CompletableFuture<Void> asyncCompactFuture = null;
-            if (asyncCompactAfterRescale) {
-                asyncCompactFuture =
-                        RocksDBIncrementalCheckpointUtils.createRangeCompactionTaskIfNeeded(
-                                        rocksHandle.getDb(),
-                                        rocksHandle.getColumnFamilyHandles(),
-                                        keyGroupPrefixBytes,
-                                        keyGroupRange)
-                                .map(
-                                        (run) -> {
-                                            RunnableWithException runWithLogging =
-                                                    () -> {
-                                                        long t = System.currentTimeMillis();
-                                                        logger.info(
-                                                                "Starting async compaction after restore for backend {} in operator {}",
-                                                                backendUID,
-                                                                operatorIdentifier);
-                                                        try {
-                                                            runAndReportDuration(
-                                                                    run,
-                                                                    RESTORE_ASYNC_COMPACTION_DURATION);
-                                                            logger.info(
-                                                                    "Completed async compaction after restore for backend {} in operator {} after {} ms.",
-                                                                    backendUID,
-                                                                    operatorIdentifier,
-                                                                    System.currentTimeMillis() - t);
-                                                        } catch (Exception ex) {
-                                                            logger.info(
-                                                                    "Failed async compaction after restore for backend {} in operator {} after {} ms.",
-                                                                    backendUID,
-                                                                    operatorIdentifier,
-                                                                    System.currentTimeMillis() - t,
-                                                                    ex);
-                                                            throw ex;
-                                                        }
-                                                    };
-                                            ExecutorService executorService =
-                                                    Executors.newSingleThreadExecutor();
-                                            CompletableFuture<Void> resultFuture =
-                                                    FutureUtils.runAsync(
-                                                            runWithLogging, executorService);
-                                            executorService.shutdown();
-                                            return resultFuture;
-                                        })
-                                .orElse(null);
-                logger.info(
-                        "Finished RocksDB incremental recovery in operator {} with "
-                                + "target key-group range range {}.",
-                        operatorIdentifier,
-                        keyGroupRange.prettyPrintInterval());
-            }
+            logger.info(
+                    "Finished RocksDB incremental recovery in operator {} with "
+                            + "target key-group range range {}.",
+                    operatorIdentifier,
+                    keyGroupRange.prettyPrintInterval());
 
             return new RocksDBRestoreResult(
                     this.rocksHandle.getDb(),
@@ -292,13 +267,55 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                     lastCompletedCheckpointId,
                     backendUID,
                     restoredSstFiles,
-                    asyncCompactFuture);
+                    createAsyncCompactionTask());
         } finally {
             // Cleanup all download directories
             allDownloadSpecs.stream()
                     .map(StateHandleDownloadSpec::getDownloadDestination)
                     .forEach(this::cleanUpPathQuietly);
         }
+    }
+
+    @Nullable
+    private Runnable createAsyncCompactionTask() {
+
+        if (!asyncCompactAfterRescale) {
+            return null;
+        }
+
+        return () -> {
+            long t = System.currentTimeMillis();
+            logger.info(
+                    "Starting async compaction after restore for backend {} in operator {}",
+                    backendUID,
+                    operatorIdentifier);
+            try {
+                RunnableWithException asyncRangeCompactionTask =
+                        RocksDBIncrementalCheckpointUtils.createAsyncRangeCompactionTask(
+                                rocksHandle.getDb(),
+                                rocksHandle.getColumnFamilyHandles(),
+                                keyGroupPrefixBytes,
+                                keyGroupRange,
+                                dbResourceGuard,
+                                // This task will be owned by the backend's lifecycle because it
+                                // continues to exist after restore is completed.
+                                cancelRegistryForBackend);
+                runAndReportDuration(asyncRangeCompactionTask, RESTORE_ASYNC_COMPACTION_DURATION);
+                logger.info(
+                        "Completed async compaction after restore for backend {} in operator {} after {} ms.",
+                        backendUID,
+                        operatorIdentifier,
+                        System.currentTimeMillis() - t);
+            } catch (Throwable throwable) {
+                asyncExceptionHandler.handleAsyncException(
+                        String.format(
+                                "Failed async compaction after restore for backend {} in operator {} after {} ms.",
+                                backendUID,
+                                operatorIdentifier,
+                                System.currentTimeMillis() - t),
+                        throwable);
+            }
+        };
     }
 
     private void restoreFromLocalState(
@@ -459,7 +476,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         final Path exportCfBasePath = absolutInstanceBasePath.resolve("export-cfs");
         Files.createDirectories(exportCfBasePath);
 
-        final Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
+        final Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                 exportedColumnFamilyMetaData = new HashMap<>(localKeyedStateHandles.size());
 
         final List<IncrementalLocalKeyedStateHandle> notImportableHandles =
@@ -512,35 +529,54 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private KeyGroupRange exportColumnFamiliesWithSstDataInKeyGroupsRange(
             Path exportCfBasePath,
             List<IncrementalLocalKeyedStateHandle> localKeyedStateHandles,
-            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
+            Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                     exportedColumnFamiliesOut,
             List<IncrementalLocalKeyedStateHandle> skipped)
             throws Exception {
 
         logger.info(
                 "Starting restore export for backend with range {} in operator {}.",
-                keyGroupRange,
+                keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier);
 
         int minExportKeyGroup = Integer.MAX_VALUE;
         int maxExportKeyGroup = Integer.MIN_VALUE;
+        int index = 0;
         for (IncrementalLocalKeyedStateHandle stateHandle : localKeyedStateHandles) {
+
+            final String logLineSuffix =
+                    " for state handle at index "
+                            + index
+                            + " with proclaimed key-group range "
+                            + stateHandle.getKeyGroupRange().prettyPrintInterval()
+                            + " for backend with range "
+                            + keyGroupRange.prettyPrintInterval()
+                            + " in operator "
+                            + operatorIdentifier
+                            + ".";
+
+            logger.debug("Opening temporary database" + logLineSuffix);
             try (RestoredDBInstance tmpRestoreDBInfo =
                     restoreTempDBInstanceFromLocalState(stateHandle)) {
 
                 List<ColumnFamilyHandle> tmpColumnFamilyHandles =
                         tmpRestoreDBInfo.columnFamilyHandles;
 
+                logger.debug("Checking actual keys of sst files" + logLineSuffix);
+
                 // Check if the data in all SST files referenced in the handle is within the
                 // proclaimed key-groups range of the handle.
-                if (RocksDBIncrementalCheckpointUtils.isSstDataInKeyGroupRange(
-                        tmpRestoreDBInfo.db, keyGroupPrefixBytes, stateHandle.getKeyGroupRange())) {
+                RocksDBIncrementalCheckpointUtils.RangeCheckResult rangeCheckResult =
+                        RocksDBIncrementalCheckpointUtils.checkSstDataAgainstKeyGroupRange(
+                                tmpRestoreDBInfo.db,
+                                keyGroupPrefixBytes,
+                                stateHandle.getKeyGroupRange());
 
-                    logger.debug(
-                            "Exporting state handle {} for backend with range {} in operator {}.",
-                            stateHandle,
-                            keyGroupRange,
-                            operatorIdentifier);
+                logger.info("{}" + logLineSuffix, rangeCheckResult);
+
+                if (rangeCheckResult.allInRange()) {
+
+                    logger.debug("Start exporting" + logLineSuffix);
 
                     List<RegisteredStateMetaInfoBase> registeredStateMetaInfoBases =
                             tmpRestoreDBInfo.stateMetaInfoSnapshots.stream()
@@ -565,29 +601,33 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                                     maxExportKeyGroup,
                                     stateHandle.getKeyGroupRange().getEndKeyGroup());
 
-                    logger.debug(
-                            "Done exporting state handle {} for backend with range {} in operator {}.",
-                            stateHandle,
-                            keyGroupRange,
-                            operatorIdentifier);
+                    logger.debug("Done exporting" + logLineSuffix);
                 } else {
                     // Actual key range in files exceeds proclaimed range, cannot import. We
                     // will copy this handle using a temporary DB later.
                     skipped.add(stateHandle);
+                    logger.debug("Skipped export" + logLineSuffix);
                 }
             }
+
+            ++index;
         }
 
+        KeyGroupRange exportedKeyGroupsRange =
+                minExportKeyGroup <= maxExportKeyGroup
+                        ? new KeyGroupRange(minExportKeyGroup, maxExportKeyGroup)
+                        : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+
         logger.info(
-                "Completed restore export for backend with range {} in operator {}. Number of Exported handles: {}. Skipped handles: {}.",
-                keyGroupRange,
+                "Completed restore export for backend with range {} in operator {}. {} exported handles with overall exported range {}. {} Skipped handles: {}.",
+                keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier,
                 localKeyedStateHandles.size() - skipped.size(),
+                exportedKeyGroupsRange.prettyPrintInterval(),
+                skipped.size(),
                 skipped);
 
-        return minExportKeyGroup <= maxExportKeyGroup
-                ? new KeyGroupRange(minExportKeyGroup, maxExportKeyGroup)
-                : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+        return exportedKeyGroupsRange;
     }
 
     /**
@@ -639,21 +679,22 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
      * @throws Exception on import error.
      */
     private void initBaseDBFromColumnFamilyImports(
-            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>>
+            Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                     exportedColumnFamilyMetaData,
             KeyGroupRange exportKeyGroupRange)
             throws Exception {
 
         // We initialize the base DB by importing all the exported data.
         logger.info(
-                "Starting to import exported state handles for backend with range {} in operator {} using Clip/Ingest DB.",
-                keyGroupRange,
-                operatorIdentifier);
+                "Starting to import exported state handles for backend with range {} in operator {} using Clip/Ingest DB with exported range {}.",
+                keyGroupRange.prettyPrintInterval(),
+                operatorIdentifier,
+                exportKeyGroupRange.prettyPrintInterval());
         rocksHandle.openDB();
-        for (Map.Entry<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>> entry :
+        for (Map.Entry<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> entry :
                 exportedColumnFamilyMetaData.entrySet()) {
             rocksHandle.registerStateColumnFamilyHandleWithImport(
-                    entry.getKey(), entry.getValue(), cancelStreamRegistry);
+                    entry.getKey(), entry.getValue(), cancelStreamRegistryForRestore);
         }
 
         // Use Range delete to clip the temp db to the target range of the backend
@@ -667,7 +708,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         logger.info(
                 "Completed importing exported state handles for backend with range {} in operator {} using Clip/Ingest DB.",
-                keyGroupRange,
+                keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier);
     }
 
@@ -712,7 +753,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath,
-                cancelStreamRegistry);
+                cancelStreamRegistryForRestore);
     }
 
     /**
@@ -733,7 +774,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         RocksDBStateDataTransferHelper.forThreadNumIfSpecified(
                                 numberOfTransferringThreads, ioExecutor))) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
-                    downloadSpecs, cancelStreamRegistry);
+                    downloadSpecs, cancelStreamRegistryForRestore);
             logger.info(
                     "Finished downloading remote state to local directory in operator {} for target key-group range {}.",
                     operatorIdentifier,
@@ -768,8 +809,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
                         new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
                 Closeable ignored =
-                        cancelStreamRegistry.registerCloseableTemporarily(
-                                asCloseable(writeBatchWrapper))) {
+                        cancelStreamRegistryForRestore.registerCloseableTemporarily(
+                                writeBatchWrapper.getCancelCloseable())) {
             for (IncrementalLocalKeyedStateHandle handleToCopy : toImport) {
                 try (RestoredDBInstance restoredDBInstance =
                         restoreTempDBInstanceFromLocalState(handleToCopy)) {
@@ -824,7 +865,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                     this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
                                     null,
                                     tmpRestoreDBInfo.stateMetaInfoSnapshots.get(descIdx),
-                                    cancelStreamRegistry)
+                                    cancelStreamRegistryForRestore)
                             .columnFamilyHandle;
 
             try (RocksIteratorWrapper iterator =
@@ -990,11 +1031,11 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         try {
             inputStream = metaStateHandle.openInputStream();
-            cancelStreamRegistry.registerCloseable(inputStream);
+            cancelStreamRegistryForRestore.registerCloseable(inputStream);
             DataInputView in = new DataInputViewStreamWrapper(inputStream);
             return readMetaData(in);
         } finally {
-            if (cancelStreamRegistry.unregisterCloseable(inputStream)) {
+            if (cancelStreamRegistryForRestore.unregisterCloseable(inputStream)) {
                 inputStream.close();
             }
         }

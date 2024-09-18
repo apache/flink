@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
@@ -40,6 +39,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -135,7 +135,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
     /** Tests that an expired execution graph is removed from the execution graph store. */
     @Test
     public void testExecutionGraphExpiration() throws Exception {
-        final Time expirationTime = Time.milliseconds(1L);
+        final Duration expirationTime = Duration.ofMillis(1L);
 
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
@@ -157,7 +157,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
             // there should one execution graph
             assertThat(executionGraphInfoStore.size(), Matchers.equalTo(1));
 
-            manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
+            manualTicker.advanceTime(expirationTime.toMillis(), TimeUnit.MILLISECONDS);
 
             // this should trigger the cleanup after expiration
             scheduledExecutor.triggerScheduledTasks();
@@ -212,7 +212,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
         final Collection<JobDetails> jobDetails = generateJobDetails(newExecutionGraphInfos);
 
         try (final MemoryExecutionGraphInfoStore executionGraphInfoStore =
-                createMemoryExecutionGraphInfoStore(Time.hours(1L), maxCapacity)) {
+                createMemoryExecutionGraphInfoStore(Duration.ofHours(1L), maxCapacity)) {
 
             for (ExecutionGraphInfo executionGraphInfo : oldExecutionGraphInfos) {
                 executionGraphInfoStore.put(executionGraphInfo);
@@ -260,7 +260,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
     }
 
     private MemoryExecutionGraphInfoStore createMemoryExecutionGraphInfoStore(
-            Time expirationTime, int maximumCapacity) {
+            Duration expirationTime, int maximumCapacity) {
         return new MemoryExecutionGraphInfoStore(
                 expirationTime,
                 maximumCapacity,

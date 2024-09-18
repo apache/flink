@@ -36,21 +36,21 @@ public class InternalValueStateTest extends InternalKeyedStateTestBase {
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         valueState.asyncClear();
-        validateRequestRun(valueState, StateRequestType.CLEAR, null);
+        validateRequestRun(valueState, StateRequestType.CLEAR, null, 0);
 
         valueState.asyncValue();
-        validateRequestRun(valueState, StateRequestType.VALUE_GET, null);
+        validateRequestRun(valueState, StateRequestType.VALUE_GET, null, 0);
 
         valueState.asyncUpdate(1);
-        validateRequestRun(valueState, StateRequestType.VALUE_UPDATE, 1);
+        validateRequestRun(valueState, StateRequestType.VALUE_UPDATE, 1, 0);
 
         valueState.clear();
-        validateRequestRun(valueState, StateRequestType.CLEAR, null);
+        validateRequestRun(valueState, StateRequestType.CLEAR, null, 0);
 
         valueState.value();
-        validateRequestRun(valueState, StateRequestType.VALUE_GET, null);
+        validateRequestRun(valueState, StateRequestType.VALUE_GET, null, 0);
 
         valueState.update(1);
-        validateRequestRun(valueState, StateRequestType.VALUE_UPDATE, 1);
+        validateRequestRun(valueState, StateRequestType.VALUE_UPDATE, 1, 0);
     }
 }

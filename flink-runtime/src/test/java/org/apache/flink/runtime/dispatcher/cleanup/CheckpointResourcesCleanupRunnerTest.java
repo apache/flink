@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -46,6 +45,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class CheckpointResourcesCleanupRunnerTest {
 
-    private static final Time TIMEOUT_FOR_REQUESTS = Time.milliseconds(0);
+    private static final Duration TIMEOUT_FOR_REQUESTS = Duration.ofMillis(0);
 
     private static final ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
             BEFORE_START = ignored -> {};

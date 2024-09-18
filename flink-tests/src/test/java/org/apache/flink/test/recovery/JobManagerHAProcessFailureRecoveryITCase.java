@@ -22,9 +22,7 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -32,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -147,7 +146,13 @@ class JobManagerHAProcessFailureRecoveryITCase {
         ExecutionEnvironment env =
                 ExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        env.configure(configuration, Thread.currentThread().getContextClassLoader());
+
         env.getConfig().setExecutionMode(executionMode);
 
         final long numElements = 100000L;
@@ -429,12 +434,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
             int numberOfTaskManagers, DispatcherGateway dispatcherGateway, Duration timeLeft)
             throws ExecutionException, InterruptedException {
         FutureUtils.retrySuccessfulWithDelay(
-                        () ->
-                                dispatcherGateway.requestClusterOverview(
-                                        Time.milliseconds(timeLeft.toMillis())),
+                        () -> dispatcherGateway.requestClusterOverview(timeLeft),
                         Duration.ofMillis(50L),
-                        org.apache.flink.api.common.time.Deadline.fromNow(
-                                Duration.ofMillis(timeLeft.toMillis())),
+                        org.apache.flink.api.common.time.Deadline.fromNow(timeLeft),
                         clusterOverview ->
                                 clusterOverview.getNumTaskManagersConnected()
                                         >= numberOfTaskManagers,

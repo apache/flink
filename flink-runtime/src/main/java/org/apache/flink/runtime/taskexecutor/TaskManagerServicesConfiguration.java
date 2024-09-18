@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -42,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -87,7 +87,7 @@ public class TaskManagerServicesConfiguration {
 
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
-    private Optional<Time> systemResourceMetricsProbingInterval;
+    private Optional<Duration> systemResourceMetricsProbingInterval;
 
     private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
@@ -114,7 +114,7 @@ public class TaskManagerServicesConfiguration {
             TaskExecutorResourceSpec taskExecutorResourceSpec,
             long timerServiceShutdownTimeout,
             RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-            Optional<Time> systemResourceMetricsProbingInterval,
+            Optional<Duration> systemResourceMetricsProbingInterval,
             FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstLoaderPatterns,
             int numIoThreads,
@@ -225,7 +225,7 @@ public class TaskManagerServicesConfiguration {
         return timerServiceShutdownTimeout;
     }
 
-    public Optional<Time> getSystemResourceMetricsProbingInterval() {
+    public Optional<Duration> getSystemResourceMetricsProbingInterval() {
         return systemResourceMetricsProbingInterval;
     }
 

@@ -239,7 +239,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             @Nullable State state, StateRequestType type, @Nullable IN payload) {
         // Step 1: build state future & assign context.
         InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
-        StateRequest<K, IN, OUT> request =
+        StateRequest<K, ?, IN, OUT> request =
                 new StateRequest<>(state, type, payload, stateFuture, currentContext);
 
         // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
@@ -278,11 +278,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         currentContext.setNamespace(state, namespace);
     }
 
-    <IN, OUT> void insertActiveBuffer(StateRequest<K, IN, OUT> request) {
+    <IN, OUT> void insertActiveBuffer(StateRequest<K, ?, IN, OUT> request) {
         stateRequestsBuffer.enqueueToActive(request);
     }
 
-    <IN, OUT> void insertBlockingBuffer(StateRequest<K, IN, OUT> request) {
+    <IN, OUT> void insertBlockingBuffer(StateRequest<K, ?, IN, OUT> request) {
         stateRequestsBuffer.enqueueToBlocking(request);
     }
 

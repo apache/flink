@@ -94,7 +94,7 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
         CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         if (ttlConfig.isEnabled()) {
             cacheBuilder.expireAfterWrite(
-                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+                    ttlConfig.getTimeToLive().toMillis(), TimeUnit.MILLISECONDS);
         }
         kvCache =
                 cacheBuilder

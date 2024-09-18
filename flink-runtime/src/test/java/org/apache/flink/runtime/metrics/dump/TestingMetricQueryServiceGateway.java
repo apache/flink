@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -46,7 +46,7 @@ public class TestingMetricQueryServiceGateway implements MetricQueryServiceGatew
 
     @Override
     public CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(
-            Time timeout) {
+            Duration timeout) {
         return queryMetricsSupplier.get();
     }
 

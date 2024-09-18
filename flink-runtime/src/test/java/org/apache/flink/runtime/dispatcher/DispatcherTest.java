@@ -889,9 +889,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner(), testException);
 
         final Throwable error =
-                fatalErrorHandler
-                        .getErrorFuture()
-                        .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                fatalErrorHandler.getErrorFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         assertThat(
                 ExceptionUtils.findThrowableWithMessage(error, testException.getMessage())

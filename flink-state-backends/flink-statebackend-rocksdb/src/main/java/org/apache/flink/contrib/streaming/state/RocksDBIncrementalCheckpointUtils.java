@@ -17,12 +17,14 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
@@ -41,6 +43,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,7 +53,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -220,21 +222,6 @@ public class RocksDBIncrementalCheckpointUtils {
     }
 
     /**
-     * Returns true, if all entries in the sst files of the given DB is strictly within the expected
-     * key-group range for the DB.
-     *
-     * @param db the DB to check.
-     * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
-     * @param keyGroupPrefixBytes the number of bytes used to serialize the key-group prefix of keys
-     *     in the DB.
-     */
-    public static boolean isSstDataInKeyGroupRange(
-            RocksDB db, int keyGroupPrefixBytes, KeyGroupRange dbExpectedKeyGroupRange) {
-        return checkSstDataAgainstKeyGroupRange(db, keyGroupPrefixBytes, dbExpectedKeyGroupRange)
-                .allInRange();
-    }
-
-    /**
      * Returns a range compaction task as runnable if any data in the SST files of the given DB
      * exceeds the proclaimed key-group range.
      *
@@ -243,51 +230,87 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param keyGroupPrefixBytes the number of bytes used to serialize the key-group prefix of keys
      *     in the DB.
      * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
+     * @param rocksDBResourceGuard the resource guard for the given db instance.
      * @return runnable that performs compaction upon execution if the key-groups range is exceeded.
      *     Otherwise, empty optional is returned.
      */
-    public static Optional<RunnableWithException> createRangeCompactionTaskIfNeeded(
+    public static RunnableWithException createAsyncRangeCompactionTask(
             RocksDB db,
             Collection<ColumnFamilyHandle> columnFamilyHandles,
             int keyGroupPrefixBytes,
-            KeyGroupRange dbExpectedKeyGroupRange) {
+            KeyGroupRange dbExpectedKeyGroupRange,
+            ResourceGuard rocksDBResourceGuard,
+            CloseableRegistry closeableRegistry) {
 
-        RangeCheckResult rangeCheckResult =
-                checkSstDataAgainstKeyGroupRange(db, keyGroupPrefixBytes, dbExpectedKeyGroupRange);
+        return () -> {
+            logger.debug(
+                    "Starting range check for async compaction targeting key-groups range {}.",
+                    dbExpectedKeyGroupRange.prettyPrintInterval());
+            final RangeCheckResult rangeCheckResult;
+            try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource()) {
+                rangeCheckResult =
+                        checkSstDataAgainstKeyGroupRange(
+                                db, keyGroupPrefixBytes, dbExpectedKeyGroupRange);
+            }
 
-        if (rangeCheckResult.allInRange()) {
-            // No keys exceed the proclaimed range of the backend, so we don't need a compaction
-            // from this point of view.
-            return Optional.empty();
-        }
+            if (rangeCheckResult.allInRange()) {
+                logger.debug(
+                        "Nothing to compact in async compaction targeting key-groups range {}.",
+                        dbExpectedKeyGroupRange.prettyPrintInterval());
+                // No keys exceed the proclaimed range of the backend, so we don't need a compaction
+                // from this point of view.
+                return;
+            }
 
-        return Optional.of(
-                () -> {
-                    try (CompactRangeOptions compactionOptions =
-                            new CompactRangeOptions()
-                                    .setExclusiveManualCompaction(true)
-                                    .setBottommostLevelCompaction(
-                                            CompactRangeOptions.BottommostLevelCompaction
-                                                    .kForceOptimized)) {
+            try (CompactRangeOptions compactionOptions =
+                    new CompactRangeOptions()
+                            .setBottommostLevelCompaction(
+                                    CompactRangeOptions.BottommostLevelCompaction
+                                            .kForceOptimized)) {
 
-                        if (!rangeCheckResult.leftInRange) {
-                            // Compact all keys before from the expected key-groups range
-                            for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                // To cancel an ongoing compaction asap, we register cancelling through the options
+                // with the registry
+                final Closeable cancelCompactionCloseable =
+                        () -> {
+                            logger.info(
+                                    "Cancel request for async compaction targeting key-groups range {}.",
+                                    dbExpectedKeyGroupRange.prettyPrintInterval(),
+                                    new Exception("StackTrace"));
+                            compactionOptions.setCanceled(true);
+                        };
+
+                try {
+                    closeableRegistry.registerCloseable(cancelCompactionCloseable);
+
+                    if (!rangeCheckResult.leftInRange) {
+                        logger.debug(
+                                "Compacting left interval in async compaction targeting key-groups range {}.",
+                                dbExpectedKeyGroupRange.prettyPrintInterval());
+                        // Compact all keys before from the expected key-groups range
+                        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                            try (ResourceGuard.Lease ignored =
+                                    rocksDBResourceGuard.acquireResource()) {
                                 db.compactRange(
                                         columnFamilyHandle,
                                         // TODO: change to null once this API is fixed
                                         new byte[] {},
-                                        rangeCheckResult.minKey,
+                                        rangeCheckResult.getProclaimedMinKey(),
                                         compactionOptions);
                             }
                         }
+                    }
 
-                        if (!rangeCheckResult.rightInRange) {
-                            // Compact all keys after the expected key-groups range
-                            for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                    if (!rangeCheckResult.rightInRange) {
+                        logger.debug(
+                                "Compacting right interval in async compaction targeting key-groups range {}.",
+                                dbExpectedKeyGroupRange.prettyPrintInterval());
+                        // Compact all keys after the expected key-groups range
+                        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                            try (ResourceGuard.Lease ignored =
+                                    rocksDBResourceGuard.acquireResource()) {
                                 db.compactRange(
                                         columnFamilyHandle,
-                                        rangeCheckResult.maxKey,
+                                        rangeCheckResult.getProclaimedMaxKey(),
                                         // TODO: change to null once this API is fixed
                                         new byte[] {
                                             (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff
@@ -296,7 +319,11 @@ public class RocksDBIncrementalCheckpointUtils {
                             }
                         }
                     }
-                });
+                } finally {
+                    closeableRegistry.unregisterCloseable(cancelCompactionCloseable);
+                }
+            }
+        };
     }
 
     /**
@@ -309,7 +336,7 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
      * @return the check result with detailed info about lower and upper bound violations.
      */
-    private static RangeCheckResult checkSstDataAgainstKeyGroupRange(
+    public static RangeCheckResult checkSstDataAgainstKeyGroupRange(
             RocksDB db, int keyGroupPrefixBytes, KeyGroupRange dbExpectedKeyGroupRange) {
         final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
         final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
@@ -321,12 +348,12 @@ public class RocksDBIncrementalCheckpointUtils {
                 dbExpectedKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
 
         KeyRange dbKeyRange = getDBKeyRange(db);
-        Comparator<byte[]> comparator = UnsignedBytes.lexicographicalComparator();
         return RangeCheckResult.of(
-                comparator.compare(dbKeyRange.minKey, beginKeyGroupBytes) >= 0,
-                comparator.compare(dbKeyRange.maxKey, endKeyGroupBytes) < 0,
                 beginKeyGroupBytes,
-                endKeyGroupBytes);
+                endKeyGroupBytes,
+                dbKeyRange.minKey,
+                dbKeyRange.maxKey,
+                keyGroupPrefixBytes);
     }
 
     /** Returns a pair of minimum and maximum key in the sst files of the given database. */
@@ -371,7 +398,7 @@ public class RocksDBIncrementalCheckpointUtils {
             List<ColumnFamilyHandle> columnFamilyHandles,
             List<RegisteredStateMetaInfoBase> registeredStateMetaInfoBases,
             Path exportBasePath,
-            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>> resultOutput)
+            Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> resultOutput)
             throws RocksDBException {
 
         Preconditions.checkArgument(
@@ -380,7 +407,8 @@ public class RocksDBIncrementalCheckpointUtils {
 
         try (final Checkpoint checkpoint = Checkpoint.create(db)) {
             for (int i = 0; i < columnFamilyHandles.size(); i++) {
-                RegisteredStateMetaInfoBase stateMetaInfo = registeredStateMetaInfoBases.get(i);
+                RegisteredStateMetaInfoBase.Key stateMetaInfoAsKey =
+                        registeredStateMetaInfoBases.get(i).asMapKey();
 
                 Path subPath = exportBasePath.resolve(UUID.randomUUID().toString());
                 ExportImportFilesMetaData exportedColumnFamilyMetaData =
@@ -393,7 +421,7 @@ public class RocksDBIncrementalCheckpointUtils {
 
                 if (exportedSstFiles != null && exportedSstFiles.length > 0) {
                     resultOutput
-                            .computeIfAbsent(stateMetaInfo, (key) -> new ArrayList<>())
+                            .computeIfAbsent(stateMetaInfoAsKey, (key) -> new ArrayList<>())
                             .add(exportedColumnFamilyMetaData);
                 } else {
                     // Close unused empty export result
@@ -500,28 +528,94 @@ public class RocksDBIncrementalCheckpointUtils {
      * instance contains any keys (or tombstones for keys) that don't belong in the instance's
      * key-groups range.
      */
-    private static final class RangeCheckResult {
-        private final byte[] minKey;
-
-        private final byte[] maxKey;
+    public static final class RangeCheckResult {
+        private final byte[] proclaimedMinKey;
+        private final byte[] proclaimedMaxKey;
+        private final byte[] actualMinKey;
+        private final byte[] actualMaxKey;
         final boolean leftInRange;
         final boolean rightInRange;
 
+        final int keyGroupPrefixBytes;
+
         private RangeCheckResult(
-                boolean leftInRange, boolean rightInRange, byte[] minKey, byte[] maxKey) {
-            this.leftInRange = leftInRange;
-            this.rightInRange = rightInRange;
-            this.minKey = minKey;
-            this.maxKey = maxKey;
+                byte[] proclaimedMinKey,
+                byte[] proclaimedMaxKey,
+                byte[] actualMinKey,
+                byte[] actualMaxKey,
+                int keyGroupPrefixBytes) {
+            Comparator<byte[]> comparator = UnsignedBytes.lexicographicalComparator();
+            this.proclaimedMinKey = proclaimedMinKey;
+            this.proclaimedMaxKey = proclaimedMaxKey;
+            this.actualMinKey = actualMinKey;
+            this.actualMaxKey = actualMaxKey;
+            this.leftInRange = comparator.compare(actualMinKey, proclaimedMinKey) >= 0;
+            // TODO: consider using <= here to avoid that range delete tombstones of
+            //  (targetMaxKeyGroup + 1) prevent using ingest for no good reason.
+            this.rightInRange = comparator.compare(actualMaxKey, proclaimedMaxKey) < 0;
+            this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         }
 
-        boolean allInRange() {
+        public boolean allInRange() {
             return leftInRange && rightInRange;
         }
 
+        public byte[] getProclaimedMinKey() {
+            return proclaimedMinKey;
+        }
+
+        public byte[] getProclaimedMaxKey() {
+            return proclaimedMaxKey;
+        }
+
+        public byte[] getActualMinKey() {
+            return actualMinKey;
+        }
+
+        public byte[] getActualMaxKey() {
+            return actualMaxKey;
+        }
+
+        public int getKeyGroupPrefixBytes() {
+            return keyGroupPrefixBytes;
+        }
+
+        public boolean isLeftInRange() {
+            return leftInRange;
+        }
+
+        public boolean isRightInRange() {
+            return rightInRange;
+        }
+
         static RangeCheckResult of(
-                boolean leftInRange, boolean rightInRange, byte[] minKey, byte[] maxKey) {
-            return new RangeCheckResult(leftInRange, rightInRange, minKey, maxKey);
+                byte[] proclaimedMinKey,
+                byte[] proclaimedMaxKey,
+                byte[] actualMinKey,
+                byte[] actualMaxKey,
+                int keyGroupPrefixBytes) {
+            return new RangeCheckResult(
+                    proclaimedMinKey,
+                    proclaimedMaxKey,
+                    actualMinKey,
+                    actualMaxKey,
+                    keyGroupPrefixBytes);
+        }
+
+        @Override
+        public String toString() {
+            return "RangeCheckResult{"
+                    + "leftInRange="
+                    + leftInRange
+                    + ", rightInRange="
+                    + rightInRange
+                    + ", actualMinKeyGroup="
+                    + CompositeKeySerializationUtils.extractKeyGroup(
+                            keyGroupPrefixBytes, getActualMinKey())
+                    + ", actualMaxKeyGroup="
+                    + CompositeKeySerializationUtils.extractKeyGroup(
+                            keyGroupPrefixBytes, getActualMaxKey())
+                    + '}';
         }
     }
 }

@@ -20,7 +20,6 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
@@ -381,9 +380,9 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @deprecated use {@link #setIdleStateRetention(Duration)} instead.
      */
     @Deprecated
-    public void setIdleStateRetentionTime(Time minTime, Time maxTime) {
-        if (maxTime.toMilliseconds() - minTime.toMilliseconds() < 300000
-                && !(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
+    public void setIdleStateRetentionTime(Duration minTime, Duration maxTime) {
+        if (maxTime.minus(minTime).toMillis() < 300000
+                && !(maxTime.toMillis() == 0 && minTime.toMillis() == 0)) {
             throw new IllegalArgumentException(
                     "Difference between minTime: "
                             + minTime
@@ -391,7 +390,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
                             + maxTime
                             + " should be at least 5 minutes.");
         }
-        setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds()));
+        setIdleStateRetention(minTime);
     }
 
     /**

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.resources.ExternalResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -711,7 +711,7 @@ class DefaultResourceAllocationStrategyTest {
                 DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
                 NUM_OF_SLOTS,
                 taskManagerLoadBalanceMode,
-                Time.milliseconds(0),
+                Duration.ofMillis(0),
                 redundantTaskManagerNum,
                 new CPUResource(0.0),
                 MemorySize.ZERO);
@@ -723,7 +723,7 @@ class DefaultResourceAllocationStrategyTest {
                 DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
                 NUM_OF_SLOTS,
                 TaskManagerLoadBalanceMode.NONE,
-                Time.milliseconds(0),
+                Duration.ofMillis(0),
                 0,
                 minRequiredCPU,
                 minRequiredMemory);

@@ -21,7 +21,6 @@ package org.apache.flink.api.connector.sink2;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
@@ -150,28 +149,8 @@ public interface Sink<InputT> extends Serializable {
         }
 
         @Override
-        public int getSubtaskId() {
-            return wrapped.getSubtaskId();
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return wrapped.getNumberOfParallelSubtasks();
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return wrapped.getAttemptNumber();
-        }
-
-        @Override
         public OptionalLong getRestoredCheckpointId() {
             return wrapped.getRestoredCheckpointId();
-        }
-
-        @Override
-        public JobID getJobId() {
-            return wrapped.getJobId();
         }
 
         @Override

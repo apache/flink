@@ -179,7 +179,6 @@ public abstract class SequentialFormatTestBase<T> {
         this.tempFile = File.createTempFile("BinaryInputFormat", null);
         this.tempFile.deleteOnExit();
         Configuration configuration = new Configuration();
-        configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
         if (this.parallelism == 1) {
             BinaryOutputFormat<T> output =
                     createOutputFormat(this.tempFile.toURI().toString(), configuration);
@@ -262,10 +261,13 @@ public abstract class SequentialFormatTestBase<T> {
                     new Object[] {
                         100, BinaryOutputFormat.NATIVE_BLOCK_SIZE, parallelism, new int[parallelism]
                     });
-            params.add(new Object[] {100, 1000, parallelism, new int[parallelism]});
-            params.add(new Object[] {100, 1 << 20, parallelism, new int[parallelism]});
-            params.add(new Object[] {10000, 1000, parallelism, new int[parallelism]});
-            params.add(new Object[] {10000, 1 << 20, parallelism, new int[parallelism]});
+            params.add(
+                    new Object[] {
+                        10000,
+                        BinaryOutputFormat.NATIVE_BLOCK_SIZE,
+                        parallelism,
+                        new int[parallelism]
+                    });
         }
         return params;
     }

@@ -190,6 +190,23 @@ object UserDefinedFunctionTestUtils {
 
   }
 
+  class FakePercentile extends AggregateFunction[Double, Tuple1[Double]] {
+    def accumulate(acc: Tuple1[Double], value: Int, percentage: Double): Unit = acc.f0 += value
+
+    override def createAccumulator: Tuple1[Double] = Tuple1.of(0d)
+
+    override def getValue(acc: Tuple1[Double]): Double = acc.f0
+
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .typedArguments(DataTypes.INT(), DataTypes.DOUBLE())
+        .accumulatorTypeStrategy(TypeStrategies.explicit(
+          DataTypes.STRUCTURED(classOf[Tuple1[Double]], DataTypes.FIELD("f0", DataTypes.DOUBLE()))))
+        .outputTypeStrategy(TypeStrategies.explicit(DataTypes.DOUBLE()))
+        .build
+    }
+  }
+
   // ------------------------------------------------------------------------------------
   // ScalarFunctions
   // ------------------------------------------------------------------------------------

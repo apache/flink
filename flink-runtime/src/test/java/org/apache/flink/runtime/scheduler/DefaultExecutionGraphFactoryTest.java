@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
@@ -66,6 +65,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -224,7 +224,7 @@ class DefaultExecutionGraphFactoryTest {
                 new DefaultExecutionDeploymentTracker(),
                 EXECUTOR_EXTENSION.getExecutor(),
                 EXECUTOR_EXTENSION.getExecutor(),
-                Time.milliseconds(0L),
+                Duration.ofMillis(0L),
                 metricGroup,
                 VoidBlobWriter.getInstance(),
                 ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,

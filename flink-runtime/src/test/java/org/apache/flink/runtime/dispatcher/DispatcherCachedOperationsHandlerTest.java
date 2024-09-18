@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.RestOptions;
@@ -51,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /** Tests for the {@link DispatcherCachedOperationsHandler} component. */
 public class DispatcherCachedOperationsHandlerTest extends TestLogger {
 
-    private static final Time TIMEOUT = Time.minutes(10);
+    private static final Duration TIMEOUT = Duration.ofMinutes(10);
 
     private CompletedOperationCache<AsynchronousJobOperationKey, Long> checkpointTriggerCache;
     private CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache;
@@ -76,7 +75,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         new TriggerCheckpointSpyFunction() {
                             @Override
                             CompletableFuture<Long> applyWrappedFunction(
-                                    JobID jobID, CheckpointType checkpointType, Time timeout) {
+                                    JobID jobID, CheckpointType checkpointType, Duration timeout) {
                                 return checkpointIdFuture;
                             }
                         });
@@ -243,13 +242,13 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
 
         @Override
         public CompletableFuture<Long> apply(
-                JobID jobID, CheckpointType checkpointType, Time timeout) {
+                JobID jobID, CheckpointType checkpointType, Duration timeout) {
             invocations.add(new Tuple2<>(jobID, checkpointType));
             return applyWrappedFunction(jobID, checkpointType, timeout);
         }
 
         abstract CompletableFuture<Long> applyWrappedFunction(
-                JobID jobID, CheckpointType checkpointType, Time timeout);
+                JobID jobID, CheckpointType checkpointType, Duration timeout);
 
         public List<Tuple2<JobID, CheckpointType>> getInvocationParameters() {
             return invocations;
@@ -264,7 +263,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
             return new TriggerCheckpointSpyFunction() {
                 @Override
                 CompletableFuture<Long> applyWrappedFunction(
-                        JobID jobID, CheckpointType checkpointType, Time timeout) {
+                        JobID jobID, CheckpointType checkpointType, Duration timeout) {
                     return wrappedFunction.apply(jobID, checkpointType, timeout);
                 }
             };
@@ -282,7 +281,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 String targetDirectory,
                 SavepointFormatType formatType,
                 TriggerSavepointMode savepointMode,
-                Time timeout) {
+                Duration timeout) {
             invocations.add(new Tuple4<>(jobID, targetDirectory, formatType, savepointMode));
             return applyWrappedFunction(jobID, targetDirectory, formatType, savepointMode, timeout);
         }
@@ -292,7 +291,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 String targetDirectory,
                 SavepointFormatType formatType,
                 TriggerSavepointMode savepointMode,
-                Time timeout);
+                Duration timeout);
 
         public List<Tuple4<JobID, String, SavepointFormatType, TriggerSavepointMode>>
                 getInvocationParameters() {
@@ -311,7 +310,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         String targetDirectory,
                         SavepointFormatType formatType,
                         TriggerSavepointMode savepointMode,
-                        Time timeout) {
+                        Duration timeout) {
                     return wrappedFunction.apply(
                             jobID, targetDirectory, formatType, savepointMode, timeout);
                 }

@@ -20,17 +20,18 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
-import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -40,15 +41,18 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     /** Mapping of subtask id to {@link SubtaskCommittableManager}. */
     private final Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers;
 
-    @Nullable private final Long checkpointId;
+    private final long checkpointId;
     private final int subtaskId;
     private final int numberOfSubtasks;
     private final SinkCommitterMetricGroup metricGroup;
 
+    private static final Logger LOG =
+            LoggerFactory.getLogger(CheckpointCommittableManagerImpl.class);
+
     CheckpointCommittableManagerImpl(
             int subtaskId,
             int numberOfSubtasks,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this(new HashMap<>(), subtaskId, numberOfSubtasks, checkpointId, metricGroup);
     }
@@ -57,7 +61,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
             Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers,
             int subtaskId,
             int numberOfSubtasks,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this.subtasksCommittableManagers = checkNotNull(subtasksCommittableManagers);
         this.subtaskId = subtaskId;
@@ -68,7 +72,6 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
 
     @Override
     public long getCheckpointId() {
-        checkNotNull(checkpointId);
         return checkpointId;
     }
 
@@ -76,20 +79,30 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
         return subtasksCommittableManagers.values();
     }
 
-    void upsertSummary(CommittableSummary<CommT> summary) {
-        SubtaskCommittableManager<CommT> existing =
-                subtasksCommittableManagers.putIfAbsent(
-                        summary.getSubtaskId(),
-                        new SubtaskCommittableManager<>(
-                                summary.getNumberOfCommittables(),
-                                subtaskId,
-                                summary.getCheckpointId().isPresent()
-                                        ? summary.getCheckpointId().getAsLong()
-                                        : null,
-                                metricGroup));
-        if (existing != null) {
-            throw new UnsupportedOperationException(
-                    "Currently it is not supported to update the CommittableSummary for a checkpoint coming from the same subtask. Please check the status of FLINK-25920");
+    void addSummary(CommittableSummary<CommT> summary) {
+        long checkpointId = summary.getCheckpointIdOrEOI();
+        SubtaskCommittableManager<CommT> manager =
+                new SubtaskCommittableManager<>(
+                        summary.getNumberOfCommittables(), subtaskId, checkpointId, metricGroup);
+        if (checkpointId == CommittableMessage.EOI) {
+            SubtaskCommittableManager<CommT> merged =
+                    subtasksCommittableManagers.merge(
+                            summary.getSubtaskId(), manager, SubtaskCommittableManager::merge);
+            LOG.debug("Adding EOI summary (new={}}, merged={}}).", manager, merged);
+        } else {
+            SubtaskCommittableManager<CommT> existing =
+                    subtasksCommittableManagers.putIfAbsent(summary.getSubtaskId(), manager);
+            if (existing != null) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Received duplicate committable summary for checkpoint %s + subtask %s (new=%s, old=%s). Please check the status of FLINK-25920",
+                                checkpointId, summary.getSubtaskId(), manager, existing));
+            } else {
+                LOG.debug(
+                        "Setting the summary for checkpointId {} with {}",
+                        this.checkpointId,
+                        manager);
+            }
         }
     }
 
@@ -126,10 +139,9 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     @Override
-    public Collection<CommittableWithLineage<CommT>> commit(
-            boolean fullyReceived, Committer<CommT> committer)
+    public Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
             throws IOException, InterruptedException {
-        Collection<CommitRequestImpl<CommT>> requests = getPendingRequests(fullyReceived);
+        Collection<CommitRequestImpl<CommT>> requests = getPendingRequests(true);
         requests.forEach(CommitRequestImpl::setSelected);
         committer.commit(new ArrayList<>(requests));
         requests.forEach(CommitRequestImpl::setCommittedIfNoError);
@@ -138,9 +150,9 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
         return committed;
     }
 
-    Collection<CommitRequestImpl<CommT>> getPendingRequests(boolean fullyReceived) {
+    Collection<CommitRequestImpl<CommT>> getPendingRequests(boolean onlyIfFullyReceived) {
         return subtasksCommittableManagers.values().stream()
-                .filter(subtask -> !fullyReceived || subtask.hasReceivedAll())
+                .filter(subtask -> !onlyIfFullyReceived || subtask.hasReceivedAll())
                 .flatMap(SubtaskCommittableManager::getPendingRequests)
                 .collect(Collectors.toList());
     }
@@ -152,15 +164,16 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     CheckpointCommittableManagerImpl<CommT> merge(CheckpointCommittableManagerImpl<CommT> other) {
-        checkArgument(Objects.equals(other.checkpointId, checkpointId));
+        checkArgument(other.checkpointId == checkpointId);
+        CheckpointCommittableManagerImpl<CommT> merged = copy();
         for (Map.Entry<Integer, SubtaskCommittableManager<CommT>> subtaskEntry :
                 other.subtasksCommittableManagers.entrySet()) {
-            subtasksCommittableManagers.merge(
+            merged.subtasksCommittableManagers.merge(
                     subtaskEntry.getKey(),
                     subtaskEntry.getValue(),
                     SubtaskCommittableManager::merge);
         }
-        return this;
+        return merged;
     }
 
     CheckpointCommittableManagerImpl<CommT> copy() {

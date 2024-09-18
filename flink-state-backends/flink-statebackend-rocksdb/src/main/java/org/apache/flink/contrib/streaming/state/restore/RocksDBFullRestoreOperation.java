@@ -52,8 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
-
 /** Encapsulates the process of restoring a RocksDB instance from a full snapshot. */
 public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
     private final FullSnapshotRestoreOperation<K> savepointRestoreOperation;
@@ -149,7 +147,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
                         new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
                 Closeable ignored =
                         cancelStreamRegistryForRestore.registerCloseableTemporarily(
-                                asCloseable(writeBatchWrapper))) {
+                                writeBatchWrapper.getCancelCloseable())) {
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {
                 KeyGroup keyGroup = keyGroups.next();

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
@@ -195,7 +194,7 @@ public class StateBackendLoader {
     /**
      * Checks if an application-defined state backend is given, and if not, loads the state backend
      * from the configuration, from the parameter 'state.backend', as defined in {@link
-     * CheckpointingOptions#STATE_BACKEND}. If no state backend is configured, this instantiates the
+     * StateBackendOptions#STATE_BACKEND}. If no state backend is configured, this instantiates the
      * default state backend (the {@link HashMapStateBackend}).
      *
      * <p>If an application-defined state backend is found, and the state backend is a {@link

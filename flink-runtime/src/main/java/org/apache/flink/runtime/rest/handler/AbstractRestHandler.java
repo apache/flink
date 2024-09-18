@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -36,6 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -60,7 +60,7 @@ public abstract class AbstractRestHandler<
 
     protected AbstractRestHandler(
             GatewayRetriever<? extends T> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<R, P, M> messageHeaders) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);

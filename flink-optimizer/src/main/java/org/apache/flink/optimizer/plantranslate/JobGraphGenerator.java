@@ -32,7 +32,6 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.configuration.AlgorithmOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -105,6 +104,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.AlgorithmOptions.USE_LARGE_RECORDS_HANDLER;
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -129,7 +130,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
     private static final boolean mergeIterationAuxTasks =
             GlobalConfiguration.loadConfiguration()
-                    .getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
+                    .get(getBooleanConfigOption(MERGE_ITERATION_AUX_TASKS_KEY), false);
 
     private static final TaskInChain ALREADY_VISITED_PLACEHOLDER =
             new TaskInChain(null, null, null, null);
@@ -170,16 +171,13 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
     public JobGraphGenerator() {
         this.defaultMaxFan = AlgorithmOptions.SPILLING_MAX_FAN.defaultValue();
         this.defaultSortSpillingThreshold = AlgorithmOptions.SORT_SPILLING_THRESHOLD.defaultValue();
-        this.useLargeRecordHandler = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
+        this.useLargeRecordHandler = USE_LARGE_RECORDS_HANDLER.defaultValue();
     }
 
     public JobGraphGenerator(Configuration config) {
         this.defaultMaxFan = config.get(AlgorithmOptions.SPILLING_MAX_FAN);
         this.defaultSortSpillingThreshold = config.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD);
-        this.useLargeRecordHandler =
-                config.getBoolean(
-                        ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
-                        ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
+        this.useLargeRecordHandler = config.get(USE_LARGE_RECORDS_HANDLER);
     }
 
     /**
@@ -213,6 +211,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
         this.sharingGroup = new SlotSharingGroup();
 
         ExecutionConfig executionConfig = program.getOriginalPlan().getExecutionConfig();
+        Configuration jobConfiguration = program.getOriginalPlan().getJobConfiguration();
 
         // this starts the traversal that generates the job graph
         program.accept(this);
@@ -265,6 +264,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
                             .setJobId(jobId)
                             .setJobName(program.getJobName())
                             .setExecutionConfig(executionConfig)
+                            .setJobConfiguration(jobConfiguration)
                             .addJobVertices(vertices.values())
                             .addJobVertices(auxVertices)
                             .addUserArtifacts(userArtifacts)

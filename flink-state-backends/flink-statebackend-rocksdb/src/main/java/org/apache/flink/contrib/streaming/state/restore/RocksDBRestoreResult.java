@@ -30,7 +30,6 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 /** Entity holding result of RocksDB instance restore. */
 public class RocksDBRestoreResult {
@@ -43,7 +42,7 @@ public class RocksDBRestoreResult {
     private final UUID backendUID;
     private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
 
-    private final CompletableFuture<Void> asyncCompactAfterRestoreFuture;
+    private final Runnable asyncCompactTaskAfterRestore;
 
     public RocksDBRestoreResult(
             RocksDB db,
@@ -52,14 +51,14 @@ public class RocksDBRestoreResult {
             long lastCompletedCheckpointId,
             UUID backendUID,
             SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles,
-            @Nullable CompletableFuture<Void> asyncCompactAfterRestoreFuture) {
+            @Nullable Runnable asyncCompactTaskAfterRestore) {
         this.db = db;
         this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
         this.backendUID = backendUID;
         this.restoredSstFiles = restoredSstFiles;
-        this.asyncCompactAfterRestoreFuture = asyncCompactAfterRestoreFuture;
+        this.asyncCompactTaskAfterRestore = asyncCompactTaskAfterRestore;
     }
 
     public RocksDB getDb() {
@@ -86,7 +85,7 @@ public class RocksDBRestoreResult {
         return nativeMetricMonitor;
     }
 
-    public Optional<CompletableFuture<Void>> getAsyncCompactAfterRestoreFuture() {
-        return Optional.ofNullable(asyncCompactAfterRestoreFuture);
+    public Optional<Runnable> getAsyncCompactTaskAfterRestore() {
+        return Optional.ofNullable(asyncCompactTaskAfterRestore);
     }
 }

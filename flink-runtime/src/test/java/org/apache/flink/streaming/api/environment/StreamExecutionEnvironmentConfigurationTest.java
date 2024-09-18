@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -49,11 +48,6 @@ class StreamExecutionEnvironmentConfigurationTest {
     @Parameters(name = "{0}")
     private static Collection<TestSpec> specs() {
         return Arrays.asList(
-                TestSpec.testValue(TimeCharacteristic.IngestionTime)
-                        .whenSetFromFile("pipeline.time-characteristic", "IngestionTime")
-                        .viaSetter(StreamExecutionEnvironment::setStreamTimeCharacteristic)
-                        .getterVia(StreamExecutionEnvironment::getStreamTimeCharacteristic)
-                        .nonDefaultValue(TimeCharacteristic.EventTime),
                 TestSpec.testValue(60000L)
                         .whenSetFromFile("execution.buffer-timeout", "1 min")
                         .viaSetter(StreamExecutionEnvironment::setBufferTimeout)

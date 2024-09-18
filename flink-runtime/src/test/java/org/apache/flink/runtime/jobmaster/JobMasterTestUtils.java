@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -42,7 +42,7 @@ public class JobMasterTestUtils {
             JobID jobId,
             int numSlots,
             TaskExecutorGateway taskExecutorGateway,
-            Time testingTimeout)
+            Duration testingTimeout)
             throws ExecutionException, InterruptedException {
 
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =

@@ -248,7 +248,7 @@ public class WindowReaderTest {
         harness.close();
 
         OperatorID operatorID = OperatorIDGenerator.fromUid(UID);
-        OperatorState operatorState = new OperatorState(operatorID, 1, MAX_PARALLELISM);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, MAX_PARALLELISM);
         operatorState.putState(0, state);
         return operatorState;
     }

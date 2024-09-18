@@ -25,6 +25,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
@@ -115,6 +116,10 @@ abstract class AbstractTaskManagerProcessFailureRecoveryTest {
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
         config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30L));
+        config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(5000));
 
         try (final StandaloneSessionClusterEntrypoint clusterEntrypoint =
                 new StandaloneSessionClusterEntrypoint(config)) {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -47,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -111,10 +111,10 @@ class JobMasterSchedulerTest {
                 ScheduledExecutorService futureExecutor,
                 ClassLoader userCodeLoader,
                 CheckpointRecoveryFactory checkpointRecoveryFactory,
-                Time rpcTimeout,
+                Duration rpcTimeout,
                 BlobWriter blobWriter,
                 JobManagerJobMetricGroup jobManagerJobMetricGroup,
-                Time slotRequestTimeout,
+                Duration slotRequestTimeout,
                 ShuffleMaster<?> shuffleMaster,
                 JobMasterPartitionTracker partitionTracker,
                 ExecutionDeploymentTracker executionDeploymentTracker,

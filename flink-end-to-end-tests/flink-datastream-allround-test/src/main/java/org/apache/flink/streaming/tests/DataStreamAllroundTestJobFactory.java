@@ -21,7 +21,6 @@ package org.apache.flink.streaming.tests;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,7 +31,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -53,6 +54,7 @@ import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateB
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueStateBuilder;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -341,28 +343,34 @@ public class DataStreamAllroundTestJobFactory {
             final StreamExecutionEnvironment env, final ParameterTool pt) {
         String restartStrategyConfig = pt.get(ENVIRONMENT_RESTART_STRATEGY.key());
         if (restartStrategyConfig != null) {
-            RestartStrategies.RestartStrategyConfiguration restartStrategy;
             switch (restartStrategyConfig) {
                 case "fixed_delay":
-                    restartStrategy =
-                            RestartStrategies.fixedDelayRestart(
-                                    pt.getInt(
-                                            ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.key(),
-                                            ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS
-                                                    .defaultValue()),
+                    Configuration configuration = new Configuration();
+                    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+                    configuration.set(
+                            RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+                            pt.getInt(
+                                    ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.key(),
+                                    ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS.defaultValue()));
+                    configuration.set(
+                            RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+                            Duration.ofMillis(
                                     pt.getLong(
                                             ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY.key(),
                                             ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY
-                                                    .defaultValue()));
+                                                    .defaultValue())));
+
+                    env.configure(configuration);
                     break;
                 case "no_restart":
-                    restartStrategy = RestartStrategies.noRestart();
+                    env.configure(
+                            new Configuration()
+                                    .set(RestartStrategyOptions.RESTART_STRATEGY, "none"));
                     break;
                 default:
                     throw new IllegalArgumentException(
                             "Unknown restart strategy: " + restartStrategyConfig);
             }
-            env.setRestartStrategy(restartStrategy);
         }
     }
 

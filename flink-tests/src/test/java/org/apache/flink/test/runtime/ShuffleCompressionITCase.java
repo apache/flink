@@ -84,7 +84,9 @@ public class ShuffleCompressionITCase {
     @Test
     public void testNoDataCompressionForBoundedBlockingShuffle() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED, false);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC,
+                NettyShuffleEnvironmentOptions.CompressionCodec.NONE);
         configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
         configuration.set(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
@@ -97,7 +99,9 @@ public class ShuffleCompressionITCase {
     @Test
     public void testNoDataCompressionForSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED, false);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC,
+                NettyShuffleEnvironmentOptions.CompressionCodec.NONE);
         configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
 
         JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);

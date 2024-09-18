@@ -151,6 +151,7 @@ arithmetic functions
     Expression.hex
     Expression.unhex
     Expression.truncate
+    Expression.percentile
 
 string functions
 ----------------

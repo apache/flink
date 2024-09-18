@@ -29,7 +29,6 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
@@ -133,7 +132,7 @@ public class ExecutionEnvironment {
 
     private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
-    private final ExecutionConfig config = new ExecutionConfig();
+    private final ExecutionConfig config;
 
     /**
      * Result from the latest execution, to make it retrievable when using eager execution methods.
@@ -186,6 +185,7 @@ public class ExecutionEnvironment {
             final ClassLoader userClassloader) {
         this.executorServiceLoader = checkNotNull(executorServiceLoader);
         this.configuration = new Configuration(checkNotNull(configuration));
+        this.config = new ExecutionConfig(this.configuration);
         this.userClassloader =
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
@@ -271,60 +271,6 @@ public class ExecutionEnvironment {
      */
     public void setParallelism(int parallelism) {
         config.setParallelism(parallelism);
-    }
-
-    /**
-     * Sets the restart strategy configuration. The configuration specifies which restart strategy
-     * will be used for the execution graph in case of a restart.
-     *
-     * @param restartStrategyConfiguration Restart strategy configuration to be set
-     */
-    @PublicEvolving
-    public void setRestartStrategy(
-            RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-        config.setRestartStrategy(restartStrategyConfiguration);
-    }
-
-    /**
-     * Returns the specified restart strategy configuration.
-     *
-     * @return The restart strategy configuration to be used
-     */
-    @PublicEvolving
-    public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
-        return config.getRestartStrategy();
-    }
-
-    /**
-     * Sets the number of times that failed tasks are re-executed. A value of zero effectively
-     * disables fault tolerance. A value of {@code -1} indicates that the system default value (as
-     * defined in the configuration) should be used.
-     *
-     * @param numberOfExecutionRetries The number of times the system will try to re-execute failed
-     *     tasks.
-     * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
-     *     execution retries.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-        config.setNumberOfExecutionRetries(numberOfExecutionRetries);
-    }
-
-    /**
-     * Gets the number of times the system will try to re-execute failed tasks. A value of {@code
-     * -1} indicates that the system default value (as defined in the configuration) should be used.
-     *
-     * @return The number of times the system will try to re-execute failed tasks.
-     * @deprecated This method will be replaced by {@link #getRestartStrategy}. The {@link
-     *     RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
-     *     execution retries.
-     */
-    @Deprecated
-    @PublicEvolving
-    public int getNumberOfExecutionRetries() {
-        return config.getNumberOfExecutionRetries();
     }
 
     /**
@@ -1183,7 +1129,8 @@ public class ExecutionEnvironment {
         }
 
         final PlanGenerator generator =
-                new PlanGenerator(sinks, config, getParallelism(), cacheFile, jobName);
+                new PlanGenerator(
+                        sinks, config, getParallelism(), cacheFile, jobName, configuration);
         final Plan plan = generator.generate();
 
         // clear all the sinks such that the next execution does not redo everything

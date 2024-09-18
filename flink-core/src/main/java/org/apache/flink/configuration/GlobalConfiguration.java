@@ -19,7 +19,6 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -27,11 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +39,6 @@ import java.util.Map;
 public final class GlobalConfiguration {
 
     private static final Logger LOG = LoggerFactory.getLogger(GlobalConfiguration.class);
-
-    public static final String LEGACY_FLINK_CONF_FILENAME = "flink-conf.yaml";
 
     public static final String FLINK_CONF_FILENAME = "config.yaml";
 
@@ -69,8 +62,6 @@ public final class GlobalConfiguration {
 
     // the hidden content to be displayed
     public static final String HIDDEN_CONTENT = "******";
-
-    private static boolean standardYaml = true;
 
     // --------------------------------------------------------------------------------------------
 
@@ -143,31 +134,20 @@ public final class GlobalConfiguration {
         }
 
         // get Flink yaml configuration file
-        File yamlConfigFile = new File(confDirFile, LEGACY_FLINK_CONF_FILENAME);
         Configuration configuration;
-
+        File yamlConfigFile = new File(confDirFile, FLINK_CONF_FILENAME);
         if (!yamlConfigFile.exists()) {
-            yamlConfigFile = new File(confDirFile, FLINK_CONF_FILENAME);
-            if (!yamlConfigFile.exists()) {
-                throw new IllegalConfigurationException(
-                        "The Flink config file '"
-                                + yamlConfigFile
-                                + "' ("
-                                + yamlConfigFile.getAbsolutePath()
-                                + ") does not exist.");
-            } else {
-                standardYaml = true;
-                LOG.info(
-                        "Using standard YAML parser to load flink configuration file from {}.",
-                        yamlConfigFile.getAbsolutePath());
-                configuration = loadYAMLResource(yamlConfigFile);
-            }
+            throw new IllegalConfigurationException(
+                    "The Flink config file '"
+                            + yamlConfigFile
+                            + "' ("
+                            + yamlConfigFile.getAbsolutePath()
+                            + ") does not exist.");
         } else {
-            standardYaml = false;
             LOG.info(
-                    "Using legacy YAML parser to load flink configuration file from {}.",
+                    "Using standard YAML parser to load flink configuration file from {}.",
                     yamlConfigFile.getAbsolutePath());
-            configuration = loadLegacyYAMLResource(yamlConfigFile);
+            configuration = loadYAMLResource(yamlConfigFile);
         }
 
         logConfiguration("Loading", configuration);
@@ -188,81 +168,6 @@ public final class GlobalConfiguration {
                                 prefix,
                                 key,
                                 isSensitive(key) ? HIDDEN_CONTENT : value));
-    }
-
-    /**
-     * Loads a YAML-file of key-value pairs.
-     *
-     * <p>Colon and whitespace ": " separate key and value (one per line). The hash tag "#" starts a
-     * single-line comment.
-     *
-     * <p>Example:
-     *
-     * <pre>
-     * jobmanager.rpc.address: localhost # network address for communication with the job manager
-     * jobmanager.rpc.port   : 6123      # network port to connect to for communication with the job manager
-     * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
-     * </pre>
-     *
-     * <p>This does not span the whole YAML specification, but only the *syntax* of simple YAML
-     * key-value pairs (see issue #113 on GitHub). If at any point in time, there is a need to go
-     * beyond simple key-value pairs syntax compatibility will allow to introduce a YAML parser
-     * library.
-     *
-     * @param file the YAML file to read from
-     * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
-     */
-    private static Configuration loadLegacyYAMLResource(File file) {
-        final Configuration config = new Configuration();
-
-        try (BufferedReader reader =
-                new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
-
-            String line;
-            int lineNo = 0;
-            while ((line = reader.readLine()) != null) {
-                lineNo++;
-                // 1. check for comments
-                String[] comments = line.split("#", 2);
-                String conf = comments[0].trim();
-
-                // 2. get key and value
-                if (conf.length() > 0) {
-                    String[] kv = conf.split(": ", 2);
-
-                    // skip line with no valid key-value pair
-                    if (kv.length == 1) {
-                        LOG.warn(
-                                "Error while trying to split key and value in configuration file "
-                                        + file
-                                        + ":"
-                                        + lineNo
-                                        + ": Line is not a key-value pair (missing space after ':'?)");
-                        continue;
-                    }
-
-                    String key = kv[0].trim();
-                    String value = kv[1].trim();
-
-                    // sanity check
-                    if (key.length() == 0 || value.length() == 0) {
-                        LOG.warn(
-                                "Error after splitting key and value in configuration file "
-                                        + file
-                                        + ":"
-                                        + lineNo
-                                        + ": Key or value was empty");
-                        continue;
-                    }
-
-                    config.setString(key, value);
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Error parsing YAML configuration.", e);
-        }
-
-        return config;
     }
 
     /**
@@ -370,19 +275,6 @@ public final class GlobalConfiguration {
     }
 
     public static String getFlinkConfFilename() {
-        if (isStandardYaml()) {
-            return FLINK_CONF_FILENAME;
-        } else {
-            return LEGACY_FLINK_CONF_FILENAME;
-        }
-    }
-
-    public static boolean isStandardYaml() {
-        return standardYaml;
-    }
-
-    @VisibleForTesting
-    public static void setStandardYaml(boolean standardYaml) {
-        GlobalConfiguration.standardYaml = standardYaml;
+        return FLINK_CONF_FILENAME;
     }
 }

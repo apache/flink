@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
@@ -31,8 +30,8 @@ import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadB
 
 /** Builder for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationBuilder {
-    private Time taskManagerRequestTimeout;
-    private Time taskManagerTimeout;
+    private Duration taskManagerRequestTimeout;
+    private Duration taskManagerTimeout;
     private Duration requirementCheckDelay;
     private Duration declareNeededResourceDelay;
     private boolean waitResultConsumedBeforeRelease;
@@ -72,12 +71,12 @@ public class SlotManagerConfigurationBuilder {
     }
 
     public SlotManagerConfigurationBuilder setTaskManagerRequestTimeout(
-            Time taskManagerRequestTimeout) {
+            Duration taskManagerRequestTimeout) {
         this.taskManagerRequestTimeout = taskManagerRequestTimeout;
         return this;
     }
 
-    public SlotManagerConfigurationBuilder setTaskManagerTimeout(Time taskManagerTimeout) {
+    public SlotManagerConfigurationBuilder setTaskManagerTimeout(Duration taskManagerTimeout) {
         this.taskManagerTimeout = taskManagerTimeout;
         return this;
     }
@@ -155,7 +154,6 @@ public class SlotManagerConfigurationBuilder {
                 taskManagerTimeout,
                 requirementCheckDelay,
                 declareNeededResourceDelay,
-                waitResultConsumedBeforeRelease,
                 taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
