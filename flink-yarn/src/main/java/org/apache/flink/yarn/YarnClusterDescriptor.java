@@ -71,7 +71,6 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
-import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -313,14 +312,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         return YarnSessionClusterEntrypoint.class.getName();
     }
 
-    /**
-     * The class to start the application master with. This class runs the main method in case of
-     * the job cluster.
-     */
-    protected String getYarnJobClusterEntrypoint() {
-        return YarnJobClusterEntrypoint.class.getName();
-    }
-
     public Configuration getFlinkConfiguration() {
         return flinkConfiguration;
     }
@@ -546,25 +537,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     false);
         } catch (Exception e) {
             throw new ClusterDeploymentException("Couldn't deploy Yarn Application Cluster", e);
-        }
-    }
-
-    @Override
-    public ClusterClientProvider<ApplicationId> deployJobCluster(
-            ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached)
-            throws ClusterDeploymentException {
-
-        LOG.warn(
-                "Job Clusters are deprecated since Flink 1.15. Please use an Application Cluster/Application Mode instead.");
-        try {
-            return deployInternal(
-                    clusterSpecification,
-                    "Flink per-job cluster",
-                    getYarnJobClusterEntrypoint(),
-                    jobGraph,
-                    detached);
-        } catch (Exception e) {
-            throw new ClusterDeploymentException("Could not deploy Yarn job cluster.", e);
         }
     }
 
