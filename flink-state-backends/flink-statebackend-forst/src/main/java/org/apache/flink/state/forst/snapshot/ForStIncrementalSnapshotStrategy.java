@@ -59,7 +59,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 
 import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.CURRENT_FILE_NAME;
-import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.MANIFEST_FILE_PREFIX;
 import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.SST_FILE_SUFFIX;
 
 /**
@@ -422,9 +421,6 @@ public class ForStIncrementalSnapshotStrategy<K>
                 final String fileName = filePath.getName();
 
                 if (fileName.equals(snapshotResources.manifestFileName)) {
-                    Preconditions.checkState(
-                            toTransferManifestFile == null,
-                            String.format("Backend:%s should only one manifest file.", backendUID));
                     toTransferManifestFile = filePath;
                 } else if (fileName.endsWith(SST_FILE_SUFFIX)) {
                     Optional<StreamStateHandle> uploaded =
