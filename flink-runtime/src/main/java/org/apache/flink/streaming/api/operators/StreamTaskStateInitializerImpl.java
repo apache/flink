@@ -187,7 +187,16 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         try {
 
             // -------------- Keyed State Backend --------------
-            // TODO: Support KeyedStateBackend for AsyncKeyedStateBackend to unify the logic
+            keyedStatedBackend =
+                    keyedStatedBackend(
+                            keySerializer,
+                            operatorIdentifierText,
+                            prioritizedOperatorSubtaskStates,
+                            streamTaskCloseableRegistry,
+                            metricGroup,
+                            managedMemoryFraction,
+                            statsCollector,
+                            StateBackend::createKeyedStateBackend);
             if (stateBackend.supportsAsyncKeyedStateBackend()) {
                 asyncKeyedStateBackend =
                         keyedStatedBackend(
@@ -200,16 +209,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                 statsCollector,
                                 StateBackend::createAsyncKeyedStateBackend);
             } else {
-                keyedStatedBackend =
-                        keyedStatedBackend(
-                                keySerializer,
-                                operatorIdentifierText,
-                                prioritizedOperatorSubtaskStates,
-                                streamTaskCloseableRegistry,
-                                metricGroup,
-                                managedMemoryFraction,
-                                statsCollector,
-                                StateBackend::createKeyedStateBackend);
                 if (keyedStatedBackend != null) {
                     asyncKeyedStateBackend =
                             new AsyncKeyedStateBackendAdaptor<>(keyedStatedBackend);

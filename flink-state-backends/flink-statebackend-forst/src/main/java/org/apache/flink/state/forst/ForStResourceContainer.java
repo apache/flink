@@ -51,6 +51,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -579,5 +580,30 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
         return instanceForStAbsolutePath.replaceAll("[^a-zA-Z0-9\\-._]", "_")
                 + FORST_RELOCATE_LOG_SUFFIX;
+    }
+
+    /**
+     * Gets write buffer manager capacity.
+     *
+     * @return the capacity of the write buffer manager, or null if write buffer manager is not
+     *     enabled.
+     */
+    public Long getWriteBufferManagerCapacity() {
+        if (sharedResources == null) {
+            return null;
+        }
+
+        return sharedResources.getResourceHandle().getWriteBufferManagerCapacity();
+    }
+
+    /** Gets the "queryTimeAfterNumEntries" parameter from the configuration. */
+    public Long getQueryTimeAfterNumEntries() {
+        return internalGetOption(
+                ForStConfigurableOptions.COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES);
+    }
+
+    /** Gets the "getPeriodicCompactionTime" parameter from the configuration. */
+    public Duration getPeriodicCompactionTime() {
+        return internalGetOption(ForStConfigurableOptions.COMPACT_FILTER_PERIODIC_COMPACTION_TIME);
     }
 }
