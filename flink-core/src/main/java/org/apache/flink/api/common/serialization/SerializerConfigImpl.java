@@ -49,13 +49,6 @@ public final class SerializerConfigImpl implements SerializerConfig {
 
     private final Configuration configuration;
 
-    /**
-     * Note: This field is used only for compatibility while {@link
-     * org.apache.flink.api.common.typeinfo.TypeInformation#createSerializer(ExecutionConfig)} is
-     * deprecated; If it is removed, this field will also be removed.
-     */
-    private final ExecutionConfig executionConfig;
-
     // ------------------------------- User code values --------------------------------------------
 
     // Serializers and types registered with Kryo and the PojoSerializer
@@ -88,13 +81,11 @@ public final class SerializerConfigImpl implements SerializerConfig {
     public SerializerConfigImpl() {
         Configuration conf = new Configuration();
         this.configuration = conf;
-        this.executionConfig = new ExecutionConfig(conf);
     }
 
     @Internal
-    public SerializerConfigImpl(Configuration configuration, ExecutionConfig executionConfig) {
+    public SerializerConfigImpl(Configuration configuration) {
         this.configuration = configuration;
-        this.executionConfig = executionConfig;
     }
 
     /**
@@ -557,15 +548,6 @@ public final class SerializerConfigImpl implements SerializerConfig {
                     "A TypeInfoFactory for type '" + t + "' is already registered.");
         }
         registeredTypeInfoFactories.put(t, factory);
-    }
-
-    /**
-     * Note: This method is used only for compatibility while {@link
-     * org.apache.flink.api.common.typeinfo.TypeInformation#createSerializer(ExecutionConfig)} is
-     * deprecated; If it is removed, this method will also be removed.
-     */
-    public ExecutionConfig getExecutionConfig() {
-        return executionConfig;
     }
 
     @Override

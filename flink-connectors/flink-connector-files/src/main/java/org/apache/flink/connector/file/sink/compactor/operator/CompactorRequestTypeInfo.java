@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.sink.compactor.operator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -80,11 +79,6 @@ public class CompactorRequestTypeInfo extends TypeInformation<CompactorRequest> 
     public TypeSerializer<CompactorRequest> createSerializer(SerializerConfig config) {
         return new SimpleVersionedSerializerTypeSerializerProxy<>(
                 () -> new CompactorRequestSerializer(createCommittableSerializer()));
-    }
-
-    @Override
-    public TypeSerializer<CompactorRequest> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

@@ -144,8 +144,6 @@ object TypeInfoFactoryTest {
 
     override def createSerializer(config: SerializerConfig): TypeSerializer[MyOption[_]] = ???
 
-    override def createSerializer(config: ExecutionConfig): TypeSerializer[MyOption[_]] = ???
-
     override def canEqual(obj: scala.Any): Boolean = ???
 
     override def hashCode(): Int = ???

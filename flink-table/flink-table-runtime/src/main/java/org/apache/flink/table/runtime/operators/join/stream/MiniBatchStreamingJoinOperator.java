@@ -83,8 +83,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
         coBundleTrigger.reset();
         LOG.info("Initialize MiniBatchStreamingJoinOperator successfully.");
 
-        this.leftSerializer = leftType.createSerializer(getExecutionConfig());
-        this.rightSerializer = rightType.createSerializer(getExecutionConfig());
+        this.leftSerializer = leftType.createSerializer(getExecutionConfig().getSerializerConfig());
+        this.rightSerializer =
+                rightType.createSerializer(getExecutionConfig().getSerializerConfig());
 
         // register metrics
         leftBundleReducedSizeGauge = new SimpleGauge<>(0);

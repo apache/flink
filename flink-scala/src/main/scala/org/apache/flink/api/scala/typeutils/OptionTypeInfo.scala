@@ -81,12 +81,6 @@ class OptionTypeInfo[A, T <: Option[A]](private val elemTypeInfo: TypeInformatio
     }
   }
 
-  @PublicEvolving
-  @Deprecated
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
-    createSerializer(executionConfig.getSerializerConfig)
-  }
-
   override def toString = s"Option[$elemTypeInfo]"
 
   override def equals(obj: Any): Boolean = {

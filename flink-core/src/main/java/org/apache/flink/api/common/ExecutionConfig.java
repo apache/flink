@@ -146,7 +146,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @Internal
     public ExecutionConfig(Configuration configuration) {
         this.configuration = configuration;
-        this.serializerConfig = new SerializerConfigImpl(configuration, this);
+        this.serializerConfig = new SerializerConfigImpl(configuration);
     }
 
     /**

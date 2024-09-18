@@ -158,9 +158,6 @@ private[flink] trait TypeInformationGen[C <: Context] {
 
           new ScalaCaseClassSerializer[T](getTypeClass, fieldSerializers)
         }
-
-        override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] =
-          createSerializer(executionConfig.getSerializerConfig)
       }
     }
   }
@@ -272,11 +269,7 @@ private[flink] trait TypeInformationGen[C <: Context] {
 
       val elementTpe = $elementTypeInfo
       new TraversableTypeInfo($collectionClass, elementTpe) {
-        def createSerializer(executionConfig: ExecutionConfig) = {
-          createSerializer(executionConfig.getSerializerConfig)
-        }
-
-        override def createSerializer(serializerConfig: SerializerConfig) = {
+        def createSerializer(serializerConfig: SerializerConfig) = {
 
           // -------------------------------------------------------------------------------------
           // NOTE:

@@ -242,13 +242,6 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
     }
 
     @Override
-    @Deprecated
-    @PublicEvolving
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
-    }
-
-    @Override
     @PublicEvolving
     public TypeComparator<T> createComparator(
             boolean sortOrderAscending, ExecutionConfig executionConfig) {
