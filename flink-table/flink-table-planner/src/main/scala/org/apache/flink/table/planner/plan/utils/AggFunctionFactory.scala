@@ -62,10 +62,6 @@ class AggFunctionFactory(
   /** The entry point to create an aggregate function from the given [[AggregateCall]]. */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
 
-    object BuiltInAggFunctionName {
-      val PERCENTILE: String = BuiltInFunctionDefinitions.PERCENTILE.getName
-    }
-
     val argTypes: Array[LogicalType] = call.getArgList
       .map(inputRowType.getChildren.get(_))
       .toArray
@@ -170,9 +166,9 @@ class AggFunctionFactory(
         udagg.makeFunction(constants.toArray, argTypes)
 
       case bridge: BridgingSqlAggFunction =>
-        bridge.getName match {
+        bridge.getDefinition match {
           // built-in imperativeFunction
-          case BuiltInAggFunctionName.PERCENTILE =>
+          case BuiltInFunctionDefinitions.PERCENTILE =>
             createPercentileAggFunction(argTypes)
           // DeclarativeAggregateFunction & UDF
           case _ =>
