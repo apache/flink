@@ -474,7 +474,7 @@ class CsvRowDataSerDeSchemaTest {
         CsvRowDataSerializationSchema schema =
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(serSchemaBuilder.build()),
-                        CsvRowDeSerializationSchemaTest.class.getClassLoader());
+                        CsvRowDataSerDeSchemaTest.class.getClassLoader());
         open(schema);
         return schema.serialize(row);
     }
@@ -487,7 +487,7 @@ class CsvRowDataSerDeSchemaTest {
         CsvRowDataDeserializationSchema schema =
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(deserSchemaBuilder.build()),
-                        CsvRowDeSerializationSchemaTest.class.getClassLoader());
+                        CsvRowDataSerDeSchemaTest.class.getClassLoader());
         open(schema);
         return schema.deserialize(csv != null ? csv.getBytes() : null);
     }
