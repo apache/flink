@@ -44,6 +44,9 @@ import java.io.IOException;
 @Internal
 public class MapDataSerializer extends TypeSerializer<MapData> {
 
+    // version used since 1.19
+    private static final long serialVersionUID = 4073842523628732956L;
+
     private final LogicalType keyType;
     private final LogicalType valueType;
 
