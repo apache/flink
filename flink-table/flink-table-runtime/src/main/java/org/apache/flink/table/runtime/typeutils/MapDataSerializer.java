@@ -44,6 +44,9 @@ import java.io.IOException;
 @Internal
 public class MapDataSerializer extends TypeSerializer<MapData> {
 
+    // version used since 1.19
+    private static final long serialVersionUID = 4073842523628732956L;
+
     private final LogicalType keyType;
     private final LogicalType valueType;
 
@@ -293,12 +296,14 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
                 throws IOException {
             try {
                 DataInputViewStream inStream = new DataInputViewStream(in);
-                this.keyType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.valueType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.keyType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
+                this.valueType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
                 this.keySerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
                 this.valueSerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
             } catch (ClassNotFoundException e) {
                 throw new IOException(e);
             }
