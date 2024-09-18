@@ -421,7 +421,7 @@ public class ForStIncrementalSnapshotStrategy<K>
             for (Path filePath : snapshotResources.liveFiles) {
                 final String fileName = filePath.getName();
 
-                if (fileName.startsWith(MANIFEST_FILE_PREFIX)) {
+                if (fileName.equals(snapshotResources.manifestFileName)) {
                     Preconditions.checkState(
                             toTransferManifestFile == null,
                             String.format("Backend:%s should only one manifest file.", backendUID));
