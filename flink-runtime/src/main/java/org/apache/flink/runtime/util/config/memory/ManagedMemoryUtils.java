@@ -50,17 +50,12 @@ public enum ManagedMemoryUtils {
     private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
 
     /** Names of managed memory use cases, in the fallback order. */
-    @SuppressWarnings("deprecation")
     private static final Map<ManagedMemoryUseCase, List<String>> USE_CASE_CONSUMER_NAMES =
             ImmutableMap.of(
                     ManagedMemoryUseCase.OPERATOR,
-                    ImmutableList.of(
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC),
+                    ImmutableList.of(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_OPERATOR),
                     ManagedMemoryUseCase.STATE_BACKEND,
-                    ImmutableList.of(
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND,
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC),
+                    ImmutableList.of(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND),
                     ManagedMemoryUseCase.PYTHON,
                     ImmutableList.of(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON));
 

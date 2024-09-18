@@ -20,9 +20,7 @@ package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
@@ -81,11 +79,8 @@ public class BashJavaUtils {
      * two lines of the output should be JVM parameters and dynamic configs respectively.
      */
     private static List<String> getTmResourceParams(Configuration configuration) {
-        Configuration configurationWithFallback =
-                TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-                        configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
         TaskExecutorProcessSpec taskExecutorProcessSpec =
-                TaskExecutorProcessUtils.processSpecFromConfig(configurationWithFallback);
+                TaskExecutorProcessUtils.processSpecFromConfig(configuration);
 
         logTaskExecutorConfiguration(taskExecutorProcessSpec);
 
@@ -98,8 +93,7 @@ public class BashJavaUtils {
     @VisibleForTesting
     static List<String> getJmResourceParams(Configuration configuration) {
         JobManagerProcessSpec jobManagerProcessSpec =
-                JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
-                        configuration, JobManagerOptions.JVM_HEAP_MEMORY);
+                JobManagerProcessUtils.processSpecFromConfig(configuration);
 
         logMasterConfiguration(jobManagerProcessSpec);
 

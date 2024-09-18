@@ -1200,8 +1200,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
 
         final JobManagerProcessSpec processSpec =
-                JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
-                        flinkConfiguration, JobManagerOptions.TOTAL_PROCESS_MEMORY);
+                JobManagerProcessUtils.processSpecFromConfig(flinkConfiguration);
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
