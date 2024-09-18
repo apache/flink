@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -352,51 +351,6 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * This determines the behaviour when meeting checkpoint errors. If this returns true, which is
-     * equivalent to get tolerableCheckpointFailureNumber as zero, job manager would fail the whole
-     * job once it received a decline checkpoint message. If this returns false, which is equivalent
-     * to get tolerableCheckpointFailureNumber as the maximum of integer (means unlimited), job
-     * manager would not fail the whole job no matter how many declined checkpoints it received.
-     *
-     * @deprecated Use {@link #getTolerableCheckpointFailureNumber()}.
-     */
-    @Deprecated
-    public boolean isFailOnCheckpointingErrors() {
-        return getTolerableCheckpointFailureNumber() == 0;
-    }
-
-    /**
-     * Sets the expected behaviour for tasks in case that they encounter an error when
-     * checkpointing. If this is set as true, which is equivalent to set
-     * tolerableCheckpointFailureNumber as zero, job manager would fail the whole job once it
-     * received a decline checkpoint message. If this is set as false, which is equivalent to set
-     * tolerableCheckpointFailureNumber as the maximum of integer (means unlimited), job manager
-     * would not fail the whole job no matter how many declined checkpoints it received.
-     *
-     * <p>{@link #setTolerableCheckpointFailureNumber(int)} would always overrule this deprecated
-     * method if they have conflicts.
-     *
-     * @deprecated Use {@link #setTolerableCheckpointFailureNumber(int)}.
-     */
-    @Deprecated
-    public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
-        if (configuration.getOptional(CheckpointingOptions.TOLERABLE_FAILURE_NUMBER).isPresent()) {
-            LOG.warn(
-                    "Since CheckpointingOptions.TOLERABLE_FAILURE_NUMBER has been configured as {}, deprecated "
-                            + "#setFailOnCheckpointingErrors(boolean) method would not take any effect and please use "
-                            + "#setTolerableCheckpointFailureNumber(int) method to "
-                            + "determine your expected behaviour when checkpoint errors on task side.",
-                    getTolerableCheckpointFailureNumber());
-            return;
-        }
-        if (failOnCheckpointingErrors) {
-            setTolerableCheckpointFailureNumber(0);
-        } else {
-            setTolerableCheckpointFailureNumber(UNLIMITED_TOLERABLE_FAILURE_NUMBER);
-        }
-    }
-
-    /**
      * Get the defined number of consecutive checkpoint failures that will be tolerated, before the
      * whole job is failed over.
      *
@@ -513,36 +467,6 @@ public class CheckpointConfig implements java.io.Serializable {
     @Experimental
     public boolean isUnalignedCheckpointsInterruptibleTimersEnabled() {
         return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
-    }
-
-    /**
-     * Only relevant if {@link #isUnalignedCheckpointsEnabled} is enabled.
-     *
-     * <p>If {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to <code>0
-     * </code>, checkpoints will always start unaligned.
-     *
-     * <p>If {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value greater then <code>0
-     * </code>, checkpoints will start aligned. If during checkpointing, checkpoint start delay
-     * exceeds this {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}, alignment will timeout
-     * and checkpoint will start working as unaligned checkpoint.
-     *
-     * @deprecated Use {@link #setAlignedCheckpointTimeout(Duration)} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setAlignmentTimeout(Duration alignmentTimeout) {
-        setAlignedCheckpointTimeout(alignmentTimeout);
-    }
-
-    /**
-     * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
-     *     or {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}.
-     * @deprecated User {@link #getAlignedCheckpointTimeout()} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public Duration getAlignmentTimeout() {
-        return getAlignedCheckpointTimeout();
     }
 
     /**

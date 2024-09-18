@@ -122,7 +122,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         env.enableCheckpointing(checkpointInterval *= 2);
         env.disableOperatorChaining();
         env.getCheckpointConfig().enableUnalignedCheckpoints();
-        env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
+        env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ZERO);
         env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointIdOfIgnoredInFlightData(1);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
