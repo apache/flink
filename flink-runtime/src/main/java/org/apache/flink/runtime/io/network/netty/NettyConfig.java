@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.runtime.util.PortRange;
+import org.apache.flink.util.PortRange;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
