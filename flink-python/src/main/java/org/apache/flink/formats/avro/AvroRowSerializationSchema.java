@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
@@ -66,12 +67,8 @@ import java.util.TimeZone;
  *
  * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime class
  * {@link AvroRowDeserializationSchema} and schema converter {@link AvroSchemaConverter}.
- *
- * @deprecated The format was developed for the Table API users and will not be maintained for
- *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
- *     own {@link SerializationSchema}.
  */
-@Deprecated
+@Internal
 public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 
     /** Used for time conversions from SQL types. */
