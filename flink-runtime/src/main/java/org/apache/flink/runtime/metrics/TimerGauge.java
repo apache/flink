@@ -116,9 +116,11 @@ public class TimerGauge implements Gauge<Long>, View {
         if (currentMeasurementStartTS == 0) {
             return;
         }
-        long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
-        currentCount += currentMeasurement;
-        accumulatedCount += currentMeasurement;
+        long now = clock.absoluteTimeMillis();
+        long currentMeasurement = now - currentMeasurementStartTS;
+        long currentIncrement = now - currentUpdateTS;
+        currentCount += currentIncrement;
+        accumulatedCount += currentIncrement;
         currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
         currentUpdateTS = 0;
         currentMeasurementStartTS = 0;
