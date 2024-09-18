@@ -30,7 +30,6 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -41,6 +40,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +64,7 @@ public class CEPMigrationTest implements MigrationTest {
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
-                FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
+                FlinkVersion.v1_20, MigrationTest.getMostRecentlyPublishedVersion());
     }
 
     public CEPMigrationTest(FlinkVersion migrateVersion) {
@@ -632,7 +632,7 @@ public class CEPMigrationTest implements MigrationTest {
             Pattern<Event, ?> pattern =
                     Pattern.<Event>begin("start")
                             .where(new StartFilter())
-                            .within(Time.milliseconds(10L));
+                            .within(Duration.ofMillis(10L));
 
             return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
         }
@@ -661,7 +661,7 @@ public class CEPMigrationTest implements MigrationTest {
                             .where(new MiddleFilter())
                             .or(new SubEventEndFilter())
                             .times(2)
-                            .within(Time.milliseconds(10L));
+                            .within(Duration.ofMillis(10L));
 
             return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
         }
@@ -694,7 +694,7 @@ public class CEPMigrationTest implements MigrationTest {
                             .where(new EndFilter())
                             // add a window timeout to test whether timestamps of elements in the
                             // priority queue in CEP operator are correctly checkpointed/restored
-                            .within(Time.milliseconds(10L));
+                            .within(Duration.ofMillis(10L));
 
             return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
         }
