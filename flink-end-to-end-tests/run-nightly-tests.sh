@@ -143,8 +143,6 @@ function run_group_1 {
         # Hadoop YARN doesn't support aarch64 at this moment. See: https://issues.apache.org/jira/browse/HADOOP-16723
         # These tests are known to fail on JDK11. See FLINK-13719
         if [[ ${PROFILE} != *"jdk11"* ]]; then
-            run_test "Running Kerberized YARN per-job on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_job_kerberos_docker.sh"
-            run_test "Running Kerberized YARN per-job on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_job_kerberos_docker.sh dummy-fs"
             run_test "Running Kerberized YARN application on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh"
             run_test "Running Kerberized YARN application on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh dummy-fs"
         fi
@@ -223,7 +221,7 @@ function run_group_2 {
     fi
     # These tests are known to fail on JDK11. See FLINK-13719
     if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
-        run_test "PyFlink YARN per-job on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
+        run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
     fi
 
     ################################################################################

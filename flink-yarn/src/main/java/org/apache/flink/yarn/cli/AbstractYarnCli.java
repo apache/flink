@@ -22,7 +22,6 @@ import org.apache.flink.client.cli.AbstractCustomCommandLine;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
 import org.apache.commons.cli.CommandLine;
@@ -59,9 +58,7 @@ abstract class AbstractYarnCli extends AbstractCustomCommandLine {
                         || configuration.getOptional(YarnConfigOptions.APPLICATION_ID).isPresent();
         final boolean hasYarnExecutor =
                 YarnSessionClusterExecutor.NAME.equalsIgnoreCase(
-                                configuration.get(DeploymentOptions.TARGET))
-                        || YarnJobClusterExecutor.NAME.equalsIgnoreCase(
-                                configuration.get(DeploymentOptions.TARGET));
+                        configuration.get(DeploymentOptions.TARGET));
         return hasYarnExecutor || yarnJobManager || hasYarnAppId;
     }
 
