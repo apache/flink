@@ -21,8 +21,8 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
-import org.apache.flink.formats.avro.AvroRowSerializationSchema;
+import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
+import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
@@ -56,7 +56,7 @@ import java.util.List;
  * SQL API.
  *
  * <p>Note: Changes in this class need to be kept in sync with the corresponding runtime classes
- * {@link AvroRowDeserializationSchema} and {@link AvroRowSerializationSchema}.
+ * {@link AvroRowDataDeserializationSchema} and {@link AvroRowDataSerializationSchema}.
  */
 public class AvroSchemaConverter {
 
