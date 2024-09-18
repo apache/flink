@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -58,6 +59,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import javax.annotation.Nullable;
+
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,6 +92,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestMethodOrder(OrderAnnotation.class)
 public abstract class RestoreTestBase implements TableTestProgramRunner {
 
+    // This version can be set to generate savepoints for a particular Flink version.
+    // By default, the savepoint is generated for the current version in the default directory.
+    private static final FlinkVersion FLINK_VERSION = null;
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
     private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
     private final AfterRestoreSource afterRestoreSource;
@@ -173,7 +179,42 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         return getAllMetadata().stream()
                 .flatMap(
                         metadata ->
-                                supportedPrograms().stream().map(p -> Arguments.of(p, metadata)));
+                                supportedPrograms().stream()
+                                        .flatMap(
+                                                program ->
+                                                        getSavepointPaths(program, metadata)
+                                                                .map(
+                                                                        savepointPath ->
+                                                                                Arguments.of(
+                                                                                        program,
+                                                                                        getPlanPath(
+                                                                                                program,
+                                                                                                metadata),
+                                                                                        savepointPath))));
+    }
+
+    /**
+     * The method can be overridden in a subclass to test multiple savepoint files for a given
+     * program and a node in a particular version. This can be useful e.g. to test a node against
+     * savepoint generated in different Flink versions.
+     */
+    protected Stream<String> getSavepointPaths(
+            TableTestProgram program, ExecNodeMetadata metadata) {
+        return Stream.of(getSavepointPath(program, metadata, null));
+    }
+
+    protected final String getSavepointPath(
+            TableTestProgram program,
+            ExecNodeMetadata metadata,
+            @Nullable FlinkVersion flinkVersion) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(getTestResourceDirectory(program, metadata));
+        if (flinkVersion != null) {
+            builder.append("/").append(flinkVersion);
+        }
+        builder.append("/savepoint/");
+
+        return builder.toString();
     }
 
     private void registerSinkObserver(
@@ -260,7 +301,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         .get();
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
-        final Path savepointDirPath = getSavepointPath(program, getLatestMetadata());
+        final Path savepointDirPath =
+                Paths.get(getSavepointPath(program, getLatestMetadata(), FLINK_VERSION));
         Files.createDirectories(savepointDirPath);
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
     }
@@ -268,7 +310,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     @ParameterizedTest
     @MethodSource("createSpecs")
     @Order(1)
-    void testRestore(TableTestProgram program, ExecNodeMetadata metadata) throws Exception {
+    void testRestore(TableTestProgram program, Path planPath, String savepointPath)
+            throws Exception {
         final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
         final SavepointRestoreSettings restoreSettings;
         if (afterRestoreSource == AfterRestoreSource.NO_RESTORE) {
@@ -276,9 +319,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         } else {
             restoreSettings =
                     SavepointRestoreSettings.forPath(
-                            getSavepointPath(program, metadata).toString(),
-                            false,
-                            RecoveryClaimMode.NO_CLAIM);
+                            savepointPath, false, RecoveryClaimMode.NO_CLAIM);
         }
         SavepointRestoreSettings.toConfiguration(restoreSettings, settings.getConfiguration());
         settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
@@ -322,8 +363,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
         program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
-        final CompiledPlan compiledPlan =
-                tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
+        final CompiledPlan compiledPlan = tEnv.loadPlan(PlanReference.fromFile(planPath));
 
         if (afterRestoreSource == AfterRestoreSource.INFINITE) {
             final TableResult tableResult = compiledPlan.execute();
@@ -348,10 +388,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     private Path getPlanPath(TableTestProgram program, ExecNodeMetadata metadata) {
         return Paths.get(
                 getTestResourceDirectory(program, metadata) + "/plan/" + program.id + ".json");
-    }
-
-    private Path getSavepointPath(TableTestProgram program, ExecNodeMetadata metadata) {
-        return Paths.get(getTestResourceDirectory(program, metadata) + "/savepoint/");
     }
 
     private String getTestResourceDirectory(TableTestProgram program, ExecNodeMetadata metadata) {
