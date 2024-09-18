@@ -16,11 +16,9 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common import Duration
-from pyflink.datastream import (CheckpointConfig,
-                                CheckpointingMode,
+from pyflink.datastream import (CheckpointingMode,
                                 ExternalizedCheckpointRetention,
                                 StreamExecutionEnvironment)
-from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -31,22 +29,6 @@ class CheckpointConfigTests(PyFlinkTestCase):
             .get_execution_environment()
 
         self.checkpoint_config = self.env.get_checkpoint_config()
-
-    def test_constant(self):
-        gateway = get_gateway()
-        JCheckpointConfig = gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig
-
-        self.assertEqual(CheckpointConfig.DEFAULT_MAX_CONCURRENT_CHECKPOINTS,
-                         JCheckpointConfig.DEFAULT_MAX_CONCURRENT_CHECKPOINTS)
-
-        self.assertEqual(CheckpointConfig.DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS,
-                         JCheckpointConfig.DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS)
-
-        self.assertEqual(CheckpointConfig.DEFAULT_TIMEOUT, JCheckpointConfig.DEFAULT_TIMEOUT)
-
-        self.assertEqual(CheckpointConfig.DEFAULT_MODE,
-                         CheckpointingMode._from_j_checkpointing_mode(
-                             JCheckpointConfig.DEFAULT_MODE))
 
     def test_is_checkpointing_enabled(self):
 
