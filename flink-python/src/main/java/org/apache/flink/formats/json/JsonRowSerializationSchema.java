@@ -17,6 +17,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -65,13 +66,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link
  * JsonRowDeserializationSchema}.
- *
- * @deprecated The format was developed for the Table API users and will not be maintained for
- *     DataStream API users anymore. Either use Table API or switch to Data Stream, defining your
- *     own {@link SerializationSchema}.
  */
-@PublicEvolving
-@Deprecated
+@Internal
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
     private static final long serialVersionUID = -2885556750743978636L;
@@ -115,9 +111,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
          *
          * @param typeInfo Type information describing the result type. The field names of {@link
          *     Row} are used to parse the JSON properties.
-         * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
          */
-        @Deprecated
         public Builder(TypeInformation<Row> typeInfo) {
             checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
             this.typeInfo = (RowTypeInfo) typeInfo;
@@ -128,9 +122,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
          *
          * @param jsonSchema JSON schema describing the result type
          * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
-         * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
          */
-        @Deprecated
         public Builder(String jsonSchema) {
             this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
         }
@@ -158,7 +150,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
         }
     }
 
-    /** Creates a builder for {@link JsonRowSerializationSchema.Builder}. */
+    /** Creates a builder for {@link Builder}. */
     public static Builder builder() {
         return new Builder();
     }
