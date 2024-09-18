@@ -290,7 +290,7 @@ public class NettyShuffleEnvironmentConfiguration {
                         dataBindPortRange);
 
         final int numberOfNetworkBuffers =
-                calculateNumberOfNetworkBuffers(configuration, networkMemorySize, pageSize);
+                calculateNumberOfNetworkBuffers(networkMemorySize, pageSize);
 
         int initialRequestBackoff =
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
@@ -420,15 +420,11 @@ public class NettyShuffleEnvironmentConfiguration {
     /**
      * Calculates the number of network buffers based on configuration and jvm heap size.
      *
-     * @param configuration configuration object
      * @param networkMemorySize the size of memory reserved for shuffle environment
      * @param pageSize size of memory segment
      * @return the number of network buffers
      */
-    private static int calculateNumberOfNetworkBuffers(
-            Configuration configuration, MemorySize networkMemorySize, int pageSize) {
-
-        logIfIgnoringOldConfigs(configuration);
+    private static int calculateNumberOfNetworkBuffers(MemorySize networkMemorySize, int pageSize) {
 
         // tolerate offcuts between intended and allocated memory due to segmentation (will be
         // available to the user-space memory)
@@ -441,15 +437,6 @@ public class NettyShuffleEnvironmentConfiguration {
         }
 
         return (int) numberOfNetworkBuffersLong;
-    }
-
-    @SuppressWarnings("deprecation")
-    private static void logIfIgnoringOldConfigs(Configuration configuration) {
-        if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
-            LOG.info(
-                    "Ignoring old (but still present) network buffer configuration via {}.",
-                    NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
-        }
     }
 
     /**
