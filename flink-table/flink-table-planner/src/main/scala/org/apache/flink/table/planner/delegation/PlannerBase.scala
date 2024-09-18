@@ -33,11 +33,12 @@ import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, T
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
-import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
+import org.apache.flink.table.planner.connectors.DynamicSinkUtils.{convertCreateTableAsToRel, validateSchemaAndApplyImplicitCast}
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
@@ -268,6 +269,20 @@ abstract class PlannerBase(
           getFlinkContext.getClassLoader
         )
 
+      case ctasOperation: CreateTableASOperation =>
+        convertCreateTableAsToRel(
+          ctasOperation.getCreateTableOperation,
+          ctasOperation.getChild,
+          ctasOperation.getSinkModifyStaticPartitions(),
+          ctasOperation.getSinkModifyOverwrite())
+
+      case rtasOperation: ReplaceTableAsOperation =>
+        convertCreateTableAsToRel(
+          rtasOperation.getCreateTableOperation,
+          rtasOperation.getChild,
+          Collections.emptyMap(),
+          false)
+
       case stagedSink: StagedSinkModifyOperation =>
         val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
         DynamicSinkUtils.convertSinkToRel(
@@ -482,32 +497,65 @@ abstract class PlannerBase(
             isTemporary)
           Option(resolvedTable, tableSink)
         } else {
-          val factoryFromCatalog = catalog.flatMap(f => toScala(f.getFactory)) match {
-            case Some(f: DynamicTableSinkFactory) => Some(f)
-            case _ => None
-          }
-
-          val factoryFromModule = toScala(
-            plannerContext.getFlinkContext.getModuleManager
-              .getFactory(toJava((m: Module) => m.getTableSinkFactory)))
-
-          // Since the catalog is more specific, we give it precedence over a factory provided by
-          // any modules.
-          val factory = factoryFromCatalog.orElse(factoryFromModule).orNull
-
-          val tableSink = FactoryUtil.createDynamicTableSink(
-            factory,
-            objectIdentifier,
-            tableToFind,
-            Collections.emptyMap(),
-            getTableConfig,
-            getFlinkContext.getClassLoader,
-            isTemporary)
+          val tableSink =
+            createDynamicTableSink(objectIdentifier, catalog, tableToFind, isTemporary)
           Option(resolvedTable, tableSink)
         }
 
       case _ => None
     }
+  }
+
+  private def createDynamicTableSink(
+      tableIdentifier: ObjectIdentifier,
+      catalog: Option[Catalog],
+      resolvedCatalogTable: ResolvedCatalogTable,
+      isTemporary: Boolean): DynamicTableSink = {
+    val factoryFromCatalog = catalog.flatMap(f => toScala(f.getFactory)) match {
+      case Some(f: DynamicTableSinkFactory) => Some(f)
+      case _ => None
+    }
+
+    val factoryFromModule = toScala(
+      plannerContext.getFlinkContext.getModuleManager
+        .getFactory(toJava((m: Module) => m.getTableSinkFactory)))
+
+    // Since the catalog is more specific, we give it precedence over a factory provided by
+    // any modules.
+    val factory = factoryFromCatalog.orElse(factoryFromModule).orNull
+
+    FactoryUtil.createDynamicTableSink(
+      factory,
+      tableIdentifier,
+      resolvedCatalogTable,
+      Collections.emptyMap(),
+      getTableConfig,
+      getFlinkContext.getClassLoader,
+      isTemporary)
+  }
+
+  private def convertCreateTableAsToRel(
+      createTableOperation: CreateTableOperation,
+      queryOperation: QueryOperation,
+      staticPartitions: JMap[String, String],
+      isOverwrite: Boolean): RelNode = {
+    val input = createRelBuilder.queryOperation(queryOperation).build()
+    val table = catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable)
+
+    val identifier = createTableOperation.getTableIdentifier
+    val catalog = toScala(catalogManager.getCatalog(identifier.getCatalogName))
+
+    val tableSink =
+      createDynamicTableSink(identifier, catalog, table, createTableOperation.isTemporary)
+
+    DynamicSinkUtils.convertCreateTableAsToRel(
+      createRelBuilder,
+      input,
+      catalog.orNull,
+      createTableOperation,
+      staticPartitions,
+      isOverwrite,
+      tableSink);
   }
 
   protected def createSerdeContext: SerdeContext = {

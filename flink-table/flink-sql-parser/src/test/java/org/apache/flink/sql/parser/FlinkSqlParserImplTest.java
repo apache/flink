@@ -2857,6 +2857,31 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExplainCreateTableNoSupported() {
+        this.sql("EXPLAIN CREATE TABLE t (id int^)^")
+                .fails(
+                        "Unsupported CREATE OR REPLACE statement for EXPLAIN\\. The statement must define a query using the AS clause \\(i\\.e\\. CTAS/RTAS statements\\)\\.");
+    }
+
+    @Test
+    void testExplainCreateTableAsSelect() {
+        this.sql("EXPLAIN CREATE TABLE t AS SELECT * FROM b")
+                .ok("EXPLAIN CREATE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    }
+
+    @Test
+    void testExplainCreateOrReplaceTableAsSelect() {
+        this.sql("EXPLAIN CREATE OR REPLACE TABLE t AS SELECT * FROM b")
+                .ok("EXPLAIN CREATE OR REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    }
+
+    @Test
+    void testExplainReplaceTableAsSelect() {
+        this.sql("EXPLAIN REPLACE TABLE t AS SELECT * FROM b")
+                .ok("EXPLAIN REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    }
+
+    @Test
     void testCreateTableAsSelectWithoutOptions() {
         sql("CREATE TABLE t AS SELECT * FROM b").ok("CREATE TABLE `T`\nAS\nSELECT *\nFROM `B`");
     }

@@ -2738,13 +2738,25 @@ SqlNode SqlRichExplain() :
     <EXPLAIN>
     )
     (
+        stmt = SqlReplaceTable()
+        |
         stmt = SqlStatementSet()
         |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
+        |
+        stmt = SqlCreate()
     )
     {
+        if ((stmt instanceof SqlCreate)
+                && !(stmt instanceof SqlCreateTableAs)
+                && !(stmt instanceof SqlReplaceTableAs)) {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.explainCreateOrReplaceStatementUnsupported());
+        }
+
         return new SqlRichExplain(getPos(), stmt, explainDetails);
     }
 }

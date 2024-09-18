@@ -41,6 +41,10 @@ public interface ParserResource {
     @Resources.BaseMessage("Duplicate EXPLAIN DETAIL is not allowed.")
     Resources.ExInst<ParseException> explainDetailIsDuplicate();
 
+    @Resources.BaseMessage(
+            "Unsupported CREATE OR REPLACE statement for EXPLAIN. The statement must define a query using the AS clause (i.e. CTAS/RTAS statements).")
+    Resources.ExInst<ParseException> explainCreateOrReplaceStatementUnsupported();
+
     @Resources.BaseMessage("CREATE FUNCTION USING JAR syntax is not applicable to {0} language.")
     Resources.ExInst<ParseException> createFunctionUsingJar(String language);
 
