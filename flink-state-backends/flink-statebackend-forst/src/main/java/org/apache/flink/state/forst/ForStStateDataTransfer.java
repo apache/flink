@@ -36,6 +36,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -133,6 +134,45 @@ public class ForStStateDataTransfer implements Closeable {
             return handles;
         } catch (ExecutionException e) {
             throw convertExecutionException(e);
+        }
+    }
+
+    /** Write a file to checkpoint filesystem. */
+    public HandleAndLocalPath writeFileToCheckpointFs(
+            String filename,
+            String fileContent,
+            CheckpointStreamFactory checkpointStreamFactory,
+            CheckpointedStateScope stateScope,
+            CloseableRegistry closeableRegistry,
+            CloseableRegistry tmpResourcesRegistry)
+            throws IOException {
+
+        CheckpointStateOutputStream outputStream = null;
+
+        try {
+            outputStream = checkpointStreamFactory.createCheckpointStateOutputStream(stateScope);
+            closeableRegistry.registerCloseable(outputStream);
+
+            byte[] content = fileContent.getBytes(StandardCharsets.UTF_8);
+
+            outputStream.write(content, 0, content.length);
+
+            final StreamStateHandle result;
+            if (closeableRegistry.unregisterCloseable(outputStream)) {
+                result = outputStream.closeAndGetHandle();
+                outputStream = null;
+            } else {
+                result = null;
+            }
+            tmpResourcesRegistry.registerCloseable(
+                    () -> StateUtil.discardStateObjectQuietly(result));
+
+            return HandleAndLocalPath.of(result, filename);
+
+        } finally {
+            if (closeableRegistry.unregisterCloseable(outputStream)) {
+                IOUtils.closeQuietly(outputStream);
+            }
         }
     }
 

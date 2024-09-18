@@ -26,6 +26,7 @@ public class ForStSnapshotUtil {
 
     public static final String SST_FILE_SUFFIX = ".sst";
     public static final String MANIFEST_FILE_PREFIX = "MANIFEST-";
+    public static final String CURRENT_FILE_NAME = "CURRENT";
 
     private ForStSnapshotUtil() {
         throw new AssertionError();

@@ -58,6 +58,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.CURRENT_FILE_NAME;
 import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.MANIFEST_FILE_PREFIX;
 import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.SST_FILE_SUFFIX;
 
@@ -370,6 +371,19 @@ public class ForStIncrementalSnapshotStrategy<K>
                             tmpResourcesRegistry);
             metaHandles.add(manifestFileTransferResult);
             transferBytes += manifestFileTransferResult.getStateSize();
+
+            // To prevent the content of the current file change, the manifest file name is directly
+            // used to rewrite the current file during the checkpoint asynchronous phase.
+            HandleAndLocalPath currentFileWriteResult =
+                    stateTransfer.writeFileToCheckpointFs(
+                            CURRENT_FILE_NAME,
+                            snapshotResources.manifestFileName,
+                            checkpointStreamFactory,
+                            stateScope,
+                            snapshotCloseableRegistry,
+                            tmpResourcesRegistry);
+            metaHandles.add(currentFileWriteResult);
+            transferBytes += currentFileWriteResult.getStateSize();
 
             recordReusableHandles(sstHandles);
 

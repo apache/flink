@@ -149,7 +149,23 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
             List<Path> liveFilesPath =
                     liveFiles.files.stream()
                             .map(file -> new Path(resourceContainer.getDbPath(), file))
+                            // Use manifest file name write CURRENT file to checkpoint directly.
+                            .filter(
+                                    file ->
+                                            !file.getName()
+                                                    .equals(ForStSnapshotUtil.CURRENT_FILE_NAME))
                             .collect(Collectors.toList());
+
+            String manifestFileName =
+                    liveFilesPath.stream()
+                            .filter(
+                                    file ->
+                                            file.getName()
+                                                    .startsWith(
+                                                            ForStSnapshotUtil.MANIFEST_FILE_PREFIX))
+                            .findAny()
+                            .get() // there must be a manifest file.
+                            .getName();
 
             logLiveFiles(checkpointId, liveFiles.manifestFileSize, liveFilesPath);
 
@@ -157,6 +173,7 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
                     stateMetaInfoSnapshots,
                     liveFiles.manifestFileSize,
                     liveFilesPath,
+                    manifestFileName,
                     previousSnapshot,
                     () -> {
                         try {
@@ -285,6 +302,7 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
         @Nonnull protected final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
         protected final long manifestFileSize;
         @Nonnull protected final List<Path> liveFiles;
+        @Nonnull protected final String manifestFileName;
         @Nonnull protected PreviousSnapshot previousSnapshot;
         @Nonnull protected final Runnable releaser;
 
@@ -294,11 +312,13 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
                 long manifestFileSize,
                 @Nonnull List<Path> liveFiles,
+                @Nonnull String manifestFileName,
                 @Nonnull PreviousSnapshot previousSnapshot,
                 @Nonnull Runnable releaser) {
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.manifestFileSize = manifestFileSize;
             this.liveFiles = liveFiles;
+            this.manifestFileName = manifestFileName;
             this.previousSnapshot = previousSnapshot;
             this.releaser = releaser;
             this.released = new AtomicBoolean(false);
