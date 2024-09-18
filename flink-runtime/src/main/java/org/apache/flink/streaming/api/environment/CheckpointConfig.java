@@ -25,11 +25,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateRecoveryOptions;
-import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.Preconditions;
@@ -39,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
-import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -477,34 +474,6 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
      * automatically unless the mode is set to {@link
-     * ExternalizedCheckpointCleanup#NO_EXTERNALIZED_CHECKPOINTS}.
-     *
-     * <p>Externalized checkpoints write their meta data out to persistent storage and are
-     * <strong>not</strong> automatically cleaned up when the owning job fails or is suspended
-     * (terminating with job status {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In
-     * this case, you have to manually clean up the checkpoint state, both the meta data and actual
-     * program state.
-     *
-     * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an externalized checkpoint
-     * should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on
-     * cancellation you have to handle checkpoint clean-up manually when you cancel the job as well
-     * (terminating with job status {@link JobStatus#CANCELED}).
-     *
-     * <p>The target directory for externalized checkpoints is configured via {@link
-     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
-     *
-     * @param cleanupMode Externalized checkpoint clean-up behaviour.
-     * @deprecated Use {@link #setExternalizedCheckpointRetention} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup cleanupMode) {
-        configuration.set(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT, cleanupMode);
-    }
-
-    /**
-     * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
-     * automatically unless the mode is set to {@link
      * ExternalizedCheckpointRetention#NO_EXTERNALIZED_CHECKPOINTS}.
      *
      * <p>Externalized checkpoints write their meta data out to persistent storage and are
@@ -529,43 +498,14 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
-     * automatically unless the mode is set to {@link
-     * ExternalizedCheckpointCleanup#NO_EXTERNALIZED_CHECKPOINTS}.
-     *
-     * <p>Externalized checkpoints write their meta data out to persistent storage and are
-     * <strong>not</strong> automatically cleaned up when the owning job fails or is suspended
-     * (terminating with job status {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In
-     * this case, you have to manually clean up the checkpoint state, both the meta data and actual
-     * program state.
-     *
-     * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an externalized checkpoint
-     * should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on
-     * cancellation you have to handle checkpoint clean-up manually when you cancel the job as well
-     * (terminating with job status {@link JobStatus#CANCELED}).
-     *
-     * <p>The target directory for externalized checkpoints is configured via {@link
-     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
-     *
-     * @param cleanupMode Externalized checkpoint clean-up behaviour.
-     * @deprecated use {@link #setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup)}
-     *     instead.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void enableExternalizedCheckpoints(ExternalizedCheckpointCleanup cleanupMode) {
-        setExternalizedCheckpointCleanup(cleanupMode);
-    }
-
-    /**
      * Returns whether checkpoints should be persisted externally.
      *
      * @return <code>true</code> if checkpoints should be externalized.
      */
     @PublicEvolving
     public boolean isExternalizedCheckpointsEnabled() {
-        return getExternalizedCheckpointCleanup()
-                != ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS;
+        return getExternalizedCheckpointRetention()
+                != ExternalizedCheckpointRetention.NO_EXTERNALIZED_CHECKPOINTS;
     }
 
     /**
@@ -740,19 +680,6 @@ public class CheckpointConfig implements java.io.Serializable {
      *
      * @return The cleanup behaviour for externalized checkpoints or <code>null</code> if none is
      *     configured.
-     * @deprecated Use {@link #getExternalizedCheckpointRetention} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
-        return configuration.get(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT);
-    }
-
-    /**
-     * Returns the cleanup behaviour for externalized checkpoints.
-     *
-     * @return The cleanup behaviour for externalized checkpoints or <code>null</code> if none is
-     *     configured.
      */
     @PublicEvolving
     public ExternalizedCheckpointRetention getExternalizedCheckpointRetention() {
@@ -781,68 +708,6 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public long getCheckpointIdOfIgnoredInFlightData() {
         return configuration.get(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
-    }
-
-    /**
-     * Cleanup behaviour for externalized checkpoints when the job is cancelled.
-     *
-     * @deprecated This class has been moved to {@link ExternalizedCheckpointRetention}.
-     */
-    @Deprecated
-    @PublicEvolving
-    public enum ExternalizedCheckpointCleanup implements DescribedEnum {
-
-        /**
-         * Delete externalized checkpoints on job cancellation.
-         *
-         * <p>All checkpoint state will be deleted when you cancel the owning job, both the meta
-         * data and actual program state. Therefore, you cannot resume from externalized checkpoints
-         * after the job has been cancelled.
-         *
-         * <p>Note that checkpoint state is always kept if the job terminates with state {@link
-         * JobStatus#FAILED}.
-         */
-        DELETE_ON_CANCELLATION(
-                text(
-                        "Checkpoint state is only kept when the owning job fails. It is deleted if "
-                                + "the job is cancelled.")),
-
-        /**
-         * Retain externalized checkpoints on job cancellation.
-         *
-         * <p>All checkpoint state is kept when you cancel the owning job. You have to manually
-         * delete both the checkpoint meta data and actual program state after cancelling the job.
-         *
-         * <p>Note that checkpoint state is always kept if the job terminates with state {@link
-         * JobStatus#FAILED}.
-         */
-        RETAIN_ON_CANCELLATION(
-                text("Checkpoint state is kept when the owning job is cancelled or fails.")),
-
-        /** Externalized checkpoints are disabled completely. */
-        NO_EXTERNALIZED_CHECKPOINTS(text("Externalized checkpoints are disabled."));
-
-        private final InlineElement description;
-
-        ExternalizedCheckpointCleanup(InlineElement description) {
-            this.description = description;
-        }
-
-        /**
-         * Returns whether persistent checkpoints shall be discarded on cancellation of the job.
-         *
-         * @return <code>true</code> if persistent checkpoints shall be discarded on cancellation of
-         *     the job.
-         */
-        public boolean deleteOnCancellation() {
-            return this == DELETE_ON_CANCELLATION;
-        }
-
-        @Override
-        @Internal
-        public InlineElement getDescription() {
-            return description;
-        }
     }
 
     /**
@@ -876,9 +741,6 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
                 .ifPresent(this::setTolerableCheckpointFailureNumber);
-        configuration
-                .getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT)
-                .ifPresent(this::setExternalizedCheckpointCleanup);
         configuration
                 .getOptional(CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION)
                 .ifPresent(this::setExternalizedCheckpointRetention);
