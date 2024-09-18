@@ -20,7 +20,6 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -46,9 +45,8 @@ import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -142,6 +140,97 @@ public final class InstantiationUtil {
             primitiveClasses.put("float", float.class);
             primitiveClasses.put("double", double.class);
             primitiveClasses.put("void", void.class);
+        }
+    }
+
+    /**
+     * Workaround for bugs like e.g. FLINK-36318 where we serialize a class into a snapshot and then
+     * its serialVersionUID is changed in an uncontrolled way. This lets us deserialize the old
+     * snapshot assuming the binary representation of the faulty class has not changed.
+     */
+    private static final class VersionMismatchHandler {
+
+        private final Map<String, Map<Long, List<Long>>> supportedSerialVersionUidsPerClass =
+                new HashMap<>();
+
+        void addVersionsMatch(
+                String className, long localVersionUID, List<Long> streamVersionUIDs) {
+            supportedSerialVersionUidsPerClass
+                    .computeIfAbsent(className, k -> new HashMap<>())
+                    .put(localVersionUID, streamVersionUIDs);
+        }
+
+        /**
+         * Checks if the local version of the given class can safely deserialize the class of a
+         * different version from the object stream.
+         */
+        boolean shouldTolerateSerialVersionMismatch(
+                String className, long localVersionUID, long streamVersionUID) {
+            return supportedSerialVersionUidsPerClass
+                    .getOrDefault(className, Collections.emptyMap())
+                    .getOrDefault(localVersionUID, Collections.emptyList())
+                    .contains(streamVersionUID);
+        }
+
+        /**
+         * Checks if there are any rules for the given class. This lets us decide early if we need
+         * to look up the local class.
+         */
+        boolean haveRulesForClass(String className) {
+            return supportedSerialVersionUidsPerClass.containsKey(className);
+        }
+    }
+
+    private static final VersionMismatchHandler versionMismatchHandler =
+            new VersionMismatchHandler();
+
+    static {
+        // See FLINK-36318
+        versionMismatchHandler.addVersionsMatch(
+                "org.apache.flink.table.runtime.typeutils.MapDataSerializer",
+                4073842523628732956L,
+                Collections.singletonList(2533002123505507000L));
+    }
+
+    /**
+     * An {@link ObjectInputStream} that ignores certain serialVersionUID mismatches. This is a
+     * workaround for uncontrolled serialVersionUIDs changes.
+     */
+    public static class FailureTolerantObjectInputStream
+            extends InstantiationUtil.ClassLoaderObjectInputStream {
+
+        public FailureTolerantObjectInputStream(InputStream in, ClassLoader cl) throws IOException {
+            super(in, cl);
+        }
+
+        @Override
+        protected ObjectStreamClass readClassDescriptor()
+                throws IOException, ClassNotFoundException {
+            ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
+
+            final Class localClass = resolveClass(streamClassDescriptor);
+            final String name = localClass.getName();
+            if (versionMismatchHandler.haveRulesForClass(name)) {
+                final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
+                if (localClassDescriptor != null
+                        && localClassDescriptor.getSerialVersionUID()
+                                != streamClassDescriptor.getSerialVersionUID()) {
+                    if (versionMismatchHandler.shouldTolerateSerialVersionMismatch(
+                            name,
+                            localClassDescriptor.getSerialVersionUID(),
+                            streamClassDescriptor.getSerialVersionUID())) {
+                        LOG.warn(
+                                "Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
+                                streamClassDescriptor.getName(),
+                                streamClassDescriptor.getSerialVersionUID(),
+                                localClassDescriptor.getSerialVersionUID());
+
+                        streamClassDescriptor = localClassDescriptor;
+                    }
+                }
+            }
+
+            return streamClassDescriptor;
         }
     }
 
@@ -373,20 +462,28 @@ public final class InstantiationUtil {
         return serializer.deserialize(reuse, inputViewWrapper);
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(byte[] bytes, ClassLoader cl)
             throws IOException, ClassNotFoundException {
         return deserializeObject(new ByteArrayInputStream(bytes), cl);
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(InputStream in, ClassLoader cl)
+            throws IOException, ClassNotFoundException {
+        return deserializeObject(in, cl, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T deserializeObject(
+            InputStream in, ClassLoader cl, boolean tolerateKnownVersionMismatch)
             throws IOException, ClassNotFoundException {
 
         final ClassLoader old = Thread.currentThread().getContextClassLoader();
         // not using resource try to avoid AutoClosable's close() on the given stream
         try {
-            ObjectInputStream oois = new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
+            ObjectInputStream oois =
+                    tolerateKnownVersionMismatch
+                            ? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
+                            : new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
             Thread.currentThread().setContextClassLoader(cl);
             return (T) oois.readObject();
         } finally {
