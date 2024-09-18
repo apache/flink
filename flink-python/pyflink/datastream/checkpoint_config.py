@@ -166,8 +166,10 @@ class CheckpointConfig(object):
         decline the failed checkpoint.
 
         :return: ``True`` if failing on checkpointing errors, false otherwise.
+
+        .. note:: Deprecated in 2.0. Use :func:`get_tolerable_checkpoint_failure_number` instead.
         """
-        return self._j_checkpoint_config.isFailOnCheckpointingErrors()
+        return self.get_tolerable_checkpoint_failure_number() == 0
 
     def set_fail_on_checkpointing_errors(self,
                                          fail_on_checkpointing_errors: bool) -> 'CheckpointConfig':
@@ -184,8 +186,13 @@ class CheckpointConfig(object):
 
         :param fail_on_checkpointing_errors: ``True`` if failing on checkpointing errors,
                                              false otherwise.
+
+        .. note:: Deprecated in 2.0. Use :func:`set_tolerable_checkpoint_failure_number` instead.
         """
-        self._j_checkpoint_config.setFailOnCheckpointingErrors(fail_on_checkpointing_errors)
+        if fail_on_checkpointing_errors:
+            self.set_tolerable_checkpoint_failure_number(0)
+        else:
+            self.set_tolerable_checkpoint_failure_number(2147483647)
         return self
 
     def get_tolerable_checkpoint_failure_number(self) -> int:
@@ -316,7 +323,7 @@ class CheckpointConfig(object):
         self.enable_unaligned_checkpoints(False)
         return self
 
-    def set_alignment_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
+    def set_aligned_checkpoint_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
         """
         Only relevant if :func:`enable_unaligned_checkpoints` is enabled.
 
@@ -328,7 +335,33 @@ class CheckpointConfig(object):
         :param alignment_timeout: The duration until the aligned checkpoint will be converted into
                                   an unaligned checkpoint.
         """
-        self._j_checkpoint_config.setAlignmentTimeout(alignment_timeout._j_duration)
+        self._j_checkpoint_config.setAlignedCheckpointTimeout(alignment_timeout._j_duration)
+        return self
+
+    def get_aligned_checkpoint_timeout(self) -> 'Duration':
+        """
+        Returns the alignment timeout, as configured via :func:`set_alignment_timeout` or
+        ``org.apache.flink.configuration.CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT``.
+
+        :return: the alignment timeout.
+        """
+        return Duration(self._j_checkpoint_config.getAlignedCheckpointTimeout())
+
+    def set_alignment_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
+        """
+        Only relevant if :func:`enable_unaligned_checkpoints` is enabled.
+
+        If ``alignment_timeout`` has value equal to ``0``, checkpoints will always start unaligned.
+        If ``alignment_timeout`` has value greater then ``0``, checkpoints will start aligned. If
+        during checkpointing, checkpoint start delay exceeds this ``alignment_timeout``, alignment
+        will timeout and checkpoint will start working as unaligned checkpoint.
+
+        :param alignment_timeout: The duration until the aligned checkpoint will be converted into
+                                  an unaligned checkpoint.
+
+        .. note:: Deprecated in 2.0. Use :func:`set_aligned_checkpoint_timeout` instead.
+        """
+        self.set_aligned_checkpoint_timeout(alignment_timeout)
         return self
 
     def get_alignment_timeout(self) -> 'Duration':
@@ -337,8 +370,10 @@ class CheckpointConfig(object):
         ``org.apache.flink.configuration.CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT``.
 
         :return: the alignment timeout.
+
+        .. note:: Deprecated in 2.0. Use :func:`get_aligned_checkpoint_timeout` instead.
         """
-        return Duration(self._j_checkpoint_config.getAlignmentTimeout())
+        return self.get_aligned_checkpoint_timeout()
 
     def set_force_unaligned_checkpoints(
             self,

@@ -50,6 +50,8 @@ Configuration that captures all checkpointing related settings.
     CheckpointConfig.is_unaligned_checkpoints_enabled
     CheckpointConfig.enable_unaligned_checkpoints
     CheckpointConfig.disable_unaligned_checkpoints
+    CheckpointConfig.set_aligned_checkpoint_timeout
+    CheckpointConfig.get_aligned_checkpoint_timeout
     CheckpointConfig.set_alignment_timeout
     CheckpointConfig.get_alignment_timeout
     CheckpointConfig.set_force_unaligned_checkpoints
