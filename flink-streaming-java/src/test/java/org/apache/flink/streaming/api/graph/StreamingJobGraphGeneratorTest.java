@@ -1354,7 +1354,7 @@ class StreamingJobGraphGeneratorTest {
                                     {
                                         put(
                                                 TaskManagerOptions
-                                                        .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
+                                                        .MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
                                                 "6");
                                         put(
                                                 TaskManagerOptions

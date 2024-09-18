@@ -239,26 +239,6 @@ class KubernetesSessionCliTest {
         assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(3072);
     }
 
-    /** Tests the specifying heap memory with old config key for job manager and task manager. */
-    @Test
-    void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
-        configuration.set(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
-        configuration.set(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
-
-        final KubernetesSessionCli cli =
-                new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());
-
-        final Configuration executorConfig = cli.getEffectiveConfiguration(new String[] {});
-        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-        final ClusterSpecification clusterSpecification =
-                clientFactory.getClusterSpecification(executorConfig);
-
-        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(2048);
-        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(4096);
-    }
-
     /**
      * Tests the specifying heap memory with config default value for job manager and task manager.
      */

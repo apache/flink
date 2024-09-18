@@ -125,33 +125,6 @@ public class JobManagerOptions {
                                     + PORT.key()
                                     + "') will be used.");
 
-    /**
-     * JVM heap size for the JobManager with memory size.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
-    public static final ConfigOption<MemorySize> JOB_MANAGER_HEAP_MEMORY =
-            key("jobmanager.heap.size")
-                    .memoryType()
-                    .noDefaultValue()
-                    .withDescription("JVM heap size for the JobManager.");
-
-    /**
-     * JVM heap size (in megabytes) for the JobManager.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
-            key("jobmanager.heap.mb")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription("JVM heap size (in megabytes) for the JobManager.");
-
     /** Total Process Memory size for the JobManager. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
     public static final ConfigOption<MemorySize> TOTAL_PROCESS_MEMORY =
