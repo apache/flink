@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartition
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.runtime.util.PortRange;
+import org.apache.flink.util.PortRange;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;

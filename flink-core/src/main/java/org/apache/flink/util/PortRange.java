@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.util.NetUtils;
 
 import java.util.Iterator;
 
