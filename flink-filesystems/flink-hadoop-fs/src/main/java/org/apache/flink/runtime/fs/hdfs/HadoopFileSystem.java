@@ -37,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class HadoopFileSystem extends FileSystem {
 
+    private static final String HDFS_NO_LOCAL_WRITE = "fs.hdfs.no-local-write";
+
     /** The wrapped Hadoop File System. */
     private final org.apache.hadoop.fs.FileSystem fs;
 
@@ -223,9 +225,9 @@ public class HadoopFileSystem extends FileSystem {
         // messages in the constructor of the writer.
         if (conf == null || conf.isEmpty()) {
             return createRecoverableWriter();
-        } else if (conf.containsKey("fs.hdfs.no-local-write")) {
+        } else if (conf.containsKey(HDFS_NO_LOCAL_WRITE)) {
             return new HadoopRecoverableWriter(
-                    fs, Boolean.parseBoolean(conf.get("fs.hdfs.no-local-write")));
+                    fs, Boolean.parseBoolean(conf.get(HDFS_NO_LOCAL_WRITE)));
         } else {
             return new HadoopRecoverableWriter(fs);
         }
