@@ -15,14 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 
 from typing import Dict, List
 
 from pyflink.common.execution_mode import ExecutionMode
-from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import load_java_class
 
 __all__ = ['ExecutionConfig']
 
@@ -284,58 +281,6 @@ class ExecutionConfig(object):
         j_execution_mode = self._j_execution_config.getExecutionMode()
         return ExecutionMode._from_j_execution_mode(j_execution_mode)
 
-    def set_default_input_dependency_constraint(
-            self, input_dependency_constraint: InputDependencyConstraint) -> 'ExecutionConfig':
-        """
-        Sets the default input dependency constraint for vertex scheduling. It indicates when a
-        task should be scheduled considering its inputs status.
-
-        The default constraint is :data:`InputDependencyConstraint.ANY`.
-
-        Example:
-        ::
-
-            >>> config.set_default_input_dependency_constraint(InputDependencyConstraint.ALL)
-
-        :param input_dependency_constraint: The input dependency constraint. The constraints could
-                                            be :data:`InputDependencyConstraint.ANY` or
-                                            :data:`InputDependencyConstraint.ALL`.
-
-        .. note:: Deprecated in 1.13. :class:`InputDependencyConstraint` is not used anymore in the
-                  current scheduler implementations.
-        """
-        warnings.warn("Deprecated in 1.13. InputDependencyConstraint is not used anywhere. "
-                      "Therefore, the method call set_default_input_dependency_constraint is "
-                      "obsolete.", DeprecationWarning)
-
-        self._j_execution_config.setDefaultInputDependencyConstraint(
-            input_dependency_constraint._to_j_input_dependency_constraint())
-        return self
-
-    def get_default_input_dependency_constraint(self) -> 'InputDependencyConstraint':
-        """
-        Gets the default input dependency constraint for vertex scheduling. It indicates when a
-        task should be scheduled considering its inputs status.
-
-        The default constraint is :data:`InputDependencyConstraint.ANY`.
-
-        .. seealso:: :func:`set_default_input_dependency_constraint`
-
-        :return: The input dependency constraint of this job. The possible constraints are
-                 :data:`InputDependencyConstraint.ANY` and :data:`InputDependencyConstraint.ALL`.
-
-        .. note:: Deprecated in 1.13. :class:`InputDependencyConstraint` is not used anymore in the
-                  current scheduler implementations.
-        """
-        warnings.warn("Deprecated in 1.13. InputDependencyConstraint is not used anywhere. "
-                      "Therefore, the method call get_default_input_dependency_constraint is "
-                      "obsolete.", DeprecationWarning)
-
-        j_input_dependency_constraint = self._j_execution_config\
-            .getDefaultInputDependencyConstraint()
-        return InputDependencyConstraint._from_j_input_dependency_constraint(
-            j_input_dependency_constraint)
-
     def enable_force_kryo(self) -> 'ExecutionConfig':
         """
         Force TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO.
@@ -530,85 +475,6 @@ class ExecutionConfig(object):
                 value = global_job_parameters_dict[key]
             j_global_job_parameters.setString(key, value)
         self._j_execution_config.setGlobalJobParameters(j_global_job_parameters)
-        return self
-
-    def add_default_kryo_serializer(self,
-                                    type_class_name: str,
-                                    serializer_class_name: str) -> 'ExecutionConfig':
-        """
-        Adds a new Kryo default serializer to the Runtime.
-
-        Example:
-        ::
-
-            >>> config.add_default_kryo_serializer("com.aaa.bbb.PojoClass",
-            ...                                    "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with the
-                                given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-        """
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_execution_config.addDefaultKryoSerializer(type_clz, j_serializer_clz)
-        return self
-
-    def register_type_with_kryo_serializer(self,
-                                           type_class_name: str,
-                                           serializer_class_name: str) -> 'ExecutionConfig':
-        """
-        Registers the given Serializer via its class as a serializer for the given type at the
-        KryoSerializer.
-
-        Example:
-        ::
-
-            >>> config.register_type_with_kryo_serializer("com.aaa.bbb.PojoClass",
-            ...                                           "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with
-                                the given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-        """
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_execution_config.registerTypeWithKryoSerializer(type_clz, j_serializer_clz)
-        return self
-
-    def register_pojo_type(self, type_class_name: str) -> 'ExecutionConfig':
-        """
-        Registers the given type with the serialization stack. If the type is eventually
-        serialized as a POJO, then the type is registered with the POJO serializer. If the
-        type ends up being serialized with Kryo, then it will be registered at Kryo to make
-        sure that only tags are written.
-
-        Example:
-        ::
-
-            >>> config.register_pojo_type("com.aaa.bbb.PojoClass")
-
-        :param type_class_name: The full-qualified java class name of the type to register.
-        """
-        type_clz = load_java_class(type_class_name)
-        self._j_execution_config.registerPojoType(type_clz)
-        return self
-
-    def register_kryo_type(self, type_class_name: str) -> 'ExecutionConfig':
-        """
-        Registers the given type with the serialization stack. If the type is eventually
-        serialized as a POJO, then the type is registered with the POJO serializer. If the
-        type ends up being serialized with Kryo, then it will be registered at Kryo to make
-        sure that only tags are written.
-
-        Example:
-        ::
-
-            >>> config.register_kryo_type("com.aaa.bbb.KryoClass")
-
-        :param type_class_name: The full-qualified java class name of the type to register.
-        """
-        type_clz = load_java_class(type_class_name)
-        self._j_execution_config.registerKryoType(type_clz)
         return self
 
     def get_registered_types_with_kryo_serializer_classes(self) -> Dict[str, str]:

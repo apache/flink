@@ -786,18 +786,6 @@ class CatalogBaseTable(object):
         """
         return dict(self._j_catalog_base_table.getOptions())
 
-    def get_schema(self) -> TableSchema:
-        """
-        Get the schema of the table.
-
-        :return: Schema of the table/view.
-
-        . note:: Deprecated in 1.14. This method returns the deprecated TableSchema class. The old
-        class was a hybrid of resolved and unresolved schema information. It has been replaced by
-        the new Schema which is always unresolved and will be resolved by the framework later.
-        """
-        return TableSchema(j_table_schema=self._j_catalog_base_table.getSchema())
-
     def get_unresolved_schema(self) -> Schema:
         """
         Returns the schema of the table or view.

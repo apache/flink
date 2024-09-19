@@ -435,46 +435,6 @@ TableEnvironment API
   </tbody>
 </table>
 
-<big><strong>废弃的 APIs</strong></big>
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">描述</th>
-      <th class="text-center" style="width: 10%">文档</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>register_function(name, function)</strong>
-      </td>
-      <td>
-        注册一个 Python 用户自定义函数，并为其指定一个唯一的名称。 
-        若已有与该名称相同的用户自定义函数，则替换之。
-        它可以通过 <strong>create_temporary_system_function</strong> 来替换。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_function" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_java_function(name, function_class_name)</strong>
-      </td>
-      <td>
-        注册一个 Java 用户自定义函数，并为其指定一个唯一的名称。 
-        若已有与该名称相同的用户自定义函数，则替换之。
-        它可以通过 <strong>create_java_temporary_system_function</strong> 来替换。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_java_function" name="链接">}}
-      </td>
-    </tr>
-  </tbody>
-</table>
-
 ### 依赖管理
 
 这些 APIs 用来管理 Python UDFs 所需要的 Python 依赖。
