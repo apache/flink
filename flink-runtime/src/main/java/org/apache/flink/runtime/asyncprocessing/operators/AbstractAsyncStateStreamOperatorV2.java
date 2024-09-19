@@ -253,4 +253,10 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public RecordContext getCurrentProcessingContext() {
         return currentProcessingContext;
     }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        asyncExecutionController.close();
+    }
 }
