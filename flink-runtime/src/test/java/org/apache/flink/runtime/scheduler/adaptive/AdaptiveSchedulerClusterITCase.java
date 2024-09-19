@@ -258,6 +258,11 @@ public class AdaptiveSchedulerClusterITCase {
         public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
             return CompletableFuture.completedFuture(null);
         }
+
+        @Override
+        public Future<Void> notifyCheckpointSubsumedAsync(long checkpointId) {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private JobGraph createBlockingJobGraph(int parallelism) throws IOException {
