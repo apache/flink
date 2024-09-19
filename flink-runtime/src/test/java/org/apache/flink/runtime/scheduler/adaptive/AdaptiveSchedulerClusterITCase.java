@@ -187,6 +187,12 @@ public class AdaptiveSchedulerClusterITCase {
 
         miniCluster.submitJob(jobGraph).join();
 
+        // wait until the desired parallelism is reached
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(),
+                JOB_VERTEX_ID,
+                NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS);
+
         // wait until some checkpoints have been completed
         CommonTestUtils.waitUntilCondition(
                 () ->
