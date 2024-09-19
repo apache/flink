@@ -25,6 +25,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -53,7 +54,8 @@ public class RocksDBStateBackendMigrationTest
         String checkpointPath = TempDirUtils.newFolder(tempFolder).toURI().toString();
         RocksDBStateBackend backend =
                 new RocksDBStateBackend(
-                        new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+                        new FsStateBackend(checkpointPath),
+                        TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
 
         Configuration configuration = new Configuration();
         configuration.set(

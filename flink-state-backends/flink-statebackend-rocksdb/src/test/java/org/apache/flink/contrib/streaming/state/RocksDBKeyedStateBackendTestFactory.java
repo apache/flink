@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.rules.TemporaryFolder;
 
@@ -85,7 +86,7 @@ public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
         String dbPath = tmp.newFolder().getAbsolutePath();
         String checkpointPath = tmp.newFolder().toURI().toString();
         RocksDBStateBackend backend =
-                new RocksDBStateBackend(new FsStateBackend(checkpointPath), true);
+                new RocksDBStateBackend(new FsStateBackend(checkpointPath), TernaryBoolean.TRUE);
         backend.setDbStoragePath(dbPath);
         return backend;
     }
