@@ -813,7 +813,7 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 
 # set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
-# e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
+# e.g. org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend

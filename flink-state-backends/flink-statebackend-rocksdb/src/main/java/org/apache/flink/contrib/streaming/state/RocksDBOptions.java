@@ -44,7 +44,6 @@ public class RocksDBOptions {
             ConfigOptions.key("state.backend.rocksdb.localdir")
                     .stringType()
                     .noDefaultValue()
-                    .withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
                     .withDescription(
                             Description.builder()
                                     .text(

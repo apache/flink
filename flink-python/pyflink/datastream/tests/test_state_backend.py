@@ -246,19 +246,6 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
 
         self.assertEqual(state_backend.get_predefined_options(), PredefinedOptions.DEFAULT)
 
-    def test_get_set_options(self):
-
-        state_backend = RocksDBStateBackend("file://var/checkpoints/")
-
-        self.assertIsNone(state_backend.get_options())
-
-        state_backend.set_options(
-            "org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory")
-
-        self.assertEqual(state_backend.get_options(),
-                         "org.apache.flink.contrib.streaming.state."
-                         "DefaultConfigurableOptionsFactory")
-
     def test_get_set_number_of_transfering_threads(self):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
