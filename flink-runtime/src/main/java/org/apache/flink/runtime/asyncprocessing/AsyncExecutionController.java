@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -51,9 +53,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @param <K> the type of the key
  */
-public class AsyncExecutionController<K> implements StateRequestHandler {
+public class AsyncExecutionController<K> implements StateRequestHandler, Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
+
+    private static final long DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL = 100;
 
     /**
      * The batch size. When the number of state requests in the active buffer exceeds the batch
@@ -67,6 +71,14 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      * trigger will perform actively.
      */
     private final long bufferTimeout;
+
+    /**
+     * There might be huge overhead when inserting a timer for each buffer. A periodic check is a
+     * good trade-off to save much GC and CPU for this. This var defines the interval for periodic
+     * check of timeout. As a result, the real trigger time of timeout buffer might be [timeout,
+     * timeout+interval]. We don't make it configurable for now.
+     */
+    private final long bufferTimeoutCheckInterval = DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL;
 
     /** The max allowed number of in-flight records. */
     private final int maxInFlightRecordNum;
@@ -142,6 +154,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         this.stateRequestsBuffer =
                 new StateRequestBuffer<>(
                         bufferTimeout,
+                        bufferTimeoutCheckInterval,
                         (scheduledSeq) ->
                                 mailboxExecutor.execute(
                                         () -> {
@@ -385,6 +398,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     @VisibleForTesting
     public int getInFlightRecordNum() {
         return inFlightRecordNum.get();
+    }
+
+    @Override
+    public void close() throws IOException {
+        stateRequestsBuffer.close();
     }
 
     /** A listener listens the key context switch. */
