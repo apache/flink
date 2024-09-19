@@ -26,10 +26,14 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -122,6 +127,27 @@ public class InternalKeyedStateTestBase {
         public <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
                 KeyedStateBackendParameters<K> parameters) {
             return new AsyncKeyedStateBackend() {
+                @Nonnull
+                @Override
+                public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+                        long checkpointId,
+                        long timestamp,
+                        @Nonnull CheckpointStreamFactory streamFactory,
+                        @Nonnull CheckpointOptions checkpointOptions)
+                        throws Exception {
+                    throw new UnsupportedOperationException("Not support yet");
+                }
+
+                @Override
+                public void notifyCheckpointComplete(long checkpointId) throws Exception {
+                    throw new UnsupportedOperationException("Not support yet");
+                }
+
+                @Override
+                public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+                    throw new UnsupportedOperationException("Not support yet");
+                }
+
                 @Override
                 public void close() throws IOException {}
 

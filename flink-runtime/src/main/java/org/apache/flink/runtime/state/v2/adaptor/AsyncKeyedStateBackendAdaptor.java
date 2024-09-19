@@ -18,19 +18,27 @@
 
 package org.apache.flink.runtime.state.v2.adaptor;
 
+import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.concurrent.RunnableFuture;
 
 /**
  * A adaptor that transforms {@link KeyedStateBackend} into {@link AsyncKeyedStateBackend}.
@@ -38,9 +46,9 @@ import java.io.IOException;
  * @param <K> The key by which state is keyed.
  */
 public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend {
-    private final KeyedStateBackend<K> keyedStateBackend;
+    private final CheckpointableKeyedStateBackend<K> keyedStateBackend;
 
-    public AsyncKeyedStateBackendAdaptor(KeyedStateBackend<K> keyedStateBackend) {
+    public AsyncKeyedStateBackendAdaptor(CheckpointableKeyedStateBackend<K> keyedStateBackend) {
         this.keyedStateBackend = keyedStateBackend;
     }
 
@@ -78,4 +86,37 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend 
 
     @Override
     public void close() throws IOException {}
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (keyedStateBackend instanceof CheckpointListener) {
+            ((CheckpointListener) keyedStateBackend).notifyCheckpointComplete(checkpointId);
+        }
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (keyedStateBackend instanceof CheckpointListener) {
+            ((CheckpointListener) keyedStateBackend).notifyCheckpointAborted(checkpointId);
+        }
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+        if (keyedStateBackend instanceof InternalCheckpointListener) {
+            ((InternalCheckpointListener) keyedStateBackend).notifyCheckpointSubsumed(checkpointId);
+        }
+    }
+
+    @Nonnull
+    @Override
+    public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions)
+            throws Exception {
+        return keyedStateBackend.snapshot(
+                checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
 }

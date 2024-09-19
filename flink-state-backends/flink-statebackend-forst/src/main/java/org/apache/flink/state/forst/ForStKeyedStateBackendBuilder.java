@@ -19,21 +19,28 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateBackendBuilder;
 import org.apache.flink.runtime.state.StateSerializerProvider;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreResult;
+import org.apache.flink.state.forst.snapshot.ForStIncrementalSnapshotStrategy;
+import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ResourceGuard;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -41,10 +48,16 @@ import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -66,6 +79,7 @@ public class ForStKeyedStateBackendBuilder<K>
     private final StateSerializerProvider<K> keySerializerProvider;
 
     private final int numberOfKeyGroups;
+    private final KeyGroupRange keyGroupRange;
 
     private final Collection<KeyedStateHandle> restoreStateHandles;
 
@@ -77,6 +91,9 @@ public class ForStKeyedStateBackendBuilder<K>
 
     private final MetricGroup metricGroup;
 
+    /** True if incremental checkpointing is enabled. */
+    private boolean enableIncrementalCheckpointing;
+
     /** ForSt property-based and statistics-based native metrics options. */
     private ForStNativeMetricOptions nativeMetricOptions;
 
@@ -85,6 +102,7 @@ public class ForStKeyedStateBackendBuilder<K>
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> stateHandles) {
         this.optionsContainer = optionsContainer;
@@ -92,9 +110,16 @@ public class ForStKeyedStateBackendBuilder<K>
         this.keySerializerProvider =
                 StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
         this.numberOfKeyGroups = numberOfKeyGroups;
+        this.keyGroupRange = keyGroupRange;
         this.metricGroup = metricGroup;
         this.restoreStateHandles = stateHandles;
         this.nativeMetricOptions = new ForStNativeMetricOptions();
+    }
+
+    ForStKeyedStateBackendBuilder<K> setEnableIncrementalCheckpointing(
+            boolean enableIncrementalCheckpointing) {
+        this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+        return this;
     }
 
     ForStKeyedStateBackendBuilder<K> setNativeMetricOptions(
@@ -107,12 +132,22 @@ public class ForStKeyedStateBackendBuilder<K>
     public ForStKeyedStateBackend<K> build() throws BackendBuildingException {
         ColumnFamilyHandle defaultColumnFamilyHandle = null;
         ForStNativeMetricMonitor nativeMetricMonitor = null;
+
+        CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
+
+        LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation =
+                new LinkedHashMap<>();
+
         RocksDB db = null;
         ForStRestoreOperation restoreOperation = null;
         // Number of bytes required to prefix the key groups.
         int keyGroupPrefixBytes =
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
                         numberOfKeyGroups);
+
+        ResourceGuard forstResourceGuard = new ResourceGuard();
+        ForStSnapshotStrategyBase<K, ?> snapshotStrategy = null;
+
         // it is important that we only create the key builder after the restore, and not before;
         // restore operations may reconfigure the key serializer, so accessing the key serializer
         // only now we can be certain that the key serializer used in the builder is final.
@@ -127,6 +162,8 @@ public class ForStKeyedStateBackendBuilder<K>
                 () -> new DataOutputSerializer(VALUE_SERIALIZER_BUFFER_START_SIZE);
         Supplier<DataInputDeserializer> valueDeserializerView = DataInputDeserializer::new;
 
+        UUID backendUID = UUID.randomUUID();
+
         try {
             optionsContainer.prepareDirectories();
             restoreOperation = getForStRestoreOperation();
@@ -135,10 +172,26 @@ public class ForStKeyedStateBackendBuilder<K>
             defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
             nativeMetricMonitor = restoreResult.getNativeMetricMonitor();
 
-            // TODO: Support to init snapshot strategy
+            // TODO: init materializedSstFiles and lastCompletedCheckpointId when implement restore
+            SortedMap<Long, Collection<IncrementalKeyedStateHandle.HandleAndLocalPath>>
+                    materializedSstFiles = new TreeMap<>();
+            long lastCompletedCheckpointId = -1L;
+
+            snapshotStrategy =
+                    initializeSnapshotStrategy(
+                            db,
+                            forstResourceGuard,
+                            keySerializerProvider.currentSchemaSerializer(),
+                            kvStateInformation,
+                            keyGroupRange,
+                            keyGroupPrefixBytes,
+                            backendUID,
+                            materializedSstFiles,
+                            lastCompletedCheckpointId);
 
         } catch (Throwable e) {
             // Do clean up
+            IOUtils.closeQuietly(cancelStreamRegistryForBackend);
             IOUtils.closeQuietly(defaultColumnFamilyHandle);
             IOUtils.closeQuietly(nativeMetricMonitor);
             IOUtils.closeQuietly(db);
@@ -154,6 +207,7 @@ public class ForStKeyedStateBackendBuilder<K>
                         ex);
             }
             IOUtils.closeQuietly(optionsContainer);
+            IOUtils.closeQuietly(snapshotStrategy);
             // Log and rethrow
             if (e instanceof BackendBuildingException) {
                 throw (BackendBuildingException) e;
@@ -168,6 +222,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 optionsContainer.getLocalBasePath(),
                 optionsContainer.getRemoteBasePath());
         return new ForStKeyedStateBackend<>(
+                backendUID,
                 this.optionsContainer,
                 keyGroupPrefixBytes,
                 this.keySerializerProvider.currentSchemaSerializer(),
@@ -175,8 +230,11 @@ public class ForStKeyedStateBackendBuilder<K>
                 valueSerializerView,
                 valueDeserializerView,
                 db,
+                kvStateInformation,
                 columnFamilyOptionsFactory,
                 defaultColumnFamilyHandle,
+                snapshotStrategy,
+                cancelStreamRegistryForBackend,
                 nativeMetricMonitor);
     }
 
@@ -202,5 +260,53 @@ public class ForStKeyedStateBackendBuilder<K>
         }
         // TODO: Support Restoring
         throw new UnsupportedOperationException("Not support restoring yet for ForStStateBackend");
+    }
+
+    private ForStSnapshotStrategyBase<K, ?> initializeSnapshotStrategy(
+            @Nonnull RocksDB db,
+            @Nonnull ResourceGuard forstResourceGuard,
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull
+                    LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo>
+                            kvStateInformation,
+            @Nonnull KeyGroupRange keyGroupRange,
+            @Nonnegative int keyGroupPrefixBytes,
+            @Nonnull UUID backendUID,
+            @Nonnull
+                    SortedMap<Long, Collection<IncrementalKeyedStateHandle.HandleAndLocalPath>>
+                            uploadedStateHandles,
+            long lastCompletedCheckpointId)
+            throws IOException {
+
+        ForStSnapshotStrategyBase<K, ?> snapshotStrategy;
+
+        ForStFlinkFileSystem forStFs =
+                optionsContainer.getRemoteForStPath() != null
+                        ? (ForStFlinkFileSystem)
+                                ForStFlinkFileSystem.get(
+                                        optionsContainer.getRemoteForStPath().toUri())
+                        : null;
+        ForStStateDataTransfer stateTransfer =
+                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
+
+        if (enableIncrementalCheckpointing) {
+            snapshotStrategy =
+                    new ForStIncrementalSnapshotStrategy<>(
+                            db,
+                            forstResourceGuard,
+                            optionsContainer,
+                            keySerializer,
+                            kvStateInformation,
+                            keyGroupRange,
+                            keyGroupPrefixBytes,
+                            backendUID,
+                            uploadedStateHandles,
+                            stateTransfer,
+                            lastCompletedCheckpointId);
+
+        } else {
+            throw new UnsupportedOperationException("Not implemented yet for ForStStateBackend");
+        }
+        return snapshotStrategy;
     }
 }

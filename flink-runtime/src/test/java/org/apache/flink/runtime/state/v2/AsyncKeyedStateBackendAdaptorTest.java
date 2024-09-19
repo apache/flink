@@ -23,11 +23,17 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
+import org.apache.flink.runtime.state.SavepointResources;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -39,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,7 +55,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
 
     @Test
     public void testAdapt() throws Exception {
-        KeyedStateBackend<Integer> keyedStateBackend = new TestKeyedStateBackend();
+        CheckpointableKeyedStateBackend<Integer> keyedStateBackend = new TestKeyedStateBackend();
         AsyncKeyedStateBackendAdaptor<Integer> adaptor =
                 new AsyncKeyedStateBackendAdaptor<>(keyedStateBackend);
         StateDescriptor<Integer> descriptor =
@@ -107,7 +114,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
         }
     }
 
-    static class TestKeyedStateBackend implements KeyedStateBackend<Integer> {
+    static class TestKeyedStateBackend implements CheckpointableKeyedStateBackend<Integer> {
 
         @Override
         public void setCurrentKey(Integer newKey) {}
@@ -193,6 +200,33 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         @Nonnull String stateName,
                         @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
             return null;
+        }
+
+        @Override
+        public KeyGroupRange getKeyGroupRange() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Nonnull
+        @Override
+        public SavepointResources<Integer> savepoint() throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void close() throws IOException {
+            // nothing to do
+        }
+
+        @Nonnull
+        @Override
+        public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+                long checkpointId,
+                long timestamp,
+                @Nonnull CheckpointStreamFactory streamFactory,
+                @Nonnull CheckpointOptions checkpointOptions)
+                throws Exception {
+            throw new UnsupportedOperationException();
         }
     }
 }
