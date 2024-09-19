@@ -52,8 +52,11 @@ public class ForStStateExecutor implements StateExecutor {
      */
     private final ExecutorService coordinatorThread;
 
-    /** The worker thread that actually executes the {@link StateRequest}s. */
-    private final ExecutorService workerThreads;
+    /** The worker thread that actually executes the read {@link StateRequest}s. */
+    private final ExecutorService readThreads;
+
+    /** The worker thread that actually executes the write {@link StateRequest}s. */
+    private final ExecutorService writeThreads;
 
     private final RocksDB db;
 
@@ -61,13 +64,29 @@ public class ForStStateExecutor implements StateExecutor {
 
     private Throwable executionError;
 
-    public ForStStateExecutor(int ioParallelism, RocksDB db, WriteOptions writeOptions) {
+    public ForStStateExecutor(
+            int readIoParallelism, int writeIoParallelism, RocksDB db, WriteOptions writeOptions) {
+        Preconditions.checkState(readIoParallelism > 0 || writeIoParallelism > 0);
         this.coordinatorThread =
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
-        this.workerThreads =
-                Executors.newFixedThreadPool(
-                        ioParallelism, new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
+        if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
+            this.readThreads =
+                    Executors.newFixedThreadPool(
+                            Math.max(readIoParallelism, writeIoParallelism),
+                            new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
+            this.writeThreads = null;
+        } else {
+            this.readThreads =
+                    Executors.newFixedThreadPool(
+                            readIoParallelism,
+                            new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
+
+            this.writeThreads =
+                    Executors.newFixedThreadPool(
+                            writeIoParallelism,
+                            new ExecutorThreadFactory("ForSt-StateExecutor-write-IO"));
+        }
         this.db = db;
         this.writeOptions = writeOptions;
     }
@@ -89,7 +108,10 @@ public class ForStStateExecutor implements StateExecutor {
                     if (!putRequests.isEmpty()) {
                         ForStWriteBatchOperation writeOperations =
                                 new ForStWriteBatchOperation(
-                                        db, putRequests, writeOptions, workerThreads);
+                                        db,
+                                        putRequests,
+                                        writeOptions,
+                                        writeThreads == null ? readThreads : writeThreads);
                         futures.add(writeOperations.process());
                     }
 
@@ -97,7 +119,7 @@ public class ForStStateExecutor implements StateExecutor {
                             stateRequestClassifier.pollDbGetRequests();
                     if (!getRequests.isEmpty()) {
                         ForStGeneralMultiGetOperation getOperations =
-                                new ForStGeneralMultiGetOperation(db, getRequests, workerThreads);
+                                new ForStGeneralMultiGetOperation(db, getRequests, readThreads);
                         futures.add(getOperations.process());
                     }
 
@@ -105,7 +127,7 @@ public class ForStStateExecutor implements StateExecutor {
                             stateRequestClassifier.pollDbIterRequests();
                     if (!iterRequests.isEmpty()) {
                         ForStIterateOperation iterOperations =
-                                new ForStIterateOperation(db, iterRequests, workerThreads);
+                                new ForStIterateOperation(db, iterRequests, readThreads);
                         futures.add(iterOperations.process());
                     }
 
@@ -155,7 +177,10 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public void shutdown() {
-        workerThreads.shutdown();
+        readThreads.shutdown();
+        if (writeThreads != null) {
+            writeThreads.shutdown();
+        }
         coordinatorThread.shutdown();
         LOG.info("Shutting down the ForStStateExecutor.");
     }

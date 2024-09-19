@@ -156,4 +156,18 @@ public class ForStOptions {
                                             + "when '%s' is configured to '%s'. Increasing this value can improve the performance "
                                             + "of rocksdb timer service, but consumes more heap memory at the same time.",
                                     TIMER_SERVICE_FACTORY.key(), ForStDB.name()));
+
+    public static final ConfigOption<Integer> EXECUTOR_READ_IO_PARALLELISM =
+            ConfigOptions.key("state.backend.forst.memory.executor-read-io-parallelism")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "The number of threads used for read IO operations in the executor.");
+
+    public static final ConfigOption<Integer> EXECUTOR_WRITE_IO_PARALLELISM =
+            ConfigOptions.key("state.backend.forst.memory.executor-write-io-parallelism")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "The number of threads used for write IO operations in the executor.");
 }
