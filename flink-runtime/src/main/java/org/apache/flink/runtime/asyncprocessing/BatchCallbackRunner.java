@@ -28,13 +28,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A runner for {@link StateFutureFactory} to build {@link
- * org.apache.flink.core.state.InternalStateFuture} that put one mail in {@link MailboxExecutor}
- * whenever there are callbacks to run but run multiple callbacks within one mail.
+ * A {@link org.apache.flink.core.state.StateFutureImpl.CallbackRunner} that put one mail in {@link
+ * MailboxExecutor} but run multiple callbacks within one mail.
  */
 public class BatchCallbackRunner {
 
-    private static final int DEFAULT_BATCH_SIZE = 100;
+    private static final int DEFAULT_BATCH_SIZE = 3000;
 
     private final MailboxExecutor mailboxExecutor;
 
@@ -57,8 +56,12 @@ public class BatchCallbackRunner {
     /** Whether there is a mail in mailbox. */
     private volatile boolean hasMail = false;
 
-    BatchCallbackRunner(MailboxExecutor mailboxExecutor) {
+    /** The logic to notify new mails to AEC. */
+    private final Runnable newMailNotify;
+
+    BatchCallbackRunner(MailboxExecutor mailboxExecutor, Runnable newMailNotify) {
         this.mailboxExecutor = mailboxExecutor;
+        this.newMailNotify = newMailNotify;
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.callbackQueue = new ConcurrentLinkedDeque<>();
         this.activeBuffer = new ArrayList<>();
@@ -86,6 +89,7 @@ public class BatchCallbackRunner {
             if (currentCallbacks.get() > 0) {
                 hasMail = true;
                 mailboxExecutor.execute(this::runBatch, "Batch running callback of state requests");
+                notifyNewMail();
             } else {
                 hasMail = false;
             }
@@ -113,5 +117,15 @@ public class BatchCallbackRunner {
             currentCallbacks.addAndGet(-batch.size());
         }
         insertMail(true);
+    }
+
+    private void notifyNewMail() {
+        if (newMailNotify != null) {
+            newMailNotify.run();
+        }
+    }
+
+    public boolean isHasMail() {
+        return hasMail;
     }
 }

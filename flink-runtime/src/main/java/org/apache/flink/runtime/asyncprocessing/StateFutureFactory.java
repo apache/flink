@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 
@@ -34,10 +33,10 @@ public class StateFutureFactory<K> {
 
     StateFutureFactory(
             AsyncExecutionController<K> asyncExecutionController,
-            MailboxExecutor mailboxExecutor,
+            BatchCallbackRunner callbackRunner,
             AsyncFrameworkExceptionHandler exceptionHandler) {
         this.asyncExecutionController = asyncExecutionController;
-        this.callbackRunner = new BatchCallbackRunner(mailboxExecutor);
+        this.callbackRunner = callbackRunner;
         this.exceptionHandler = exceptionHandler;
     }
 

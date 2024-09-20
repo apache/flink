@@ -65,6 +65,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      */
     private final int batchSize;
 
+    /** The runner for callbacks. Basically a wrapper of mailbox executor. */
+    private final BatchCallbackRunner callbackRunner;
+
     /**
      * The timeout of {@link StateRequestBuffer#activeQueue} triggering in milliseconds. If the
      * activeQueue has not reached the {@link #batchSize} within 'buffer-timeout' milliseconds, a
@@ -132,6 +135,12 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      */
     final ParallelMode epochParallelMode = ParallelMode.SERIAL_BETWEEN_EPOCH;
 
+    /** A guard for waiting new mail. */
+    private final Object notifyLock = new Object();
+
+    /** Flag indicating if this AEC is under waiting status. */
+    private volatile boolean waitingMail = false;
+
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
             AsyncFrameworkExceptionHandler exceptionHandler,
@@ -144,7 +153,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
-        this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor, exceptionHandler);
+        this.callbackRunner = new BatchCallbackRunner(mailboxExecutor, this::notifyNewMail);
+        this.stateFutureFactory = new StateFutureFactory<>(this, callbackRunner, exceptionHandler);
+
         this.stateExecutor = stateExecutor;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
@@ -224,9 +235,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         RecordContext<K> nextRecordCtx =
                 stateRequestsBuffer.tryActivateOneByKey(toDispose.getKey());
         if (nextRecordCtx != null) {
-            Preconditions.checkState(
-                    tryOccupyKey(nextRecordCtx),
-                    String.format("key(%s) is already occupied.", nextRecordCtx.getKey()));
+            Preconditions.checkState(tryOccupyKey(nextRecordCtx));
         }
     }
 
@@ -369,12 +378,36 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                     if (targetNum == 0 || !stateExecutor.fullyLoaded()) {
                         triggerIfNeeded(true);
                     }
-                    Thread.sleep(1);
+                    waitForNewMails();
                 }
             }
         } catch (InterruptedException ignored) {
             // ignore the interrupted exception to avoid throwing fatal error when the task cancel
             // or exit.
+        }
+    }
+
+    /** Wait for new mails if there is no more mail. */
+    private void waitForNewMails() throws InterruptedException {
+        if (!callbackRunner.isHasMail()) {
+            synchronized (notifyLock) {
+                if (!callbackRunner.isHasMail()) {
+                    waitingMail = true;
+                    notifyLock.wait(5);
+                    waitingMail = false;
+                }
+            }
+        }
+    }
+
+    /** Notify this AEC there is a mail, wake up from waiting. */
+    private void notifyNewMail() {
+        if (waitingMail) {
+            synchronized (notifyLock) {
+                if (waitingMail) {
+                    notifyLock.notify();
+                }
+            }
         }
     }
 
