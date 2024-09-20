@@ -236,6 +236,7 @@ class UnifiedSinkMigrationITCase {
         @Override
         public void write(Long element, Context context) throws IOException, InterruptedException {}
 
+        /** Creates two committables on the very first checkpoint. */
         @Override
         public List<Integer> prepareCommit(boolean flush) throws IOException, InterruptedException {
             if (emitted || recovered) {
@@ -265,16 +266,27 @@ class UnifiedSinkMigrationITCase {
             this.commitLatch = commitLatch;
         }
 
+        /**
+         * On first attempt: send GLOBAL_COMMITTER_STATE downstream, keep COMMITTER_STATE for retry.
+         * On second attempt: keep COMMITTER_STATE for retry on first checkpoint, then send
+         * downstream. Only then, global committer should be triggered.
+         */
         @Override
         public List<Integer> commit(List<Integer> committables)
                 throws IOException, InterruptedException {
-            if (firstCommit && !recovered) {
-                assertThat(committables).containsExactly(COMMITTER_STATE, GLOBAL_COMMITTER_STATE);
-            } else {
-                assertThat(committables).containsExactly(COMMITTER_STATE);
+            if (firstCommit) {
+                if (!recovered) {
+                    assertThat(committables)
+                            .containsExactly(COMMITTER_STATE, GLOBAL_COMMITTER_STATE);
+                } else if (recovered) {
+                    assertThat(committables).containsExactly(COMMITTER_STATE);
+                }
             }
             LOG.info("Committing {}", committables);
             commitLatch.get().countDown();
+            if (recovered && !firstCommit) {
+                return Collections.emptyList();
+            }
             firstCommit = false;
             // Always retry to keep the state
             return Collections.singletonList(COMMITTER_STATE);
@@ -317,6 +329,7 @@ class UnifiedSinkMigrationITCase {
             return String.valueOf(committables.get(0));
         }
 
+        /** Wait for all committables (after recovery on second checkpoint). */
         @Override
         public List<String> commit(List<String> globalCommittables)
                 throws IOException, InterruptedException {
@@ -329,7 +342,7 @@ class UnifiedSinkMigrationITCase {
                         .containsExactly(String.valueOf(GLOBAL_COMMITTER_STATE));
             }
             firstCommitAfterRecover = false;
-            return globalCommittables;
+            return recover ? Collections.emptyList() : globalCommittables;
         }
 
         @Override
