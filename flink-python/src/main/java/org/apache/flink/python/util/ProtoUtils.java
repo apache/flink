@@ -21,7 +21,6 @@ package org.apache.flink.python.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
@@ -38,6 +37,7 @@ import org.apache.flink.util.Preconditions;
 import com.google.protobuf.ByteString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -439,7 +439,7 @@ public enum ProtoUtils {
     public static StateTtlConfig parseStateTtlConfigFromProto(
             FlinkFnApi.StateDescriptor.StateTTLConfig stateTTLConfigProto) {
         StateTtlConfig.Builder builder =
-                StateTtlConfig.newBuilder(Time.milliseconds(stateTTLConfigProto.getTtl()))
+                StateTtlConfig.newBuilder(Duration.ofMillis(stateTTLConfigProto.getTtl()))
                         .setUpdateType(
                                 parseUpdateTypeFromProto(stateTTLConfigProto.getUpdateType()))
                         .setStateVisibility(

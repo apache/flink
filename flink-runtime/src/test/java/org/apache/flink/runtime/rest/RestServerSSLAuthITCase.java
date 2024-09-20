@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -39,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.net.ssl.SSLException;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -63,7 +63,7 @@ public class RestServerSSLAuthITCase {
     private static final String UNTRUSTED_KEY_STORE_FILE =
             RestServerSSLAuthITCase.class.getResource("/untrusted.keystore").getFile();
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
 
     private final Configuration clientConfig;
     private final Configuration serverConfig;

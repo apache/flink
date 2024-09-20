@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
@@ -32,10 +31,12 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
+import java.time.Duration;
+
 /** Base class of tests for all kinds of processing-time DeduplicateFunction. */
 abstract class ProcTimeDeduplicateFunctionTestBase {
 
-    Time minTime = Time.milliseconds(10);
+    Duration minTime = Duration.ofMillis(10);
     InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new BigIntType(), new IntType());
 

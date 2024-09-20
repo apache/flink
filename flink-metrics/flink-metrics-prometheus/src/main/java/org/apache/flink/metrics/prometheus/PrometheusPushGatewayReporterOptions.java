@@ -32,20 +32,6 @@ import org.apache.flink.configuration.description.TextElement;
 @Documentation.SuffixOption(ConfigConstants.METRICS_REPORTER_PREFIX + "prometheus")
 public class PrometheusPushGatewayReporterOptions {
 
-    @Deprecated
-    public static final ConfigOption<String> HOST =
-            ConfigOptions.key("host")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("(deprecated) The PushGateway server host.");
-
-    @Deprecated
-    public static final ConfigOption<Integer> PORT =
-            ConfigOptions.key("port")
-                    .intType()
-                    .defaultValue(-1)
-                    .withDescription("(deprecated) The PushGateway server port.");
-
     public static final ConfigOption<String> HOST_URL =
             ConfigOptions.key("hostUrl")
                     .stringType()

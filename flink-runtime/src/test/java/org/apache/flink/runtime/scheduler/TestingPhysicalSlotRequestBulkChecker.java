@@ -18,22 +18,24 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulk;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
+
+import java.time.Duration;
 
 /** A {@link PhysicalSlotRequestBulkChecker} implementation that can be used in tests. */
 public class TestingPhysicalSlotRequestBulkChecker implements PhysicalSlotRequestBulkChecker {
 
     private PhysicalSlotRequestBulk bulk;
-    private Time timeout;
+    private Duration timeout;
 
     @Override
     public void start(ComponentMainThreadExecutor mainThreadExecutor) {}
 
     @Override
-    public void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulk bulk, Time timeout) {
+    public void schedulePendingRequestBulkTimeoutCheck(
+            PhysicalSlotRequestBulk bulk, Duration timeout) {
         this.bulk = bulk;
         this.timeout = timeout;
     }
@@ -42,7 +44,7 @@ public class TestingPhysicalSlotRequestBulkChecker implements PhysicalSlotReques
         return bulk;
     }
 
-    Time getTimeout() {
+    Duration getTimeout() {
         return timeout;
     }
 }

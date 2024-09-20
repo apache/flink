@@ -49,29 +49,28 @@ class WaitingForResources extends StateWithoutExecutionGraph
     WaitingForResources(
             Context context,
             Logger log,
-            Duration initialResourceAllocationTimeout,
+            Duration submissionResourceWaitTimeout,
             Function<StateTransitionManager.Context, StateTransitionManager>
                     stateTransitionManagerFactory) {
-        this(context, log, initialResourceAllocationTimeout, null, stateTransitionManagerFactory);
+        this(context, log, submissionResourceWaitTimeout, null, stateTransitionManagerFactory);
     }
 
     WaitingForResources(
             Context context,
             Logger log,
-            Duration initialResourceAllocationTimeout,
+            Duration submissionResourceWaitTimeout,
             @Nullable ExecutionGraph previousExecutionGraph,
             Function<StateTransitionManager.Context, StateTransitionManager>
                     stateTransitionManagerFactory) {
         super(context, log);
         this.context = Preconditions.checkNotNull(context);
-        Preconditions.checkNotNull(initialResourceAllocationTimeout);
+        Preconditions.checkNotNull(submissionResourceWaitTimeout);
         this.stateTransitionManager = stateTransitionManagerFactory.apply(this);
 
         // since state transitions are not allowed in state constructors, schedule calls for later.
-        if (!initialResourceAllocationTimeout.isNegative()) {
+        if (!submissionResourceWaitTimeout.isNegative()) {
             resourceTimeoutFuture =
-                    context.runIfState(
-                            this, this::resourceTimeout, initialResourceAllocationTimeout);
+                    context.runIfState(this, this::resourceTimeout, submissionResourceWaitTimeout);
         }
         this.previousExecutionGraph = previousExecutionGraph;
         context.runIfState(this, this::checkPotentialStateTransition, Duration.ZERO);
@@ -167,7 +166,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
 
         private final Context context;
         private final Logger log;
-        private final Duration initialResourceAllocationTimeout;
+        private final Duration submissionResourceWaitTimeout;
         @Nullable private final ExecutionGraph previousExecutionGraph;
         private final Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory;
@@ -175,13 +174,13 @@ class WaitingForResources extends StateWithoutExecutionGraph
         public Factory(
                 Context context,
                 Logger log,
-                Duration initialResourceAllocationTimeout,
+                Duration submissionResourceWaitTimeout,
                 Function<StateTransitionManager.Context, StateTransitionManager>
                         stateTransitionManagerFactory,
                 @Nullable ExecutionGraph previousExecutionGraph) {
             this.context = context;
             this.log = log;
-            this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+            this.submissionResourceWaitTimeout = submissionResourceWaitTimeout;
             this.previousExecutionGraph = previousExecutionGraph;
             this.stateTransitionManagerFactory = stateTransitionManagerFactory;
         }
@@ -194,7 +193,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
             return new WaitingForResources(
                     context,
                     log,
-                    initialResourceAllocationTimeout,
+                    submissionResourceWaitTimeout,
                     previousExecutionGraph,
                     stateTransitionManagerFactory);
         }

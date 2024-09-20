@@ -19,7 +19,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -53,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -67,7 +67,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the execution deployment-reconciliation logic in the {@link JobMaster}. */
 class JobMasterExecutionDeploymentReconciliationTest {
 
-    private static final Time testingTimeout = Time.seconds(10L);
+    private static final Duration testingTimeout = Duration.ofSeconds(10L);
 
     private final HeartbeatServices heartbeatServices =
             new HeartbeatServicesImpl(Integer.MAX_VALUE, Integer.MAX_VALUE);

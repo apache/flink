@@ -21,7 +21,6 @@ package org.apache.flink.test.execution;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -46,6 +45,7 @@ import org.apache.flink.streaming.api.lineage.LineageVertex;
 import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
 import org.apache.flink.streaming.runtime.execution.JobCreatedEvent;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
@@ -137,7 +137,7 @@ public class JobStatusChangedListenerITCase extends TestLogger {
         try (StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration)) {
             env.setParallelism(PARALLELISM);
-            env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+            RestartStrategyUtils.configureNoRestartStrategy(env);
             env.addSource(new FastFailureSourceFunction()).addSink(new SleepingSink());
 
             StreamGraph streamGraph = env.getStreamGraph();

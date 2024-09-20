@@ -33,7 +33,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
@@ -94,6 +93,7 @@ import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1577,7 +1577,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         try {
             ValueStateDescriptor<MutableLong> kvId =
                     new ValueStateDescriptor<>("id", MutableLong.class);
-            kvId.enableTimeToLive(StateTtlConfig.newBuilder(Time.seconds(1)).build());
+            kvId.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofSeconds(1)).build());
 
             ValueState<MutableLong> state =
                     backend.getPartitionedState(

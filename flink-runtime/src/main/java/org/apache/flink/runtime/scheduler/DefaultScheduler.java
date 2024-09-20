@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
@@ -61,6 +60,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -134,7 +134,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final Collection<FailureEnricher> failureEnrichers,
             final ExecutionGraphFactory executionGraphFactory,
             final ShuffleMaster<?> shuffleMaster,
-            final Time rpcTimeout,
+            final Duration rpcTimeout,
             final VertexParallelismStore vertexParallelismStore,
             final ExecutionDeployer.Factory executionDeployerFactory)
             throws Exception {

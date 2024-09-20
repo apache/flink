@@ -211,6 +211,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
         this.sharingGroup = new SlotSharingGroup();
 
         ExecutionConfig executionConfig = program.getOriginalPlan().getExecutionConfig();
+        Configuration jobConfiguration = program.getOriginalPlan().getJobConfiguration();
 
         // this starts the traversal that generates the job graph
         program.accept(this);
@@ -263,6 +264,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
                             .setJobId(jobId)
                             .setJobName(program.getJobName())
                             .setExecutionConfig(executionConfig)
+                            .setJobConfiguration(jobConfiguration)
                             .addJobVertices(vertices.values())
                             .addJobVertices(auxVertices)
                             .addUserArtifacts(userArtifacts)

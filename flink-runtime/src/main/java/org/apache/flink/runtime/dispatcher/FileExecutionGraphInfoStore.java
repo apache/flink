@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
@@ -49,6 +48,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -82,7 +82,7 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
 
     public FileExecutionGraphInfoStore(
             File rootDir,
-            Time expirationTime,
+            Duration expirationTime,
             int maximumCapacity,
             long maximumCacheSizeBytes,
             ScheduledExecutor scheduledExecutor,
@@ -95,7 +95,7 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
                 "Initializing {}: Storage directory {}, expiration time {}, maximum cache size {} bytes.",
                 FileExecutionGraphInfoStore.class.getSimpleName(),
                 storageDirectory,
-                expirationTime.toMilliseconds(),
+                expirationTime.toMillis(),
                 maximumCacheSizeBytes);
 
         this.storageDir = Preconditions.checkNotNull(storageDirectory);
@@ -104,7 +104,7 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
                 "The storage directory must exist and be a directory.");
         this.jobDetailsCache =
                 CacheBuilder.newBuilder()
-                        .expireAfterWrite(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS)
+                        .expireAfterWrite(expirationTime.toMillis(), TimeUnit.MILLISECONDS)
                         .maximumSize(maximumCapacity)
                         .removalListener(
                                 (RemovalListener<JobID, JobDetails>)
@@ -128,8 +128,8 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
         this.cleanupFuture =
                 scheduledExecutor.scheduleWithFixedDelay(
                         jobDetailsCache::cleanUp,
-                        expirationTime.toMilliseconds(),
-                        expirationTime.toMilliseconds(),
+                        expirationTime.toMillis(),
+                        expirationTime.toMillis(),
                         TimeUnit.MILLISECONDS);
 
         this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);

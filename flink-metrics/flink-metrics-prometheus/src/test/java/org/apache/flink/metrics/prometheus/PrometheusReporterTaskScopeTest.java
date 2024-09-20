@@ -25,7 +25,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.PortRange;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
 import org.junit.jupiter.api.AfterEach;
@@ -59,7 +59,7 @@ class PrometheusReporterTaskScopeTest {
 
     @BeforeEach
     void setupReporter() {
-        reporter = new PrometheusReporter(NetUtils.getPortRangeFromString("9400-9500"));
+        reporter = new PrometheusReporter(new PortRange("9400-9500"));
     }
 
     @AfterEach

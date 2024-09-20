@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
@@ -300,7 +299,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                     TimeUnit.MILLISECONDS,
                     retryExecutorService);
 
-            this.restClient.shutdown(Time.seconds(5));
+            this.restClient.shutdown(Duration.ofSeconds(5));
             ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 
             try {

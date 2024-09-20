@@ -2049,4 +2049,32 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
       }
     }
   }
+
+  @TestTemplate
+  def testAggFunctionPriority(): Unit = {
+    // reported in FLINK-36283
+    val sql =
+      """
+        |SELECT
+        |  c,
+        |  PERCENTILE(b, 0.5) AS `swo`
+        |FROM MyTable
+        |GROUP BY c
+      """.stripMargin
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+
+    // create a UDAF to cover built-in agg function with the same name
+    tEnv.createTemporarySystemFunction("PERCENTILE", classOf[FakePercentile])
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("Hello,21.0", "Hello World,35.0")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+
+    tEnv.dropTemporarySystemFunction("PERCENTILE")
+  }
 }

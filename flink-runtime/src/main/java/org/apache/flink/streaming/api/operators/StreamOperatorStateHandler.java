@@ -277,6 +277,15 @@ public class StreamOperatorStateHandler {
                             keyedStateBackend.snapshot(
                                     checkpointId, timestamp, factory, checkpointOptions));
                 }
+
+            } else if (null != asyncKeyedStateBackend) {
+                if (isCanonicalSavepoint(checkpointOptions.getCheckpointType())) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                } else {
+                    snapshotInProgress.setKeyedStateManagedFuture(
+                            asyncKeyedStateBackend.snapshot(
+                                    checkpointId, timestamp, factory, checkpointOptions));
+                }
             }
         } catch (Exception snapshotException) {
             try {
@@ -331,11 +340,19 @@ public class StreamOperatorStateHandler {
         if (keyedStateBackend instanceof CheckpointListener) {
             ((CheckpointListener) keyedStateBackend).notifyCheckpointComplete(checkpointId);
         }
+
+        if (asyncKeyedStateBackend != null) {
+            asyncKeyedStateBackend.notifyCheckpointComplete(checkpointId);
+        }
     }
 
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
         if (keyedStateBackend instanceof CheckpointListener) {
             ((CheckpointListener) keyedStateBackend).notifyCheckpointAborted(checkpointId);
+        }
+
+        if (asyncKeyedStateBackend != null) {
+            asyncKeyedStateBackend.notifyCheckpointAborted(checkpointId);
         }
     }
 

@@ -268,6 +268,14 @@ public final class ForStResourceContainer implements AutoCloseable {
         return remoteForStPath;
     }
 
+    public Path getDbPath() {
+        if (remoteForStPath != null) {
+            return remoteForStPath;
+        } else {
+            return Path.fromLocalFile(localForStPath);
+        }
+    }
+
     /**
      * Prepare local and remote directories.
      *

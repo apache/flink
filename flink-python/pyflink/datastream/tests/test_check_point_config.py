@@ -182,14 +182,3 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
         self.checkpoint_config.set_alignment_timeout(Duration.of_minutes(1))
         self.assertEqual(self.checkpoint_config.get_alignment_timeout(), Duration.of_minutes(1))
-
-    def test_get_set_checkpoint_storage(self):
-
-        self.assertIsNone(self.checkpoint_config.get_checkpoint_storage(),
-                          "Default checkpoint storage should be None")
-
-        self.checkpoint_config.set_checkpoint_storage_dir("file://var/checkpoints/")
-
-        self.assertEqual(self.checkpoint_config.get_checkpoint_storage().get_checkpoint_path(),
-                         "file://var/checkpoints",
-                         "Wrong checkpoints directory")

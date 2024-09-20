@@ -90,9 +90,6 @@ class NettyShuffleEnvironmentConfigurationTest {
         assertThat(description).contains(configKey);
         configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
         assertThat(description).contains(configKey);
-
-        assertThat(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED.defaultValue())
-                .isTrue();
     }
 
     private static String getConfigKey(ConfigOption<?> configOption) {

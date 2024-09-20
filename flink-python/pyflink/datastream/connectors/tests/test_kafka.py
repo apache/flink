@@ -17,6 +17,7 @@
 ################################################################################
 import json
 from typing import Dict
+import unittest
 
 import pyflink.datastream.data_stream as data_stream
 from pyflink.common import typeinfo
@@ -45,6 +46,7 @@ from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value
 
 class KafkaSourceTests(PyFlinkStreamingTestCase):
 
+    @unittest.skip("Disabled due to cyclic dependencies: Should be removed with Flink 2.0")
     def test_legacy_kafka_connector(self):
         source_topic = 'test_source_topic'
         sink_topic = 'test_sink_topic'

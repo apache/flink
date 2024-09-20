@@ -89,14 +89,6 @@ public class MetricOptions {
                 configuration, ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + ".");
     }
 
-    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
-    @Deprecated
-    public static final ConfigOption<String> REPORTER_CLASS =
-            key("class")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The reporter class to use for the reporter named <name>.");
-
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
     public static final ConfigOption<String> REPORTER_FACTORY_CLASS =

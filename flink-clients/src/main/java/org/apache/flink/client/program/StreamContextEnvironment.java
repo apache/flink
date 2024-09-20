@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -31,7 +30,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.ConfigurationNotAllowedMessage;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -49,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -271,7 +268,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         removeProgramConfigWildcards(clusterConfigMap);
 
         checkMainConfiguration(clusterConfigMap, errors);
-        checkCheckpointStorage(clusterConfigMap, errors);
         return errors;
     }
 
@@ -298,25 +294,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                                 errors.add(
                                         ConfigurationNotAllowedMessage.ofConfigurationChanged(
                                                 k, v)));
-    }
-
-    private void checkCheckpointStorage(Configuration clusterConfigMap, List<String> errors) {
-        CheckpointConfig expectedCheckpointConfig = new CheckpointConfig();
-        expectedCheckpointConfig.configure(clusterConfigMap);
-
-        /**
-         * Unfortunately, {@link CheckpointConfig#setCheckpointStorage} is not backed by a {@link
-         * Configuration}, but it also has to be validated. For this validation we are implementing
-         * a one off manual check.
-         */
-        if (!programConfigWildcards.contains(CheckpointingOptions.CHECKPOINTS_DIRECTORY.key())
-                && !Objects.equals(
-                        checkpointCfg.getCheckpointStorage(),
-                        expectedCheckpointConfig.getCheckpointStorage())) {
-            errors.add(
-                    ConfigurationNotAllowedMessage.ofConfigurationObjectSetterUsed(
-                            checkpointCfg.getClass().getSimpleName(), "setCheckpointStorage"));
-        }
     }
 
     private void checkConfigurationObject(

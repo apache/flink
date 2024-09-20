@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -31,6 +30,7 @@ import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 /** Base class for session cluster entry points. */
 public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
@@ -44,8 +44,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
             Configuration configuration, ScheduledExecutor scheduledExecutor) throws IOException {
         final JobManagerOptions.JobStoreType jobStoreType =
                 configuration.get(JobManagerOptions.JOB_STORE_TYPE);
-        final Time expirationTime =
-                Time.seconds(configuration.get(JobManagerOptions.JOB_STORE_EXPIRATION_TIME));
+        final Duration expirationTime =
+                Duration.ofSeconds(configuration.get(JobManagerOptions.JOB_STORE_EXPIRATION_TIME));
         final int maximumCapacity = configuration.get(JobManagerOptions.JOB_STORE_MAX_CAPACITY);
 
         switch (jobStoreType) {

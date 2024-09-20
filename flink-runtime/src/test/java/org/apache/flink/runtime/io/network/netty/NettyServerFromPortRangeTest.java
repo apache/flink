@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.util.PortRange;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.PortRange;
 
 import org.junit.jupiter.api.Test;
 

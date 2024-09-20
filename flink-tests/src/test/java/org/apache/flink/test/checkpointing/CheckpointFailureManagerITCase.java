@@ -19,9 +19,9 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CheckpointStorageFactory;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -54,6 +55,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -87,9 +90,11 @@ public class CheckpointFailureManagerITCase extends TestLogger {
     public void testFinalizationFailureCounted() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10);
-        env.getCheckpointConfig().setCheckpointStorage(new FailingFinalizationCheckpointStorage());
+        CheckpointStorageUtils.configureCheckpointStorageWithFactory(
+                env,
+                "org.apache.flink.test.checkpointing.CheckpointFailureManagerITCase$FailingFinalizationCheckpointStorageFactory");
         env.getCheckpointConfig().setTolerableCheckpointFailureNumber(0);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         try {
@@ -112,7 +117,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
     public void testAsyncCheckpointFailureTriggerJobFailed() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.setStateBackend(new AsyncFailureStateBackend());
         env.addSource(new StringGeneratingSourceFunction()).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
@@ -229,6 +234,16 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         @Override
         public AsyncFailureStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
             return this;
+        }
+    }
+
+    public static class FailingFinalizationCheckpointStorageFactory
+            implements CheckpointStorageFactory<FailingFinalizationCheckpointStorage> {
+        @Override
+        public FailingFinalizationCheckpointStorage createFromConfig(
+                ReadableConfig config, ClassLoader classLoader)
+                throws IllegalConfigurationException {
+            return new FailingFinalizationCheckpointStorage();
         }
     }
 

@@ -71,6 +71,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -526,6 +528,10 @@ public class FileSink<IN>
 
         private CheckpointRollingPolicy<IN, String> rollingPolicy;
 
+        private Map<String, String> writerConfig = new HashMap<>();
+
+        private static final String HDFS_NO_LOCAL_WRITE = "fs.hdfs.no-local-write";
+
         private OutputFileConfig outputFileConfig;
 
         private boolean isCompactDisabledExplicitly = false;
@@ -577,6 +583,11 @@ public class FileSink<IN>
 
         public T withRollingPolicy(CheckpointRollingPolicy<IN, String> rollingPolicy) {
             this.rollingPolicy = checkNotNull(rollingPolicy);
+            return self();
+        }
+
+        public T disableLocalWriting() {
+            this.writerConfig.put(HDFS_NO_LOCAL_WRITE, String.valueOf(true));
             return self();
         }
 
@@ -695,7 +706,8 @@ public class FileSink<IN>
 
         BucketWriter<IN, String> createBucketWriter() throws IOException {
             return new BulkBucketWriter<>(
-                    FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory);
+                    FileSystem.get(basePath.toUri()).createRecoverableWriter(writerConfig),
+                    writerFactory);
         }
     }
 

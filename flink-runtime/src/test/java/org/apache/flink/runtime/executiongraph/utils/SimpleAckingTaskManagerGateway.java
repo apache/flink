@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
@@ -62,7 +62,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     private CheckpointConsumer checkpointConsumer =
             (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) -> {};
 
-    private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time>
+    private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Duration>
             updatePartitionsConsumer = (ignore1, ignore2, ignore3) -> {};
 
     public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
@@ -88,7 +88,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     }
 
     public void setUpdatePartitionsConsumer(
-            TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time>
+            TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Duration>
                     updatePartitionsConsumer) {
         this.updatePartitionsConsumer = updatePartitionsConsumer;
     }
@@ -99,14 +99,15 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+    public CompletableFuture<Acknowledge> submitTask(
+            TaskDeploymentDescriptor tdd, Duration timeout) {
         submitConsumer.accept(tdd);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
     public CompletableFuture<Acknowledge> cancelTask(
-            ExecutionAttemptID executionAttemptID, Time timeout) {
+            ExecutionAttemptID executionAttemptID, Duration timeout) {
         cancelConsumer.accept(executionAttemptID);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
@@ -115,7 +116,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     public CompletableFuture<Acknowledge> updatePartitions(
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
-            Time timeout) {
+            Duration timeout) {
         updatePartitionsConsumer.accept(executionAttemptID, partitionInfos, timeout);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
@@ -163,7 +164,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> freeSlot(
-            AllocationID allocationId, Throwable cause, Time timeout) {
+            AllocationID allocationId, Throwable cause, Duration timeout) {
         final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
                 currentFreeSlotFunction = freeSlotFunction;
 

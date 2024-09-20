@@ -20,7 +20,6 @@ package org.apache.flink.client.deployment.application.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
@@ -43,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -136,8 +136,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
             final Configuration configuration,
             final ClassLoader userCodeClassloader)
             throws MalformedURLException {
-        final Time timeout =
-                Time.milliseconds(configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
+        final Duration timeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
 
         final JobGraph jobGraph =
                 PipelineExecutorUtils.getJobGraph(pipeline, configuration, userCodeClassloader);
@@ -191,7 +190,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
             final Configuration configuration,
             final DispatcherGateway dispatcherGateway,
             final JobGraph jobGraph,
-            final Time rpcTimeout) {
+            final Duration rpcTimeout) {
         checkNotNull(jobGraph);
 
         LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());

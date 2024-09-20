@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -39,7 +38,7 @@ public class RestHandlerConfiguration {
 
     private final int checkpointCacheSize;
 
-    private final Time timeout;
+    private final Duration timeout;
 
     private final File webUiDir;
 
@@ -54,7 +53,7 @@ public class RestHandlerConfiguration {
             int checkpointHistorySize,
             Duration checkpointCacheExpireAfterWrite,
             int checkpointCacheSize,
-            Time timeout,
+            Duration timeout,
             File webUiDir,
             boolean webSubmitEnabled,
             boolean webCancelEnabled,
@@ -90,7 +89,7 @@ public class RestHandlerConfiguration {
         return checkpointCacheSize;
     }
 
-    public Time getTimeout() {
+    public Duration getTimeout() {
         return timeout;
     }
 
@@ -121,7 +120,7 @@ public class RestHandlerConfiguration {
         final int checkpointStatsSnapshotCacheSize =
                 configuration.get(RestOptions.CACHE_CHECKPOINT_STATISTICS_SIZE);
 
-        final Time timeout = Time.fromDuration(configuration.get(WebOptions.TIMEOUT));
+        final Duration timeout = configuration.get(WebOptions.TIMEOUT);
 
         final String rootDir = "flink-web-ui";
         final File webUiDir = new File(configuration.get(WebOptions.TMP_DIR), rootDir);

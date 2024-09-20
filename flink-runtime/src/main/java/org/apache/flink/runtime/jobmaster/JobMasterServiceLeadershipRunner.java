@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.dispatcher.JobCancellationFailedException;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -43,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -185,7 +185,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         synchronized (lock) {
             hasCurrentLeaderBeenCancelled = true;
             return getJobMasterGateway()
@@ -201,7 +201,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return requestJob(timeout)
                 .thenApply(
                         executionGraphInfo ->
@@ -209,7 +209,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     @Override
-    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+    public CompletableFuture<JobDetails> requestJobDetails(Duration timeout) {
         return requestJob(timeout)
                 .thenApply(
                         executionGraphInfo ->
@@ -218,7 +218,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         synchronized (lock) {
             if (state == State.RUNNING) {
                 if (jobMasterServiceProcess.isInitializedAndRunning()) {

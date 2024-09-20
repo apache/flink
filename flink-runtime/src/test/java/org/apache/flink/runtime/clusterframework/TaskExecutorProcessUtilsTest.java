@@ -418,50 +418,6 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     }
 
     @Test
-    void testConfigNetworkMemoryLegacyRangeFraction() {
-        final MemorySize networkMin = MemorySize.parse("200m");
-        final MemorySize networkMax = MemorySize.parse("500m");
-
-        final float fraction = 0.2f;
-
-        @SuppressWarnings("deprecation")
-        final ConfigOption<String> legacyOptionMin =
-                NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN;
-        @SuppressWarnings("deprecation")
-        final ConfigOption<String> legacyOptionMax =
-                NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX;
-        @SuppressWarnings("deprecation")
-        final ConfigOption<Float> legacyOptionFraction =
-                NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION;
-
-        Configuration conf = new Configuration();
-        conf.set(legacyOptionMin, networkMin.getMebiBytes() + "m");
-        conf.set(legacyOptionMax, networkMax.getMebiBytes() + "m");
-
-        validateInAllConfigurations(
-                conf,
-                taskExecutorProcessSpec -> {
-                    assertThat(taskExecutorProcessSpec.getNetworkMemSize().getBytes())
-                            .isGreaterThanOrEqualTo(networkMin.getBytes());
-                    assertThat(taskExecutorProcessSpec.getNetworkMemSize().getBytes())
-                            .isLessThanOrEqualTo(networkMax.getBytes());
-                });
-
-        conf.set(legacyOptionMin, "0m");
-        conf.set(legacyOptionMax, "1t");
-        conf.set(legacyOptionFraction, fraction);
-
-        validateInConfigWithExplicitTaskHeapAndManagedMem(
-                conf,
-                taskExecutorProcessSpec ->
-                        assertThat(taskExecutorProcessSpec.getNetworkMemSize())
-                                .isEqualTo(
-                                        taskExecutorProcessSpec
-                                                .getTotalFlinkMemorySize()
-                                                .multiply(fraction)));
-    }
-
-    @Test
     void testConfigNetworkMemoryLegacyNumOfBuffers() {
         final MemorySize pageSize = MemorySize.parse("32k");
         final int numOfBuffers = 1024;

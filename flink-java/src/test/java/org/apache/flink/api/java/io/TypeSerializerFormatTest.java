@@ -66,7 +66,6 @@ class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, 
         final TypeSerializerInputFormat<Tuple2<Integer, String>> inputFormat =
                 new TypeSerializerInputFormat<>(resultType);
         inputFormat.setFilePath(this.tempFile.toURI().toString());
-        inputFormat.setBlockSize(this.blockSize);
 
         inputFormat.configure(configuration);
         return inputFormat;

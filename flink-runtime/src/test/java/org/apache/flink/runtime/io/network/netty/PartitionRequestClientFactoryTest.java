@@ -158,10 +158,7 @@ class PartitionRequestClientFactoryTest {
 
         final PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(
-                        nettyServerAndClient.client(),
-                        0,
-                        maxNumberOfConnections,
-                        connectionReuseEnabled);
+                        nettyServerAndClient.client(), 0, connectionReuseEnabled);
         for (int i = 0; i < Math.max(100, maxNumberOfConnections); i++) {
             final ConnectionID connectionID =
                     nettyServerAndClient.getConnectionID(
@@ -207,7 +204,7 @@ class PartitionRequestClientFactoryTest {
 
         PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(
-                        serverAndClient.client(), 2, 1, connectionReuseEnabled);
+                        serverAndClient.client(), 2, connectionReuseEnabled);
 
         ConnectionID connectionID = serverAndClient.getConnectionID(RESOURCE_ID, 0);
         NettyPartitionRequestClient oldClient = factory.createPartitionRequestClient(connectionID);
@@ -228,8 +225,7 @@ class PartitionRequestClientFactoryTest {
                 new UnstableNettyClient(serverAndClient.client(), 2);
 
         PartitionRequestClientFactory factory =
-                new PartitionRequestClientFactory(
-                        unstableNettyClient, 2, 1, connectionReuseEnabled);
+                new PartitionRequestClientFactory(unstableNettyClient, 2, connectionReuseEnabled);
 
         factory.createPartitionRequestClient(serverAndClient.getConnectionID(RESOURCE_ID, 0));
 
@@ -241,7 +237,7 @@ class PartitionRequestClientFactoryTest {
     void testFailureReportedToSubsequentRequests() {
         PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(
-                        new FailingNettyClient(), 2, 1, connectionReuseEnabled);
+                        new FailingNettyClient(), 2, connectionReuseEnabled);
 
         assertThatThrownBy(
                 () ->
@@ -271,7 +267,7 @@ class PartitionRequestClientFactoryTest {
         try {
             PartitionRequestClientFactory factory =
                     new PartitionRequestClientFactory(
-                            unstableNettyClient, 2, 1, connectionReuseEnabled);
+                            unstableNettyClient, 2, connectionReuseEnabled);
 
             assertThatThrownBy(
                             () ->
@@ -290,8 +286,7 @@ class PartitionRequestClientFactoryTest {
                 new UnstableNettyClient(serverAndClient.client(), 2);
 
         PartitionRequestClientFactory factory =
-                new PartitionRequestClientFactory(
-                        unstableNettyClient, 2, 1, connectionReuseEnabled);
+                new PartitionRequestClientFactory(unstableNettyClient, 2, connectionReuseEnabled);
 
         List<CompletableFuture<NettyPartitionRequestClient>> futures = new ArrayList<>();
 

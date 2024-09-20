@@ -43,7 +43,6 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,7 +50,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
@@ -73,10 +72,9 @@ class Executing extends StateWithExecutionGraph
             Context context,
             ClassLoader userCodeClassLoader,
             List<ExceptionHistoryEntry> failureCollection,
-            BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+            Function<StateTransitionManager.Context, StateTransitionManager>
                     stateTransitionManagerFactory,
-            int rescaleOnFailedCheckpointCount,
-            Instant lastRescale) {
+            int rescaleOnFailedCheckpointCount) {
         super(
                 context,
                 executionGraph,
@@ -89,7 +87,7 @@ class Executing extends StateWithExecutionGraph
         Preconditions.checkState(
                 executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
-        this.stateTransitionManager = stateTransitionManagerFactory.apply(this, lastRescale);
+        this.stateTransitionManager = stateTransitionManagerFactory.apply(this);
 
         Preconditions.checkArgument(
                 rescaleOnFailedCheckpointCount > 0,
@@ -341,7 +339,7 @@ class Executing extends StateWithExecutionGraph
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
-        private final BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+        private final Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory;
         private final int rescaleOnFailedCheckpointCount;
 
@@ -353,7 +351,7 @@ class Executing extends StateWithExecutionGraph
                 Context context,
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection,
-                BiFunction<StateTransitionManager.Context, Instant, StateTransitionManager>
+                Function<StateTransitionManager.Context, StateTransitionManager>
                         stateTransitionManagerFactory,
                 int rescaleOnFailedCheckpointCount) {
             this.context = context;
@@ -381,8 +379,7 @@ class Executing extends StateWithExecutionGraph
                     userCodeClassLoader,
                     failureCollection,
                     stateTransitionManagerFactory,
-                    rescaleOnFailedCheckpointCount,
-                    Instant.now());
+                    rescaleOnFailedCheckpointCount);
         }
     }
 }

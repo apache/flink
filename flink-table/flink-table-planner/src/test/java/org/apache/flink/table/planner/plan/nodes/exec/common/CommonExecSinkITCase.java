@@ -492,10 +492,7 @@ class CommonExecSinkITCase {
 
     private static TestSink<RowData> buildRecordWriterTestSink(
             TestSink.DefaultSinkWriter<RowData> writer) {
-        return TestSink.newBuilder()
-                .setWriter(writer)
-                .setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-                .build();
+        return TestSink.newBuilder().setWriter(writer).build();
     }
 
     private TableFactoryHarness.SinkBase buildRuntimeSinkProvider(

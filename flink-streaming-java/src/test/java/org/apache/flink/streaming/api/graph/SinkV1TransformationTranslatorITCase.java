@@ -121,13 +121,7 @@ class SinkV1TransformationTranslatorITCase
     void generateWriterGlobalCommitterTopology() {
         final StreamGraph streamGraph =
                 buildGraph(
-                        TestSink.newBuilder()
-                                .setCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .setGlobalCommittableSerializer(
-                                        TestSink.StringCommittableSerializer.INSTANCE)
-                                .setDefaultGlobalCommitter()
-                                .build(),
+                        TestSink.newBuilder().setDefaultGlobalCommitter().build(),
                         runtimeExecutionMode);
 
         final StreamNode sourceNode = findNodeName(streamGraph, node -> node.contains("Source"));

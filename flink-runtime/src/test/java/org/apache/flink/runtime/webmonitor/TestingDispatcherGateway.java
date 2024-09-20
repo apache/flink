@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -48,6 +47,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriFunction;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -217,7 +217,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
+    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Duration timeout) {
         return submitFunction.apply(jobGraph);
     }
 
@@ -228,12 +228,12 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     }
 
     @Override
-    public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
+    public CompletableFuture<Collection<JobID>> listJobs(Duration timeout) {
         return listFunction.get();
     }
 
     @Override
-    public CompletableFuture<Integer> getBlobServerPort(Time timeout) {
+    public CompletableFuture<Integer> getBlobServerPort(Duration timeout) {
         return CompletableFuture.completedFuture(blobServerPort);
     }
 
@@ -243,7 +243,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     }
 
     public CompletableFuture<ArchivedExecutionGraph> requestJob(
-            JobID jobId, @RpcTimeout Time timeout) {
+            JobID jobId, @RpcTimeout Duration timeout) {
         return requestArchivedJobFunction.apply(jobId);
     }
 
@@ -258,7 +258,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
-            Time timeout) {
+            Duration timeout) {
         return triggerSavepointAndGetLocationFunction.apply(jobId, targetDirectory, formatType);
     }
 
@@ -268,13 +268,13 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
-            Time timeout) {
+            Duration timeout) {
         return stopWithSavepointAndGetLocationFunction.apply(jobId, targetDirectory, formatType);
     }
 
     @Override
     public CompletableFuture<Long> triggerCheckpointAndGetCheckpointID(
-            final JobID jobId, final CheckpointType checkpointType, final Time timeout) {
+            final JobID jobId, final CheckpointType checkpointType, final Duration timeout) {
         return triggerCheckpointAndGetCheckpointIdFunction.apply(jobId, checkpointType);
     }
 

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -38,6 +37,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -52,7 +52,7 @@ public class JobExecutionResultHandler
 
     public JobExecutionResultHandler(
             final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            final Time timeout,
+            final Duration timeout,
             final Map<String, String> responseHeaders) {
         super(leaderRetriever, timeout, responseHeaders, JobExecutionResultHeaders.getInstance());
     }

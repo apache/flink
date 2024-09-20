@@ -18,15 +18,14 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -303,14 +302,16 @@ public class ExecutionConfigTest {
     @Test
     void testNotOverridingRestartStrategiesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
-                RestartStrategies.fixedDelayRestart(10, Time.minutes(2));
-        config.setRestartStrategy(restartStrategyConfiguration);
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 10);
+        config.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         // mutate config according to configuration
         config.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
 
-        assertThat(config.getRestartStrategy()).isEqualTo(restartStrategyConfiguration);
+        assertThat(config.toConfiguration().get(RestartStrategyOptions.RESTART_STRATEGY))
+                .isEqualTo("fixed-delay");
     }
 
     @Test

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -160,7 +159,7 @@ public class MiniCluster implements AutoCloseableAsync {
     /** The configuration for this mini cluster. */
     private final MiniClusterConfiguration miniClusterConfiguration;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     @GuardedBy("lock")
     private final List<TaskExecutor> taskManagers;

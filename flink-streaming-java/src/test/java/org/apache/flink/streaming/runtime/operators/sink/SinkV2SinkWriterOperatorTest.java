@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -30,67 +31,49 @@ import java.util.Collection;
 import java.util.List;
 
 class SinkV2SinkWriterOperatorTest extends SinkWriterOperatorTestBase {
-
     @Override
-    SinkAndSuppliers sinkWithoutCommitter() {
+    InspectableSink sinkWithoutCommitter() {
         TestSinkV2.DefaultSinkWriter<Integer> sinkWriter = new TestSinkV2.DefaultSinkWriter<>();
-        return new SinkAndSuppliers(
-                TestSinkV2.<Integer>newBuilder().setWriter(sinkWriter).build(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> -1,
-                TestSinkV2.StringSerializer::new);
+        return new InspectableSink(TestSinkV2.<Integer>newBuilder().setWriter(sinkWriter).build());
     }
 
     @Override
-    SinkAndSuppliers sinkWithCommitter() {
+    InspectableSink sinkWithCommitter() {
         TestSinkV2.DefaultSinkWriter<Integer> sinkWriter =
                 new TestSinkV2.DefaultCommittingSinkWriter<>();
-        return new SinkAndSuppliers(
+        return new InspectableSink(
                 TestSinkV2.<Integer>newBuilder()
                         .setWriter(sinkWriter)
                         .setDefaultCommitter()
-                        .build(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> -1,
-                TestSinkV2.StringSerializer::new);
+                        .build());
     }
 
     @Override
-    SinkAndSuppliers sinkWithTimeBasedWriter() {
+    InspectableSink sinkWithTimeBasedWriter() {
         TestSinkV2.DefaultSinkWriter<Integer> sinkWriter = new TimeBasedBufferingSinkWriter();
-        return new SinkAndSuppliers(
+        return new InspectableSink(
                 TestSinkV2.<Integer>newBuilder()
                         .setWriter(sinkWriter)
                         .setDefaultCommitter()
-                        .build(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> -1,
-                TestSinkV2.StringSerializer::new);
+                        .build());
     }
 
     @Override
-    SinkAndSuppliers sinkWithSnapshottingWriter(boolean withState, String stateName) {
-        SnapshottingBufferingSinkWriter sinkWriter = new SnapshottingBufferingSinkWriter();
+    InspectableSink sinkWithState(boolean withState, String stateName) {
+        TestSinkV2.DefaultSinkWriter<Integer> sinkWriter =
+                new TestSinkV2.DefaultStatefulSinkWriter<>();
         TestSinkV2.Builder<Integer> builder =
-                TestSinkV2.newBuilder()
-                        .setWriter(sinkWriter)
+                TestSinkV2.<Integer>newBuilder()
                         .setDefaultCommitter()
-                        .setWithPostCommitTopology(true);
+                        .setWithPostCommitTopology(true)
+                        .setWriter(sinkWriter);
         if (withState) {
             builder.setWriterState(true);
         }
         if (stateName != null) {
             builder.setCompatibleStateNames(stateName);
         }
-        return new SinkAndSuppliers(
-                builder.build(),
-                () -> sinkWriter.elements,
-                () -> sinkWriter.watermarks,
-                () -> sinkWriter.lastCheckpointId,
-                () -> new TestSinkV2.StringSerializer());
+        return new InspectableSink(builder.build());
     }
 
     private static class TimeBasedBufferingSinkWriter
@@ -145,6 +128,33 @@ class SinkV2SinkWriterOperatorTest extends SinkWriterOperatorTestBase {
             List<String> result = elements;
             elements = new ArrayList<>();
             return result;
+        }
+    }
+
+    static class InspectableSink extends AbstractInspectableSink<TestSinkV2<Integer>> {
+        InspectableSink(TestSinkV2<Integer> sink) {
+            super(sink);
+        }
+
+        @Override
+        public long getLastCheckpointId() {
+            return getSink().getWriter().lastCheckpointId;
+        }
+
+        @Override
+        public List<String> getRecordsOfCurrentCheckpoint() {
+            return getSink().getWriter().elements;
+        }
+
+        @Override
+        public List<Watermark> getWatermarks() {
+            return getSink().getWriter().watermarks;
+        }
+
+        @Override
+        public int getRecordCountFromState() {
+            return ((TestSinkV2.DefaultStatefulSinkWriter<?>) getSink().getWriter())
+                    .getRecordCount();
         }
     }
 }

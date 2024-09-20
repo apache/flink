@@ -25,7 +25,6 @@ import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -43,6 +42,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -90,7 +90,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         env.setMaxParallelism(maxParallelism);
         env.setParallelism(parallelism);
         env.enableCheckpointing(100);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         final List<File> partitionFiles = new ArrayList<>(parallelism);
         for (int i = 0; i < parallelism; ++i) {

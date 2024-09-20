@@ -54,7 +54,7 @@ class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
     void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
                 new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                        typeSerializer, minTime.toMilliseconds());
+                        typeSerializer, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 12));
@@ -77,7 +77,7 @@ class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
     void testKeepFirstRowWithStateTtl() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
                 new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-                        typeSerializer, minTime.toMilliseconds());
+                        typeSerializer, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.setup();
         testHarness.open();

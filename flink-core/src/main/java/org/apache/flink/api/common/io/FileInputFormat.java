@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.TaskManagerOptions.FS_STREAM_OPENING_TIME_OUT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -457,11 +456,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
             } else {
                 setFilePath(filePath);
             }
-        }
-
-        if (!this.enumerateNestedFiles) {
-            this.enumerateNestedFiles =
-                    parameters.get(getBooleanConfigOption(ENUMERATE_NESTED_FILES_FLAG), false);
         }
     }
 
@@ -1137,8 +1131,4 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
     /** The config parameter which defines the input file path. */
     private static final String FILE_PARAMETER_KEY = "input.file.path";
-
-    /** The config parameter which defines whether input directories are recursively traversed. */
-    @Deprecated
-    public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 }

@@ -591,13 +591,12 @@ class DefaultStateTransitionManagerTest {
                 Consumer<DefaultStateTransitionManager> callback) {
             final DefaultStateTransitionManager testInstance =
                     new DefaultStateTransitionManager(
+                            this,
                             // clock that returns the time based on the configured elapsedTime
                             () -> Objects.requireNonNull(initializationTime).plus(elapsedTime),
-                            this,
                             cooldownTimeout,
                             resourceStabilizationTimeout,
-                            maxTriggerDelay,
-                            initializationTime) {
+                            maxTriggerDelay) {
                         @Override
                         public void onChange() {
                             super.onChange();

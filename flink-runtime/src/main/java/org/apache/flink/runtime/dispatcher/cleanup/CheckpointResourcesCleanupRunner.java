@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.RecoveryClaimMode;
@@ -48,6 +47,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -178,18 +178,18 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         return FutureUtils.completedExceptionally(
                 new JobCancellationFailedException("Cleanup tasks are not meant to be cancelled."));
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return CompletableFuture.completedFuture(getJobStatus());
     }
 
     @Override
-    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+    public CompletableFuture<JobDetails> requestJobDetails(Duration timeout) {
         return requestJob(timeout)
                 .thenApply(
                         executionGraphInfo ->
@@ -198,7 +198,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         return CompletableFuture.completedFuture(createExecutionGraphInfoFromJobResult());
     }
 

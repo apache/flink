@@ -112,7 +112,7 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
         final JobGraph jobGraph = createJobGraph(stateBackend1.toFile());
         clusterClient
                 .submitJob(jobGraph)
-                .get(TestingUtils.infiniteTime().toMilliseconds(), TimeUnit.MILLISECONDS);
+                .get(TestingUtils.infiniteTime().toMillis(), TimeUnit.MILLISECONDS);
 
         // Wait until all tasks running and getting a successful savepoint
         CommonTestUtils.waitUntilCondition(

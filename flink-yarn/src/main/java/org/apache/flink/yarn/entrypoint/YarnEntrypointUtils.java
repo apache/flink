@@ -23,7 +23,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
@@ -64,11 +63,6 @@ public class YarnEntrypointUtils {
         configuration.set(JobManagerOptions.ADDRESS, hostname);
         configuration.set(RestOptions.ADDRESS, hostname);
         configuration.set(RestOptions.BIND_ADDRESS, hostname);
-
-        // if a web monitor shall be started, set the port to random binding
-        if (configuration.get(WebOptions.PORT, 0) >= 0) {
-            configuration.set(WebOptions.PORT, 0);
-        }
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
@@ -47,11 +46,11 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Callable;
@@ -148,13 +147,14 @@ class TestingDispatcher extends Dispatcher {
         return callAsync(callable, TestingUtils.TESTING_DURATION).thenCompose(Function.identity());
     }
 
-    CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
-        return callAsync(() -> getJobTerminationFuture(jobId), TimeUtils.toDuration(timeout))
+    CompletableFuture<Void> getJobTerminationFuture(
+            @Nonnull JobID jobId, @Nonnull Duration timeout) {
+        return callAsync(() -> getJobTerminationFuture(jobId), timeout)
                 .thenCompose(Function.identity());
     }
 
-    CompletableFuture<Integer> getNumberJobs(Time timeout) {
-        return callAsync(() -> listJobs(timeout).get().size(), TimeUtils.toDuration(timeout));
+    CompletableFuture<Integer> getNumberJobs(Duration timeout) {
+        return callAsync(() -> listJobs(timeout).get().size(), timeout);
     }
 
     void waitUntilStarted() {

@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -198,7 +197,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private final ResourceCleaner localResourceCleaner;
     private final ResourceCleaner globalResourceCleaner;
 
-    private final Time webTimeout;
+    private final Duration webTimeout;
 
     private final Map<JobID, Long> jobClientExpiredTimestamp = new HashMap<>();
     private final Map<JobID, Long> uninitializedJobClientHeartbeatTimeout = new HashMap<>();
@@ -327,7 +326,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.globalResourceCleaner =
                 resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
 
-        this.webTimeout = Time.fromDuration(configuration.get(WebOptions.TIMEOUT));
+        this.webTimeout = configuration.get(WebOptions.TIMEOUT);
 
         this.jobClientAlivenessCheckInterval =
                 configuration.get(CLIENT_ALIVENESS_CHECK_DURATION).toMillis();
@@ -515,7 +514,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     // ------------------------------------------------------
 
     @Override
-    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
+    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Duration timeout) {
         final JobID jobID = jobGraph.getJobID();
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
             log.info("Received JobGraph submission '{}' ({}).", jobGraph.getName(), jobID);
@@ -784,13 +783,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
+    public CompletableFuture<Collection<JobID>> listJobs(Duration timeout) {
         return CompletableFuture.completedFuture(
                 Collections.unmodifiableSet(jobManagerRunnerRegistry.getRunningJobIds()));
     }
 
     @Override
-    public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) {
+    public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Duration timeout) {
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
         return CompletableFuture.supplyAsync(
@@ -814,7 +813,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+    public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Duration timeout) {
         Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
 
         if (maybeJob.isPresent()) {
@@ -837,7 +836,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<ClusterOverview> requestClusterOverview(Time timeout) {
+    public CompletableFuture<ClusterOverview> requestClusterOverview(Duration timeout) {
         CompletableFuture<ResourceOverview> taskManagerOverviewFuture =
                 runResourceManagerCommand(
                         resourceManagerGateway ->
@@ -865,7 +864,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Time timeout) {
+    public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Duration timeout) {
         List<CompletableFuture<Optional<JobDetails>>> individualOptionalJobDetails =
                 queryJobMastersForInformation(
                         jobManagerRunner -> jobManagerRunner.requestJobDetails(timeout));
@@ -891,7 +890,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<JobStatus> requestJobStatus(JobID jobId, Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(JobID jobId, Duration timeout) {
         Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
         return maybeJob.map(job -> job.requestJobStatus(timeout))
                 .orElseGet(
@@ -910,7 +909,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
-            JobID jobId, Time timeout) {
+            JobID jobId, Duration timeout) {
         Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
         return maybeJob.map(job -> job.requestJob(timeout))
                 .orElse(FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId)))
@@ -929,7 +928,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(
-            JobID jobId, Time timeout) {
+            JobID jobId, Duration timeout) {
         return performOperationOnJobMasterGateway(
                         jobId, gateway -> gateway.requestCheckpointStats(timeout))
                 .exceptionally(
@@ -940,7 +939,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
+    public CompletableFuture<JobResult> requestJobResult(JobID jobId, Duration timeout) {
         if (!jobManagerRunnerRegistry.isRegistered(jobId)) {
             final ExecutionGraphInfo executionGraphInfo = executionGraphInfoStore.get(jobId);
 
@@ -964,7 +963,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<Collection<String>> requestMetricQueryServiceAddresses(Time timeout) {
+    public CompletableFuture<Collection<String>> requestMetricQueryServiceAddresses(
+            Duration timeout) {
         if (metricServiceQueryAddress != null) {
             return CompletableFuture.completedFuture(
                     Collections.singleton(metricServiceQueryAddress));
@@ -975,7 +975,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<Collection<Tuple2<ResourceID, String>>>
-            requestTaskManagerMetricQueryServiceAddresses(Time timeout) {
+            requestTaskManagerMetricQueryServiceAddresses(Duration timeout) {
         return runResourceManagerCommand(
                 resourceManagerGateway ->
                         resourceManagerGateway.requestTaskManagerMetricQueryServiceAddresses(
@@ -983,25 +983,27 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
-    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Time timeout) {
+    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Duration timeout) {
         int stackTraceMaxDepth = configuration.get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
         return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stackTraceMaxDepth));
     }
 
     @Override
-    public CompletableFuture<Integer> getBlobServerPort(Time timeout) {
+    public CompletableFuture<Integer> getBlobServerPort(Duration timeout) {
         return CompletableFuture.completedFuture(blobServer.getPort());
     }
 
     @Override
-    public CompletableFuture<String> triggerCheckpoint(JobID jobID, Time timeout) {
+    public CompletableFuture<String> triggerCheckpoint(JobID jobID, Duration timeout) {
         return performOperationOnJobMasterGateway(
                 jobID, gateway -> gateway.triggerCheckpoint(timeout));
     }
 
     @Override
     public CompletableFuture<Acknowledge> triggerCheckpoint(
-            AsynchronousJobOperationKey operationKey, CheckpointType checkpointType, Time timeout) {
+            AsynchronousJobOperationKey operationKey,
+            CheckpointType checkpointType,
+            Duration timeout) {
         return dispatcherCachedOperationsHandler.triggerCheckpoint(
                 operationKey, checkpointType, timeout);
     }
@@ -1014,7 +1016,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<Long> triggerCheckpointAndGetCheckpointID(
-            final JobID jobID, final CheckpointType checkpointType, final Time timeout) {
+            final JobID jobID, final CheckpointType checkpointType, final Duration timeout) {
         return performOperationOnJobMasterGateway(
                 jobID,
                 gateway ->
@@ -1028,7 +1030,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             final String targetDirectory,
             SavepointFormatType formatType,
             final TriggerSavepointMode savepointMode,
-            final Time timeout) {
+            final Duration timeout) {
         return dispatcherCachedOperationsHandler.triggerSavepoint(
                 operationKey, targetDirectory, formatType, savepointMode, timeout);
     }
@@ -1039,7 +1041,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
-            Time timeout) {
+            Duration timeout) {
         return performOperationOnJobMasterGateway(
                 jobId,
                 gateway ->
@@ -1062,7 +1064,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
-            final Time timeout) {
+            final Duration timeout) {
         return dispatcherCachedOperationsHandler.stopWithSavepoint(
                 operationKey, targetDirectory, formatType, savepointMode, timeout);
     }
@@ -1073,7 +1075,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             final String targetDirectory,
             final SavepointFormatType formatType,
             final TriggerSavepointMode savepointMode,
-            final Time timeout) {
+            final Duration timeout) {
         return performOperationOnJobMasterGateway(
                 jobId,
                 gateway ->
@@ -1101,7 +1103,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             JobID jobId,
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
-            Time timeout) {
+            Duration timeout) {
         return performOperationOnJobMasterGateway(
                 jobId,
                 gateway ->
@@ -1111,7 +1113,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<Void> reportJobClientHeartbeat(
-            JobID jobId, long expiredTimestamp, Time timeout) {
+            JobID jobId, long expiredTimestamp, Duration timeout) {
         if (!getJobManagerRunner(jobId).isPresent()) {
             log.warn("Fail to find job {} for client.", jobId);
         } else {
