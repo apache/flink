@@ -20,11 +20,14 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
@@ -32,8 +35,13 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.state.forst.ForStMemoryControllerUtils.ForStMemoryFactory;
+import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
+import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackendBuilder;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.FileUtils;
@@ -58,6 +66,8 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.Supplier;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * A {@link org.apache.flink.runtime.state.StateBackend} that stores its state in a ForSt instance.
@@ -127,12 +137,18 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     /** Factory for Write Buffer Manager and Block Cache. */
     private final ForStMemoryFactory forStMemoryFactory;
+
+    /**
+     * The configuration for rocksdb priorityQueue state settings (priorityQueue state type, etc.).
+     */
+    private final ForStPriorityQueueConfig priorityQueueConfig;
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
     public ForStStateBackend() {
         this.nativeMetricOptions = new ForStNativeMetricOptions();
         this.memoryConfiguration = new ForStMemoryConfiguration();
+        this.priorityQueueConfig = new ForStPriorityQueueConfig();
         this.forStMemoryFactory = ForStMemoryFactory.DEFAULT;
     }
 
@@ -156,6 +172,10 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
             String remoteDirStr = config.get(ForStOptions.REMOTE_DIRECTORY);
             this.remoteForStDirectory = remoteDirStr == null ? null : new Path(remoteDirStr);
         }
+
+        this.priorityQueueConfig =
+                ForStPriorityQueueConfig.fromOtherAndConfiguration(
+                        original.priorityQueueConfig, config);
 
         // configure local directories
         if (original.localForStDirectories != null) {
@@ -347,8 +367,80 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            KeyedStateBackendParameters<K> parameters) {
-        throw new UnsupportedOperationException("Don't support createKeyedStateBackend yet");
+            KeyedStateBackendParameters<K> parameters) throws IOException {
+        Environment env = parameters.getEnv();
+
+        // first, make sure that the RocksDB JNI library is loaded
+        // we do this explicitly here to have better error handling
+        String tempDir = env.getTaskManagerInfo().getTmpWorkingDirectory().getAbsolutePath();
+        ensureForStIsLoaded(tempDir);
+
+        // replace all characters that are not legal for filenames with underscore
+        String fileCompatibleIdentifier =
+                parameters.getOperatorIdentifier().replaceAll("[^a-zA-Z0-9\\-]", "_");
+
+        lazyInitializeForJob(env, fileCompatibleIdentifier);
+
+        File instanceBasePath =
+                new File(
+                        getNextStoragePath(),
+                        "job_"
+                                + jobId
+                                + "_op_"
+                                + fileCompatibleIdentifier
+                                + "_uuid_"
+                                + UUID.randomUUID());
+
+        LocalRecoveryConfig localRecoveryConfig =
+                env.getTaskStateManager().createLocalRecoveryConfig();
+
+        final OpaqueMemoryResource<ForStSharedResources> sharedResources =
+                ForStOperationUtils.allocateSharedCachesIfConfigured(
+                        memoryConfiguration,
+                        env,
+                        parameters.getManagedMemoryFraction(),
+                        LOG,
+                        forStMemoryFactory);
+        if (sharedResources != null) {
+            LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
+        }
+        final ForStResourceContainer resourceContainer =
+                createOptionsAndResourceContainer(
+                        sharedResources,
+                        instanceBasePath,
+                        null,
+                        nativeMetricOptions.isStatisticsEnabled());
+
+        ExecutionConfig executionConfig = env.getExecutionConfig();
+        StreamCompressionDecorator keyGroupCompressionDecorator =
+                getCompressionDecorator(executionConfig);
+
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
+        ForStSyncKeyedStateBackendBuilder<K> builder =
+                new ForStSyncKeyedStateBackendBuilder<>(
+                                parameters.getOperatorIdentifier(),
+                                env.getUserCodeClassLoader().asClassLoader(),
+                                instanceBasePath,
+                                resourceContainer,
+                                stateName -> resourceContainer.getColumnOptions(),
+                                parameters.getKvStateRegistry(),
+                                parameters.getKeySerializer(),
+                                parameters.getNumberOfKeyGroups(),
+                                parameters.getKeyGroupRange(),
+                                executionConfig,
+                                localRecoveryConfig,
+                                priorityQueueConfig,
+                                parameters.getTtlTimeProvider(),
+                                latencyTrackingStateConfig,
+                                parameters.getMetricGroup(),
+                                parameters.getCustomInitializationMetrics(),
+                                parameters.getStateHandles(),
+                                keyGroupCompressionDecorator,
+                                parameters.getCancelStreamRegistry())
+                        .setNativeMetricOptions(
+                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions));
+        return builder.build();
     }
 
     @Override
@@ -690,5 +782,22 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         final Field initField = NativeLibraryLoader.class.getDeclaredField("initialized");
         initField.setAccessible(true);
         initField.setBoolean(null, false);
+    }
+
+    /** The options to chose for the type of priority queue state. */
+    public enum PriorityQueueStateType implements DescribedEnum {
+        HEAP(text("Heap-based")),
+        ForStDB(text("Implementation based on RocksDB"));
+
+        private final InlineElement description;
+
+        PriorityQueueStateType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

@@ -32,6 +32,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,6 +61,8 @@ public class ForStDBWriteBatchWrapper implements AutoCloseable {
 
     /** List of all objects that we need to close in close(). */
     private final List<AutoCloseable> toClose;
+
+    private volatile boolean cancelled;
 
     public ForStDBWriteBatchWrapper(@Nonnull RocksDB rocksDB, long writeBatchSize) {
         this(rocksDB, null, 500, writeBatchSize);
@@ -156,5 +159,13 @@ public class ForStDBWriteBatchWrapper implements AutoCloseable {
     @VisibleForTesting
     long getDataSize() {
         return batch.getDataSize();
+    }
+
+    public void markCancelled() {
+        this.cancelled = true;
+    }
+
+    public Closeable getCancelCloseable() {
+        return this::markCancelled;
     }
 }

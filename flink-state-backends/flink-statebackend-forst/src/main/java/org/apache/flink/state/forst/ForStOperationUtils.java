@@ -18,8 +18,12 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.state.forst.sync.ForStIteratorWrapper;
+import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackend;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -29,20 +33,27 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ExportImportFilesMetaData;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /** Utils for ForSt Operations. */
 public class ForStOperationUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ForStOperationUtils.class);
 
     /**
      * The name of the merge operator in ForSt. Do not change except you know exactly what you do.
@@ -160,6 +171,177 @@ public class ForStOperationUtils {
 
         } catch (Exception e) {
             throw new IOException("Failed to acquire shared cache resource for ForSt", e);
+        }
+    }
+
+    public static ForStIteratorWrapper getForStIterator(
+            RocksDB db, ColumnFamilyHandle columnFamilyHandle, ReadOptions readOptions) {
+        return new ForStIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
+    }
+
+    public static void addColumnFamilyOptionsToCloseLater(
+            List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
+        try {
+            // IMPORTANT NOTE: Do not call ColumnFamilyHandle#getDescriptor() just to judge if it
+            // return null and then call it again when it return is not null. That will cause
+            // task manager native memory used by RocksDB can't be released timely after job
+            // restart.
+            // The problem can find in : https://issues.apache.org/jira/browse/FLINK-21986
+            if (columnFamilyHandle != null) {
+                ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyHandle.getDescriptor();
+                if (columnFamilyDescriptor != null) {
+                    columnFamilyOptions.add(columnFamilyDescriptor.getOptions());
+                }
+            }
+        } catch (RocksDBException e) {
+            // ignore
+        }
+    }
+
+    /**
+     * Creates a state info from a new meta info to use with a k/v state.
+     *
+     * <p>Creates the column family for the state. Sets TTL compaction filter if {@code
+     * ttlCompactFiltersManager} is not {@code null}.
+     *
+     * @param importFilesMetaData if not empty, we import the files specified in the metadata to the
+     *     column family.
+     */
+    public static ForStSyncKeyedStateBackend.ForStDbKvStateInfo createStateInfo(
+            RegisteredStateMetaInfoBase metaInfoBase,
+            RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            @Nullable ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nullable Long writeBufferManagerCapacity,
+            List<ExportImportFilesMetaData> importFilesMetaData,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
+
+        ColumnFamilyDescriptor columnFamilyDescriptor =
+                createColumnFamilyDescriptor(
+                        metaInfoBase,
+                        columnFamilyOptionsFactory,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity);
+
+        try {
+            ColumnFamilyHandle columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
+            return new ForStSyncKeyedStateBackend.ForStDbKvStateInfo(
+                    columnFamilyHandle, metaInfoBase);
+        } catch (Exception ex) {
+            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+        }
+    }
+
+    /**
+     * Create RocksDB-backed KV-state, including RocksDB ColumnFamily.
+     *
+     * @param cancelStreamRegistryForRestore {@link ICloseableRegistry#close closing} it interrupts
+     *     KV state creation
+     */
+    public static ForStSyncKeyedStateBackend.ForStDbKvStateInfo createStateInfo(
+            RegisteredStateMetaInfoBase metaInfoBase,
+            RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            @Nullable ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nullable Long writeBufferManagerCapacity,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
+        return createStateInfo(
+                metaInfoBase,
+                db,
+                columnFamilyOptionsFactory,
+                ttlCompactFiltersManager,
+                writeBufferManagerCapacity,
+                Collections.emptyList(),
+                cancelStreamRegistryForRestore);
+    }
+
+    /**
+     * Creates a column descriptor for a state column family.
+     *
+     * <p>Sets TTL compaction filter if {@code ttlCompactFiltersManager} is not {@code null}.
+     */
+    public static ColumnFamilyDescriptor createColumnFamilyDescriptor(
+            RegisteredStateMetaInfoBase metaInfoBase,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            @Nullable ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nullable Long writeBufferManagerCapacity) {
+
+        byte[] nameBytes = metaInfoBase.getName().getBytes(ConfigConstants.DEFAULT_CHARSET);
+        Preconditions.checkState(
+                !Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
+                "The chosen state name 'default' collides with the name of the default column family!");
+
+        ColumnFamilyOptions options =
+                createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
+
+        if (ttlCompactFiltersManager != null) {
+            ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
+        }
+
+        if (writeBufferManagerCapacity != null) {
+            // It'd be great to perform the check earlier, e.g. when creating write buffer manager.
+            // Unfortunately the check needs write buffer size that was just calculated.
+            sanityCheckArenaBlockSize(
+                    options.writeBufferSize(),
+                    options.arenaBlockSize(),
+                    writeBufferManagerCapacity);
+        }
+
+        return new ColumnFamilyDescriptor(nameBytes, options);
+    }
+
+    /**
+     * Logs a warning if the arena block size is too high causing RocksDB to flush constantly.
+     * Essentially, the condition <a
+     * href="https://github.com/dataArtisans/frocksdb/blob/49bc897d5d768026f1eb816d960c1f2383396ef4/include/rocksdb/write_buffer_manager.h#L47">
+     * here</a> will always be true.
+     *
+     * @param writeBufferSize the size of write buffer (bytes)
+     * @param arenaBlockSizeConfigured the manually configured arena block size, zero or less means
+     *     not configured
+     * @param writeBufferManagerCapacity the size of the write buffer manager (bytes)
+     * @return true if sanity check passes, false otherwise
+     */
+    static boolean sanityCheckArenaBlockSize(
+            long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity) {
+
+        long defaultArenaBlockSize =
+                ForStMemoryControllerUtils.calculateForStDefaultArenaBlockSize(writeBufferSize);
+        long arenaBlockSize =
+                arenaBlockSizeConfigured <= 0 ? defaultArenaBlockSize : arenaBlockSizeConfigured;
+        long mutableLimit =
+                ForStMemoryControllerUtils.calculateForStMutableLimit(writeBufferManagerCapacity);
+        if (ForStMemoryControllerUtils.validateArenaBlockSize(arenaBlockSize, mutableLimit)) {
+            return true;
+        } else {
+            LOG.warn(
+                    "ForStStateBackend performance will be poor because of the current Flink memory configuration! "
+                            + "RocksDB will flush memtable constantly, causing high IO and CPU. "
+                            + "Typically the easiest fix is to increase task manager managed memory size. "
+                            + "If running locally, see the parameter taskmanager.memory.managed.size. "
+                            + "Details: arenaBlockSize {} > mutableLimit {} (writeBufferSize = {}, arenaBlockSizeConfigured = {},"
+                            + " defaultArenaBlockSize = {}, writeBufferManagerCapacity = {})",
+                    arenaBlockSize,
+                    mutableLimit,
+                    writeBufferSize,
+                    arenaBlockSizeConfigured,
+                    defaultArenaBlockSize,
+                    writeBufferManagerCapacity);
+            return false;
+        }
+    }
+
+    public static void registerKvStateInformation(
+            Map<String, ForStSyncKeyedStateBackend.ForStDbKvStateInfo> kvStateInformation,
+            ForStNativeMetricMonitor nativeMetricMonitor,
+            String columnFamilyName,
+            ForStSyncKeyedStateBackend.ForStDbKvStateInfo registeredColumn) {
+
+        kvStateInformation.put(columnFamilyName, registeredColumn);
+        if (nativeMetricMonitor != null) {
+            nativeMetricMonitor.registerColumnFamily(
+                    columnFamilyName, registeredColumn.columnFamilyHandle);
         }
     }
 

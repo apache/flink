@@ -19,12 +19,15 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
+
+import static org.apache.flink.state.forst.ForStStateBackend.PriorityQueueStateType.ForStDB;
 
 /** Configuration options for the ForStStateBackend. */
 @Experimental
@@ -130,4 +133,27 @@ public class ForStOptions {
                                             + "the partitions that are required to perform the index/filter query. "
                                             + "This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
+
+    /** Choice of timer service implementation. */
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<ForStStateBackend.PriorityQueueStateType>
+            TIMER_SERVICE_FACTORY =
+                    ConfigOptions.key("state.backend.forst.timer-service.factory")
+                            .enumType(ForStStateBackend.PriorityQueueStateType.class)
+                            .defaultValue(ForStDB)
+                            .withDescription(
+                                    "This determines the factory for timer service state implementation.");
+
+    /** The cache size per key-group for ROCKSDB timer service factory implementation. */
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Integer> FORST_TIMER_SERVICE_FACTORY_CACHE_SIZE =
+            ConfigOptions.key("state.backend.forst.timer-service.cache-size")
+                    .intType()
+                    .defaultValue(128)
+                    .withDescription(
+                            String.format(
+                                    "The cache size per keyGroup of rocksdb timer service factory. This option only has an effect "
+                                            + "when '%s' is configured to '%s'. Increasing this value can improve the performance "
+                                            + "of rocksdb timer service, but consumes more heap memory at the same time.",
+                                    TIMER_SERVICE_FACTORY.key(), ForStDB.name()));
 }
