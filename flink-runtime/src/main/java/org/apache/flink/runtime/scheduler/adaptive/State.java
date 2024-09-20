@@ -103,7 +103,14 @@ interface State extends LabeledGlobalFailureHandler {
             Class<? extends T> clazz, ThrowingConsumer<T, E> action, String debugMessage) throws E {
         tryRun(
                 clazz,
-                action,
+                x -> {
+                    getLogger()
+                            .debug(
+                                    "Running '{}' in state {}.",
+                                    debugMessage,
+                                    this.getClass().getSimpleName());
+                    ThrowingConsumer.unchecked(action).accept(x);
+                },
                 logger ->
                         logger.debug(
                                 "Cannot run '{}' because the actual state is {} and not {}.",
