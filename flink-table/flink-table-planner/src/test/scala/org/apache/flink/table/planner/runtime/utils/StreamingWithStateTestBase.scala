@@ -27,7 +27,7 @@ import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{FORSTDB_BACKEND, HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -50,7 +50,6 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   enableObjectReuse = state match {
     case HEAP_BACKEND => false // TODO heap statebackend not support obj reuse now.
     case ROCKSDB_BACKEND => true
-    case FORSTDB_BACKEND => true
   }
 
   private val classLoader = Thread.currentThread.getContextClassLoader
@@ -240,9 +239,9 @@ object StreamingWithStateTestBase {
     override def toString: String = backend.toString
   }
 
+  // TODO test FORSTDB_BACKEND after 2.0-preview
   val HEAP_BACKEND = StateBackendMode("HEAP")
   val ROCKSDB_BACKEND = StateBackendMode("ROCKSDB")
-  val FORSTDB_BACKEND = StateBackendMode("FORSTDB")
 
   @Parameters(name = "StateBackend={0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {

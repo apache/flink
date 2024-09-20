@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{FORSTDB_BACKEND, HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.CountAggFunction
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
@@ -1827,8 +1827,8 @@ object JoinITCase {
       Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
       Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
       Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
-      Array(MiniBatchOff, FORSTDB_BACKEND, Boolean.box(false)),
-      Array(MiniBatchOn, FORSTDB_BACKEND, Boolean.box(true))
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true)),
+      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(true))
     )
   }
 }
