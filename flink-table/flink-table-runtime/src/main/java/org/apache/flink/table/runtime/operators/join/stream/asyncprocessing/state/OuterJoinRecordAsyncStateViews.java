@@ -122,7 +122,9 @@ public final class OuterJoinRecordAsyncStateViews {
                             tuple -> {
                                 reusedList.clear();
                                 if (tuple != null) {
-                                    reusedList.add(new OuterRecord(tuple.f0, tuple.f1));
+                                    if (condition.apply(tuple.f0)) {
+                                        reusedList.add(new OuterRecord(tuple.f0, tuple.f1));
+                                    }
                                 }
                                 return StateFutureUtils.completedFuture(reusedList);
                             });

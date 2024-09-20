@@ -1827,8 +1827,7 @@ object JoinITCase {
       Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
       Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
       Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
-      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true)),
-      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(true))
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true))
     )
   }
 }

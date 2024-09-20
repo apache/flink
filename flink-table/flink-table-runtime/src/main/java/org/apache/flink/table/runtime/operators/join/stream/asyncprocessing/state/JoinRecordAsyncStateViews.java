@@ -109,7 +109,9 @@ public final class JoinRecordAsyncStateViews {
                             v -> {
                                 reusedList.clear();
                                 if (v != null) {
-                                    reusedList.add(new OuterRecord(v));
+                                    if (condition.apply(v)) {
+                                        reusedList.add(new OuterRecord(v));
+                                    }
                                 }
                                 return reusedList;
                             });
