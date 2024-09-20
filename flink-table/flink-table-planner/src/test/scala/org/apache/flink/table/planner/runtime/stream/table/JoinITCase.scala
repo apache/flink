@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -232,8 +231,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       (8L, null)
     )
 
-    val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
-    val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c)
+    val leftTable = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b)
+    val rightTable = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'bb, 'c)
 
     val leftTableWithPk = leftTable
       .groupBy('a)
@@ -286,8 +289,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       (6, 6, 6)
     )
 
-    val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
-    val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c, 'd)
+    val leftTable = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b)
+    val rightTable = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'bb, 'c, 'd)
 
     val sink = new TestingRetractTableSink().configure(
       Array[String]("a", "b", "c", "d"),
@@ -325,10 +332,8 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       (8L, 3, "RIGHT:Hello world"),
       (16L, 3, "RIGHT:Hello world"))
 
-    val stream1 = env
-      .fromCollection(data1)
-    val stream2 = env
-      .fromCollection(data2)
+    val stream1 = StreamingEnvUtil.fromCollection(env, data1)
+    val stream2 = StreamingEnvUtil.fromCollection(env, data2)
 
     val table1 = stream1.toTable(tEnv, 'long_l, 'int_l, 'string_l, 'proctime.proctime)
     val table2 = stream2.toTable(tEnv, 'long_r, 'int_r, 'string_r)
@@ -366,8 +371,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoin(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val testOpenCall = new FuncWithOpen
 
@@ -386,8 +395,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithFilter(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
@@ -400,8 +413,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithJoinFilter(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6).select('c, 'g)
 
@@ -420,8 +437,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
 
@@ -435,8 +456,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithMultipleKeys(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
@@ -456,8 +481,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithAggregation(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('a === 'd).select('g.count)
 
@@ -471,8 +500,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithGroupedAggregation(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1
       .join(ds2)
@@ -490,9 +523,15 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinPushThroughJoin(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    val ds3 = env.fromCollection(smallTupleData3).toTable(tEnv, 'j, 'k, 'l)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds3 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'j, 'k, 'l)
 
     val joinT = ds1
       .join(ds2)
@@ -511,8 +550,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithDisjunctivePred(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10)).select('c, 'g)
 
@@ -526,8 +569,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testInnerJoinWithExpressionPreds(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
 
@@ -546,12 +593,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testLeftJoinWithMultipleKeys(): Unit = {
-    val ds1 = env
-      .fromCollection(tupleData3)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .select((('a === 21) ? (nullOf(Types.INT), 'a)).as('a), 'b, 'c)
-    val ds2 = env
-      .fromCollection(tupleData5)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
       .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
       .select((('e === 15) ? (nullOf(Types.INT), 'd)).as('d), 'e, 'f, 'g, 'h)
 
@@ -591,8 +638,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testLeftJoinWithNonEquiJoinPred(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
@@ -631,8 +682,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testLeftJoinWithLeftLocalPred(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
 
@@ -671,8 +726,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testLeftJoinWithRetractionInput(): Unit = {
-    val ds1 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    val ds2 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
     val leftT = ds1.groupBy('e).select('e, 'd.count.as('d))
     val rightT = ds2.groupBy('b).select('b, 'a.count.as('a))
 
@@ -703,8 +762,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testRightJoinWithMultipleKeys(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
@@ -734,8 +797,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testRightJoinWithNonEquiJoinPred(): Unit = {
-    val ds2 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds1 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
@@ -774,8 +841,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testRightJoinWithLeftLocalPred(): Unit = {
-    val ds2 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds1 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
 
@@ -814,8 +885,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testFullOuterJoinWithMultipleKeys(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
@@ -862,8 +937,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testFullJoinWithNonEquiJoinPred(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
@@ -912,8 +991,12 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
 
   @TestTemplate
   def testFullJoinWithLeftLocalPred(): Unit = {
-    val ds1 = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b >= 2 && 'h === 1).select('c, 'g)
 

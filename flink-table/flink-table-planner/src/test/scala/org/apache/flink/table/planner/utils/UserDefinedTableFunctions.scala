@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.api.typeutils.Types
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}

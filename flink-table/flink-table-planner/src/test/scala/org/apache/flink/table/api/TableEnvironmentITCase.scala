@@ -18,18 +18,16 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.Types.STRING
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
-import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
+import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, StreamTableEnvironment => ScalaStreamTableEnvironment}
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.{row => buildRow}
-import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
@@ -270,10 +268,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     if (!tableEnvName.equals("StreamTableEnvironment")) {
       return
     }
-    val streamEnv = ScalaStreamExecutionEnvironment.getExecutionEnvironment
+    val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = ScalaStreamTableEnvironment.create(streamEnv, settings)
-    val t = streamEnv
-      .fromCollection(getPersonData)
+    val t = StreamingEnvUtil
+      .fromCollection(streamEnv, getPersonData)
       .toTable(streamTableEnv, 'first, 'id, 'score, 'last)
     streamTableEnv.createTemporaryView("MyTable", t)
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(

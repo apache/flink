@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.streaming.api.functions.source.{ParallelSourceFunction, SourceFunction}
 import org.apache.flink.table.api._

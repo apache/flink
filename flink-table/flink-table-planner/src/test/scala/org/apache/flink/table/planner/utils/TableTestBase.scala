@@ -21,21 +21,19 @@ import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
-import org.apache.flink.table.catalog.{CatalogManager, CatalogStoreHolder, FunctionCatalog, GenericInMemoryCatalog, GenericInMemoryCatalogStore, ObjectIdentifier}
+import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
@@ -79,9 +77,7 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.rel2sql.RelToSqlConverter
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.apache.calcite.sql.dialect.AnsiSqlDialect
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, fail}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
@@ -204,8 +200,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    *   returns the registered [[Table]].
    */
   def addDataStream[T: TypeInformation](name: String, fields: Expression*): Table = {
-    val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
-    val dataStream = env.fromElements[T]().javaStream
+    val env = new LocalStreamEnvironment()
+    val typeInfo = implicitly[TypeInformation[T]]
+    val dataStream = env.fromCollection[T](Collections.emptyList[T](), typeInfo)
     val tableEnv = getTableEnv
     TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
     tableEnv.from(name)
@@ -1263,8 +1260,8 @@ abstract class TableTestUtil(
 
 abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
-  // scala env
-  val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
+  // env
+  val env = new LocalStreamEnvironment()
   // scala tableEnv
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 

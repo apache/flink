@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 
