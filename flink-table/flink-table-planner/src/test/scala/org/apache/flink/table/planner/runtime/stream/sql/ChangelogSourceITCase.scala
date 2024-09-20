@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.JBigDecimal
@@ -78,7 +78,7 @@ class ChangelogSourceITCase(
   def testToRetractStream(): Unit = {
     val result = tEnv.sqlQuery(s"SELECT * FROM users").toRetractStream[Row]
     val sink = new TestingRetractSink()
-    result.addSink(sink).setParallelism(result.parallelism)
+    result.addSink(sink).setParallelism(result.getParallelism)
     env.execute()
 
     val expected = Seq(
@@ -139,7 +139,7 @@ class ChangelogSourceITCase(
 
     val result = tEnv.sqlQuery(query).toRetractStream[Row]
     val sink = new TestingRetractSink()
-    result.addSink(sink).setParallelism(result.parallelism)
+    result.addSink(sink).setParallelism(result.getParallelism)
     env.execute()
 
     val expected = Seq("3,29.39,tom123@gmail.com")
@@ -249,7 +249,7 @@ class ChangelogSourceITCase(
 
     val sink = new TestingRetractSink
     val result = tEnv.sqlQuery(sql).toRetractStream[Row]
-    result.addSink(sink).setParallelism(result.parallelism)
+    result.addSink(sink).setParallelism(result.getParallelism)
     env.execute()
 
     val expected =

@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JInt
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableFunctions, StreamingEnvUtil}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
@@ -54,7 +53,7 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
   @TestTemplate
   def testRetractRankWithRowNumber(): Unit = {
     val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction(
       "STRING_SPLIT",
@@ -150,7 +149,7 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
   @TestTemplate
   def testRetractRankWithoutRowNumber(): Unit = {
     val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction(
       "STRING_SPLIT",
@@ -228,7 +227,7 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
   def prepareUpdateRankWithRowNumberTester()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], RowDataHarnessAssertor) = {
     val data = new mutable.MutableList[(String, Int, Int)]
-    val t = env.fromCollection(data).toTable(tEnv, 'word, 'cnt, 'type)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'word, 'cnt, 'type)
     tEnv.createTemporaryView("T", t)
 
     val sql =

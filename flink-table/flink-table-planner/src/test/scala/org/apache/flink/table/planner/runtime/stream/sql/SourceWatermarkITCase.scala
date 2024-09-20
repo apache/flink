@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.TimestampData
@@ -26,7 +25,6 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingA
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.utils.LegacyRowExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}

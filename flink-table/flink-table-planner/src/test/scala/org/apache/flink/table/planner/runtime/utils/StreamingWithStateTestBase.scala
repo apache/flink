@@ -21,8 +21,8 @@ import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.{CheckpointingOptions, Configuration, RestartStrategyOptions, StateBackendOptions}
 import org.apache.flink.core.execution.CheckpointingMode
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction
-import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -137,7 +137,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
       data.length / 2
     ) // fail after half elements
 
-    env.addSource(function)(typeInfo).setMaxParallelism(1)
+    env.addSource(function, typeInfo).setMaxParallelism(1)
   }
 
   private def mapStrEquals(str1: String, str2: String): Boolean = {

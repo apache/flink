@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithAggTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
@@ -297,7 +296,8 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
   private def checkResult(str: String, rows: Seq[Row]): Unit = {
     super.before()
 
-    val ds1 = env.fromCollection(
+    val ds1 = StreamingEnvUtil.fromCollection(
+      env,
       Seq[(Int, Int, String, String)](
         (2, 1, "A", null),
         (3, 2, "A", "Hi"),
@@ -306,7 +306,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     TableTestUtil.createTemporaryView[(Int, Int, String, String)](
       tEnv,
       "T",
-      ds1.javaStream,
+      ds1,
       Some(Array($"a", $"b", $"c", $"d")),
       Some(Array(true, true, true, true)),
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
@@ -315,7 +315,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     TableTestUtil.createTemporaryView[(Int, Long, String)](
       tEnv,
       "MyTable",
-      env.fromCollection(TestData.smallTupleData3).javaStream,
+      StreamingEnvUtil.fromCollection(env, TestData.smallTupleData3),
       Some(Array($"a", $"b", $"c")),
       Some(Array(true, true, true)),
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
@@ -324,7 +324,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     TableTestUtil.createTemporaryView[(Int, Long, Int, String, Long)](
       tEnv,
       "MyTable2",
-      env.fromCollection(TestData.smallTupleData5).javaStream,
+      StreamingEnvUtil.fromCollection(env, TestData.smallTupleData5),
       Some(Array($"a", $"b", $"c", $"d", $"e")),
       Some(Array(true, true, true, true, true)),
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("b").asJava).asJava).build())

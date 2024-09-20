@@ -21,7 +21,7 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.streaming.api.scala.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.planner.runtime.stream.FiniteTestSource;
 import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
 import org.apache.flink.table.planner.runtime.utils.TestSinkUtil;
@@ -169,36 +169,32 @@ public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
 
     @Override
     public DataStream<Row> getDataStream2(Function1<Row, Object> fun) {
-        return new DataStream<Row>(
-                env().getJavaEnv()
-                        .addSource(
-                                new FiniteTestSource(getData2(), fun),
-                                new RowTypeInfo(
-                                        new TypeInformation[] {
-                                            Types.INT,
-                                            Types.STRING,
-                                            Types.SQL_TIMESTAMP,
-                                            Types.STRING,
-                                            Types.STRING
-                                        },
-                                        new String[] {"f0", "f1", "f2", "f3", "f4"})));
+        return env().addSource(
+                        new FiniteTestSource(getData2(), fun),
+                        new RowTypeInfo(
+                                new TypeInformation[] {
+                                    Types.INT,
+                                    Types.STRING,
+                                    Types.SQL_TIMESTAMP,
+                                    Types.STRING,
+                                    Types.STRING
+                                },
+                                new String[] {"f0", "f1", "f2", "f3", "f4"}));
     }
 
     @Override
     public DataStream<Row> getDataStream(Function1<Row, Object> fun) {
-        return new DataStream<Row>(
-                env().getJavaEnv()
-                        .addSource(
-                                new FiniteTestSource(getData(), fun),
-                                new RowTypeInfo(
-                                        new TypeInformation[] {
-                                            Types.INT,
-                                            Types.STRING,
-                                            Types.SQL_TIMESTAMP,
-                                            Types.STRING,
-                                            Types.STRING
-                                        },
-                                        new String[] {"f0", "f1", "f2", "f3", "f4"})));
+        return env().addSource(
+                        new FiniteTestSource(getData(), fun),
+                        new RowTypeInfo(
+                                new TypeInformation[] {
+                                    Types.INT,
+                                    Types.STRING,
+                                    Types.SQL_TIMESTAMP,
+                                    Types.STRING,
+                                    Types.STRING
+                                },
+                                new String[] {"f0", "f1", "f2", "f3", "f4"}));
     }
 
     @Override
