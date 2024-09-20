@@ -314,7 +314,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             types = new LogicalType[length];
             for (int i = 0; i < length; i++) {
                 try {
-                    types[i] = InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
+                    types[i] =
+                            InstantiationUtil.deserializeObject(stream, userCodeClassLoader, true);
                 } catch (ClassNotFoundException e) {
                     throw new IOException(e);
                 }
