@@ -74,8 +74,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         maxRequiredBuffersPerGate =
                 conf.getOptional(
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE);
-        sortShuffleMinParallelism =
-                conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
+        sortShuffleMinParallelism = 1;
         sortShuffleMinBuffers =
                 conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);

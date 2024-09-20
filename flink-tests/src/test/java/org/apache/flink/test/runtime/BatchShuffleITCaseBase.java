@@ -187,7 +187,7 @@ class BatchShuffleITCaseBase {
             }
 
             if (deletePartitionFile) {
-                synchronized (BlockingShuffleITCase.class) {
+                synchronized (BatchShuffleITCaseBase.class) {
                     deleteFiles(tmpDir.toFile());
                 }
             }

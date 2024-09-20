@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -110,7 +109,6 @@ class FileBufferReaderITCase {
         // if the netty server thread could not response in time, like when it is
         // busy reading the files.
         configuration.set(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 100000);
-        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
         configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
         configuration.set(
                 TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(bufferSize + "b"));
