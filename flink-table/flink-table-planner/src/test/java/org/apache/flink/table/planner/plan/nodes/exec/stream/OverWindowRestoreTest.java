@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -42,7 +43,7 @@ public class OverWindowRestoreTest extends RestoreTestBase {
                     // See src/test/resources/restore-tests/stream-exec-over-aggregate_1/over
                     // -aggregate-lag/1.18/savepoint/OverWindowRestoreTest how the savepoint was
                     // generated
-                    Stream.of(getSavepointPath(program, metadata, FlinkVersion.v1_18).toString()));
+                    Stream.of(getSavepointPath(program, metadata, FlinkVersion.v1_18)));
         } else {
             return super.getSavepointPaths(program, metadata);
         }
@@ -50,6 +51,6 @@ public class OverWindowRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(OverWindowTestPrograms.LAG_OVER_FUNCTION);
+        return Collections.singletonList(OverWindowTestPrograms.LAG_OVER_FUNCTION);
     }
 }

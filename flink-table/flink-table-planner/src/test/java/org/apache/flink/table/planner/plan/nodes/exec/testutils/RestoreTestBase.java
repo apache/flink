@@ -171,10 +171,10 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
      */
     protected Stream<String> getSavepointPaths(
             TableTestProgram program, ExecNodeMetadata metadata) {
-        return Stream.of(getSavepointPath(program, metadata, null).toString());
+        return Stream.of(getSavepointPath(program, metadata, null));
     }
 
-    protected final Path getSavepointPath(
+    protected final String getSavepointPath(
             TableTestProgram program,
             ExecNodeMetadata metadata,
             @Nullable FlinkVersion flinkVersion) {
@@ -185,7 +185,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
         builder.append("/savepoint/");
 
-        return Paths.get(builder.toString());
+        return builder.toString();
     }
 
     private void registerSinkObserver(
@@ -272,7 +272,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         .get();
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
-        final Path savepointDirPath = getSavepointPath(program, getLatestMetadata(), FLINK_VERSION);
+        final Path savepointDirPath = Paths.get(getSavepointPath(program, getLatestMetadata(),
+                FLINK_VERSION));
         Files.createDirectories(savepointDirPath);
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
     }
