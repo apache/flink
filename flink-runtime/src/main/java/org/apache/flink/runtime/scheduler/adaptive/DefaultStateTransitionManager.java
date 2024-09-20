@@ -109,11 +109,13 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
 
     @Override
     public void onChange() {
+        LOG.debug("OnChange event received in phase {}.", getPhase());
         phase.onChange();
     }
 
     @Override
     public void onTrigger() {
+        LOG.debug("OnTrigger event received in phase {}.", getPhase());
         phase.onTrigger();
     }
 
