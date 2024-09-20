@@ -1653,6 +1653,7 @@ under the License.
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-sql-client/src/test/resources/**/*.out</exclude>
+						<exclude>flink-table/flink-table-api-scala/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/jsonplan/*.json</exclude>

@@ -60,6 +60,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -469,9 +470,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
         try {
             // check if ScalaKryoInstantiator is in class path (coming from Twitter's Chill
             // library).
-            // This will be true if Flink's Scala API is used.
+            // This will be true if Flink's Table Api Scala is used.
             Class<?> chillInstantiatorClazz =
-                    Class.forName("org.apache.flink.runtime.types.FlinkScalaKryoInstantiator");
+                    Class.forName(
+                            "org.apache.flink.table.api.runtime.types.FlinkScalaKryoInstantiator");
             Object chillInstantiator = chillInstantiatorClazz.newInstance();
 
             // obtain a Kryo instance through Twitter Chill
@@ -483,6 +485,11 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 | NoSuchMethodException
                 | IllegalAccessException
                 | InvocationTargetException e) {
+
+            Optional<Kryo> kryoInstanceFromLegacyPackage = getKryoInstanceFromLegacyPackage();
+            if (kryoInstanceFromLegacyPackage.isPresent()) {
+                return kryoInstanceFromLegacyPackage.get();
+            }
 
             if (LOG.isDebugEnabled()) {
                 LOG.info("Kryo serializer scala extensions are not available.", e);
@@ -501,6 +508,41 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
             }
 
             return kryo;
+        }
+    }
+
+    /**
+     * Try to get kryo instance from legacy package: Flink Scala API.
+     *
+     * <p>This should be removed after FLINK-29739.
+     */
+    private Optional<Kryo> getKryoInstanceFromLegacyPackage() {
+
+        try {
+            // check if ScalaKryoInstantiator is in class path (coming from Twitter's Chill
+            // library).
+            // This will be true if Flink's Scala Api is used.
+            Class<?> chillInstantiatorClazz =
+                    Class.forName("org.apache.flink.runtime.types.FlinkScalaKryoInstantiator");
+            Object chillInstantiator = chillInstantiatorClazz.newInstance();
+
+            // obtain a Kryo instance through Twitter Chill
+            Method m = chillInstantiatorClazz.getMethod("newKryo");
+
+            return Optional.of((Kryo) m.invoke(chillInstantiator));
+        } catch (ClassNotFoundException
+                | InstantiationException
+                | NoSuchMethodException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+
+            if (LOG.isDebugEnabled()) {
+                LOG.info("Legacy kryo serializer scala extensions are not available.", e);
+            } else {
+                LOG.info("Legacy kryo serializer scala extensions are not available.");
+            }
+
+            return Optional.empty();
         }
     }
 
