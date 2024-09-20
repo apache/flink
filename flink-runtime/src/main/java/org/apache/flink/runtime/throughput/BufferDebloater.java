@@ -36,7 +36,7 @@ public class BufferDebloater {
 
     private final String owningTaskName;
     private final int gateIndex;
-    private final long targetTotalBufferSize;
+    private final long targetTotalTime;
     private final int maxBufferSize;
     private final int minBufferSize;
     private final double bufferDebloatThresholdFactor;
@@ -48,14 +48,14 @@ public class BufferDebloater {
     public BufferDebloater(
             String owningTaskName,
             int gateIndex,
-            long targetTotalBufferSize,
+            long targetTotalTime,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             long numberOfSamples) {
         this.owningTaskName = owningTaskName;
         this.gateIndex = gateIndex;
-        this.targetTotalBufferSize = targetTotalBufferSize;
+        this.targetTotalTime = targetTotalTime;
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
         this.bufferDebloatThresholdFactor = bufferDebloatThresholdPercentages / 100.0;
@@ -64,10 +64,10 @@ public class BufferDebloater {
         bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
 
         LOG.debug(
-                "{}: Buffer debloater init settings: gateIndex={}, targetTotalBufferSize={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",
+                "{}: Buffer debloater init settings: gateIndex={}, targetTotalTime={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",
                 owningTaskName,
                 gateIndex,
-                targetTotalBufferSize,
+                targetTotalTime,
                 maxBufferSize,
                 minBufferSize,
                 bufferDebloatThresholdPercentages,
@@ -77,7 +77,7 @@ public class BufferDebloater {
     public OptionalInt recalculateBufferSize(long currentThroughput, int buffersInUse) {
         int actualBuffersInUse = Math.max(1, buffersInUse);
         long desiredTotalBufferSizeInBytes =
-                (currentThroughput * targetTotalBufferSize) / MILLIS_IN_SECOND;
+                (currentThroughput * targetTotalTime) / MILLIS_IN_SECOND;
 
         int newSize =
                 bufferSizeEMA.calculateBufferSize(
