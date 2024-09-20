@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
-import org.apache.flink.table.planner.functions.sql.SqlSessionTableFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -379,7 +378,6 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                 return rewritten;
             }
 
-            final boolean isSessionWindow = isSessionWindow(operator);
             final List<SqlIdentifier> descriptors =
                     call.getOperandList().stream()
                             .flatMap(FlinkCalciteSqlValidator::extractDescriptors)
@@ -389,19 +387,18 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                 final SqlIdentifier tableArg = tableArgs.get(i);
                 if (tableArg != null) {
                     final SqlNode opReplacement = new ExplicitTableSqlSelect(tableArg, descriptors);
-                    if (isSessionWindow) {
-                        if (call.operand(i).getKind() == SqlKind.SET_SEMANTICS_TABLE) {
-                            final SqlCall setSemanticsTable = call.operand(i);
-                            setSemanticsTable.setOperand(0, opReplacement);
-                        } else if (call.operand(i).getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
-                            final SqlCall assignment = call.operand(i);
-                            final SqlCall setSemanticsTable = assignment.operand(i);
-                            setSemanticsTable.setOperand(0, opReplacement);
-                        }
+                    if (call.operand(i).getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+                        final SqlCall setSemanticsTable = call.operand(i);
+                        setSemanticsTable.setOperand(0, opReplacement);
                     } else if (call.operand(i).getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
                         // for TUMBLE(DATA => TABLE t3, ...)
                         final SqlCall assignment = call.operand(i);
-                        assignment.setOperand(0, opReplacement);
+                        if (assignment.operand(0).getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+                            final SqlCall setSemanticsTable = assignment.operand(i);
+                            setSemanticsTable.setOperand(0, opReplacement);
+                        } else {
+                            assignment.setOperand(0, opReplacement);
+                        }
                     } else {
                         // for TUMBLE(TABLE t3, ...)
                         call.setOperand(i, opReplacement);
@@ -530,9 +527,5 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
     private static boolean isTableFunction(SqlFunction function) {
         return function instanceof SqlTableFunction
                 || function.getFunctionType() == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION;
-    }
-
-    private boolean isSessionWindow(final SqlOperator operator) {
-        return operator instanceof SqlSessionTableFunction;
     }
 }
