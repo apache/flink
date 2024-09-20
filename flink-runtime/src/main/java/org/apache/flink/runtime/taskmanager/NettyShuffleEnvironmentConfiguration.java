@@ -318,9 +318,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
         int sortShuffleMinBuffers =
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
-        int sortShuffleMinParallelism =
-                configuration.get(
-                        NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
+        int sortShuffleMinParallelism = 1;
 
         boolean isNetworkDetailedMetrics =
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
@@ -335,7 +333,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_REQUEST_TIMEOUT);
 
         BoundedBlockingSubpartitionType blockingSubpartitionType =
-                getBlockingSubpartitionType(configuration);
+                BoundedBlockingSubpartitionType.FILE;
 
         CompressionCodec compressionCodec =
                 configuration.get(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
@@ -464,20 +462,6 @@ public class NettyShuffleEnvironmentConfiguration {
         }
 
         return nettyConfig;
-    }
-
-    private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(
-            Configuration config) {
-        String transport = config.get(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE);
-
-        switch (transport) {
-            case "mmap":
-                return BoundedBlockingSubpartitionType.FILE_MMAP;
-            case "file":
-                return BoundedBlockingSubpartitionType.FILE;
-            default:
-                return BoundedBlockingSubpartitionType.AUTO;
-        }
     }
 
     // ------------------------------------------------------------------------

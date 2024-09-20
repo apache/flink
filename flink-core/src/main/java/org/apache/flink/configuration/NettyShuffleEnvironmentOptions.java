@@ -169,34 +169,6 @@ public class NettyShuffleEnvironmentOptions {
                                     + " number of network buffers' error if you are increasing this"
                                     + " config value.");
 
-    /**
-     * Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking
-     * shuffle.
-     *
-     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
-     *     in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
-            key("taskmanager.network.sort-shuffle.min-parallelism")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            String.format(
-                                    "Parallelism threshold to switch between sort-based blocking "
-                                            + "shuffle and hash-based blocking shuffle, which means"
-                                            + " for batch jobs of smaller parallelism, hash-shuffle"
-                                            + " will be used and for batch jobs of larger or equal "
-                                            + "parallelism, sort-shuffle will be used. The value 1 "
-                                            + "means that sort-shuffle is the default option. Note:"
-                                            + " For production usage, you may also need to tune "
-                                            + "'%s' and '%s' for better performance.",
-                                    NETWORK_SORT_SHUFFLE_MIN_BUFFERS.key(),
-                                    // raw string key is used here to avoid interdependence, a test
-                                    // is implemented to guard that when the target key is modified,
-                                    // this raw value must be changed correspondingly
-                                    "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
-
     /** The timeout for requesting buffers for each channel. */
     @Documentation.ExcludeFromDocumentation(
             "This option is purely implementation related, and may be removed as the implementation changes.")
@@ -241,21 +213,6 @@ public class NettyShuffleEnvironmentOptions {
                             "The option is used to configure the base path of remote storage for hybrid shuffle. The shuffle data will be stored in "
                                     + "remote storage when the disk space is not enough. "
                                     + "Note: If this option is not configured the remote storage will be disabled.");
-
-    /**
-     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
-     *     in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
-            key("taskmanager.network.blocking-shuffle.type")
-                    .stringType()
-                    .defaultValue("file")
-                    .withDescription(
-                            "The blocking shuffle type, either \"mmap\" or \"file\". The \"auto\" means selecting the property type automatically"
-                                    + " based on system memory architecture (64 bit for mmap and 32 bit for file). Note that the memory usage of mmap is not accounted"
-                                    + " by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once"
-                                    + " memory exceeding some threshold. Also note that this option is experimental and might be changed future.");
 
     /**
      * Whether to reuse tcp connections across multi jobs. If set to true, tcp connections will not

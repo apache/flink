@@ -23,8 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.configuration.description.Formatter;
-import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
 import org.junit.jupiter.api.Test;
@@ -69,21 +67,6 @@ class NettyShuffleEnvironmentConfigurationTest {
 
         assertThat(networkConfig.partitionRequestInitialBackoff()).isEqualTo(100);
         assertThat(networkConfig.partitionRequestMaxBackoff()).isEqualTo(200);
-    }
-
-    /** Verifies the correlation of sort-merge blocking shuffle config options. */
-    @Test
-    void testSortMergeShuffleConfigOptionsCorrelation() {
-        Formatter formatter = new HtmlFormatter();
-        ConfigOption<Integer> configOption =
-                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM;
-        String description = formatter.format(configOption.description());
-
-        String configKey =
-                getConfigKey(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
-        assertThat(description).contains(configKey);
-        configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
-        assertThat(description).contains(configKey);
     }
 
     private static String getConfigKey(ConfigOption<?> configOption) {
