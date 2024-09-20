@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch;
 
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
@@ -27,10 +26,8 @@ import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -162,28 +159,27 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
-        Table t = tEnv.fromDataStream(ds, selectFields(ds));
+        Table t = tEnv.fromDataStream(ds);
         Table result = t.select($("*"));
 
         List<Row> results =
                 CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(tEnv.toAppendStream(result, Row.class)));
-        // TODO we should get an Avro record here instead of a nested row.
-        //  This should be fixed with FLIP-136
+                        DataStreamUtils.collect(
+                                tEnv.toDataStream(
+                                        result, t.getResolvedSchema().toSourceRowDataType())));
         String expected =
-                "+I[black, null, Whatever, [true], [hello], true, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], "
-                        + "2014-03-01, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
-                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 42, {}, null, null, null, 00:00:00.123456, "
-                        + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]\n"
-                        + "+I[blue, null, Charlie, [], [], false, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
-                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 1.337, RED, null, 1337, {}, "
-                        + "+I[Berlin, 42, Berlin, Bakerstreet, 12049], null, null, 00:00:00.123456, 12:12:12, 1970-01-01T00:00:00.123456Z, "
-                        + "2014-03-01T12:12:12.321Z, null]\n"
-                        + "+I[yellow, null, Terminator, [false], [world], false, "
-                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
-                        + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
-                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1, {}, null, null, null, 00:00:00.123456, "
-                        + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]";
+                "+I[Charlie, null, blue, 1337, 1.337, null, false, [], [], null, RED, {}, null, null, "
+                        + "{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": \"Berlin\", \"zip\": \"12049\"}, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
+                        + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
+                        + "+I[Whatever, null, black, 42, 0.0, null, true, [hello], [true], null, GREEN, {}, "
+                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], null, null, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
+                        + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
+                        + "+I[Terminator, null, yellow, 1, 0.0, null, false, [world], [false], null, GREEN, {}, "
+                        + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], null, null, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
+                        + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]";
         TestBaseUtils.compareResultAsText(results, expected);
     }
 
@@ -193,7 +189,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
-        Table t = tEnv.fromDataStream(ds, selectFields(ds));
+        Table t = tEnv.fromDataStream(ds);
         Table result = t.select($("name"));
         List<Utf8> results =
                 CollectionUtil.iteratorToList(result.execute().collect()).stream()
@@ -210,15 +206,15 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
-        Table t = tEnv.fromDataStream(ds, selectFields(ds));
+        Table t = tEnv.fromDataStream(ds);
         Table result =
                 t.filter($("type_nested").isNotNull())
                         .select($("type_nested").flatten())
-                        .as("city", "num", "state", "street", "zip");
+                        .as("num", "street", "city", "state", "zip");
 
         List<Address> results =
                 CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(tEnv.toAppendStream(result, Address.class)));
+                        DataStreamUtils.collect(tEnv.toDataStream(result, Address.class)));
         String expected = USER_1.getTypeNested().toString();
         TestBaseUtils.compareResultAsText(results, expected);
     }
@@ -229,23 +225,17 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         DataStream<User> ds = testData(env);
-        Table t = tEnv.fromDataStream(ds, selectFields(ds));
+        Table t = tEnv.fromDataStream(ds);
         Table result = t.select($("*"));
 
         List<User> results =
                 CollectionUtil.iteratorToList(
-                        DataStreamUtils.collect(tEnv.toAppendStream(result, User.class)));
+                        DataStreamUtils.collect(tEnv.toDataStream(result, User.class)));
         List<User> expected = Arrays.asList(USER_1, USER_2, USER_3);
         assertThat(results).isEqualTo(expected);
     }
 
     private DataStream<User> testData(StreamExecutionEnvironment env) {
         return env.fromData(USER_1, USER_2, USER_3);
-    }
-
-    private static <T> Expression[] selectFields(DataStream<T> ds) {
-        return Arrays.stream(((PojoTypeInfo<T>) ds.getType()).getFieldNames())
-                .map(Expressions::$)
-                .toArray(Expression[]::new);
     }
 }
