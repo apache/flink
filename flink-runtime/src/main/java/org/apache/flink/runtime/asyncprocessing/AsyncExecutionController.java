@@ -111,6 +111,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     /** The reference of epoch manager. */
     final EpochManager epochManager;
 
+    /** The listener of context switch. */
+    final SwitchContextListener<K> switchContextListener;
+
     /**
      * The parallel mode of epoch execution. Keep this field internal for now, until we could see
      * the concrete need for {@link ParallelMode#PARALLEL_BETWEEN_EPOCH} from average users.
@@ -124,7 +127,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             int maxParallelism,
             int batchSize,
             long bufferTimeout,
-            int maxInFlightRecords) {
+            int maxInFlightRecords,
+            SwitchContextListener<K> switchContextListener) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
@@ -148,6 +152,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
                                         "AEC-buffer-timeout"));
 
         this.epochManager = new EpochManager(this);
+        this.switchContextListener = switchContextListener;
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",
                 this.batchSize,
@@ -189,6 +194,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     public void setCurrentContext(RecordContext<K> switchingContext) {
         currentContext = switchingContext;
+        if (switchContextListener != null) {
+            switchContextListener.switchContext(switchingContext);
+        }
     }
 
     /**
@@ -373,5 +381,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     @VisibleForTesting
     public int getInFlightRecordNum() {
         return inFlightRecordNum.get();
+    }
+
+    /** A listener listens the key context switch. */
+    public interface SwitchContextListener<K> {
+        void switchContext(RecordContext<K> context);
     }
 }

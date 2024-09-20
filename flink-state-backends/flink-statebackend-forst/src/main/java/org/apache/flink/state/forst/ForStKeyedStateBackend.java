@@ -69,7 +69,7 @@ import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
  * A KeyedStateBackend that stores its state in {@code ForSt}. This state backend can store very
  * large state that exceeds memory even disk to remote storage.
  */
-public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
+public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStKeyedStateBackend.class);
 

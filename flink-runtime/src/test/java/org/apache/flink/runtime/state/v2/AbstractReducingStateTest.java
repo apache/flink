@@ -79,15 +79,16 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
-        AsyncExecutionController aec =
-                new AsyncExecutionController(
+        AsyncExecutionController<String> aec =
+                new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         new ReducingStateExecutor(),
                         1,
                         100,
                         10000,
-                        1);
+                        1,
+                        null);
         AbstractReducingState<String, String, Integer> reducingState =
                 new AbstractReducingState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));

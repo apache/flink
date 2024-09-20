@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -49,7 +50,7 @@ import java.util.concurrent.RunnableFuture;
  *
  * @param <K> The key by which state is keyed.
  */
-public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend {
+public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<K> {
     private final CheckpointableKeyedStateBackend<K> keyedStateBackend;
 
     public AsyncKeyedStateBackendAdaptor(CheckpointableKeyedStateBackend<K> keyedStateBackend) {
@@ -93,6 +94,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend 
     @Override
     public StateExecutor createStateExecutor() {
         return null;
+    }
+
+    @Override
+    public void switchContext(RecordContext<K> context) {
+        keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
     }
 
     @Override

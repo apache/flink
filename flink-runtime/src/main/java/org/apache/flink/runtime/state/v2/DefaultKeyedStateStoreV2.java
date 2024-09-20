@@ -33,7 +33,7 @@ import javax.annotation.Nonnull;
 /** Default implementation of KeyedStateStoreV2. */
 public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
 
-    private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+    private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
     public DefaultKeyedStateStoreV2(@Nonnull AsyncKeyedStateBackend asyncKeyedStateBackend) {
         this.asyncKeyedStateBackend = Preconditions.checkNotNull(asyncKeyedStateBackend);

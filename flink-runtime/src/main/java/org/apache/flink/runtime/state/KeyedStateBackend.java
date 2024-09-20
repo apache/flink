@@ -45,6 +45,9 @@ public interface KeyedStateBackend<K>
     /** @return Current key. */
     K getCurrentKey();
 
+    /** Act as a fast path for {@link #setCurrentKey} when the key group is known. */
+    void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex);
+
     /** @return Serializer of the key. */
     TypeSerializer<K> getKeySerializer();
 
