@@ -272,8 +272,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         .get();
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
-        final Path savepointDirPath = Paths.get(getSavepointPath(program, getLatestMetadata(),
-                FLINK_VERSION));
+        final Path savepointDirPath =
+                Paths.get(getSavepointPath(program, getLatestMetadata(), FLINK_VERSION));
         Files.createDirectories(savepointDirPath);
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
     }

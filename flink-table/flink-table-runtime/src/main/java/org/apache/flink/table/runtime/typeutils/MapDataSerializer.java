@@ -296,10 +296,10 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
                 throws IOException {
             try {
                 DataInputViewStream inStream = new DataInputViewStream(in);
-                this.keyType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader,
-                        true);
-                this.valueType = InstantiationUtil.deserializeObject(inStream,
-                        userCodeClassLoader, true);
+                this.keyType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
+                this.valueType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
                 this.keySerializer =
                         InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
                 this.valueSerializer =
