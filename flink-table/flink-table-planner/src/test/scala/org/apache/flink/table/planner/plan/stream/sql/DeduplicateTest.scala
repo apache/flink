@@ -40,6 +40,14 @@ class DeduplicateTest extends TableTestBase {
       'c,
       'proctime.proctime,
       'rowtime.rowtime)
+
+    util.addDataStream[(Int, String, Long)](
+      "MyTable2",
+      'a,
+      'b,
+      'c,
+      'proctime.proctime,
+      'rowtime.rowtime)
   }
 
   @Test
@@ -272,4 +280,163 @@ class DeduplicateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
+  @Test
+  def testRankConsumeChangelogGroupAggregate(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT a, COUNT(b) as b FROM MyTable GROUP BY a)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogDistinct(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT DISTINCT a, b FROM MyTable)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogLeftOuterJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT m.a, m.b FROM MyTable m LEFT OUTER JOIN MyTable2 m2 ON m.a = m2.a)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogRightOuterJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT m.a, m.b FROM MyTable m RIGHT OUTER JOIN MyTable2 m2 ON m.a = m2.a)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogFullOuterJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT m.a, m.b FROM MyTable m FULL OUTER JOIN MyTable2 m2 ON m.a = m2.a)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogUnionGroupAggregate(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT DISTINCT a, b FROM MyTable
+        |        UNION ALL
+        |        SELECT count(a), b FROM MyTable GROUP BY b)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogIntersectSemiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT DISTINCT a, b FROM MyTable
+        |        INTERSECT
+        |        SELECT a, b FROM MyTable2)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogExceptAntiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT DISTINCT a, b FROM MyTable
+        |        EXCEPT
+        |        SELECT a, b FROM MyTable2)
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogExistsAntiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT a, b FROM MyTable
+        |        WHERE NOT EXISTS (
+        |        SELECT a, b FROM MyTable2))
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRankConsumeChangelogExistsSemiJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+        |  FROM (SELECT a, b FROM MyTable
+        |        WHERE EXISTS (
+        |        SELECT a, b FROM MyTable2))
+        |)
+        |WHERE rowNum = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

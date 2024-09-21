@@ -363,4 +363,419 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS 
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRankConsumeChangelogGroupAggregate">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT a, COUNT(b) as b FROM MyTable GROUP BY a)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalAggregate(group=[{0}], b=[COUNT($1)])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- GroupAggregate(groupBy=[a], select=[a, COUNT(b) AS b])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogDistinct">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT DISTINCT a, b FROM MyTable)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalAggregate(group=[{0, 1}])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- GroupAggregate(groupBy=[a, b], select=[a, b])
+            +- Exchange(distribution=[hash[a, b]])
+               +- Calc(select=[a, b])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogLeftOuterJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT m.a, m.b FROM MyTable m LEFT OUTER JOIN MyTable2 m2 ON m.a = m2.a)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, b])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogRightOuterJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT m.a, m.b FROM MyTable m RIGHT OUTER JOIN MyTable2 m2 ON m.a = m2.a)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[RightOuterJoin], where=[(a = a0)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, b])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogFullOuterJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT m.a, m.b FROM MyTable m FULL OUTER JOIN MyTable2 m2 ON m.a = m2.a)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalJoin(condition=[=($0, $5)], joinType=[full])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[FullOuterJoin], where=[(a = a0)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, b])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogUnionGroupAggregate">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT DISTINCT a, b FROM MyTable
+        UNION ALL
+        SELECT count(a), b FROM MyTable GROUP BY b)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalUnion(all=[true])
+         :- LogicalAggregate(group=[{0, 1}])
+         :  +- LogicalProject(a=[$0], b=[$1])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalProject(EXPR$0=[$1], b=[$0])
+            +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
+               +- LogicalProject(b=[$1], a=[$0])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Union(all=[true], union=[a, b, $2])
+         :- Calc(select=[CAST(a AS BIGINT) AS a, b, PROCTIME() AS $2])
+         :  +- GroupAggregate(groupBy=[a, b], select=[a, b])
+         :     +- Exchange(distribution=[hash[a, b]])
+         :        +- Calc(select=[a, b])
+         :           +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])(reuse_id=[1])
+         +- Calc(select=[CAST(EXPR$0 AS BIGINT) AS a, b, PROCTIME() AS $2])
+            +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS EXPR$0])
+               +- Exchange(distribution=[hash[b]])
+                  +- Calc(select=[b, a])
+                     +- Reused(reference_id=[1])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogIntersectSemiJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT DISTINCT a, b FROM MyTable
+        INTERSECT
+        SELECT a, b FROM MyTable2)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalIntersect(all=[false])
+         :- LogicalAggregate(group=[{0, 1}])
+         :  +- LogicalProject(a=[$0], b=[$1])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[LeftSemiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)))], select=[a, b], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a, b]])
+            :  +- GroupAggregate(groupBy=[a, b], select=[a, b])
+            :     +- Exchange(distribution=[hash[a, b]])
+            :        +- Calc(select=[a, b])
+            :           +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[a, b]])
+               +- Calc(select=[a, b])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogExceptAntiJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT DISTINCT a, b FROM MyTable
+        EXCEPT
+        SELECT a, b FROM MyTable2)
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalMinus(all=[false])
+         :- LogicalAggregate(group=[{0, 1}])
+         :  +- LogicalProject(a=[$0], b=[$1])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[LeftAntiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)))], select=[a, b], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a, b]])
+            :  +- GroupAggregate(groupBy=[a, b], select=[a, b])
+            :     +- Exchange(distribution=[hash[a, b]])
+            :        +- Calc(select=[a, b])
+            :           +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[hash[a, b]])
+               +- Calc(select=[a, b])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogExistsAntiJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT a, b FROM MyTable
+        WHERE NOT EXISTS (
+        SELECT a, b FROM MyTable2))
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+}))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[LeftAntiJoin], where=[$f0], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[single])
+            :  +- Calc(select=[a, b])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[single])
+               +- Calc(select=[m IS NOT NULL AS $f0])
+                  +- GroupAggregate(select=[MIN(i) AS m])
+                     +- Exchange(distribution=[single])
+                        +- Calc(select=[true AS i])
+                           +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankConsumeChangelogExistsSemiJoin">
+		<Resource name="sql">
+			<![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT a, b FROM MyTable
+        WHERE EXISTS (
+        SELECT a, b FROM MyTable2))
+)
+WHERE rowNum = 1
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+})])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- Join(joinType=[LeftSemiJoin], where=[true], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[single])
+            :  +- Calc(select=[a, b])
+            :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+            +- Exchange(distribution=[single])
+               +- Calc(select=[], where=[m IS NOT NULL])
+                  +- GroupAggregate(select=[MIN(i) AS m])
+                     +- Exchange(distribution=[single])
+                        +- Calc(select=[true AS i])
+                           +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
 </Root>
