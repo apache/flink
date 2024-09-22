@@ -48,12 +48,6 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.api.scala.typeutils.EnumValueSerializer;
-import org.apache.flink.api.scala.typeutils.NothingSerializer;
-import org.apache.flink.api.scala.typeutils.OptionSerializer;
-import org.apache.flink.api.scala.typeutils.TraversableSerializer;
-import org.apache.flink.api.scala.typeutils.TrySerializer;
-import org.apache.flink.api.scala.typeutils.UnitSerializer;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
@@ -160,13 +154,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class
                                 .getName(),
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
-                        EnumValueSerializer.class.getName(),
-                        OptionSerializer.class.getName(),
-                        TraversableSerializer.class.getName(),
-                        UnitSerializer.class.getName(),
-                        NothingSerializer.class.getName(),
-                        TrySerializer.class.getName(),
-                        "org.apache.flink.api.scala.package$Tuple2CaseClassSerializer",
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
                         SharedBuffer.SharedBufferSerializer.class.getName(),
@@ -227,10 +214,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
-                        UnitSerializer.class.getName(),
-                        NothingSerializer.class.getName(),
-                        TrySerializer.class.getName(),
-                        "org.apache.flink.api.scala.package$Tuple2CaseClassSerializer",
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
                         SharedBuffer.SharedBufferSerializer.class.getName(),

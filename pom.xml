@@ -2397,6 +2397,12 @@ under the License.
 								</exclude>
 								<!-- FLINK-5336 Remove IOReadableWritable from Path in flink-2.0. -->
 								<exclude>org.apache.flink.core.fs.Path</exclude>
+								<!-- The following exclusions are due to the flink-hadoop-compatibility_${scala.binary.version} module has renamed to flink-hadoop-compatibility. -->
+								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

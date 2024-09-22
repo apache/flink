@@ -49,7 +49,7 @@ curl https://flink.apache.org/q/quickstart.sh | bash
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-hadoop-compatibility{{< scala_version >}}</artifactId>
+    <artifactId>flink-hadoop-compatibility</artifactId>
     <version>{{< version >}}</version>
 </dependency>
 <dependency>
