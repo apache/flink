@@ -222,28 +222,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>register_table_source(name, table_source)</strong>
-      </td>
-      <td>
-        Registers an external `TableSource` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_source" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_sink(name, table_sink)</strong>
-      </td>
-      <td>
-        Registers an external `TableSink` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>insert_into(target_path, table)</strong>
       </td>
       <td>

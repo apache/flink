@@ -222,28 +222,6 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
-        <strong>register_table_source(name, table_source)</strong>
-      </td>
-      <td>
-        在 TableEnvironment 的 catalog 中注册一个外部 `TableSource`。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_source" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_sink(name, table_sink)</strong>
-      </td>
-      <td>
-        在 TableEnvironment 的 catalog 中注册一个外部 `TableSink`。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>insert_into(target_path, table)</strong>
       </td>
       <td>
