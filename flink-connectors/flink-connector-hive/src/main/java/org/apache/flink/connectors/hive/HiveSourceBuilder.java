@@ -339,9 +339,6 @@ public class HiveSourceBuilder {
         jobConf.set(
                 HiveOptions.TABLE_EXEC_HIVE_CALCULATE_PARTITION_SIZE_THREAD_NUM.key(),
                 String.valueOf(calPartitionSizeThreadNum));
-        jobConf.setBoolean(
-                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM.key(),
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM));
         jobConf.set(
                 HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE.key(),
                 String.valueOf(

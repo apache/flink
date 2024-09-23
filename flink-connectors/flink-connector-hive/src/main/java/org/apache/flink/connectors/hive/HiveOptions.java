@@ -51,16 +51,6 @@ public class HiveOptions {
                                     "If it is true, flink will read the files of partitioned hive table from subdirectories under the partition directory to be read.\n"
                                             + "If it is false, an exception that 'not a file: xxx' will be thrown when the partition directory contains any sub-directory.");
 
-    /** @deprecated Use {@link #TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE} instead. */
-    @Deprecated
-    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM =
-            key("table.exec.hive.infer-source-parallelism")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            "If is false, parallelism of source are set by config.\n"
-                                    + "If is true, source parallelism is inferred according to splits number.\n");
-
     @PublicEvolving
     public static final ConfigOption<InferMode> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE =
             key("table.exec.hive.infer-source-parallelism.mode")
@@ -76,9 +66,7 @@ public class HiveOptions {
                                             text(
                                                     "'dynamic' represents dynamic inference, which will infer parallelism at job execution stage and could more accurately infer the source parallelism."),
                                             text(
-                                                    "'none' represents disabling parallelism inference."),
-                                            text(
-                                                    "Note that it is still affected by the deprecated option 'table.exec.hive.infer-source-parallelism', requiring its value to be true for enabling parallelism inference."))
+                                                    "'none' represents disabling parallelism inference."))
                                     .build());
 
     public static final ConfigOption<Integer> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX =
@@ -250,12 +238,9 @@ public class HiveOptions {
             key("streaming-source.partition-order")
                     .enumType(PartitionOrder.class)
                     .defaultValue(PartitionOrder.PARTITION_NAME)
-                    .withDeprecatedKeys("streaming-source.consume-order")
                     .withDescription(
                             Description.builder()
                                     .text("The partition order of the streaming source.")
-                                    .text(
-                                            "This is a synonym for the deprecated 'streaming-source.consume-order' option.")
                                     .build());
 
     public static final ConfigOption<Duration> LOOKUP_JOIN_CACHE_TTL =
