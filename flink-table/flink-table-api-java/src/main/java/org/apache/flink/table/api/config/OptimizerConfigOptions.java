@@ -245,7 +245,6 @@ public class OptimizerConfigOptions {
             key("table.optimizer.sql2rel.project-merge.enabled")
                     .booleanType()
                     .defaultValue(false)
-                    .withDeprecatedKeys("table.optimizer.sql-to-rel.project.merge.enabled")
                     .withDescription(
                             Description.builder()
                                     .text(
