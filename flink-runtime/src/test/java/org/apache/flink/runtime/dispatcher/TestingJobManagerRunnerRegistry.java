@@ -166,11 +166,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                                         .orElse(FutureUtils.completedVoidFuture()));
     }
 
-    public static Builder newDefaultJobManagerRunnerRegistryBuilder(
-            DefaultJobManagerRunnerRegistry jobManagerRunnerRegistry) {
-        return builder().fromDefaultJobManagerRunnerRegistry(jobManagerRunnerRegistry);
-    }
-
     private static Optional<JobManagerRunner> unregisterFromReference(
             AtomicReference<JobManagerRunner> singleRunnerReference, JobID actualJobId) {
         return Optional.ofNullable(singleRunnerReference.get())
@@ -200,19 +195,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                 localCleanupAsyncFunction =
                         (ignoredJobId, ignoredExecutor, mainThreadExecutor) ->
                                 FutureUtils.completedVoidFuture();
-
-        private Builder fromDefaultJobManagerRunnerRegistry(
-                DefaultJobManagerRunnerRegistry jobManagerRunnerRegistry) {
-            this.isRegisteredFunction = jobManagerRunnerRegistry::isRegistered;
-            this.registerConsumer = jobManagerRunnerRegistry::register;
-            this.getFunction = jobManagerRunnerRegistry::get;
-            this.sizeSupplier = jobManagerRunnerRegistry::size;
-            this.getRunningJobIdsSupplier = jobManagerRunnerRegistry::getRunningJobIds;
-            this.getJobManagerRunnersSupplier = jobManagerRunnerRegistry::getJobManagerRunners;
-            this.unregisterFunction = jobManagerRunnerRegistry::unregister;
-            this.localCleanupAsyncFunction = jobManagerRunnerRegistry::localCleanupAsync;
-            return this;
-        }
 
         public Builder withIsRegisteredFunction(Function<JobID, Boolean> isRegisteredFunction) {
             this.isRegisteredFunction = isRegisteredFunction;

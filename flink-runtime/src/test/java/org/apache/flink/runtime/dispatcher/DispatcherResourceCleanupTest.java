@@ -187,14 +187,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
     }
 
-    private TestingJobManagerRunnerRegistry createTestingJobManagerRunnerRegistry() {
-        return TestingJobManagerRunnerRegistry.newDefaultJobManagerRunnerRegistryBuilder(
-                        new DefaultJobManagerRunnerRegistry(2))
-                .build();
+    private DefaultJobManagerRunnerRegistry createTestJobManagerRunnerRegistry() {
+        return new DefaultJobManagerRunnerRegistry(2);
     }
 
     private TestingDispatcher.Builder createTestingDispatcherBuilder() {
-        return createTestingDispatcherBuilder(createTestingJobManagerRunnerRegistry());
+        return createTestingDispatcherBuilder(createTestJobManagerRunnerRegistry());
     }
 
     private TestingDispatcher.Builder createTestingDispatcherBuilder(
@@ -435,11 +433,11 @@ public class DispatcherResourceCleanupTest extends TestLogger {
      */
     @Test
     public void testJobSubmissionUnderSameJobId() throws Exception {
-        final TestingJobManagerRunnerRegistry testingJobManagerRunnerRegistry =
-                createTestingJobManagerRunnerRegistry();
+        final DefaultJobManagerRunnerRegistry testJobManagerRunnerRegistry =
+                createTestJobManagerRunnerRegistry();
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                startDispatcherAndSubmitJob(testingJobManagerRunnerRegistry, 1);
+                startDispatcherAndSubmitJob(testJobManagerRunnerRegistry, 1);
 
         final TestingJobManagerRunner testingJobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
