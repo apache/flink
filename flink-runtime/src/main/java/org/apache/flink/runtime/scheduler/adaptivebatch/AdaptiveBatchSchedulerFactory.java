@@ -22,7 +22,7 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -367,12 +367,12 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                         + "to be executed with types of all edges being BLOCKING or HYBRID_FULL/HYBRID_SELECTIVE. "
                                         + "To do that, you need to configure '%s' to '%s' or '%s/%s'. "
                                         + "Note that for DataSet jobs which do not recognize the aforementioned shuffle mode, "
-                                        + "the ExecutionMode needs to be %s to force BLOCKING shuffle",
+                                        + "the RuntimeExecutionMode needs to be %s to force BLOCKING shuffle",
                                 ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
                                 BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
                                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL,
                                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE,
-                                ExecutionMode.BATCH_FORCED));
+                                RuntimeExecutionMode.BATCH));
             }
         }
     }
