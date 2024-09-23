@@ -30,11 +30,13 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
@@ -52,6 +54,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
@@ -206,6 +209,42 @@ public final class DynamicSinkUtils {
                 sinkModifyOperation.getStaticPartitions(),
                 sinkModifyOperation.getTargetColumns(),
                 sinkModifyOperation.isOverwrite(),
+                sink);
+    }
+
+    /**
+     * Converts a given {@link DynamicTableSink} to a {@link RelNode}. It adds helper projections if
+     * necessary.
+     */
+    public static RelNode convertCreateTableAsToRel(
+            FlinkRelBuilder relBuilder,
+            RelNode input,
+            Catalog catalog,
+            CreateTableOperation createTableOperation,
+            Map<String, String> staticPartitions,
+            boolean isOverwrite,
+            DynamicTableSink sink) {
+        final ResolvedCatalogTable catalogTable =
+                (ResolvedCatalogTable) createTableOperation.getCatalogTable();
+
+        final ObjectIdentifier identifier = createTableOperation.getTableIdentifier();
+
+        final ContextResolvedTable contextResolvedTable;
+        if (createTableOperation.isTemporary()) {
+            contextResolvedTable = ContextResolvedTable.temporary(identifier, catalogTable);
+        } else {
+            contextResolvedTable =
+                    ContextResolvedTable.permanent(identifier, catalog, catalogTable);
+        }
+
+        return convertSinkToRel(
+                relBuilder,
+                input,
+                Collections.emptyMap(),
+                contextResolvedTable,
+                staticPartitions,
+                null,
+                isOverwrite,
                 sink);
     }
 
