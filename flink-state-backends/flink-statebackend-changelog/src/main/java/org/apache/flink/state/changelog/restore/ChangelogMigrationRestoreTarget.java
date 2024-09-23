@@ -202,6 +202,11 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             }
 
             @Override
+            public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
+                keyedStateBackend.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
+            }
+
+            @Override
             public void notifyCheckpointComplete(long checkpointId) throws Exception {
                 keyedStateBackend.notifyCheckpointComplete(checkpointId);
             }

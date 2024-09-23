@@ -110,7 +110,7 @@ public class StateBackendTestUtils {
         }
     }
 
-    private static class TestAsyncKeyedStateBackend implements AsyncKeyedStateBackend {
+    private static class TestAsyncKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         private final Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier;
         private final StateExecutor stateExecutor;

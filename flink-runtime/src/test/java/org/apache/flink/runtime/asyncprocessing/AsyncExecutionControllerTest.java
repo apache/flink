@@ -55,7 +55,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test for {@link AsyncExecutionController}. */
 class AsyncExecutionControllerTest {
-    AsyncExecutionController aec;
+    AsyncExecutionController<String> aec;
     AtomicInteger output;
     TestValueState valueState;
 
@@ -90,7 +90,7 @@ class AsyncExecutionControllerTest {
         StateBackend testAsyncStateBackend =
                 StateBackendTestUtils.buildAsyncStateBackend(stateSupplier, stateExecutor);
         assertThat(testAsyncStateBackend.supportsAsyncKeyedStateBackend()).isTrue();
-        AsyncKeyedStateBackend asyncKeyedStateBackend;
+        AsyncKeyedStateBackend<String> asyncKeyedStateBackend;
         try {
             asyncKeyedStateBackend = testAsyncStateBackend.createAsyncKeyedStateBackend(null);
         } catch (Exception e) {
@@ -106,7 +106,8 @@ class AsyncExecutionControllerTest {
                         128,
                         batchSize,
                         timeout,
-                        maxInFlight);
+                        maxInFlight,
+                        null);
         asyncKeyedStateBackend.setup(aec);
 
         try {

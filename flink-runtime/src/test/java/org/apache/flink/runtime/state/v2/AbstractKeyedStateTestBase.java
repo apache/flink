@@ -75,7 +75,8 @@ public class AbstractKeyedStateTestBase {
                         1,
                         1,
                         1000,
-                        1);
+                        1,
+                        null);
         exception = new AtomicReference<>(null);
     }
 
@@ -124,9 +125,9 @@ public class AbstractKeyedStateTestBase {
         }
 
         @Override
-        public <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+        public <K> AsyncKeyedStateBackend<K> createAsyncKeyedStateBackend(
                 KeyedStateBackendParameters<K> parameters) {
-            return new AsyncKeyedStateBackend() {
+            return new AsyncKeyedStateBackend<K>() {
                 @Nonnull
                 @Override
                 public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(

@@ -83,7 +83,7 @@ public class StreamOperatorStateHandler {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StreamOperatorStateHandler.class);
 
-    @Nullable private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+    @Nullable private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
     @Nullable private final KeyedStateStoreV2 keyedStateStoreV2;
 
