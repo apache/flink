@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.functions;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -86,6 +87,7 @@ class ClosureCleanerITCase {
             NonSerializable nonSer = new NonSerializable();
             int x = 5;
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
             DataStreamSource<Long> nums = env.fromSequence(1, 4);
             nums.map(num -> num + x)
                     .setParallelism(1)
@@ -111,6 +113,7 @@ class ClosureCleanerITCase {
         public void run(String resultPath) throws Exception {
             NonSerializable nonSer = new NonSerializable();
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
             DataStreamSource<Long> nums = env.fromSequence(1, 4);
             nums.map(num -> num + getX())
                     .setParallelism(1)
@@ -138,6 +141,7 @@ class ClosureCleanerITCase {
             NonSerializable nonSer2 = new NonSerializable();
             int x = 5;
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
             DataStreamSource<Long> nums = env.fromSequence(1, 4);
             nums.map(num -> num + x)
                     .setParallelism(1)
@@ -159,6 +163,7 @@ class ClosureCleanerITCase {
             NonSerializable nonSer2 = new NonSerializable();
             int x = 5;
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
             DataStreamSource<Long> nums = env.fromSequence(1, 4);
             nums.map(num -> num + x)
                     .setParallelism(1)
