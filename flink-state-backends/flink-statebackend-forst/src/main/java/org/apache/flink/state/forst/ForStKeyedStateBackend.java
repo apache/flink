@@ -276,6 +276,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             }
             StateExecutor stateExecutor =
                     new ForStStateExecutor(
+                            optionsContainer.isWriteInline(),
                             optionsContainer.getReadIoParallelism(),
                             optionsContainer.getWriteIoParallelism(),
                             db,

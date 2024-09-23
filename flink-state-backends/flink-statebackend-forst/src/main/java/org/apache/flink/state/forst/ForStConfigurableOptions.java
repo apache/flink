@@ -40,6 +40,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_READ_IO_PARALLELISM;
+import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_INLINE;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_PARALLELISM;
 import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
@@ -325,6 +326,7 @@ public class ForStConfigurableOptions implements Serializable {
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
                 // configurable forst executor
+                EXECUTOR_WRITE_IO_INLINE,
                 EXECUTOR_WRITE_IO_PARALLELISM,
                 EXECUTOR_READ_IO_PARALLELISM,
                 // configurable DBOptions

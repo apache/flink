@@ -277,6 +277,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
+    public boolean isWriteInline() {
+        return configuration.get(ForStOptions.EXECUTOR_WRITE_IO_INLINE);
+    }
+
     public int getReadIoParallelism() {
         return configuration.get(ForStOptions.EXECUTOR_READ_IO_PARALLELISM);
     }
