@@ -41,7 +41,7 @@ public class ArrowTableSourceFactory implements DynamicTableSourceFactory {
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(ArrowTableSourceOptions.FILE_PATH);
+        options.add(ArrowTableSourceOptions.DATA);
         return options;
     }
 
@@ -55,8 +55,8 @@ public class ArrowTableSourceFactory implements DynamicTableSourceFactory {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
 
-        String filePath = tableOptions.get(ArrowTableSourceOptions.FILE_PATH);
+        String data = tableOptions.get(ArrowTableSourceOptions.DATA);
         DataType dataType = context.getPhysicalRowDataType();
-        return new ArrowTableSource(dataType, filePath);
+        return new ArrowTableSource(dataType, data);
     }
 }

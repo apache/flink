@@ -24,9 +24,11 @@ import org.apache.flink.configuration.ConfigOptions;
 /** Table options for the {@link ArrowTableSource}. */
 public class ArrowTableSourceOptions {
 
-    public static final ConfigOption<String> FILE_PATH =
-            ConfigOptions.key("file-path")
+    public static final ConfigOption<String> DATA =
+            ConfigOptions.key("data")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("The file path to read.");
+                    .withDescription(
+                            "This is the data serialized by Arrow with a byte two-dimensional array. "
+                                    + "Note: The byte two-dimensional array is converted into a string using base64.");
 }

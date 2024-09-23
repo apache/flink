@@ -26,7 +26,6 @@ from py4j.java_gateway import get_java_class, get_method
 
 from pyflink.common.configuration import Configuration
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table.sources import TableSource
 
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream

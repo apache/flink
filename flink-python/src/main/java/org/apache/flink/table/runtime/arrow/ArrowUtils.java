@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.data.ArrayData;
@@ -488,10 +489,17 @@ public final class ArrowUtils {
             schemaBuilder.column(fieldNames.get(i), fieldTypes.get(i));
         }
 
-        return TableDescriptor.forConnector(ArrowTableSourceFactory.IDENTIFIER)
-                .option(ArrowTableSourceOptions.FILE_PATH, fileName)
-                .schema(schemaBuilder.build())
-                .build();
+        try {
+            byte[][] data = readArrowBatches(fileName);
+            return TableDescriptor.forConnector(ArrowTableSourceFactory.IDENTIFIER)
+                    .option(
+                            ArrowTableSourceOptions.DATA,
+                            ByteArrayUtils.twoDimByteArrayToString(data))
+                    .schema(schemaBuilder.build())
+                    .build();
+        } catch (Throwable e) {
+            throw new TableException("Failed to read the arrow data from " + fileName, e);
+        }
     }
 
     public static byte[][] readArrowBatches(String fileName) throws IOException {

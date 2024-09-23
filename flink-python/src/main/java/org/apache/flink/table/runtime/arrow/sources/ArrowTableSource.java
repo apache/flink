@@ -24,11 +24,9 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.table.runtime.arrow.ArrowUtils;
+import org.apache.flink.table.runtime.arrow.ByteArrayUtils;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
-
-import java.io.IOException;
 
 /** A {@link StreamTableSource} for serialized arrow record batch data. */
 @Internal
@@ -38,12 +36,13 @@ public class ArrowTableSource implements ScanTableSource {
 
     private final byte[][] arrowData;
 
-    public ArrowTableSource(DataType dataType, String filePath) {
+    public ArrowTableSource(DataType dataType, String data) {
         this.dataType = dataType;
         try {
-            this.arrowData = ArrowUtils.readArrowBatches(filePath);
-        } catch (IOException e) {
-            throw new TableException("Failed to read the arrow data from " + filePath, e);
+            this.arrowData = ByteArrayUtils.stringToTwoDimByteArray(data);
+        } catch (Throwable e) {
+            throw new TableException(
+                    "Failed to convert the data from String to byte[][].\nThe data is: " + data, e);
         }
     }
 
