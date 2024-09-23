@@ -18,6 +18,7 @@
 package org.apache.flink.connector.base.sink;
 
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriterStateSerializer;
@@ -59,7 +60,13 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
     }
 
     @Override
-    public SinkWriter<String> createWriter(WriterInitContext context) throws IOException {
+    public SinkWriter<String> createWriter(InitContext context) throws IOException {
+        return null;
+    }
+
+    @Override
+    public StatefulSinkWriter<String, BufferedRequestState<Integer>> createWriter(
+            WriterInitContext context) throws IOException {
         return new AsyncSinkWriter<String, Integer>(
                 getElementConverter(),
                 context,
@@ -92,14 +99,8 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
     }
 
     @Override
-    public StatefulSinkWriter<String, BufferedRequestState<Integer>> createWriter(
-            InitContext context) throws IOException {
-        throw new UnsupportedOperationException("Not supported");
-    }
-
-    @Override
     public StatefulSinkWriter<String, BufferedRequestState<Integer>> restoreWriter(
-            InitContext context, Collection<BufferedRequestState<Integer>> recoveredState)
+            WriterInitContext context, Collection<BufferedRequestState<Integer>> recoveredState)
             throws IOException {
         return createWriter(context);
     }

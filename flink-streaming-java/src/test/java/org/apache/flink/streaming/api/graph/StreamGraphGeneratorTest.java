@@ -72,7 +72,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.TestExpandingSink;
-import org.apache.flink.streaming.util.TestExpandingSinkDeprecated;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -826,32 +825,6 @@ class StreamGraphGeneratorTest {
                         e ->
                                 assertThat(e.get(0).getExchangeMode())
                                         .isEqualTo(StreamExchangeMode.UNDEFINED));
-    }
-
-    /**
-     * Should be removed along {@link org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink}.
-     */
-    @Deprecated
-    @Test
-    void testAutoParallelismForExpandedTransformationsDeprecated() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        env.setParallelism(2);
-
-        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
-        // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
-        // the table planner. Parallelism should be set automatically after translating.
-        sourceDataStream.sinkTo(new TestExpandingSinkDeprecated()).setParallelism(-1);
-
-        StreamGraph graph = env.getStreamGraph();
-
-        graph.getStreamNodes()
-                .forEach(
-                        node -> {
-                            if (!node.getOperatorName().startsWith("Source")) {
-                                assertThat(node.getParallelism()).isEqualTo(2);
-                            }
-                        });
     }
 
     @Test

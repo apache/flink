@@ -18,18 +18,14 @@
 
 package org.apache.flink.streaming.examples.statemachine;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
-import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorFunction;
-import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
 
 /**
  * Job to generate input events that are written to Kafka, for the {@link StateMachineExample} job.
@@ -61,24 +57,25 @@ public class KafkaEventsGeneratorJob {
                         Long.MAX_VALUE,
                         RateLimiterStrategy.perSecond(recordsPerSecond),
                         TypeInformation.of(Event.class));
-
-        env.fromSource(
-                        eventGeneratorSource,
-                        WatermarkStrategy.noWatermarks(),
-                        "Events Generator Source")
-                .sinkTo(
-                        KafkaSink.<Event>builder()
-                                .setBootstrapServers(brokers)
-                                .setRecordSerializer(
-                                        KafkaRecordSerializationSchema.builder()
-                                                .setValueSerializationSchema(
-                                                        new EventDeSerializationSchema())
-                                                .setTopic(kafkaTopic)
-                                                .build())
-                                .build());
+        // TODO: [FLINK-36245] Release comments after KafkaSink does not rely on the Depreciated API
+        // at all
+        //        env.fromSource(
+        //                        eventGeneratorSource,
+        //                        WatermarkStrategy.noWatermarks(),
+        //                        "Events Generator Source")
+        //                .sinkTo(
+        //                        KafkaSink.<Event>builder()
+        //                                .setBootstrapServers(brokers)
+        //                                .setRecordSerializer(
+        //                                        KafkaRecordSerializationSchema.builder()
+        //                                                .setValueSerializationSchema(
+        //                                                        new EventDeSerializationSchema())
+        //                                                .setTopic(kafkaTopic)
+        //                                                .build())
+        //                                .build());
 
         // trigger program execution
-        env.execute("State machine example Kafka events generator job");
+        //        env.execute("State machine example Kafka events generator job");
     }
 
     // Used for backwards compatibility to convert legacy 'sleep' parameter to records per second.

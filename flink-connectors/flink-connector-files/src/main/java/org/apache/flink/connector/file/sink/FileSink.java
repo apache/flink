@@ -630,15 +630,6 @@ public class FileSink<IN>
 
         @Override
         FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
-            return createWriter(new InitContextWrapper(context));
-        }
-
-        /**
-         * Should be removed along {@link
-         * org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter}.
-         */
-        @Deprecated
-        FileWriter<IN> createWriter(InitContext context) throws IOException {
             OutputFileConfig writerFileConfig;
             if (compactStrategy == null) {
                 writerFileConfig = outputFileConfig;

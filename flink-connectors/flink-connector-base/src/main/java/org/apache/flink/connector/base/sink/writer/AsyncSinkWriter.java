@@ -21,7 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.BasicRequestInfo;
@@ -60,7 +60,7 @@ import java.util.function.Consumer;
  */
 @PublicEvolving
 public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable>
-        implements StatefulSink.StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>> {
+        implements StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>> {
 
     private final MailboxExecutor mailboxExecutor;
     private final ProcessingTimeService timeService;
@@ -281,65 +281,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     protected abstract long getSizeInBytes(RequestEntryT requestEntry);
 
-    /**
-     * This method is deprecated, please use the constructor that specifies the {@link
-     * AsyncSinkWriterConfiguration}.
-     */
-    @Deprecated
-    public AsyncSinkWriter(
-            ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.InitContext context,
-            int maxBatchSize,
-            int maxInFlightRequests,
-            int maxBufferedRequests,
-            long maxBatchSizeInBytes,
-            long maxTimeInBufferMS,
-            long maxRecordSizeInBytes) {
-        this(
-                elementConverter,
-                context,
-                maxBatchSize,
-                maxInFlightRequests,
-                maxBufferedRequests,
-                maxBatchSizeInBytes,
-                maxTimeInBufferMS,
-                maxRecordSizeInBytes,
-                Collections.emptyList());
-    }
-
-    /**
-     * This method is deprecated, please use the constructor that specifies the {@link
-     * AsyncSinkWriterConfiguration}.
-     */
-    @Deprecated
-    public AsyncSinkWriter(
-            ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.InitContext context,
-            int maxBatchSize,
-            int maxInFlightRequests,
-            int maxBufferedRequests,
-            long maxBatchSizeInBytes,
-            long maxTimeInBufferMS,
-            long maxRecordSizeInBytes,
-            Collection<BufferedRequestState<RequestEntryT>> states) {
-        this(
-                elementConverter,
-                context,
-                AsyncSinkWriterConfiguration.builder()
-                        .setMaxBatchSize(maxBatchSize)
-                        .setMaxBatchSizeInBytes(maxBatchSizeInBytes)
-                        .setMaxInFlightRequests(maxInFlightRequests)
-                        .setMaxBufferedRequests(maxBufferedRequests)
-                        .setMaxTimeInBufferMS(maxTimeInBufferMS)
-                        .setMaxRecordSizeInBytes(maxRecordSizeInBytes)
-                        .build(),
-                states);
-    }
-
-    /**
-     * Should be removed along {@link
-     * org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter}.
-     */
+    /** Should be removed along {@link org.apache.flink.api.connector.sink2.StatefulSinkWriter}. */
     @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,

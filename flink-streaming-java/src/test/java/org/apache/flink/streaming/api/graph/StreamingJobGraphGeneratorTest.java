@@ -40,7 +40,6 @@ import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
@@ -79,9 +78,6 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -2136,41 +2132,6 @@ class StreamingJobGraphGeneratorTest {
         }
     }
 
-    /** Should be removed along {@link TwoPhaseCommittingSink}. */
-    @Deprecated
-    @Test
-    void testSinkSupportConcurrentExecutionAttemptsWithDeprecatedSink() {
-        final StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
-        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-
-        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
-        source.rebalance()
-                .sinkTo(new TestSinkWithSupportsConcurrentExecutionAttemptsDeprecated())
-                .name("sink");
-
-        final StreamGraph streamGraph = env.getStreamGraph();
-        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(6);
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            if (jobVertex.getName().contains("source")) {
-                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
-            } else if (jobVertex.getName().contains("pre-writer")) {
-                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
-            } else if (jobVertex.getName().contains("Writer")) {
-                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isTrue();
-            } else if (jobVertex.getName().contains("pre-committer")) {
-                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
-            } else if (jobVertex.getName().contains("post-committer")) {
-                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
-            } else if (jobVertex.getName().contains("Committer")) {
-                assertThat(jobVertex.isSupportsConcurrentExecutionAttempts()).isFalse();
-            } else {
-                Assertions.fail("Unexpected job vertex " + jobVertex.getName());
-            }
-        }
-    }
-
     @Test
     void testSinkFunctionNotSupportConcurrentExecutionAttempts() {
         testWhetherSinkFunctionSupportsConcurrentExecutionAttempts(
@@ -2291,93 +2252,6 @@ class StreamingJobGraphGeneratorTest {
             implements SinkFunction<T>, SupportsConcurrentExecutionAttempts {
         @Override
         public void invoke(T value, Context context) throws Exception {}
-    }
-
-    /** Should be removed along {@link TwoPhaseCommittingSink}. */
-    @Deprecated
-    private static class TestSinkWithSupportsConcurrentExecutionAttemptsDeprecated
-            implements SupportsConcurrentExecutionAttempts,
-                    TwoPhaseCommittingSink<Integer, Void>,
-                    WithPreWriteTopology<Integer>,
-                    WithPreCommitTopology<Integer, Void>,
-                    WithPostCommitTopology<Integer, Void> {
-
-        @Override
-        public PrecommittingSinkWriter<Integer, Void> createWriter(InitContext context)
-                throws IOException {
-            return new PrecommittingSinkWriter<Integer, Void>() {
-                @Override
-                public Collection<Void> prepareCommit() throws IOException, InterruptedException {
-                    return null;
-                }
-
-                @Override
-                public void write(Integer element, Context context)
-                        throws IOException, InterruptedException {}
-
-                @Override
-                public void flush(boolean endOfInput) throws IOException, InterruptedException {}
-
-                @Override
-                public void close() throws Exception {}
-            };
-        }
-
-        @Override
-        public Committer<Void> createCommitter(CommitterInitContext context) throws IOException {
-            return new Committer<Void>() {
-                @Override
-                public void commit(Collection<CommitRequest<Void>> committables)
-                        throws IOException, InterruptedException {}
-
-                @Override
-                public void close() throws Exception {}
-            };
-        }
-
-        @Override
-        public SimpleVersionedSerializer<Void> getCommittableSerializer() {
-            return new SimpleVersionedSerializer<Void>() {
-                @Override
-                public int getVersion() {
-                    return 0;
-                }
-
-                @Override
-                public byte[] serialize(Void obj) throws IOException {
-                    return new byte[0];
-                }
-
-                @Override
-                public Void deserialize(int version, byte[] serialized) throws IOException {
-                    return null;
-                }
-            };
-        }
-
-        @Override
-        public void addPostCommitTopology(DataStream<CommittableMessage<Void>> committables) {
-            committables
-                    .map(v -> v)
-                    .name("post-committer")
-                    .returns(CommittableMessageTypeInfo.noOutput())
-                    .rebalance();
-        }
-
-        @Override
-        public DataStream<CommittableMessage<Void>> addPreCommitTopology(
-                DataStream<CommittableMessage<Void>> committables) {
-            return committables
-                    .map(v -> v)
-                    .name("pre-committer")
-                    .returns(CommittableMessageTypeInfo.noOutput())
-                    .rebalance();
-        }
-
-        @Override
-        public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
-            return inputDataStream.map(v -> v).name("pre-writer").rebalance();
-        }
     }
 
     private static class TestSinkWithSupportsConcurrentExecutionAttempts
