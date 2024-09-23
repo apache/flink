@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -47,4 +48,10 @@ public interface LocallyCleanableResourceWithMainThread {
      */
     CompletableFuture<Void> localCleanupAsync(
             JobID jobId, Executor cleanupExecutor, Executor mainThreadExecutor);
+
+    default LocallyCleanableResource toLocallyCleanableResource(
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        return (jobId, cleanupExecutor) ->
+                this.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);
+    }
 }

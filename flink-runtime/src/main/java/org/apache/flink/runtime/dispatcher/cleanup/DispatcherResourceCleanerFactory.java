@@ -97,7 +97,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
                         mainThreadExecutor, cleanupExecutor, retryStrategy)
                 .withPrioritizedCleanup(
                         JOB_MANAGER_RUNNER_REGISTRY_LABEL,
-                        toLocallyCleanableResource(jobManagerRunnerRegistry, mainThreadExecutor))
+                        jobManagerRunnerRegistry.toLocallyCleanableResource(mainThreadExecutor))
                 .withRegularCleanup(JOB_GRAPH_STORE_LABEL, jobGraphWriter)
                 .withRegularCleanup(BLOB_SERVER_LABEL, blobServer)
                 .withRegularCleanup(JOB_MANAGER_METRIC_GROUP_LABEL, jobManagerMetricGroup)
@@ -148,19 +148,5 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     private static GloballyCleanableResource toGloballyCleanableResource(
             LocallyCleanableResource localResource) {
         return localResource::localCleanupAsync;
-    }
-
-    /**
-     * Converts a LocallyCleanableInMainThreadResource object to a LocallyCleanableResource object.
-     *
-     * @param localResource LocallyCleanableInMainThreadResource that we want to translate.
-     * @return A LocallyCleanableResource.
-     */
-    @VisibleForTesting
-    public static LocallyCleanableResource toLocallyCleanableResource(
-            LocallyCleanableResourceWithMainThread localResource,
-            ComponentMainThreadExecutor mainThreadExecutor) {
-        return (jobId, cleanupExecutor) ->
-                localResource.localCleanupAsync(jobId, cleanupExecutor, mainThreadExecutor);
     }
 }

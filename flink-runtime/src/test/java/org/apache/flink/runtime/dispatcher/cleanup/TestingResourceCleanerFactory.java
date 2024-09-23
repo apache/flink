@@ -58,10 +58,7 @@ public class TestingResourceCleanerFactory implements ResourceCleanerFactory {
 
         locallyCleanableResources.addAll(
                 locallyCleanableResourceWithMainThreads.stream()
-                        .map(
-                                r ->
-                                        DispatcherResourceCleanerFactory.toLocallyCleanableResource(
-                                                r, mainThreadExecutor))
+                        .map(r -> r.toLocallyCleanableResource(mainThreadExecutor))
                         .collect(Collectors.toList()));
 
         return createResourceCleaner(
