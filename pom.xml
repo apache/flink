@@ -2397,6 +2397,12 @@ under the License.
 								<exclude>org.apache.flink.types.DoubleValue</exclude>
 								<exclude>org.apache.flink.types.FloatValue</exclude>
 								<exclude>org.apache.flink.types.NormalizableKey</exclude>
+								<!-- FLINK-36366 Remove deprecate API in flink-core -->
+								<exclude>org.apache.flink.api.common.io.SerializedOutputFormat</exclude>
+								<exclude>org.apache.flink.api.common.io.OutputFormat</exclude>
+								<exclude>org.apache.flink.api.common.io.FinalizeOnMaster</exclude>
+								<exclude>org.apache.flink.api.common.io.FileOutputFormat</exclude>
+								<exclude>org.apache.flink.api.common.io.BinaryOutputFormat</exclude>
 								<!-- FLINK-5336 Remove IOReadableWritable from Path in flink-2.0. -->
 								<exclude>org.apache.flink.core.fs.Path</exclude>
 								<!-- The following exclusions are due to the flink-hadoop-compatibility_${scala.binary.version} module has renamed to flink-hadoop-compatibility. -->

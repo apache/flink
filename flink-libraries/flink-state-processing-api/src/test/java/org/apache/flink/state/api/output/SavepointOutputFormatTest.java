@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -44,7 +45,7 @@ public class SavepointOutputFormatTest {
         Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
         SavepointOutputFormat format = createSavepointOutputFormat(path);
 
-        format.open(0, 2);
+        format.open(FirstAttemptInitializationContext.of(0, 2));
     }
 
     @Test
@@ -54,7 +55,7 @@ public class SavepointOutputFormatTest {
 
         CheckpointMetadata metadata = createSavepoint();
 
-        format.open(0, 1);
+        format.open(FirstAttemptInitializationContext.of(0, 1));
         format.writeRecord(metadata);
         format.close();
 

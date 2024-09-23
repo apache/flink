@@ -101,7 +101,7 @@ public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int a, int b) {
+        public void open(InitializationContext context) {
             try {
                 getRuntimeContext().addAccumulator("DATA_SINK_ACCUMULATOR", counter);
             } catch (UnsupportedOperationException e) {

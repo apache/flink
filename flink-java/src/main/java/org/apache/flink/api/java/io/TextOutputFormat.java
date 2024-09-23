@@ -94,8 +94,8 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
-        super.open(taskNumber, numTasks);
+    public void open(InitializationContext context) throws IOException {
+        super.open(context);
 
         try {
             this.charset = Charset.forName(charsetName);

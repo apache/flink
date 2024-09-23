@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.sinks
 
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
-import org.apache.flink.api.common.io.RichOutputFormat
+import org.apache.flink.api.common.io.{OutputFormat, RichOutputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -72,7 +72,7 @@ class CollectOutputFormat[T](id: String, typeSerializer: TypeSerializer[T])
     getRuntimeContext.addAccumulator(id, accumulator)
   }
 
-  override def open(taskNumber: Int, numTasks: Int): Unit = {
+  override def open(context: OutputFormat.InitializationContext): Unit = {
     this.accumulator = new SerializedListAccumulator[T]
   }
 }

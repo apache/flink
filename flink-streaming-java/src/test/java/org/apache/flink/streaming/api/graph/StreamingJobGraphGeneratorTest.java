@@ -2390,6 +2390,9 @@ class StreamingJobGraphGeneratorTest {
         public void configure(Configuration parameters) {}
 
         @Override
+        public void open(InitializationContext context) throws IOException {}
+
+        @Override
         public void writeRecord(T record) throws IOException {}
 
         @Override
@@ -2401,6 +2404,9 @@ class StreamingJobGraphGeneratorTest {
 
         @Override
         public void configure(Configuration parameters) {}
+
+        @Override
+        public void open(InitializationContext context) throws IOException {}
 
         @Override
         public void writeRecord(T record) throws IOException {}

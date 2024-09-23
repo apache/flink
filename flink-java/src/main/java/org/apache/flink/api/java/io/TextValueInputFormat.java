@@ -146,9 +146,4 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
                 + this.charsetName
                 + (this.skipInvalidLines ? "(skipping invalid lines)" : "");
     }
-
-    @Override
-    public boolean supportsMultiPaths() {
-        return true;
-    }
 }

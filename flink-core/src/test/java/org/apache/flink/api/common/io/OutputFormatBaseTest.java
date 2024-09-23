@@ -65,7 +65,7 @@ class OutputFormatBaseTest {
     @Test
     void testThrowErrorOnClose() throws Exception {
         TestOutputFormat testOutputFormat = createTestOutputFormat();
-        testOutputFormat.open(1, 1);
+        testOutputFormat.open(FirstAttemptInitializationContext.of(1, 1));
 
         Exception cause = new RuntimeException();
         testOutputFormat.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
@@ -220,25 +220,25 @@ class OutputFormatBaseTest {
         return testOutputFormat;
     }
 
-    private static TestOutputFormat createOpenedTestOutputFormat() {
+    private static TestOutputFormat createOpenedTestOutputFormat() throws Exception {
         return createOpenedTestOutputFormat(DEFAULT_MAX_CONCURRENT_REQUESTS_TIMEOUT);
     }
 
     private static TestOutputFormat createOpenedTestOutputFormat(
-            Duration maxConcurrentRequestsTimeout) {
+            Duration maxConcurrentRequestsTimeout) throws Exception {
         final TestOutputFormat testOutputFormat =
                 new TestOutputFormat(1, maxConcurrentRequestsTimeout);
         testOutputFormat.configure(new Configuration());
-        testOutputFormat.open(1, 1);
+        testOutputFormat.open(FirstAttemptInitializationContext.of(1, 1));
         return testOutputFormat;
     }
 
     private static TestOutputFormat createOpenedTestOutputFormat(
-            Function<String, CompletionStage<Void>> sendFunction) {
+            Function<String, CompletionStage<Void>> sendFunction) throws Exception {
         final TestOutputFormat testOutputFormat =
                 new TestOutputFormat(1, DEFAULT_MAX_CONCURRENT_REQUESTS_TIMEOUT, sendFunction);
         testOutputFormat.configure(new Configuration());
-        testOutputFormat.open(1, 1);
+        testOutputFormat.open(FirstAttemptInitializationContext.of(1, 1));
         return testOutputFormat;
     }
 

@@ -55,7 +55,7 @@ public final class BlockingShuffleOutputFormat<T> implements OutputFormat<T> {
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         throw new UnsupportedOperationException();
     }
 

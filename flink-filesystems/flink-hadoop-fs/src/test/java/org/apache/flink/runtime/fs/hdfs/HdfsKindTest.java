@@ -18,13 +18,9 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
-import org.apache.flink.core.fs.Path;
 
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,13 +32,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * HDFS file system wrapper class.
  */
 class HdfsKindTest {
-
-    @Test
-    void testHdfsKind() throws IOException {
-        final FileSystem fs = new Path("hdfs://localhost:55445/my/file").getFileSystem();
-        assertThat(fs.getKind()).isEqualTo(FileSystemKind.FILE_SYSTEM);
-    }
-
     @Test
     void testS3fileSystemSchemes() {
         assertThat(HadoopFileSystem.getKindForScheme("s3")).isEqualTo(FileSystemKind.OBJECT_STORE);

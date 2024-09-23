@@ -76,7 +76,7 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T>
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         this.taskResult = new ArrayList<T>();
     }
 

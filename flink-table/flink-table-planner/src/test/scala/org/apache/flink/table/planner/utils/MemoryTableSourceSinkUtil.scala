@@ -135,7 +135,7 @@ object MemoryTableSourceSinkUtil {
 
     override def configure(parameters: Configuration): Unit = {}
 
-    override def open(taskNumber: Int, numTasks: Int): Unit = {}
+    override def open(context: OutputFormat.InitializationContext): Unit = {}
 
     override def writeRecord(record: Row): Unit = {
       tableData.synchronized {

@@ -383,10 +383,10 @@ class TestingOutputFormat[T](tz: TimeZone) extends OutputFormat[T] {
 
   def configure(var1: Configuration): Unit = {}
 
-  override def open(taskNumber: Int, numTasks: Int): Unit = {
+  override def open(context: OutputFormat.InitializationContext): Unit = {
     localRetractResults = mutable.ArrayBuffer.empty[String]
     StreamTestSink.synchronized {
-      StreamTestSink.globalResults(index) += (taskNumber -> localRetractResults)
+      StreamTestSink.globalResults(index) += (context.getTaskNumber -> localRetractResults)
     }
   }
 

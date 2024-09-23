@@ -78,7 +78,6 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
         System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
         Assert.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
-        Assert.assertEquals(Integer.valueOf(3), res.getIntCounterResult("num-lines"));
 
         Assert.assertEquals(
                 Double.valueOf(getParallelism()), res.getAccumulatorResult("open-close-counter"));

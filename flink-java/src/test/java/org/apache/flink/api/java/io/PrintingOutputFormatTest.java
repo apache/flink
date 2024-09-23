@@ -17,6 +17,8 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,9 +58,9 @@ class PrintingOutputFormatTest {
     }
 
     @Test
-    void testPrintOutputFormatStdOut() {
+    void testPrintOutputFormatStdOut() throws Exception {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>();
-        printSink.open(0, 1);
+        printSink.open(FirstAttemptInitializationContext.of(0, 1));
 
         printSink.writeRecord("hello world!");
 
@@ -68,9 +70,9 @@ class PrintingOutputFormatTest {
     }
 
     @Test
-    void testPrintOutputFormatStdErr() {
+    void testPrintOutputFormatStdErr() throws Exception {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>(true);
-        printSink.open(0, 1);
+        printSink.open(FirstAttemptInitializationContext.of(0, 1));
 
         printSink.writeRecord("hello world!");
 
@@ -80,9 +82,9 @@ class PrintingOutputFormatTest {
     }
 
     @Test
-    void testPrintOutputFormatWithPrefix() {
+    void testPrintOutputFormatWithPrefix() throws Exception {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>();
-        printSink.open(1, 2);
+        printSink.open(FirstAttemptInitializationContext.of(1, 2));
 
         printSink.writeRecord("hello world!");
 
@@ -92,9 +94,9 @@ class PrintingOutputFormatTest {
     }
 
     @Test
-    void testPrintOutputFormatWithIdentifierAndPrefix() {
+    void testPrintOutputFormatWithIdentifierAndPrefix() throws Exception {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>("mySink", false);
-        printSink.open(1, 2);
+        printSink.open(FirstAttemptInitializationContext.of(1, 2));
 
         printSink.writeRecord("hello world!");
 
@@ -104,9 +106,9 @@ class PrintingOutputFormatTest {
     }
 
     @Test
-    void testPrintOutputFormatWithIdentifierButNoPrefix() {
+    void testPrintOutputFormatWithIdentifierButNoPrefix() throws Exception {
         PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>("mySink", false);
-        printSink.open(0, 1);
+        printSink.open(FirstAttemptInitializationContext.of(0, 1));
 
         printSink.writeRecord("hello world!");
 

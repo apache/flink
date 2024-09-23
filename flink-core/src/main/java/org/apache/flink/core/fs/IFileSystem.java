@@ -356,14 +356,6 @@ public interface IFileSystem {
     boolean isDistributedFS();
 
     /**
-     * Gets a description of the characteristics of this file system.
-     *
-     * @deprecated this method is not used anymore.
-     */
-    @Deprecated
-    FileSystemKind getKind();
-
-    /**
      * Initializes output directories on local file systems according to the given write mode.
      *
      * <ul>

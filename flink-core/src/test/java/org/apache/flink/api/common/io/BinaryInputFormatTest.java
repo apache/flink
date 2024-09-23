@@ -49,11 +49,6 @@ class BinaryInputFormatTest {
         protected Record deserialize(Record record, DataInputView dataInput) {
             return record;
         }
-
-        @Override
-        public boolean supportsMultiPaths() {
-            return true;
-        }
     }
 
     @Test
