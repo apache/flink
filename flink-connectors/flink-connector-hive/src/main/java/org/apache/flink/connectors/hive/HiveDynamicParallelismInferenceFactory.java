@@ -42,17 +42,11 @@ class HiveDynamicParallelismInferenceFactory implements HiveParallelismInference
 
     @Override
     public HiveParallelismInference create() {
-        boolean inferEnabled =
-                jobConf.getBoolean(
-                        HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM.key(),
-                        HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM.defaultValue());
         HiveOptions.InferMode inferMode =
                 jobConf.getEnum(
                         HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE.key(),
                         HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE.defaultValue());
-        // This logic should be fixed if config option `table.exec.hive.infer-source-parallelism`
-        // is removed.
-        boolean infer = inferEnabled && inferMode == HiveOptions.InferMode.DYNAMIC;
+        boolean infer = inferMode == HiveOptions.InferMode.DYNAMIC;
         int inferMaxParallelism =
                 Math.min(
                         (int)

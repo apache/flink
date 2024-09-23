@@ -114,23 +114,6 @@ public class HiveDynamicTableFactoryTest {
         hiveTableSource3.catalogTable.getOptions().forEach(configuration1::setString);
         PartitionOrder partitionOrder1 = configuration1.get(STREAMING_SOURCE_PARTITION_ORDER);
         assertThat(partitionOrder1).isEqualTo(HiveOptions.PartitionOrder.PARTITION_NAME);
-
-        // test deprecated option key 'streaming-source.consume-order' and new key
-        // 'streaming-source.partition-order'
-        tableEnv.executeSql(
-                String.format(
-                        "create table table4 (x int, y string, z int) partitioned by ("
-                                + " pt_year int, pt_mon string, pt_day string)"
-                                + " tblproperties ('%s' = 'true', '%s' = 'partition-time')",
-                        STREAMING_SOURCE_ENABLE.key(), "streaming-source.consume-order"));
-        DynamicTableSource tableSource4 = getTableSource("table4");
-        assertThat(tableSource4).isInstanceOf(HiveTableSource.class);
-        HiveTableSource hiveTableSource = (HiveTableSource) tableSource4;
-
-        Configuration configuration2 = new Configuration();
-        hiveTableSource.catalogTable.getOptions().forEach(configuration2::setString);
-        PartitionOrder partitionOrder2 = configuration2.get(STREAMING_SOURCE_PARTITION_ORDER);
-        assertThat(partitionOrder2).isEqualTo(HiveOptions.PartitionOrder.PARTITION_TIME);
     }
 
     @Test

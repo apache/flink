@@ -108,7 +108,7 @@ public class PartitionMonitorTest {
         Configuration configuration = new Configuration();
 
         ObjectPath tablePath = new ObjectPath("testDb", "testTable");
-        configuration.setString("streaming-source.consume-order", "create-time");
+        configuration.setString("streaming-source.partition-order", "create-time");
 
         HiveContinuousPartitionContext<Partition, Long> fetcherContext =
                 new HiveContinuousPartitionContext<Partition, Long>() {
