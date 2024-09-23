@@ -62,7 +62,7 @@ class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 
         configuration = configuration == null ? new Configuration() : configuration;
         outputFormat.configure(configuration);
-        outputFormat.open(0, 1);
+        outputFormat.open(FirstAttemptInitializationContext.of(0, 1));
         return outputFormat;
     }
 

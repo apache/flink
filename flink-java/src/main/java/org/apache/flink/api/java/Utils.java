@@ -88,7 +88,7 @@ public final class Utils {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int taskNumber, int numTasks) {}
+        public void open(InitializationContext context) {}
 
         @Override
         public void writeRecord(T record) {
@@ -125,7 +125,7 @@ public final class Utils {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int taskNumber, int numTasks) {
+        public void open(InitializationContext context) {
             this.accumulator = new SerializedListAccumulator<>();
         }
 
@@ -241,7 +241,7 @@ public final class Utils {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int taskNumber, int numTasks) {}
+        public void open(InitializationContext context) {}
 
         @Override
         public void writeRecord(T record) throws IOException {

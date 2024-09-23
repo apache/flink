@@ -453,32 +453,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     /**
-     * This method is deprecated. It was used to set the {@link InputDependencyConstraint} utilized
-     * by the old scheduler implementations which got removed as part of FLINK-20589. The current
-     * implementation has no effect.
-     *
-     * @param ignored Ignored parameter.
-     * @deprecated due to the deprecation of {@code InputDependencyConstraint}.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void setDefaultInputDependencyConstraint(InputDependencyConstraint ignored) {}
-
-    /**
-     * This method is deprecated. It was used to return the {@link InputDependencyConstraint}
-     * utilized by the old scheduler implementations. These implementations were removed as part of
-     * FLINK-20589.
-     *
-     * @return The previous default constraint {@link InputDependencyConstraint#ANY}.
-     * @deprecated due to the deprecation of {@code InputDependencyConstraint}.
-     */
-    @PublicEvolving
-    @Deprecated
-    public InputDependencyConstraint getDefaultInputDependencyConstraint() {
-        return InputDependencyConstraint.ANY;
-    }
-
-    /**
      * Force TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO. In
      * some cases this might be preferable. For example, when using interfaces with subclasses that
      * cannot be analyzed as POJO.
@@ -908,22 +882,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return !configuration.get(PipelineOptions.AUTO_TYPE_REGISTRATION);
     }
 
-    /**
-     * Control whether Flink is automatically registering all types in the user programs with Kryo.
-     *
-     * @deprecated The method is deprecated because it's only used in DataSet API. All Flink DataSet
-     *     APIs are deprecated since Flink 1.18 and will be removed in a future Flink major version.
-     *     You can still build your application in DataSet, but you should move to either the
-     *     DataStream and/or Table API.
-     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
-     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
-     *     API</a>
-     */
-    @Deprecated
-    public void disableAutoTypeRegistration() {
-        setAutoTypeRegistration(false);
-    }
-
     private void setAutoTypeRegistration(Boolean autoTypeRegistration) {
         configuration.set(PipelineOptions.AUTO_TYPE_REGISTRATION, autoTypeRegistration);
     }
@@ -998,16 +956,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + ", serializerConfig="
                 + serializerConfig
                 + '}';
-    }
-
-    /**
-     * This method simply checks whether the object is an {@link ExecutionConfig} instance.
-     *
-     * @deprecated It is not intended to be used by users.
-     */
-    @Deprecated
-    public boolean canEqual(Object obj) {
-        return obj instanceof ExecutionConfig;
     }
 
     @Override

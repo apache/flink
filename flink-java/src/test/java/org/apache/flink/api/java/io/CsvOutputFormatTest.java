@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -55,7 +56,7 @@ class CsvOutputFormatTest {
             csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
             csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
             csvOutputFormat.setAllowNullValues(true);
-            csvOutputFormat.open(0, 1);
+            csvOutputFormat.open(FirstAttemptInitializationContext.of(0, 1));
             csvOutputFormat.writeRecord(new Tuple3<>("One", null, 8));
         } finally {
             csvOutputFormat.close();
@@ -75,7 +76,7 @@ class CsvOutputFormatTest {
         try {
             csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
             csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
-            csvOutputFormat.open(0, 1);
+            csvOutputFormat.open(FirstAttemptInitializationContext.of(0, 1));
             try {
                 csvOutputFormat.writeRecord(new Tuple3<>("One", null, 8));
                 fail("should fail with an exception");

@@ -196,14 +196,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     //  The configuration parameters. Configured on the instance and serialized to be shipped.
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * The path to the file that contains the input.
-     *
-     * @deprecated Please override {@link FileInputFormat#supportsMultiPaths()} and use {@link
-     *     FileInputFormat#getFilePaths()} and {@link FileInputFormat#setFilePaths(Path...)}.
-     */
-    @Deprecated protected Path filePath;
-
     /** The list of paths to files and directories that contain the input. */
     private Path[] filePaths;
 
@@ -247,44 +239,15 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     // --------------------------------------------------------------------------------------------
 
     /**
-     * @return The path of the file to read.
-     * @deprecated Please use getFilePaths() instead.
-     */
-    @Deprecated
-    public Path getFilePath() {
-
-        if (supportsMultiPaths()) {
-            if (this.filePaths == null || this.filePaths.length == 0) {
-                return null;
-            } else if (this.filePaths.length == 1) {
-                return this.filePaths[0];
-            } else {
-                throw new UnsupportedOperationException(
-                        "FileInputFormat is configured with multiple paths. Use getFilePaths() instead.");
-            }
-        } else {
-            return filePath;
-        }
-    }
-
-    /**
      * Returns the paths of all files to be read by the FileInputFormat.
      *
      * @return The list of all paths to read.
      */
     public Path[] getFilePaths() {
-
-        if (supportsMultiPaths()) {
-            if (this.filePaths == null) {
-                return new Path[0];
-            }
-            return this.filePaths;
-        } else {
-            if (this.filePath == null) {
-                return new Path[0];
-            }
-            return new Path[] {filePath};
+        if (this.filePaths == null) {
+            return new Path[0];
         }
+        return this.filePaths;
     }
 
     public void setFilePath(String filePath) {
@@ -344,21 +307,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
      * @param filePaths The paths of the files to read.
      */
     public void setFilePaths(Path... filePaths) {
-        if (!supportsMultiPaths() && filePaths.length > 1) {
-            throw new UnsupportedOperationException(
-                    "Multiple paths are not supported by this FileInputFormat.");
-        }
         if (filePaths.length < 1) {
             throw new IllegalArgumentException("At least one file path must be specified.");
         }
-        if (filePaths.length == 1) {
-            // set for backwards compatibility
-            this.filePath = filePaths[0];
-        } else {
-            // clear file path in case it had been set before
-            this.filePath = null;
-        }
-
         this.filePaths = filePaths;
     }
 
@@ -915,18 +866,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
             this.stream.close();
             stream = null;
         }
-    }
-
-    /**
-     * Override this method to supports multiple paths. When this method will be removed, all
-     * FileInputFormats have to support multiple paths.
-     *
-     * @return True if the FileInputFormat supports multiple paths, false otherwise.
-     * @deprecated Will be removed for Flink 2.0.
-     */
-    @Deprecated
-    public boolean supportsMultiPaths() {
-        return false;
     }
 
     public String toString() {

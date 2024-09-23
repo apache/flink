@@ -161,7 +161,7 @@ public class ContinuousFileProcessingTest {
 
         } catch (FileNotFoundException e) {
             Assert.assertEquals(
-                    "The provided file path " + format.getFilePath() + " does not exist.",
+                    "The provided file path " + format.getFilePaths()[0] + " does not exist.",
                     e.getMessage());
         }
     }

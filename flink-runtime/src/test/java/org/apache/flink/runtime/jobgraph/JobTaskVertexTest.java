@@ -229,7 +229,7 @@ class JobTaskVertexTest {
         public void configure(Configuration parameters) {}
 
         @Override
-        public void open(int taskNumber, int numTasks) throws IOException {}
+        public void open(InitializationContext context) throws IOException {}
 
         @Override
         public void writeRecord(Object record) throws IOException {}
@@ -322,7 +322,7 @@ class JobTaskVertexTest {
         }
 
         @Override
-        public void finalizeGlobal(int parallelism) throws IOException {
+        public void finalizeGlobal(FinalizationContext context) throws IOException {
             if (!isConfigured) {
                 throw new IllegalStateException(
                         "OutputFormat was not configured before finalizeGlobal was called.");

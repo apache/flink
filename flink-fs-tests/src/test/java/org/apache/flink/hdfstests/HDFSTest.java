@@ -20,6 +20,7 @@ package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -172,11 +173,11 @@ public class HDFSTest {
         outputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
 
         try {
-            outputFormat.open(0, 2);
+            outputFormat.open(FirstAttemptInitializationContext.of(0, 2));
             outputFormat.writeRecord(type);
             outputFormat.close();
 
-            outputFormat.open(1, 2);
+            outputFormat.open(FirstAttemptInitializationContext.of(1, 2));
             outputFormat.writeRecord(type);
             outputFormat.close();
 

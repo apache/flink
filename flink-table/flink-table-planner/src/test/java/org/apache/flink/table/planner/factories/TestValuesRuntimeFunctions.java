@@ -691,12 +691,12 @@ final class TestValuesRuntimeFunctions {
         }
 
         @Override
-        public void open(int taskNumber, int numTasks) throws IOException {
+        public void open(InitializationContext context) throws IOException {
             this.localRawResult = new ArrayList<>();
             synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
-                        .put(taskNumber, localRawResult);
+                        .put(context.getTaskNumber(), localRawResult);
             }
         }
 

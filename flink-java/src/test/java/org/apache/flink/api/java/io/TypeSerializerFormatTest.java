@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.api.common.io.BinaryInputFormat;
 import org.apache.flink.api.common.io.BinaryOutputFormat;
 import org.apache.flink.api.common.io.BlockInfo;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.common.io.SequentialFormatTestBase;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -84,7 +85,7 @@ class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, 
         configuration = configuration == null ? new Configuration() : configuration;
 
         outputFormat.configure(configuration);
-        outputFormat.open(0, 1);
+        outputFormat.open(FirstAttemptInitializationContext.of(0, 1));
 
         return outputFormat;
     }

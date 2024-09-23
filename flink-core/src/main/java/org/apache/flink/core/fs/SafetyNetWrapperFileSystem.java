@@ -167,11 +167,6 @@ public class SafetyNetWrapperFileSystem extends FileSystem
     }
 
     @Override
-    public FileSystemKind getKind() {
-        return unsafeFileSystem.getKind();
-    }
-
-    @Override
     public FileSystem getWrappedDelegate() {
         return unsafeFileSystem;
     }

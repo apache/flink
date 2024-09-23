@@ -203,14 +203,6 @@ public class HadoopFileSystem extends FileSystem {
     }
 
     @Override
-    public FileSystemKind getKind() {
-        if (fsKind == null) {
-            fsKind = getKindForScheme(this.fs.getUri().getScheme());
-        }
-        return fsKind;
-    }
-
-    @Override
     public RecoverableWriter createRecoverableWriter() throws IOException {
         // This writer is only supported on a subset of file systems, and on
         // specific versions. We check these schemes and versions eagerly for better error

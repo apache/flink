@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -105,61 +106,6 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
      */
     public void setInput(Operator<IN> input) {
         this.input = checkNotNull(input, "The input may not be null.");
-    }
-
-    /**
-     * Sets the input to the union of the given operators.
-     *
-     * @param inputs The operator(s) that form the input.
-     * @deprecated This method will be removed in future versions. Use the {@link
-     *     org.apache.flink.api.common.operators.Union} operator instead.
-     */
-    @Deprecated
-    public void setInputs(Operator<IN>... inputs) {
-        checkNotNull(inputs, "The inputs may not be null.");
-        this.input = Operator.createUnionCascade(inputs);
-    }
-
-    /**
-     * Sets the input to the union of the given operators.
-     *
-     * @param inputs The operator(s) that form the input.
-     * @deprecated This method will be removed in future versions. Use the {@link
-     *     org.apache.flink.api.common.operators.Union} operator instead.
-     */
-    @Deprecated
-    public void setInputs(List<Operator<IN>> inputs) {
-        checkNotNull(inputs, "The inputs may not be null.");
-        this.input = Operator.createUnionCascade(inputs);
-    }
-
-    /**
-     * Adds to the input the union of the given operators.
-     *
-     * @param inputs The operator(s) to be unioned with the input.
-     * @deprecated This method will be removed in future versions. Use the {@link
-     *     org.apache.flink.api.common.operators.Union} operator instead.
-     */
-    @Deprecated
-    public void addInput(Operator<IN>... inputs) {
-        checkNotNull(inputs, "The input may not be null.");
-        this.input = Operator.createUnionCascade(this.input, inputs);
-    }
-
-    /**
-     * Adds to the input the union of the given operators.
-     *
-     * @param inputs The operator(s) to be unioned with the input.
-     * @deprecated This method will be removed in future versions. Use the {@link
-     *     org.apache.flink.api.common.operators.Union} operator instead.
-     */
-    @SuppressWarnings("unchecked")
-    @Deprecated
-    public void addInputs(List<? extends Operator<IN>> inputs) {
-        checkNotNull(inputs, "The inputs may not be null.");
-        this.input =
-                createUnionCascade(
-                        this.input, (Operator<IN>[]) inputs.toArray(new Operator[inputs.size()]));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -276,7 +222,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
         if (format instanceof RichOutputFormat) {
             ((RichOutputFormat<?>) format).setRuntimeContext(ctx);
         }
-        format.open(0, 1);
+        format.open(FirstAttemptInitializationContext.of(0, 1));
         for (IN element : inputData) {
             format.writeRecord(element);
         }
@@ -284,7 +230,19 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
         format.close();
 
         if (format instanceof FinalizeOnMaster) {
-            ((FinalizeOnMaster) format).finalizeGlobal(1);
+            ((FinalizeOnMaster) format)
+                    .finalizeGlobal(
+                            new FinalizeOnMaster.FinalizationContext() {
+                                @Override
+                                public int getParallelism() {
+                                    return 1;
+                                }
+
+                                @Override
+                                public int getFinishedAttempt(int subtaskIndex) {
+                                    return 0;
+                                }
+                            });
         }
     }
 

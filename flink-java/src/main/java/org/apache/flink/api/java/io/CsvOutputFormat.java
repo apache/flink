@@ -163,8 +163,8 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T>
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
-        super.open(taskNumber, numTasks);
+    public void open(InitializationContext context) throws IOException {
+        super.open(context);
         this.wrt =
                 this.charsetName == null
                         ? new OutputStreamWriter(new BufferedOutputStream(this.stream, 4096))

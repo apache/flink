@@ -76,8 +76,8 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int taskNumber, int numTasks) {
-        writer.open(taskNumber, numTasks);
+    public void open(InitializationContext context) {
+        writer.open(context.getTaskNumber(), context.getNumTasks());
     }
 
     @Override

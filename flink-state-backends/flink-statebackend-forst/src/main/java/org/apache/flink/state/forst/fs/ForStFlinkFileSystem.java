@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
@@ -311,11 +310,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public boolean isDistributedFS() {
         return delegateFS.isDistributedFS();
-    }
-
-    @Override
-    public FileSystemKind getKind() {
-        return delegateFS.getKind();
     }
 
     private Tuple2<Boolean, Path> tryBuildLocalPath(Path path) {

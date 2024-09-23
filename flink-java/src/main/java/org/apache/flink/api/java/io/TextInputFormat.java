@@ -106,9 +106,4 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
     public String toString() {
         return "TextInputFormat (" + Arrays.toString(getFilePaths()) + ") - " + this.charsetName;
     }
-
-    @Override
-    public boolean supportsMultiPaths() {
-        return true;
-    }
 }

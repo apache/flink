@@ -532,14 +532,6 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isAutoTypeRegistrationDisabled()
 
-    def disable_auto_type_registration(self) -> 'ExecutionConfig':
-        """
-        Control whether Flink is automatically registering all types in the user programs with
-        Kryo.
-        """
-        self._j_execution_config.disableAutoTypeRegistration()
-        return self
-
     def is_use_snapshot_compression(self) -> bool:
         """
         Returns whether he compression (snappy) for keyed state in full checkpoints and savepoints

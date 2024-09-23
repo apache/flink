@@ -20,6 +20,7 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.api.common.eventtime.WatermarksWithIdleness.IdlenessTimer;
 import org.apache.flink.util.clock.ManualClock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +38,9 @@ class WatermarksWithIdlenessTest {
         assertThatThrownBy(
                         () ->
                                 new WatermarksWithIdleness<>(
-                                        new AscendingTimestampsWatermarks<>(), Duration.ZERO))
+                                        new AscendingTimestampsWatermarks<>(),
+                                        Duration.ZERO,
+                                        SystemClock.getInstance()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -47,7 +50,8 @@ class WatermarksWithIdlenessTest {
                         () ->
                                 new WatermarksWithIdleness<>(
                                         new AscendingTimestampsWatermarks<>(),
-                                        Duration.ofMillis(-1L)))
+                                        Duration.ofMillis(-1L),
+                                        SystemClock.getInstance()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

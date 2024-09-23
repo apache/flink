@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -284,12 +283,6 @@ class LocalFileSystemTest {
         assertThat(dstFile.delete()).isTrue();
         assertThat(fs.rename(new Path(srcFolder.toURI()), new Path(dstFolder.toURI()))).isTrue();
         assertThat(new File(dstFolder, srcFile.getName())).exists();
-    }
-
-    @Test
-    void testKind() {
-        final FileSystem fs = FileSystem.getLocalFileSystem();
-        assertThat(fs.getKind()).isEqualTo(FileSystemKind.FILE_SYSTEM);
     }
 
     @Test

@@ -82,12 +82,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
      */
     private static int MAX_SAMPLE_LEN;
 
-    /** @deprecated Please use {@code loadConfigParameters(Configuration config} */
-    @Deprecated
-    protected static void loadGlobalConfigParams() {
-        loadConfigParameters(GlobalConfiguration.loadConfiguration());
-    }
-
     protected static void loadConfigParameters(Configuration parameters) {
         int maxSamples = parameters.get(OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES);
         int minSamples = parameters.get(OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES);

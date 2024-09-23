@@ -42,7 +42,7 @@ public class DiscardingOutputFormat<T> implements OutputFormat<T> {
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int taskNumber, int numTasks) {}
+    public void open(InitializationContext context) {}
 
     @Override
     public void writeRecord(T record) {}

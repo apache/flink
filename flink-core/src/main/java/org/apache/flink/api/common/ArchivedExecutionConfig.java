@@ -33,8 +33,6 @@ import java.util.Map;
 public class ArchivedExecutionConfig implements Serializable {
 
     private static final long serialVersionUID = 2907040336948181163L;
-
-    private final String executionMode;
     private final String restartStrategyDescription;
     private final int parallelism;
     private final int maxParallelism;
@@ -43,7 +41,6 @@ public class ArchivedExecutionConfig implements Serializable {
     private final Map<String, String> globalJobParameters;
 
     public ArchivedExecutionConfig(ExecutionConfig ec) {
-        executionMode = ec.getExecutionMode().name();
         restartStrategyDescription =
                 RestartStrategyDescriptionUtils.getRestartStrategyDescription(ec.toConfiguration());
 
@@ -59,24 +56,18 @@ public class ArchivedExecutionConfig implements Serializable {
     }
 
     public ArchivedExecutionConfig(
-            String executionMode,
             String restartStrategyDescription,
             int maxParallelism,
             int parallelism,
             boolean objectReuseEnabled,
             long periodicMaterializeIntervalMillis,
             Map<String, String> globalJobParameters) {
-        this.executionMode = executionMode;
         this.restartStrategyDescription = restartStrategyDescription;
         this.maxParallelism = maxParallelism;
         this.parallelism = parallelism;
         this.objectReuseEnabled = objectReuseEnabled;
         this.periodicMaterializeIntervalMillis = periodicMaterializeIntervalMillis;
         this.globalJobParameters = globalJobParameters;
-    }
-
-    public String getExecutionMode() {
-        return executionMode;
     }
 
     public String getRestartStrategyDescription() {

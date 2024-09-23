@@ -429,7 +429,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void configure(Configuration parameters) {}
 
             @Override
-            public void open(int taskNumber, int numTasks) throws IOException {
+            public void open(InitializationContext context) throws IOException {
                 this.stream = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
                 this.writer = factory.create(stream);
             }
@@ -460,7 +460,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void configure(Configuration parameters) {}
 
             @Override
-            public void open(int taskNumber, int numTasks) throws IOException {
+            public void open(InitializationContext context) throws IOException {
                 this.output = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
             }
 
