@@ -158,7 +158,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
@@ -412,7 +411,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(
@@ -470,7 +469,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(
@@ -695,7 +694,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(
@@ -784,7 +783,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -805,7 +804,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
@@ -834,7 +833,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(
@@ -929,7 +928,7 @@ public class AdaptiveSchedulerTest {
     void testJobStatusListenerNotifiedOfJobStatusChanges() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(
@@ -1074,7 +1073,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = streamingJobGraph(vertex);
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -1142,7 +1141,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1177,7 +1176,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1203,7 +1202,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1239,7 +1238,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
         int scaledUpParallelism = PARALLELISM * 10;
@@ -1304,7 +1303,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final int availableSlots = 1;
         JobResourceRequirements initialJobResourceRequirements =
@@ -1343,7 +1342,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final int availableSlots = 1;
         JobResourceRequirements initialJobResourceRequirements =
@@ -2068,7 +2067,8 @@ public class AdaptiveSchedulerTest {
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
         final DeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID(), slotIdleTimeout);
+                createDeclarativeSlotPool(
+                        jobGraph.getJobID(), singleThreadMainThreadExecutor, slotIdleTimeout);
         scheduler =
                 new AdaptiveSchedulerBuilder(
                                 jobGraph,
@@ -2505,12 +2505,13 @@ public class AdaptiveSchedulerTest {
                                                 executionAttemptId, ExecutionState.CANCELED)));
     }
 
-    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(JobID jobId) {
-        return createDeclarativeSlotPool(jobId, DEFAULT_TIMEOUT);
+    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
+            JobID jobId, ComponentMainThreadExecutor mainThreadExecutor) {
+        return createDeclarativeSlotPool(jobId, mainThreadExecutor, DEFAULT_TIMEOUT);
     }
 
     private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
-            JobID jobId, Duration idleSlotTimeout) {
+            JobID jobId, ComponentMainThreadExecutor mainThreadExecutor, Duration idleSlotTimeout) {
         return new DefaultDeclarativeSlotPool(
                 jobId,
                 new DefaultAllocatedSlotPool(),
@@ -2518,7 +2519,7 @@ public class AdaptiveSchedulerTest {
                 idleSlotTimeout,
                 DEFAULT_TIMEOUT,
                 Duration.ZERO,
-                forMainThread());
+                mainThreadExecutor);
     }
 
     /**
@@ -2747,7 +2748,7 @@ public class AdaptiveSchedulerTest {
                             completedCheckpointStore, checkpointIDCounter);
 
             final DefaultDeclarativeSlotPool declarativeSlotPool =
-                    createDeclarativeSlotPool(jobGraph.getJobID());
+                    createDeclarativeSlotPool(jobGraph.getJobID(), mainThreadExecutor);
 
             final Configuration configuration = new Configuration();
             configuration.set(
