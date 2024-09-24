@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDeduplicate, StreamPhysicalRank}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank
 import org.apache.flink.table.planner.plan.utils.{RankProcessStrategy, RankUtil}
 
 import org.apache.calcite.plan.RelOptRule
@@ -28,10 +28,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
 
-/**
- * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]]. NOTES: the rank can
- * not be converted to [[StreamPhysicalDeduplicate]].
- */
+/** Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]]. */
 class StreamPhysicalRankRule(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
