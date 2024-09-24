@@ -17,7 +17,6 @@
 
 package org.apache.flink.connector.base.sink;
 
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
@@ -56,11 +55,6 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
                 maxRecordSizeInBytes);
-    }
-
-    @Override
-    public SinkWriter<String> createWriter(InitContext context) throws IOException {
-        return null;
     }
 
     @Override

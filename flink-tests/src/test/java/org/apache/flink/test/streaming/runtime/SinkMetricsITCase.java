@@ -20,6 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.metrics.Metric;
@@ -185,7 +186,7 @@ public class SinkMetricsITCase extends TestLogger {
         private long sendTime;
 
         @Override
-        public void init(Sink.InitContext context) {
+        public void init(WriterInitContext context) {
             this.metricGroup = context.metricGroup();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }

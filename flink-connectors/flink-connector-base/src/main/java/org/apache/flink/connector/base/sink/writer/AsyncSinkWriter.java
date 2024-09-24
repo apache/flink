@@ -20,7 +20,6 @@ package org.apache.flink.connector.base.sink.writer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
@@ -216,7 +215,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.InitContext context,
+            WriterInitContext context,
             AsyncSinkWriterConfiguration configuration,
             Collection<BufferedRequestState<RequestEntryT>> states) {
         this.elementConverter = elementConverter;
@@ -265,14 +264,6 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         elementConverter.open(context);
         initializeState(states);
-    }
-
-    public AsyncSinkWriter(
-            ElementConverter<InputT, RequestEntryT> elementConverter,
-            WriterInitContext context,
-            AsyncSinkWriterConfiguration configuration,
-            Collection<BufferedRequestState<RequestEntryT>> states) {
-        this(elementConverter, new Sink.InitContextWrapper(context), configuration, states);
     }
 
     private void registerCallback() {

@@ -18,7 +18,6 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
@@ -1044,7 +1043,7 @@ public class AsyncSinkWriterTest {
 
         private AsyncSinkWriterImpl(
                 ElementConverter<String, Integer> elementConverter,
-                Sink.InitContext context,
+                WriterInitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests,
                 int maxBufferedRequests,
@@ -1182,7 +1181,7 @@ public class AsyncSinkWriterTest {
                 (elem, ctx) -> Integer.parseInt(elem);
         private boolean simulateFailures = false;
         private int delay = 0;
-        private Sink.InitContext context;
+        private WriterInitContext context;
         private int maxBatchSize = 10;
         private int maxInFlightRequests = 1;
         private int maxBufferedRequests = 100;
@@ -1196,13 +1195,8 @@ public class AsyncSinkWriterTest {
             return this;
         }
 
-        private AsyncSinkWriterImplBuilder context(Sink.InitContext context) {
-            this.context = context;
-            return this;
-        }
-
         private AsyncSinkWriterImplBuilder context(WriterInitContext context) {
-            this.context = new Sink.InitContextWrapper(context);
+            this.context = context;
             return this;
         }
 
@@ -1290,20 +1284,6 @@ public class AsyncSinkWriterTest {
 
         public AsyncSinkReleaseAndBlockWriterImpl(
                 WriterInitContext context,
-                int maxInFlightRequests,
-                CountDownLatch blockedThreadLatch,
-                CountDownLatch delayedStartLatch,
-                boolean blockForLimitedTime) {
-            this(
-                    new Sink.InitContextWrapper(context),
-                    maxInFlightRequests,
-                    blockedThreadLatch,
-                    delayedStartLatch,
-                    blockForLimitedTime);
-        }
-
-        public AsyncSinkReleaseAndBlockWriterImpl(
-                Sink.InitContext context,
                 int maxInFlightRequests,
                 CountDownLatch blockedThreadLatch,
                 CountDownLatch delayedStartLatch,

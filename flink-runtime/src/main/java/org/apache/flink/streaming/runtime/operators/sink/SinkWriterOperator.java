@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.SupportsWriterState;
@@ -268,11 +267,11 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         // Emit only committable summary if there are legacy committables
         if (!legacyCommittables.isEmpty()) {
-            checkState(checkpointId > InitContext.INITIAL_CHECKPOINT_ID);
+            checkState(checkpointId > WriterInitContext.INITIAL_CHECKPOINT_ID);
             emit(
                     indexOfThisSubtask,
                     numberOfParallelSubtasks,
-                    InitContext.INITIAL_CHECKPOINT_ID,
+                    WriterInitContext.INITIAL_CHECKPOINT_ID,
                     legacyCommittables);
             legacyCommittables.clear();
         }

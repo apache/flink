@@ -51,11 +51,6 @@ public class TestManagedSink
     }
 
     @Override
-    public SinkWriter<RowData> createWriter(InitContext context) throws IOException {
-        return new TestManagedSinkWriter();
-    }
-
-    @Override
     public SinkWriter<RowData> createWriter(WriterInitContext context) throws IOException {
         return new TestManagedSinkWriter();
     }

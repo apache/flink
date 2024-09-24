@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -144,11 +143,6 @@ public class FileSink<IN>
 
     private FileSink(BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder) {
         this.bucketsBuilder = checkNotNull(bucketsBuilder);
-    }
-
-    @Override
-    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
-        throw new UnsupportedOperationException("Not supported");
     }
 
     @Override

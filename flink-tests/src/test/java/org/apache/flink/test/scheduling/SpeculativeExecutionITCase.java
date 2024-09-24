@@ -31,7 +31,6 @@ import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -619,11 +618,6 @@ class SpeculativeExecutionITCase {
                     SupportsConcurrentExecutionAttempts {
 
         @Override
-        public SinkWriter<Long> createWriter(InitContext context) {
-            throw new UnsupportedOperationException("Not supported");
-        }
-
-        @Override
         public CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> createWriter(
                 WriterInitContext context) {
             return new DummyCommittingSinkWriter(
@@ -707,7 +701,7 @@ class SpeculativeExecutionITCase {
 
         @Override
         public CommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>> createWriter(
-                InitContext context) {
+                WriterInitContext context) {
             return new DummyPrecommittingSinkWriter(
                     context.getTaskInfo().getIndexOfThisSubtask(),
                     context.getTaskInfo().getAttemptNumber());

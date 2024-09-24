@@ -2263,11 +2263,6 @@ class StreamingJobGraphGeneratorTest {
                     SupportsPostCommitTopology<Void> {
 
         @Override
-        public SinkWriter<Integer> createWriter(InitContext context) throws IOException {
-            throw new UnsupportedOperationException("Not supported");
-        }
-
-        @Override
         public SinkWriter<Integer> createWriter(WriterInitContext context) throws IOException {
             return new CommittingSinkWriter<Integer, Void>() {
                 @Override
@@ -2355,12 +2350,6 @@ class StreamingJobGraphGeneratorTest {
                     SupportsCommitter<Long>,
                     SupportsPreCommitTopology<String, Long>,
                     SupportsPostCommitTopology<Long> {
-
-        @Override
-        @Deprecated
-        public SinkWriter<Integer> createWriter(InitContext context) throws IOException {
-            throw new UnsupportedOperationException("Not supported");
-        }
 
         @Override
         public CommittingSinkWriter<Integer, String> createWriter(WriterInitContext context)
