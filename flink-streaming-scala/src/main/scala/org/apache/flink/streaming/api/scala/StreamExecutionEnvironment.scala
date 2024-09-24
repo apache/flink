@@ -245,21 +245,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
     enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE)
   }
 
-  /**
-   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming operator
-   * states. Time interval between state checkpoints is specified in in millis.
-   *
-   * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling the [[setRestartStrategy]] method in case of failure the job
-   * will be resubmitted to the cluster indefinitely.
-   */
-  @deprecated
-  @PublicEvolving
-  def enableCheckpointing(): StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing()
-    this
-  }
-
   /** @deprecated Use [[getCheckpointingConsistencyMode()]] instead. */
   @deprecated
   def getCheckpointingMode = javaEnv.getCheckpointingMode()
