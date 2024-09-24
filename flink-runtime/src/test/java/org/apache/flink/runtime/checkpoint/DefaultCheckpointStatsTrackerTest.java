@@ -180,7 +180,7 @@ class DefaultCheckpointStatsTrackerTest {
                         null,
                         42);
         tracker.reportInitializationStarted(Collections.emptySet(), 123L);
-        tracker.reportRestoredCheckpoint(restored);
+        reportRestoredCheckpoint(tracker, restored);
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
 
@@ -340,7 +340,8 @@ class DefaultCheckpointStatsTrackerTest {
 
         // Restore operation => new snapshot
         tracker.reportInitializationStarted(Collections.emptySet(), 0);
-        tracker.reportRestoredCheckpoint(
+        reportRestoredCheckpoint(
+                tracker,
                 new RestoredCheckpointStats(
                         12,
                         CheckpointProperties.forCheckpoint(
@@ -410,7 +411,8 @@ class DefaultCheckpointStatsTrackerTest {
         final ExecutionAttemptID executionAttemptId2 = ExecutionAttemptID.randomId();
         tracker.reportInitializationStarted(
                 new HashSet<>(Arrays.asList(executionAttemptId3, executionAttemptId2)), 100);
-        tracker.reportRestoredCheckpoint(
+        reportRestoredCheckpoint(
+                tracker,
                 new RestoredCheckpointStats(
                         42,
                         CheckpointProperties.forCheckpoint(
@@ -454,7 +456,8 @@ class DefaultCheckpointStatsTrackerTest {
         final ExecutionAttemptID executionAttemptId = ExecutionAttemptID.randomId();
         tracker.reportInitializationStarted(
                 new HashSet<>(Arrays.asList(executionAttemptId1, executionAttemptId)), 100);
-        tracker.reportRestoredCheckpoint(
+        reportRestoredCheckpoint(
+                tracker,
                 new RestoredCheckpointStats(
                         44,
                         CheckpointProperties.forCheckpoint(
@@ -722,7 +725,7 @@ class DefaultCheckpointStatsTrackerTest {
                         null,
                         42);
         stats.reportInitializationStarted(Collections.emptySet(), restoreTimestamp);
-        stats.reportRestoredCheckpoint(restored);
+        reportRestoredCheckpoint(stats, restored);
 
         assertThat(numCheckpoints.getValue()).isEqualTo(2);
         assertThat(numInProgressCheckpoints.getValue()).isZero();
@@ -753,5 +756,14 @@ class DefaultCheckpointStatsTrackerTest {
 
     private SubtaskStateStats createSubtaskStats(int index) {
         return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
+    }
+
+    private void reportRestoredCheckpoint(
+            CheckpointStatsTracker tracker, RestoredCheckpointStats restored) {
+        tracker.reportRestoredCheckpoint(
+                restored.getCheckpointId(),
+                restored.getProperties(),
+                restored.getExternalPath(),
+                restored.getStateSize());
     }
 }

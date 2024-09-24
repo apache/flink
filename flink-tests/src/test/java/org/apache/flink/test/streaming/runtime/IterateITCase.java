@@ -631,7 +631,7 @@ public class IterateITCase extends AbstractTestBaseJUnit4 {
     }
 
     private void createIteration(StreamExecutionEnvironment env, int timeoutScale) {
-        env.enableCheckpointing();
+        env.enableCheckpointing(500L);
 
         DataStream<Boolean> source =
                 env.fromData(Collections.nCopies(parallelism * 2, false))

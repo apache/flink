@@ -560,27 +560,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     /**
-     * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
-     * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
-     * restarted from the latest completed checkpoint. This method selects {@link
-     * CheckpointingMode#EXACTLY_ONCE} guarantees.
-     *
-     * <p>The job draws checkpoints periodically, in the default interval. The state will be stored
-     * in the configured state backend.
-     *
-     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
-     *
-     * @deprecated Use {@link #enableCheckpointing(long)} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public StreamExecutionEnvironment enableCheckpointing() {
-        checkpointCfg.setCheckpointInterval(500);
-        return this;
-    }
-
-    /**
      * Returns the checkpointing interval or -1 if checkpointing is disabled.
      *
      * <p>Shorthand for {@code getCheckpointConfig().getCheckpointInterval()}.

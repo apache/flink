@@ -163,12 +163,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
-    public StreamExecutionEnvironment enableCheckpointing() {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
-    }
-
-    @Override
     public long getCheckpointInterval() {
         return realExecEnv.getCheckpointInterval();
     }
