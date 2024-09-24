@@ -147,10 +147,6 @@ package object scala {
 
         new Tuple2CaseClassSerializer[T1, T2](classOf[(T1, T2)], fieldSerializers)
       }
-
-      override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(T1, T2)] =
-        createSerializer(executionConfig.getSerializerConfig)
-
     }
 
   class Tuple2CaseClassSerializer[T1, T2](

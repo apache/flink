@@ -75,11 +75,6 @@ class EitherTypeInfo[A, B, T <: Either[A, B]](
     new EitherSerializer[A, B](leftSerializer, rightSerializer).asInstanceOf[TypeSerializer[T]]
   }
 
-  @PublicEvolving
-  @Deprecated
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = createSerializer(
-    executionConfig.getSerializerConfig)
-
   override def equals(obj: Any): Boolean = {
     obj match {
       case eitherTypeInfo: EitherTypeInfo[_, _, _] =>

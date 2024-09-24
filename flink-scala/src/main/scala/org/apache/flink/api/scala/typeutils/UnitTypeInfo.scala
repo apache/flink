@@ -51,10 +51,6 @@ class UnitTypeInfo extends TypeInformation[Unit] {
   override def createSerializer(config: SerializerConfig): TypeSerializer[Unit] =
     (new UnitSerializer).asInstanceOf[TypeSerializer[Unit]]
 
-  @PublicEvolving
-  override def createSerializer(config: ExecutionConfig): TypeSerializer[Unit] =
-    createSerializer(config.getSerializerConfig)
-
   override def canEqual(obj: scala.Any): Boolean = {
     obj.isInstanceOf[UnitTypeInfo]
   }

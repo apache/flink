@@ -52,10 +52,6 @@ class ScalaNothingTypeInfo extends TypeInformation[Nothing] {
   override def createSerializer(config: SerializerConfig): TypeSerializer[Nothing] =
     (new NothingSerializer).asInstanceOf[TypeSerializer[Nothing]]
 
-  @PublicEvolving
-  override def createSerializer(config: ExecutionConfig): TypeSerializer[Nothing] =
-    createSerializer(config.getSerializerConfig)
-
   override def hashCode(): Int = classOf[ScalaNothingTypeInfo].hashCode
 
   override def toString: String = "ScalaNothingTypeInfo"

@@ -177,10 +177,6 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
     // ------------------------------------------------------------------------
 
-    public KryoSerializer(Class<T> type, ExecutionConfig executionConfig) {
-        this(type, executionConfig.getSerializerConfig());
-    }
-
     public KryoSerializer(Class<T> type, SerializerConfig serializerConfig) {
         this.type = checkNotNull(type);
 
