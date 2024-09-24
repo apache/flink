@@ -120,7 +120,7 @@ class StreamPhysicalRank(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
 
     if (RankUtil.canConvertToDeduplicate(this)) {
-      val keepLastRow = RankUtil.keepLastRow(orderKey)
+      val keepLastRow = RankUtil.keepLastDeduplicateRow(orderKey)
 
       new StreamExecDeduplicate(
         unwrapTableConfig(this),

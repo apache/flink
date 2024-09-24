@@ -392,8 +392,10 @@ object RankUtil {
     isDeduplication(rank) && inputInsertOnly && sortOnTimeAttributeOnly
   }
 
-  /** Determines if the given order key indicates that the last row should be kept. */
-  def keepLastRow(orderKey: RelCollation): Boolean = {
+  /**
+   * Determines if the given order key indicates that the last row should be kept for deduplication.
+   */
+  def keepLastDeduplicateRow(orderKey: RelCollation): Boolean = {
     // order by timeIndicator desc ==> lastRow, otherwise is firstRow
     if (orderKey.getFieldCollations.size() != 1) {
       return false

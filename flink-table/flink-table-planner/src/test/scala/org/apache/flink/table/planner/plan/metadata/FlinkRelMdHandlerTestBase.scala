@@ -860,7 +860,7 @@ class FlinkRelMdHandlerTestBase {
       new RelDataTypeFieldImpl("rn", 7, longType),
       outputRankNumber = false,
       RankProcessStrategy.UNDEFINED_STRATEGY,
-      sortOnRowTime = false
+      sortOnRowTime = isRowtime
     )
 
     val builder = typeFactory.builder()
