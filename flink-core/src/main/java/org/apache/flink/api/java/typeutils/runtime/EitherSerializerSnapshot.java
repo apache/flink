@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -105,5 +106,13 @@ public final class EitherSerializerSnapshot<L, R> implements TypeSerializerSnaps
     @Nullable
     public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
         return nestedSnapshot == null ? null : nestedSnapshot.getNestedSerializerSnapshots();
+    }
+
+    @Override
+    public TypeSerializerSchemaCompatibility<Either<L, R>> resolveSchemaCompatibility(
+            TypeSerializerSnapshot<Either<L, R>> oldSerializerSnapshot) {
+        throw new UnsupportedOperationException(
+                "Unexpected call to EitherSerializerSnapshot#resolveSchemaCompatibility."
+                        + " JavaEitherSerializerSnapshot should be used instead.");
     }
 }
