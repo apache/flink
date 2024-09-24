@@ -150,14 +150,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         collectIterators.add(iterator);
     }
 
-    /**
-     * The default name to use for a streaming job if no other name has been specified.
-     *
-     * @deprecated This constant does not fit well to batch runtime mode.
-     */
-    @Deprecated
-    public static final String DEFAULT_JOB_NAME = StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
-
     /** The time characteristic that is used if none other is set. */
     private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
             TimeCharacteristic.EventTime;
