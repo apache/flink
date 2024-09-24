@@ -159,65 +159,6 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * asynchronous request to persist the {@code requestEntries}. NOTE: The client must support
      * asynchronous requests and the method called to persist the records must asynchronously
      * execute and return a future with the results of that request. A thread from the destination
-     * client thread pool should complete the request and submit the failed entries that should be
-     * retried. The {@code requestToRetry} will then trigger the mailbox thread to requeue the
-     * unsuccessful elements.
-     *
-     * <p>An example implementation of this method is included:
-     *
-     * <pre>{@code
-     * @Override
-     * protected void submitRequestEntries
-     *   (List<RequestEntryT> records, Consumer<Collection<RequestEntryT>> requestToRetry) {
-     *     Future<Response> response = destinationClient.putRecords(records);
-     *     response.whenComplete(
-     *         (response, error) -> {
-     *             if(error){
-     *                 List<RequestEntryT> retryableFailedRecords = getRetryableFailed(response);
-     *                 requestToRetry.accept(retryableFailedRecords);
-     *             }else{
-     *                 requestToRetry.accept(Collections.emptyList());
-     *             }
-     *         }
-     *     );
-     * }
-     *
-     * }</pre>
-     *
-     * <p>During checkpointing, the sink needs to ensure that there are no outstanding in-flight
-     * requests.
-     *
-     * <p>This method is {@deprecated} in favor of {@code submitRequestEntries(List<RequestEntryT>
-     * requestEntries, ResultHandler<RequestEntryT> resultHandler)}
-     *
-     * @param requestEntries a set of request entries that should be sent to the destination
-     * @param requestToRetry the {@code accept} method should be called on this Consumer once the
-     *     processing of the {@code requestEntries} are complete. Any entries that encountered
-     *     difficulties in persisting should be re-queued through {@code requestToRetry} by
-     *     including that element in the collection of {@code RequestEntryT}s passed to the {@code
-     *     accept} method. All other elements are assumed to have been successfully persisted.
-     */
-    @Deprecated
-    protected void submitRequestEntries(
-            List<RequestEntryT> requestEntries, Consumer<List<RequestEntryT>> requestToRetry) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated. Please override the method that accepts a ResultHandler.");
-    }
-
-    /**
-     * This method specifies how to persist buffered request entries into the destination. It is
-     * implemented when support for a new destination is added.
-     *
-     * <p>The method is invoked with a set of request entries according to the buffering hints (and
-     * the valid limits of the destination). The logic then needs to create and execute the request
-     * asynchronously against the destination (ideally by batching together multiple request entries
-     * to increase efficiency). The logic also needs to identify individual request entries that
-     * were not persisted successfully and resubmit them using the {@code requestToRetry} callback.
-     *
-     * <p>From a threading perspective, the mailbox thread will call this method and initiate the
-     * asynchronous request to persist the {@code requestEntries}. NOTE: The client must support
-     * asynchronous requests and the method called to persist the records must asynchronously
-     * execute and return a future with the results of that request. A thread from the destination
      * client thread pool should complete the request and trigger the {@code resultHandler} to
      * complete the processing of the request entries. The {@code resultHandler} actions will run on
      * the mailbox thread.
@@ -259,15 +200,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     protected void submitRequestEntries(
             List<RequestEntryT> requestEntries, ResultHandler<RequestEntryT> resultHandler) {
-        submitRequestEntries(
-                requestEntries,
-                requestsToRetry -> {
-                    if (requestsToRetry.isEmpty()) {
-                        resultHandler.complete();
-                    } else {
-                        resultHandler.retryForEntries(requestsToRetry);
-                    }
-                });
+        throw new UnsupportedOperationException("Please override the method.");
     }
 
     /**
@@ -281,8 +214,6 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     protected abstract long getSizeInBytes(RequestEntryT requestEntry);
 
-    /** Should be removed along {@link org.apache.flink.api.connector.sink2.StatefulSinkWriter}. */
-    @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
             Sink.InitContext context,

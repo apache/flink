@@ -28,11 +28,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
-import java.util.function.Consumer;
 
 /** Test class for rate limiting functionalities of {@link AsyncSinkWriter}. */
 public class AsyncSinkWriterThrottlingTest {
@@ -109,16 +107,16 @@ public class AsyncSinkWriterThrottlingTest {
 
         @Override
         protected void submitRequestEntries(
-                List<Long> requestEntries, Consumer<List<Long>> requestResult) {
+                List<Long> requestEntries, ResultHandler<Long> resultHandler) {
             long currentProcessingTime = timeService.getCurrentProcessingTime();
             inflightMessagesLimit = requestEntries.size();
 
             addRequestDataToQueue(requestEntries.size(), currentProcessingTime);
 
             if (sizeOfLast100ms > maxBatchSize && requestEntries.size() > 1) {
-                requestResult.accept(requestEntries);
+                resultHandler.retryForEntries(requestEntries);
             } else {
-                requestResult.accept(new ArrayList<>());
+                resultHandler.complete();
             }
         }
 
