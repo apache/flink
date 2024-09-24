@@ -49,8 +49,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
@@ -80,8 +78,6 @@ import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
-import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -670,52 +666,6 @@ public class DataStream<T> {
                         false);
         getExecutionEnvironment().addOperator(transformation);
         return new SingleOutputStreamOperator<>(getExecutionEnvironment(), transformation);
-    }
-
-    /**
-     * Assigns timestamps to the elements in the data stream and periodically creates watermarks to
-     * signal event time progress.
-     *
-     * <p>This method uses the deprecated watermark generator interfaces. Please switch to {@link
-     * #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the new interfaces instead. The new
-     * interfaces support watermark idleness and no longer need to differentiate between "periodic"
-     * and "punctuated" watermarks.
-     *
-     * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
-     */
-    @Deprecated
-    public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
-            AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner) {
-
-        final AssignerWithPeriodicWatermarks<T> cleanedAssigner =
-                clean(timestampAndWatermarkAssigner);
-        final WatermarkStrategy<T> wms =
-                new AssignerWithPeriodicWatermarksAdapter.Strategy<>(cleanedAssigner);
-
-        return assignTimestampsAndWatermarks(wms);
-    }
-
-    /**
-     * Assigns timestamps to the elements in the data stream and creates watermarks based on events,
-     * to signal event time progress.
-     *
-     * <p>This method uses the deprecated watermark generator interfaces. Please switch to {@link
-     * #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the new interfaces instead. The new
-     * interfaces support watermark idleness and no longer need to differentiate between "periodic"
-     * and "punctuated" watermarks.
-     *
-     * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
-     */
-    @Deprecated
-    public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
-            AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
-
-        final AssignerWithPunctuatedWatermarks<T> cleanedAssigner =
-                clean(timestampAndWatermarkAssigner);
-        final WatermarkStrategy<T> wms =
-                new AssignerWithPunctuatedWatermarksAdapter.Strategy<>(cleanedAssigner);
-
-        return assignTimestampsAndWatermarks(wms);
     }
 
     // ------------------------------------------------------------------------

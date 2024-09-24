@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,18 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions;
+package org.apache.flink.streaming.runtime.operators.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import javax.annotation.Nullable;
 
 /**
- * The {@code AssignerWithPeriodicWatermarks} assigns event time timestamps to elements, and
- * generates low watermarks that signal event time progress within the stream. These timestamps and
- * watermarks are used by functions and operators that operate on event time, for example event time
- * windows.
+ * The {@code WatermarkStrategyWithPeriodicWatermarks} assigns event time timestamps to elements,
+ * and generates low watermarks that signal event time progress within the stream. These timestamps
+ * and watermarks are used by functions and operators that operate on event time, for example event
+ * time windows.
  *
  * <p>Use this class to generate watermarks in a periodical interval. At most every {@code i}
  * milliseconds (configured via {@link ExecutionConfig#getAutoWatermarkInterval()}), the system will
@@ -46,8 +53,9 @@ import javax.annotation.Nullable;
  * @param <T> The type of the elements to which this assigner assigns timestamps.
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
-@Deprecated
-public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> {
+@Internal
+public interface WatermarkStrategyWithPeriodicWatermarks<T>
+        extends WatermarkStrategy<T>, TimestampAssigner<T> {
 
     /**
      * Returns the current watermark. This method is periodically called by the system to retrieve
@@ -70,4 +78,30 @@ public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 
      */
     @Nullable
     Watermark getCurrentWatermark();
+
+    @Override
+    default TimestampAssigner<T> createTimestampAssigner(
+            TimestampAssignerSupplier.Context context) {
+        return this;
+    }
+
+    @Override
+    default WatermarkGenerator<T> createWatermarkGenerator(
+            WatermarkGeneratorSupplier.Context context) {
+        return new WatermarkGenerator<T>() {
+            @Override
+            public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {}
+
+            @Override
+            public void onPeriodicEmit(WatermarkOutput output) {
+                final org.apache.flink.streaming.api.watermark.Watermark next =
+                        getCurrentWatermark();
+                if (next != null) {
+                    output.emitWatermark(
+                            new org.apache.flink.api.common.eventtime.Watermark(
+                                    next.getTimestamp()));
+                }
+            }
+        };
+    }
 }

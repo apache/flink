@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -429,8 +430,7 @@ public class DataStreamAllroundTestJobFactory {
                         SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue()));
     }
 
-    static BoundedOutOfOrdernessTimestampExtractor<Event> createTimestampExtractor(
-            ParameterTool pt) {
+    static WatermarkStrategy<Event> createWatermarkStrategy(ParameterTool pt) {
         return new BoundedOutOfOrdernessTimestampExtractor<Event>(
                 Duration.ofMillis(
                         pt.getLong(

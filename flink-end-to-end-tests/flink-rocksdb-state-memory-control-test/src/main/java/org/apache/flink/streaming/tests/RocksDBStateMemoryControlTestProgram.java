@@ -36,7 +36,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.ParameterTool;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createWatermarkStrategy;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.TIME_WINDOW_OPER;
@@ -61,7 +61,7 @@ public class RocksDBStateMemoryControlTestProgram {
                 env.addSource(DataStreamAllroundTestJobFactory.createEventSource(pt))
                         .name(EVENT_SOURCE.getName())
                         .uid(EVENT_SOURCE.getUid())
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(createWatermarkStrategy(pt))
                         .keyBy(Event::getKey);
 
         keyedStream
