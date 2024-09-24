@@ -477,20 +477,6 @@ class ExecutionConfig(object):
         self._j_execution_config.setGlobalJobParameters(j_global_job_parameters)
         return self
 
-    def get_registered_types_with_kryo_serializer_classes(self) -> Dict[str, str]:
-        """
-        Returns the registered types with their Kryo Serializer classes.
-
-        :return: The dict which the keys are full-qualified java class names of the registered
-                 types and the values are full-qualified java class names of the Kryo Serializer
-                 classes.
-        """
-        j_clz_map = self._j_execution_config.getRegisteredTypesWithKryoSerializerClasses()
-        registered_serializers = {}
-        for key in j_clz_map:
-            registered_serializers[key.getName()] = j_clz_map[key].getName()
-        return registered_serializers
-
     def get_default_kryo_serializer_classes(self) -> Dict[str, str]:
         """
         Returns the registered default Kryo Serializer classes.

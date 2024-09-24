@@ -42,7 +42,6 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
@@ -69,11 +68,9 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import com.esotericsoftware.kryo.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -280,85 +277,6 @@ public class ExecutionEnvironment {
      */
     public JobExecutionResult getLastJobExecutionResult() {
         return this.lastJobExecutionResult;
-    }
-
-    // --------------------------------------------------------------------------------------------
-    //  Registry for types and serializers
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * Adds a new Kryo default serializer to the Runtime.
-     *
-     * <p>Note that the serializer instance must be serializable (as defined by
-     * java.io.Serializable), because it may be distributed to the worker nodes by java
-     * serialization.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializer The serializer to use.
-     */
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
-        config.getSerializerConfig().addDefaultKryoSerializer(type, serializer);
-    }
-
-    /**
-     * Adds a new Kryo default serializer to the Runtime.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializerClass The class of the serializer to use.
-     */
-    public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.getSerializerConfig().addDefaultKryoSerializer(type, serializerClass);
-    }
-
-    /**
-     * Registers the given type with a Kryo Serializer.
-     *
-     * <p>Note that the serializer instance must be serializable (as defined by
-     * java.io.Serializable), because it may be distributed to the worker nodes by java
-     * serialization.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializer The serializer to use.
-     */
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
-        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializer);
-    }
-
-    /**
-     * Registers the given Serializer via its class as a serializer for the given type at the
-     * KryoSerializer.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializerClass The class of the serializer to use.
-     */
-    public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializerClass);
-    }
-
-    /**
-     * Registers the given type with the serialization stack. If the type is eventually serialized
-     * as a POJO, then the type is registered with the POJO serializer. If the type ends up being
-     * serialized with Kryo, then it will be registered at Kryo to make sure that only tags are
-     * written.
-     *
-     * @param type The class of the type to register.
-     */
-    public void registerType(Class<?> type) {
-        if (type == null) {
-            throw new NullPointerException("Cannot register null type class.");
-        }
-
-        TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
-
-        if (typeInfo instanceof PojoTypeInfo) {
-            config.getSerializerConfig().registerPojoType(type);
-        } else {
-            config.getSerializerConfig().registerKryoType(type);
-        }
     }
 
     /**

@@ -47,7 +47,6 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -110,11 +109,8 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import com.esotericsoftware.kryo.Serializer;
-
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -710,129 +706,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     public Path getDefaultSavepointDirectory() {
         String path = this.configuration.get(CheckpointingOptions.SAVEPOINT_DIRECTORY);
         return path == null ? null : new Path(path);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Registry for types and serializers
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * Adds a new Kryo default serializer to the Runtime.
-     *
-     * <p>Note that the serializer instance must be serializable (as defined by
-     * java.io.Serializable), because it may be distributed to the worker nodes by java
-     * serialization.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializer The serializer to use.
-     * @deprecated Register data types and serializers through hard codes is deprecated, because you
-     *     need to modify the codes when upgrading job version. Instance-type serializer definition
-     *     where serializers are serialized and written into the snapshot and deserialized for use
-     *     is deprecated as well. Use class-type serializer definition by {@link
-     *     PipelineOptions#SERIALIZATION_CONFIG} instead, where only the class name is written into
-     *     the snapshot and new instance of the serializer is created for use. This is a breaking
-     *     change, and it will be removed in Flink 2.0.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
-     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
-     */
-    @Deprecated
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
-        config.getSerializerConfig().addDefaultKryoSerializer(type, serializer);
-    }
-
-    /**
-     * Adds a new Kryo default serializer to the Runtime.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializerClass The class of the serializer to use.
-     * @deprecated Register data types and serializers through hard codes is deprecated, because you
-     *     need to modify the codes when upgrading job version. You should configure this by config
-     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
-     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
-     */
-    @Deprecated
-    public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.getSerializerConfig().addDefaultKryoSerializer(type, serializerClass);
-    }
-
-    /**
-     * Registers the given type with a Kryo Serializer.
-     *
-     * <p>Note that the serializer instance must be serializable (as defined by
-     * java.io.Serializable), because it may be distributed to the worker nodes by java
-     * serialization.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializer The serializer to use.
-     * @deprecated Register data types and serializers through hard codes is deprecated, because you
-     *     need to modify the codes when upgrading job version. Instance-type serializer definition
-     *     where serializers are serialized and written into the snapshot and deserialized for use
-     *     is deprecated as well. Use class-type serializer definition by {@link
-     *     PipelineOptions#SERIALIZATION_CONFIG} instead, where only the class name is written into
-     *     the snapshot and new instance of the serializer is created for use. This is a breaking
-     *     change, and it will be removed in Flink 2.0.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
-     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
-     */
-    @Deprecated
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
-        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializer);
-    }
-
-    /**
-     * Registers the given Serializer via its class as a serializer for the given type at the
-     * KryoSerializer.
-     *
-     * @param type The class of the types serialized with the given serializer.
-     * @param serializerClass The class of the serializer to use.
-     * @deprecated Register data types and serializers through hard codes is deprecated, because you
-     *     need to modify the codes when upgrading job version. You should configure this by config
-     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
-     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
-     */
-    @Deprecated
-    @SuppressWarnings("rawtypes")
-    public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer> serializerClass) {
-        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializerClass);
-    }
-
-    /**
-     * Registers the given type with the serialization stack. If the type is eventually serialized
-     * as a POJO, then the type is registered with the POJO serializer. If the type ends up being
-     * serialized with Kryo, then it will be registered at Kryo to make sure that only tags are
-     * written.
-     *
-     * @param type The class of the type to register.
-     * @deprecated Register data types and serializers through hard codes is deprecated, because you
-     *     need to modify the codes when upgrading job version. You should configure this by config
-     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
-     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
-     */
-    @Deprecated
-    public void registerType(Class<?> type) {
-        if (type == null) {
-            throw new NullPointerException("Cannot register null type class.");
-        }
-
-        TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
-
-        if (typeInfo instanceof PojoTypeInfo) {
-            config.getSerializerConfig().registerPojoType(type);
-        } else {
-            config.getSerializerConfig().registerKryoType(type);
-        }
     }
 
     // --------------------------------------------------------------------------------------------

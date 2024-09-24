@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -377,11 +378,10 @@ public abstract class AbstractQueryableStateTestBase {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         // Custom serializer is not needed, it's used just to check if serialization works.
-        env.getConfig()
-                .getSerializerConfig()
-                .addDefaultKryoSerializer(
-                        Byte.class,
-                        (Serializer<?> & Serializable) createSerializer(userClassLoader));
+        Class<Serializer<?>> customSerializerClass =
+                (Class<Serializer<?>>) userClassLoader.loadClass("CustomKryo");
+        ((SerializerConfigImpl) env.getConfig().getSerializerConfig())
+                .addDefaultKryoSerializer(Byte.class, customSerializerClass);
 
         // Here we *force* using Kryo, to check if custom serializers are handled correctly WRT
         // classloading
