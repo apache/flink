@@ -22,8 +22,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
-import org.apache.flink.table.runtime.operators.rank._
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDeduplicate, StreamPhysicalRank}
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
@@ -350,21 +350,55 @@ object RankUtil {
     }
 
     val inputRowType = rank.getInput.getRowType
-    val isSortOnTimeAttribute = sortOnTimeAttribute(sortCollation, inputRowType)
+    val isSortOnTimeAttribute = sortOnTimeAttributeOnly(sortCollation, inputRowType)
 
     !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
   }
 
-  private def sortOnTimeAttribute(
+  private def sortOnTimeAttributeOnly(
       sortCollation: RelCollation,
       inputRowType: RelDataType): Boolean = {
     if (sortCollation.getFieldCollations.size() != 1) {
-      false
-    } else {
-      val firstSortField = sortCollation.getFieldCollations.get(0)
-      val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
-      FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
-      FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+      return false
     }
+    val firstSortField = sortCollation.getFieldCollations.get(0)
+    val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+    FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
+    FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+  }
+
+  /**
+   * Checks if the given sort collation has a field collation which based on a rowtime attribute.
+   */
+  def sortOnRowTime(sortCollation: RelCollation, inputRowType: RelDataType): Boolean = {
+    sortCollation.getFieldCollations.exists {
+      firstSortField =>
+        val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+        FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+    }
+  }
+
+  /** Whether the given rank is logically a deduplication. */
+  def isDeduplication(rank: Rank): Boolean = {
+    !rank.outputRankNumber && rank.rankType == RankType.ROW_NUMBER && isTop1(rank.rankRange)
+  }
+
+  /** Whether the given [[StreamPhysicalRank]] could be converted to [[StreamExecDeduplicate]]. */
+  def canConvertToDeduplicate(rank: StreamPhysicalRank): Boolean = {
+    lazy val inputInsertOnly = ChangelogPlanUtils.inputInsertOnly(rank)
+    lazy val sortOnTimeAttributeOnly =
+      RankUtil.sortOnTimeAttributeOnly(rank.orderKey, rank.getInput.getRowType)
+
+    isDeduplication(rank) && inputInsertOnly && sortOnTimeAttributeOnly
+  }
+
+  /** Determines if the given order key indicates that the last row should be kept. */
+  def keepLastRow(orderKey: RelCollation): Boolean = {
+    // order by timeIndicator desc ==> lastRow, otherwise is firstRow
+    if (orderKey.getFieldCollations.size() != 1) {
+      return false
+    }
+    val fieldCollation = orderKey.getFieldCollations.get(0)
+    fieldCollation.direction.isDescending
   }
 }
