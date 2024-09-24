@@ -24,85 +24,9 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link TypeSerializerSnapshot} */
 class TypeSerializerSnapshotTest {
-
-    @Test
-    void testIllegalSchemaCompatibility() {
-        TypeSerializerSnapshot<Integer> illegalSnapshot =
-                new NotCompletedTypeSerializerSnapshot() {};
-
-        // Should throw UnsupportedOperationException if both two methods are not implemented
-        assertThatThrownBy(
-                        () ->
-                                illegalSnapshot.resolveSchemaCompatibility(
-                                        new NotCompletedTypeSerializer()))
-                .isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(
-                        () ->
-                                illegalSnapshot.resolveSchemaCompatibility(
-                                        new NotCompletedTypeSerializer().snapshotConfiguration()))
-                .isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
-    void testNewSchemaCompatibility() {
-        TypeSerializerSnapshot<Integer> legalSnapshot =
-                new NotCompletedTypeSerializerSnapshot() {
-                    @Override
-                    public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
-                            TypeSerializerSnapshot<Integer> oldSerializerSnapshot) {
-                        return TypeSerializerSchemaCompatibility.compatibleAsIs();
-                    }
-                };
-
-        // The result of resolving schema compatibility should always be determined by legalSnapshot
-        assertThat(
-                        new NotCompletedTypeSerializerSnapshot()
-                                .resolveSchemaCompatibility(
-                                        new NotCompletedTypeSerializer() {
-                                            @Override
-                                            public TypeSerializerSnapshot<Integer>
-                                                    snapshotConfiguration() {
-                                                return legalSnapshot;
-                                            }
-                                        })
-                                .isCompatibleAsIs())
-                .isTrue();
-        assertThat(
-                        legalSnapshot
-                                .resolveSchemaCompatibility(
-                                        new NotCompletedTypeSerializerSnapshot() {})
-                                .isCompatibleAsIs())
-                .isTrue();
-    }
-
-    @Test
-    void testOldSchemaCompatibility() {
-        TypeSerializerSnapshot<Integer> legalSnapshot =
-                new NotCompletedTypeSerializerSnapshot() {
-
-                    @Override
-                    public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
-                            TypeSerializer<Integer> newSerializer) {
-                        return TypeSerializerSchemaCompatibility.compatibleAsIs();
-                    }
-                };
-
-        // The result of resolving schema compatibility should always be determined by legalSnapshot
-        assertThat(
-                        legalSnapshot
-                                .resolveSchemaCompatibility(new NotCompletedTypeSerializer())
-                                .isCompatibleAsIs())
-                .isTrue();
-        assertThat(
-                        new NotCompletedTypeSerializerSnapshot()
-                                .resolveSchemaCompatibility(legalSnapshot)
-                                .isCompatibleAsIs())
-                .isTrue();
-    }
 
     @Test
     void testNestedSchemaCompatibility() {
@@ -119,9 +43,8 @@ class TypeSerializerSnapshotTest {
                 new NotCompletedTypeSerializerSnapshot() {
                     @Override
                     public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
-                            TypeSerializer<Integer> newSerializer) {
-                        return innerSnapshot.resolveSchemaCompatibility(
-                                innerSnapshot.restoreSerializer());
+                            TypeSerializerSnapshot<Integer> newSerializer) {
+                        return innerSnapshot.resolveSchemaCompatibility(innerSnapshot);
                     }
                 };
 
@@ -231,6 +154,12 @@ class TypeSerializerSnapshotTest {
                     return NotCompletedTypeSerializerSnapshot.this;
                 }
             };
+        }
+
+        @Override
+        public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
+                TypeSerializerSnapshot<Integer> oldSerializerSnapshot) {
+            return TypeSerializerSchemaCompatibility.incompatible();
         }
     }
 }
