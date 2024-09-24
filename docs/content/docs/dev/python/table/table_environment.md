@@ -811,7 +811,7 @@ table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().set("execution.checkpointing.interval", "3min")
 
-# set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
+# set the statebackend type to "rocksdb", other available options are "hashmap"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
 # e.g. org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")

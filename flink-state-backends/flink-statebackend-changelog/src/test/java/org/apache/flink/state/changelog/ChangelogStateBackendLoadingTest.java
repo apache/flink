@@ -174,18 +174,6 @@ public class ChangelogStateBackendLoadingTest {
     }
 
     @Test
-    public void testLoadingFsStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend(
-                "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);
-    }
-
-    @Test
-    public void testLoadingFsStateBackend() throws Exception {
-        testLoadingStateBackend(
-                "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, false);
-    }
-
-    @Test
     public void testLoadingHashMapStateBackendFromConfig() throws Exception {
         testLoadingStateBackend(
                 "hashmap", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);

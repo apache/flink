@@ -114,7 +114,7 @@ public class ClassLoaderITCase extends TestLogger {
 
         // we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening
         // again.
-        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 FOLDER.newFolder().getAbsoluteFile().toURI().toString());
