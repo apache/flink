@@ -27,7 +27,6 @@ import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
@@ -167,7 +166,7 @@ class StateBackendLoadingTest {
         final MemoryStateBackend backend = new MemoryStateBackend(maxSize);
 
         final Configuration config = new Configuration();
-        config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
+        config.setString(backendKey, "hashmap"); // check that this is not accidentally picked up
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
@@ -209,7 +208,7 @@ class StateBackendLoadingTest {
         final MemoryStateBackend backend = new MemoryStateBackend(appCheckpointDir, null);
 
         final Configuration config = new Configuration();
-        config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
+        config.setString(backendKey, "hashmap"); // check that this is not accidentally picked up
         config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 checkpointDir); // this parameter should not be picked up
@@ -239,52 +238,6 @@ class StateBackendLoadingTest {
     // ------------------------------------------------------------------------
     //  File System State Backend
     // ------------------------------------------------------------------------
-
-    /**
-     * Validates loading a file system state backend with additional parameters from the cluster
-     * configuration.
-     */
-    @Test
-    void testLoadFileSystemStateBackend() throws Exception {
-        final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
-        final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
-        final Path expectedCheckpointsPath = new Path(checkpointDir);
-        final Path expectedSavepointsPath = new Path(savepointDir);
-        final MemorySize threshold = MemorySize.parse("900kb");
-        final int minWriteBufferSize = 1024;
-
-        // we configure with the explicit string (rather than
-        // AbstractStateBackend#X_STATE_BACKEND_NAME)
-        // to guard against config-breaking changes of the name
-        final Configuration config1 = new Configuration();
-        config1.setString(backendKey, "filesystem");
-        config1.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-        config1.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
-
-        final Configuration config2 = new Configuration();
-        config2.setString(backendKey, FsStateBackendFactory.class.getName());
-        config2.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-        config2.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
-
-        StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
-        StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
-
-        assertThat(backend1).isInstanceOf(HashMapStateBackend.class);
-        assertThat(backend2).isInstanceOf(FsStateBackend.class);
-
-        HashMapStateBackend fs1 = (HashMapStateBackend) backend1;
-        FsStateBackend fs2 = (FsStateBackend) backend2;
-
-        assertThat(fs2.getCheckpointPath()).isEqualTo(expectedCheckpointsPath);
-        assertThat(fs2.getSavepointPath()).isEqualTo(expectedSavepointsPath);
-        assertThat(fs2.getMinFileSizeThreshold()).isEqualTo(threshold.getBytes());
-        assertThat(fs2.getWriteBufferSize())
-                .isEqualTo(Math.max(threshold.getBytes(), minWriteBufferSize));
-    }
 
     /**
      * Validates taking the application-defined file system state backend and adding with additional

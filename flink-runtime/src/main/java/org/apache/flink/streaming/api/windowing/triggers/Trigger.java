@@ -23,8 +23,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -182,44 +180,6 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
          *     the function (function is not part os a KeyedStream).
          */
         <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
-
-        /**
-         * Retrieves a {@link ValueState} object that can be used to interact with fault-tolerant
-         * state that is scoped to the window and key of the current trigger invocation.
-         *
-         * @param name The name of the key/value state.
-         * @param stateType The class of the type that is stored in the state. Used to generate
-         *     serializers for managed memory and checkpointing.
-         * @param defaultState The default state value, returned when the state is accessed and no
-         *     value has yet been set for the key. May be null.
-         * @param <S> The type of the state.
-         * @return The partitioned state object.
-         * @throws UnsupportedOperationException Thrown, if no partitioned state is available for
-         *     the function (function is not part os a KeyedStream).
-         * @deprecated Use {@link #getPartitionedState(StateDescriptor)}.
-         */
-        @Deprecated
-        <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, Class<S> stateType, S defaultState);
-
-        /**
-         * Retrieves a {@link ValueState} object that can be used to interact with fault-tolerant
-         * state that is scoped to the window and key of the current trigger invocation.
-         *
-         * @param name The name of the key/value state.
-         * @param stateType The type information for the type that is stored in the state. Used to
-         *     create serializers for managed memory and checkpoints.
-         * @param defaultState The default state value, returned when the state is accessed and no
-         *     value has yet been set for the key. May be null.
-         * @param <S> The type of the state.
-         * @return The partitioned state object.
-         * @throws UnsupportedOperationException Thrown, if no partitioned state is available for
-         *     the function (function is not part os a KeyedStream).
-         * @deprecated Use {@link #getPartitionedState(StateDescriptor)}.
-         */
-        @Deprecated
-        <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, TypeInformation<S> stateType, S defaultState);
     }
 
     /**

@@ -103,7 +103,7 @@ public class RescalingITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "backend = {0}")
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{"filesystem"}, {"rocksdb"}});
+        return Arrays.asList(new Object[][] {{"hashmap"}, {"rocksdb"}});
     }
 
     public RescalingITCase(String backend) {
