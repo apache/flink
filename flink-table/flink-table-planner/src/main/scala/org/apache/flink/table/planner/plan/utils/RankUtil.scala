@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDeduplicate, StreamPhysicalRank}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalRank, StreamPhysicalWindowDeduplicate}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.RelOptUtil
@@ -327,7 +327,7 @@ object RankUtil {
   }
 
   /**
-   * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
+   * Whether the given rank could be converted to [[StreamPhysicalWindowDeduplicate]].
    *
    * Returns true if the given rank is sorted by time attribute and limits 1 and its RankFunction is
    * ROW_NUMBER, else false.
@@ -335,7 +335,7 @@ object RankUtil {
    * @param rank
    *   The [[FlinkLogicalRank]] node
    * @return
-   *   True if the input rank could be converted to [[StreamPhysicalDeduplicate]]
+   *   True if the input rank could be converted to [[StreamPhysicalWindowDeduplicate]]
    */
   def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
     val sortCollation = rank.orderKey
