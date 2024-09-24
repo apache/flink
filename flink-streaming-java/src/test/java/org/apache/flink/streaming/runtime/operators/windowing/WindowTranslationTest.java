@@ -535,7 +535,7 @@ class WindowTranslationTest {
         DataStream<Tuple3<String, String, Integer>> window =
                 source.keyBy(new TupleKeySelector())
                         .window(TumblingEventTimeWindows.of(Duration.ofSeconds(1)))
-                        .apply(
+                        .reduce(
                                 reducer,
                                 new WindowFunction<
                                         Tuple2<String, Integer>,
@@ -591,7 +591,7 @@ class WindowTranslationTest {
                 source.keyBy(new TupleKeySelector())
                         .window(TumblingEventTimeWindows.of(Duration.ofSeconds(1)))
                         .evictor(CountEvictor.of(100))
-                        .apply(
+                        .reduce(
                                 reducer,
                                 new WindowFunction<
                                         Tuple2<String, Integer>,
