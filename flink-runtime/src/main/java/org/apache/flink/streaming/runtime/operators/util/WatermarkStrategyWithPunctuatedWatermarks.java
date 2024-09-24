@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,9 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions;
+package org.apache.flink.streaming.runtime.operators.util;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 
 import javax.annotation.Nullable;
 
@@ -34,7 +41,7 @@ import javax.annotation.Nullable;
  * previous watermark (to preserve the contract of ascending watermarks).
  *
  * <p>For use cases that should periodically emit watermarks based on element timestamps, use the
- * {@link AssignerWithPeriodicWatermarks} instead.
+ * {@link WatermarkStrategyWithPeriodicWatermarks} instead.
  *
  * <p>The following example illustrates how to use this timestamp extractor and watermark generator.
  * It assumes elements carry a timestamp that describes when they were created, and that some
@@ -62,9 +69,9 @@ import javax.annotation.Nullable;
  * @param <T> The type of the elements to which this assigner assigns timestamps.
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
-@Deprecated
-public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T> {
-
+@Internal
+public interface WatermarkStrategyWithPunctuatedWatermarks<T>
+        extends WatermarkStrategy<T>, TimestampAssigner<T> {
     /**
      * Asks this implementation if it wants to emit a watermark. This method is called right after
      * the {@link #extractTimestamp(Object, long)} method.
@@ -75,10 +82,36 @@ public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T
      * smaller than that of the last emitted one, then no new watermark will be generated.
      *
      * <p>For an example how to use this method, see the documentation of {@link
-     * AssignerWithPunctuatedWatermarks this class}.
+     * WatermarkStrategyWithPunctuatedWatermarks this class}.
      *
      * @return {@code Null}, if no watermark should be emitted, or the next watermark to emit.
      */
     @Nullable
-    Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
+    org.apache.flink.streaming.api.watermark.Watermark checkAndGetNextWatermark(
+            T lastElement, long extractedTimestamp);
+
+    @Override
+    default TimestampAssigner<T> createTimestampAssigner(
+            TimestampAssignerSupplier.Context context) {
+        return this;
+    }
+
+    @Override
+    default WatermarkGenerator<T> createWatermarkGenerator(
+            WatermarkGeneratorSupplier.Context context) {
+        return new WatermarkGenerator<T>() {
+            @Override
+            public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
+                final org.apache.flink.streaming.api.watermark.Watermark next =
+                        checkAndGetNextWatermark(event, eventTimestamp);
+
+                if (next != null) {
+                    output.emitWatermark(new Watermark(next.getTimestamp()));
+                }
+            }
+
+            @Override
+            public void onPeriodicEmit(WatermarkOutput output) {}
+        };
+    }
 }

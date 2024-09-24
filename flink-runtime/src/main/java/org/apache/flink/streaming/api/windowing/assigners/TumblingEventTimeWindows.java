@@ -82,8 +82,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
         } else {
             throw new RuntimeException(
                     "Record has Long.MIN_VALUE timestamp (= no timestamp marker). "
-                            + "Is the time characteristic set to 'ProcessingTime', or did you forget to call "
-                            + "'DataStream.assignTimestampsAndWatermarks(...)'?");
+                            + "Did you forget to call 'DataStream.assignTimestampsAndWatermarks(...)'?");
         }
     }
 
