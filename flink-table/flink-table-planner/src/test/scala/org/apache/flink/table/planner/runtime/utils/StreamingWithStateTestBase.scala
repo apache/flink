@@ -239,6 +239,7 @@ object StreamingWithStateTestBase {
     override def toString: String = backend.toString
   }
 
+  // TODO FLINK-36354: test FORSTDB_BACKEND after 2.0-preview
   val HEAP_BACKEND = StateBackendMode("HEAP")
   val ROCKSDB_BACKEND = StateBackendMode("ROCKSDB")
 

@@ -664,6 +664,15 @@ public class ExecutionConfigOptions {
                                     + "leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. "
                                     + "The default value is 0, which means it will clean up unmatched records immediately.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_STATE_ENABLED =
+            key("table.exec.async-state.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Set whether to use the SQL/Table operators based on the asynchronous state api. "
+                                    + "Default value is false.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------

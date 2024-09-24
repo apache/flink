@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.stream;
+package org.apache.flink.table.runtime.operators.join.stream.asyncprocessing;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.table.data.RowData;
@@ -30,13 +30,14 @@ import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideS
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
- * Abstract implementation for streaming unbounded Join operator which defines some member fields
- * can be shared between different implementations.
+ * Abstract implementation for streaming unbounded Join operator based on async state api, which
+ * defines some member fields can be shared between different implementations.
  */
-public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperator<RowData>
+public abstract class AbstractAsyncStateStreamingJoinOperator
+        extends AbstractAsyncStateStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData> {
 
-    private static final long serialVersionUID = -376944622236540545L;
+    private static final long serialVersionUID = 1L;
 
     protected static final String LEFT_RECORDS_STATE_NAME = "left-records";
     protected static final String RIGHT_RECORDS_STATE_NAME = "right-records";
@@ -56,7 +57,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
     protected transient JoinConditionWithNullFilters joinCondition;
     protected transient TimestampedCollector<RowData> collector;
 
-    public AbstractStreamingJoinOperator(
+    public AbstractAsyncStateStreamingJoinOperator(
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             GeneratedJoinCondition generatedJoinCondition,
