@@ -308,7 +308,7 @@ class AvroTypeExtractionTest {
 
         // test if automatic registration of the Types worked
         ExecutionConfig ec = env.getConfig();
-        assertThat(ec.getRegisteredKryoTypes()).contains(Fixed16.class);
+        assertThat(ec.getSerializerConfig().getRegisteredKryoTypes()).contains(Fixed16.class);
 
         switch (fieldName) {
             case "name":

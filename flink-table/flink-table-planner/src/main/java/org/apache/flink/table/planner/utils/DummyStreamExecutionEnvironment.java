@@ -34,9 +34,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.delegation.Planner;
 
-import com.esotericsoftware.kryo.Serializer;
-
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -175,40 +172,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     @Override
     public CheckpointingMode getCheckpointingConsistencyMode() {
         return realExecEnv.getCheckpointingConsistencyMode();
-    }
-
-    @Override
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer> serializerClass) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
-    }
-
-    @Override
-    public void registerType(Class<?> type) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, registerType method is unsupported.");
     }
 
     @Override

@@ -1088,8 +1088,9 @@ public class GroupReduceITCase extends MultipleProgramsTestBaseJUnit4 {
         ExecutionConfig ec = env.getConfig();
 
         // check if automatic type registration with Kryo worked
-        Assert.assertTrue(ec.getRegisteredKryoTypes().contains(BigInt.class));
-        Assert.assertFalse(ec.getRegisteredKryoTypes().contains(java.sql.Date.class));
+        Assert.assertTrue(ec.getSerializerConfig().getRegisteredKryoTypes().contains(BigInt.class));
+        Assert.assertFalse(
+                ec.getSerializerConfig().getRegisteredKryoTypes().contains(java.sql.Date.class));
 
         String expected = null;
 

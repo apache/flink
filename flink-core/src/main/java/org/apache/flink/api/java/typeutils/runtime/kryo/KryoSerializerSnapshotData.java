@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
+import org.apache.flink.api.common.SerializableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;

@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -89,7 +90,7 @@ public class Serializers {
         if (type.isArray()) {
             recursivelyRegisterType(type.getComponentType(), config, alreadySeen);
         } else {
-            config.registerKryoType(type);
+            ((SerializerConfigImpl) config).registerKryoType(type);
             // add serializers for Avro type if necessary
             AvroUtils.getAvroUtils().addAvroSerializersIfRequired(config, type);
 

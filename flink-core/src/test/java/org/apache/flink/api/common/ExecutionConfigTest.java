@@ -54,12 +54,12 @@ public class ExecutionConfigTest {
         List<Class<?>> expectedTypes = Arrays.asList(Double.class, Integer.class);
 
         for (Class<?> tpe : types) {
-            config.getSerializerConfig().registerKryoType(tpe);
+            ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(tpe);
         }
 
         int counter = 0;
 
-        for (Class<?> tpe : config.getRegisteredKryoTypes()) {
+        for (Class<?> tpe : config.getSerializerConfig().getRegisteredKryoTypes()) {
             assertThat(tpe).isEqualTo(expectedTypes.get(counter++));
         }
 
@@ -176,74 +176,38 @@ public class ExecutionConfigTest {
 
     @Test
     void testLoadingRegisteredKryoTypesFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.getSerializerConfig().registerKryoType(ExecutionConfigTest.class);
-        configFromSetters.getSerializerConfig().registerKryoType(TestSerializer1.class);
-
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
         Configuration configuration = new Configuration();
-        configuration.setString(
-                "pipeline.registered-kryo-types",
-                "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+        String serializationConfigStr =
+                "{org.apache.flink.api.common.ExecutionConfigTest: {type: kryo}, "
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1: {type: kryo}}";
+        configuration.setString("pipeline.serialization-config", serializationConfigStr);
 
         // mutate config according to configuration
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.getRegisteredKryoTypes())
-                .isEqualTo(configFromSetters.getRegisteredKryoTypes());
+        assertThat(configFromConfiguration.getSerializerConfig().getRegisteredKryoTypes())
+                .containsExactlyInAnyOrder(ExecutionConfigTest.class, TestSerializer1.class);
     }
 
     @Test
     void testLoadingRegisteredPojoTypesFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.registerPojoType(ExecutionConfigTest.class);
-        configFromSetters.registerPojoType(TestSerializer1.class);
-
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
         Configuration configuration = new Configuration();
-        configuration.setString(
-                "pipeline.registered-pojo-types",
-                "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+        String serializationConfigStr =
+                "{org.apache.flink.api.common.ExecutionConfigTest: {type: pojo}, "
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1: {type: pojo}}";
+        configuration.setString("pipeline.serialization-config", serializationConfigStr);
 
         // mutate config according to configuration
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.getRegisteredPojoTypes())
-                .isEqualTo(configFromSetters.getRegisteredPojoTypes());
-    }
-
-    @Test
-    void testLoadingDefaultKryoSerializersFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters
-                .getSerializerConfig()
-                .addDefaultKryoSerializer(ExecutionConfigTest.class, TestSerializer1.class);
-        configFromSetters
-                .getSerializerConfig()
-                .addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
-
-        ExecutionConfig configFromConfiguration = new ExecutionConfig();
-
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                "pipeline.default-kryo-serializers",
-                "class:org.apache.flink.api.common.ExecutionConfigTest,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1;"
-                        + "class:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer2");
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration.getSerializerConfig().getDefaultKryoSerializers())
-                .isEqualTo(configFromSetters.getSerializerConfig().getDefaultKryoSerializers());
+        assertThat(configFromConfiguration.getSerializerConfig().getRegisteredPojoTypes())
+                .containsExactlyInAnyOrder(ExecutionConfigTest.class, TestSerializer1.class);
     }
 
     @Test
@@ -268,8 +232,10 @@ public class ExecutionConfigTest {
     @Test
     void testNotOverridingRegisteredKryoTypesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.getSerializerConfig().registerKryoType(ExecutionConfigTest.class);
-        config.getSerializerConfig().registerKryoType(TestSerializer1.class);
+        ((SerializerConfigImpl) config.getSerializerConfig())
+                .registerKryoType(ExecutionConfigTest.class);
+        ((SerializerConfigImpl) config.getSerializerConfig())
+                .registerKryoType(TestSerializer1.class);
 
         Configuration configuration = new Configuration();
 
@@ -279,16 +245,17 @@ public class ExecutionConfigTest {
         LinkedHashSet<Object> set = new LinkedHashSet<>();
         set.add(ExecutionConfigTest.class);
         set.add(TestSerializer1.class);
-        assertThat(config.getRegisteredKryoTypes()).isEqualTo(set);
+        assertThat(config.getSerializerConfig().getRegisteredKryoTypes()).isEqualTo(set);
     }
 
     @Test
     void testNotOverridingRegisteredPojoTypesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.registerPojoType(ExecutionConfigTest.class);
-        config.registerPojoType(TestSerializer1.class);
-
         Configuration configuration = new Configuration();
+        String serializationConfigStr =
+                "{org.apache.flink.api.common.ExecutionConfigTest: {type: pojo}, "
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1: {type: pojo}}";
+        configuration.setString("pipeline.serialization-config", serializationConfigStr);
 
         // mutate config according to configuration
         config.configure(configuration, Thread.currentThread().getContextClassLoader());
@@ -296,7 +263,7 @@ public class ExecutionConfigTest {
         LinkedHashSet<Object> set = new LinkedHashSet<>();
         set.add(ExecutionConfigTest.class);
         set.add(TestSerializer1.class);
-        assertThat(config.getRegisteredPojoTypes()).isEqualTo(set);
+        assertThat(config.getSerializerConfig().getRegisteredPojoTypes()).isEqualTo(set);
     }
 
     @Test
@@ -317,10 +284,9 @@ public class ExecutionConfigTest {
     @Test
     void testNotOverridingDefaultKryoSerializersFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.getSerializerConfig()
-                .addDefaultKryoSerializer(ExecutionConfigTest.class, TestSerializer1.class);
-        config.getSerializerConfig()
-                .addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
+        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.addDefaultKryoSerializer(ExecutionConfigTest.class, TestSerializer1.class);
+        serializerConfig.addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
 
         Configuration configuration = new Configuration();
 

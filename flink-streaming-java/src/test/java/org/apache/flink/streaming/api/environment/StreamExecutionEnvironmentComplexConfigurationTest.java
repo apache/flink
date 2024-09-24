@@ -131,9 +131,10 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
     void testLoadingKryoSerializersFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString(
-                "pipeline.default-kryo-serializers",
-                "class:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo'"
-                        + ",serializer:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer'");
+                "pipeline.serialization-config",
+                "{org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo:"
+                        + " {type: kryo, kryo-type: default, class:"
+                        + " org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer}}");
 
         // mutate config according to configuration
         StreamExecutionEnvironment envFromConfiguration =
