@@ -1176,7 +1176,7 @@ LogicalProject(c=[$0], b=[$1], d=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[c, b], orderBy=[d DESC], select=[c, b, d])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[c, b], orderBy=[d DESC], select=[c, b, d])
 +- Exchange(distribution=[hash[c, b]])
    +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM_RETRACT(a) FILTER $f3 AS d])
       +- Exchange(distribution=[hash[c, b]])
