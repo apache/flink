@@ -27,11 +27,17 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
 import java.util.Optional;
 
 /** Utility class to load job-wide exchange mode. */
 @Internal
 public class StreamExchangeModeUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StreamExchangeModeUtils.class);
 
     static final String ALL_EDGES_BLOCKING_LEGACY = "batch";
 
@@ -40,21 +46,36 @@ public class StreamExchangeModeUtils {
     public static StreamExchangeMode getBatchStreamExchangeMode(
             ReadableConfig config, StreamExchangeMode requiredExchangeMode) {
         if (requiredExchangeMode == StreamExchangeMode.BATCH) {
+            if ("true".equals(MDC.get("_debug_"))) {
+                LOG.info("1: Using batch exchange mode.");
+            }
             return StreamExchangeMode.BATCH;
         }
 
         final GlobalStreamExchangeMode globalExchangeMode =
                 getGlobalStreamExchangeMode(config).orElse(null);
         if (globalExchangeMode == GlobalStreamExchangeMode.ALL_EDGES_BLOCKING) {
+            if ("true".equals(MDC.get("_debug_"))) {
+                LOG.info("2: Using batch exchange mode.");
+            }
             return StreamExchangeMode.BATCH;
         }
 
         final BatchShuffleMode shuffleMode = config.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
         if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
+            if ("true".equals(MDC.get("_debug_"))) {
+                LOG.info("3: Using batch exchange mode.");
+            }
             return StreamExchangeMode.BATCH;
         } else if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL) {
+            if ("true".equals(MDC.get("_debug_"))) {
+                LOG.info("4: Using hybrid full mode.");
+            }
             return StreamExchangeMode.HYBRID_FULL;
         } else if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE) {
+            if ("true".equals(MDC.get("_debug_"))) {
+                LOG.info("5: Using hybrid selective mode.");
+            }
             return StreamExchangeMode.HYBRID_SELECTIVE;
         }
 
