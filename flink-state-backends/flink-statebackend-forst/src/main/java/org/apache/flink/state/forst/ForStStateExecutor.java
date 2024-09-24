@@ -73,15 +73,12 @@ public class ForStStateExecutor implements StateExecutor {
     /** The ongoing sub-processes count. */
     private final AtomicLong ongoing;
 
-    private final boolean isRemoteDb;
-
     public ForStStateExecutor(
             boolean isWriteInline,
             int readIoParallelism,
             int writeIoParallelism,
             RocksDB db,
-            WriteOptions writeOptions,
-            boolean isRemoteDb) {
+            WriteOptions writeOptions) {
         if (isWriteInline) {
             Preconditions.checkState(readIoParallelism > 0);
             this.coordinatorThread =
@@ -124,7 +121,6 @@ public class ForStStateExecutor implements StateExecutor {
         this.db = db;
         this.writeOptions = writeOptions;
         this.ongoing = new AtomicLong();
-        this.isRemoteDb = isRemoteDb;
     }
 
     @Override
@@ -158,9 +154,8 @@ public class ForStStateExecutor implements StateExecutor {
                                         db,
                                         getRequests,
                                         readThreads,
-                                        ongoing::decrementAndGet,
-                                        isRemoteDb,
-                                        readThreadCount);
+                                        readThreadCount,
+                                        ongoing::decrementAndGet);
                         // sub process count should -1, since we have added 1 on top.
                         ongoing.addAndGet(getOperations.subProcessCount() - 1);
                         futures.add(getOperations.process());

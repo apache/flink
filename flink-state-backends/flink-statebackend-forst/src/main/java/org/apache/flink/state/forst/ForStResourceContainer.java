@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.FileUtils;
@@ -288,18 +287,6 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     public int getWriteIoParallelism() {
         return configuration.get(ForStOptions.EXECUTOR_WRITE_IO_PARALLELISM);
-    }
-
-    public boolean isRemoteDb() {
-        try {
-            return remoteBasePath == null
-                    || remoteBasePath
-                            .getFileSystem()
-                            .getUri()
-                            .equals(LocalFileSystem.getLocalFsURI());
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     /**

@@ -280,8 +280,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             optionsContainer.getReadIoParallelism(),
                             optionsContainer.getWriteIoParallelism(),
                             db,
-                            optionsContainer.getWriteOptions(),
-                            optionsContainer.isRemoteDb());
+                            optionsContainer.getWriteOptions());
             managedStateExecutors.add(stateExecutor);
             return stateExecutor;
         }

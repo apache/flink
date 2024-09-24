@@ -65,7 +65,7 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
 
         ExecutorService executor = Executors.newFixedThreadPool(3);
         ForStGeneralMultiGetOperation generalMultiGetOperation =
-                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor, null, false, 3);
+                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor, 3, null);
         generalMultiGetOperation.process().get();
 
         for (Tuple2<String, TestStateFuture<String>> tuple : resultCheckList) {

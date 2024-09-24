@@ -37,35 +37,36 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ForStGeneralMultiGetOperation implements ForStDBOperation {
 
     private final RocksDB db;
-
     private final List<ForStDBGetRequest<?, ?, ?, ?>> batchRequest;
+
+    List<List<ForStDBGetRequest<?, ?, ?, ?>>> splitRequests;
+    List<ForStDBGetRequest<?, ?, ?, ?>> mapCheckRequests;
 
     private final Executor executor;
 
     private final Runnable subProcessFinished;
 
-    private final Boolean isRemoteDb;
-
     private final int readIoParallelism;
 
     ForStGeneralMultiGetOperation(
             RocksDB db, List<ForStDBGetRequest<?, ?, ?, ?>> batchRequest, Executor executor) {
-        this(db, batchRequest, executor, null, false, 1);
+        this(db, batchRequest, executor, 1, null);
     }
 
     ForStGeneralMultiGetOperation(
             RocksDB db,
             List<ForStDBGetRequest<?, ?, ?, ?>> batchRequest,
             Executor executor,
-            Runnable subProcessFinished,
-            boolean isRemoteDb,
-            int readIoParallelism) {
+            int readIoParallelism,
+            Runnable subProcessFinished) {
         this.db = db;
         this.batchRequest = batchRequest;
         this.executor = executor;
         this.subProcessFinished = subProcessFinished;
-        this.isRemoteDb = isRemoteDb;
         this.readIoParallelism = readIoParallelism;
+        this.splitRequests = new ArrayList<>();
+        this.mapCheckRequests = new ArrayList<>();
+        classifyAndSplitRequests(splitRequests, mapCheckRequests);
     }
 
     @Override
@@ -75,97 +76,95 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
         AtomicReference<Exception> error = new AtomicReference<>();
         AtomicInteger counter = new AtomicInteger(batchRequest.size());
 
-        if (isRemoteDb) {
-            processOneByOne(batchRequest, error, counter, future);
-            return future;
-        } else {
-            List<List<ForStDBGetRequest<?, ?, ?, ?>>> splitRequests = new ArrayList<>();
-            List<ForStDBGetRequest<?, ?, ?, ?>> mapCheckRequests = new ArrayList<>();
-            classifyAndSplitRequests(splitRequests, mapCheckRequests);
-            processOneByOne(mapCheckRequests, error, counter, future);
-            for (List<ForStDBGetRequest<?, ?, ?, ?>> getRequests : splitRequests) {
-                executor.execute(
-                        () -> {
-                            ReadOptions readOptions = new ReadOptions();
-                            readOptions.setReadaheadSize(0);
-                            List<byte[]> keys = new ArrayList<>(getRequests.size());
-                            List<ColumnFamilyHandle> columnFamilyHandles =
-                                    new ArrayList<>(getRequests.size());
+        processOneByOne(mapCheckRequests, error, counter, future);
+        for (List<ForStDBGetRequest<?, ?, ?, ?>> getRequests : splitRequests) {
+            executor.execute(
+                    () -> {
+                        ReadOptions readOptions = new ReadOptions();
+                        readOptions.setReadaheadSize(0);
+                        List<byte[]> keys = new ArrayList<>(getRequests.size());
+                        List<ColumnFamilyHandle> columnFamilyHandles =
+                                new ArrayList<>(getRequests.size());
 
-                            for (int i = 0; i < getRequests.size(); i++) {
-                                ForStDBGetRequest<?, ?, ?, ?> request = getRequests.get(i);
-                                try {
-                                    if (error.get() == null) {
-                                        byte[] key = request.buildSerializedKey();
-                                        keys.add(key);
-                                        columnFamilyHandles.add(request.getColumnFamilyHandle());
-                                    } else {
-                                        completeExceptionallyRequest(
-                                                request,
-                                                "Error already occurred in other state request of the same group, failed the state request directly",
-                                                error.get());
-                                    }
-                                } catch (IOException e) {
-                                    error.set(e);
+                        for (int i = 0; i < getRequests.size(); i++) {
+                            ForStDBGetRequest<?, ?, ?, ?> request = getRequests.get(i);
+                            try {
+                                if (error.get() == null) {
+                                    byte[] key = request.buildSerializedKey();
+                                    keys.add(key);
+                                    columnFamilyHandles.add(request.getColumnFamilyHandle());
+                                } else {
                                     completeExceptionallyRequest(
                                             request,
-                                            "Error when execute ForStDb serialized get key",
-                                            e);
-                                    future.completeExceptionally(e);
+                                            "Error already occurred in other state request of the same group, failed the state request directly",
+                                            error.get());
                                 }
+                            } catch (IOException e) {
+                                error.set(e);
+                                completeExceptionallyRequest(
+                                        request,
+                                        "Error when execute ForStDb serialized get key",
+                                        e);
+                                future.completeExceptionally(e);
                             }
-                            if (error.get() != null) {
-                                return;
+                        }
+                        if (error.get() != null) {
+                            if (subProcessFinished != null) {
+                                subProcessFinished.run();
                             }
-                            List<byte[]> values = null;
+                            return;
+                        }
+                        List<byte[]> values = null;
+                        try {
+                            values = db.multiGetAsList(readOptions, columnFamilyHandles, keys);
+                        } catch (Exception e) {
+                            error.set(e);
+                            future.completeExceptionally(e);
+                            for (int i = 0; i < getRequests.size(); i++) {
+                                completeExceptionallyRequest(
+                                        getRequests.get(i), "Error occurred when multiGet", e);
+                            }
+                        }
+                        if (error.get() != null) {
+                            if (subProcessFinished != null) {
+                                subProcessFinished.run();
+                            }
+                            return;
+                        }
+                        for (int i = 0; i < getRequests.size(); i++) {
+                            ForStDBGetRequest<?, ?, ?, ?> request = getRequests.get(i);
                             try {
-                                values = db.multiGetAsList(readOptions, columnFamilyHandles, keys);
+                                if (error.get() == null) {
+                                    request.completeStateFuture(values.get(i));
+                                } else {
+                                    completeExceptionallyRequest(
+                                            request,
+                                            "Error already occurred in other state request of the same "
+                                                    + "group, failed the state request directly",
+                                            error.get());
+                                }
                             } catch (Exception e) {
                                 error.set(e);
+                                completeExceptionallyRequest(
+                                        request, "Error when complete get future.", e);
                                 future.completeExceptionally(e);
-                                for (int i = 0; i < getRequests.size(); i++) {
-                                    completeExceptionallyRequest(
-                                            getRequests.get(i), "Error occurred when multiGet", e);
-                                }
                             }
-                            if (error.get() != null) {
-                                return;
-                            }
-                            for (int i = 0; i < getRequests.size(); i++) {
-                                ForStDBGetRequest<?, ?, ?, ?> request = getRequests.get(i);
-                                try {
-                                    if (error.get() == null) {
-                                        request.completeStateFuture(values.get(i));
-                                    } else {
-                                        completeExceptionallyRequest(
-                                                request,
-                                                "Error already occurred in other state request of the same "
-                                                        + "group, failed the state request directly",
-                                                error.get());
-                                    }
-                                } catch (Exception e) {
-                                    error.set(e);
-                                    completeExceptionallyRequest(
-                                            request, "Error when complete get future.", e);
-                                    future.completeExceptionally(e);
-                                }
-                            }
+                        }
 
-                            if (counter.addAndGet(-getRequests.size()) == 0
-                                    && !future.isCompletedExceptionally()) {
-                                future.complete(null);
-                            }
-                        });
-            }
-            return future;
+                        if (counter.addAndGet(-getRequests.size()) == 0
+                                && !future.isCompletedExceptionally()) {
+                            future.complete(null);
+                        }
+                        if (subProcessFinished != null) {
+                            subProcessFinished.run();
+                        }
+                    });
         }
+        return future;
     }
 
     private void completeExceptionallyRequest(
             ForStDBGetRequest<?, ?, ?, ?> request, String message, Exception e) {
-        if (subProcessFinished != null) {
-            subProcessFinished.run();
-        }
         request.completeStateFutureExceptionally(message, e);
     }
 
@@ -233,6 +232,6 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
 
     @Override
     public int subProcessCount() {
-        return batchRequest.size();
+        return mapCheckRequests.size() + splitRequests.size();
     }
 }
