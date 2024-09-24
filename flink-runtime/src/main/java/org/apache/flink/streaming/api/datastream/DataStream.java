@@ -300,42 +300,6 @@ public class DataStream<T> {
     }
 
     /**
-     * Partitions a tuple DataStream on the specified key fields using a custom partitioner. This
-     * method takes the key position to partition on, and a partitioner that accepts the key type.
-     *
-     * <p>Note: This method works only on single field keys.
-     *
-     * @deprecated use {@link DataStream#partitionCustom(Partitioner, KeySelector)}.
-     * @param partitioner The partitioner to assign partitions to keys.
-     * @param field The field index on which the DataStream is partitioned.
-     * @return The partitioned DataStream.
-     */
-    @Deprecated
-    public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
-        Keys.ExpressionKeys<T> outExpressionKeys =
-                new Keys.ExpressionKeys<>(new int[] {field}, getType());
-        return partitionCustom(partitioner, outExpressionKeys);
-    }
-
-    /**
-     * Partitions a POJO DataStream on the specified key fields using a custom partitioner. This
-     * method takes the key expression to partition on, and a partitioner that accepts the key type.
-     *
-     * <p>Note: This method works only on single field keys.
-     *
-     * @deprecated use {@link DataStream#partitionCustom(Partitioner, KeySelector)}.
-     * @param partitioner The partitioner to assign partitions to keys.
-     * @param field The expression for the field on which the DataStream is partitioned.
-     * @return The partitioned DataStream.
-     */
-    @Deprecated
-    public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
-        Keys.ExpressionKeys<T> outExpressionKeys =
-                new Keys.ExpressionKeys<>(new String[] {field}, getType());
-        return partitionCustom(partitioner, outExpressionKeys);
-    }
-
-    /**
      * Partitions a DataStream on the key returned by the selector, using a custom partitioner. This
      * method takes the key selector to get the key to partition on, and a partitioner that accepts
      * the key type.
@@ -350,16 +314,6 @@ public class DataStream<T> {
      */
     public <K> DataStream<T> partitionCustom(
             Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
-        return setConnectionType(
-                new CustomPartitionerWrapper<>(clean(partitioner), clean(keySelector)));
-    }
-
-    //	private helper method for custom partitioning
-    private <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, Keys<T> keys) {
-        KeySelector<T, K> keySelector =
-                KeySelectorUtil.getSelectorForOneKey(
-                        keys, partitioner, getType(), getExecutionConfig());
-
         return setConnectionType(
                 new CustomPartitionerWrapper<>(clean(partitioner), clean(keySelector)));
     }

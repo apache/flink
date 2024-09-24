@@ -117,7 +117,7 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
                                         }
                                     }
                                 },
-                                0)
+                                x -> x.f0)
                         .map(new SubtaskIndexAssigner());
 
         partitionCustom.addSink(customPartitionResultSink);
