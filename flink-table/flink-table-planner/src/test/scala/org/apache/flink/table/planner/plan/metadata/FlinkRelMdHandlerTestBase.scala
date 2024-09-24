@@ -665,7 +665,8 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(1, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowtime = false
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -753,7 +754,8 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 5),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowtime = false
     )
 
     (logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank)
@@ -805,7 +807,8 @@ class FlinkRelMdHandlerTestBase {
       new ConstantRankRange(3, 6),
       new RelDataTypeFieldImpl("rn", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowtime = false
     )
 
     (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
@@ -962,7 +965,8 @@ class FlinkRelMdHandlerTestBase {
       new VariableRankRange(3),
       new RelDataTypeFieldImpl("rk", 7, longType),
       outputRankNumber = true,
-      RankProcessStrategy.UNDEFINED_STRATEGY
+      RankProcessStrategy.UNDEFINED_STRATEGY,
+      sortOnRowtime = false
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)

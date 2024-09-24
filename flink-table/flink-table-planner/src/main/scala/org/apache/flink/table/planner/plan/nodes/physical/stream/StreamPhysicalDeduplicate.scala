@@ -30,9 +30,10 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import java.util
 
 /**
- * Stream physical RelNode which deduplicate on keys and keeps only first row or last row. This node
- * is an optimization of [[StreamPhysicalRank]] for some special cases. Compared to
- * [[StreamPhysicalRank]], this node could use mini-batch and access less state.
+ * TODO to be removed after FLINK-34702 is fixed. Stream physical RelNode which deduplicate on keys
+ * and keeps only first row or last row. This node is an optimization of [[StreamPhysicalRank]] for
+ * some special cases. Compared to [[StreamPhysicalRank]], this node could use mini-batch and access
+ * less state.
  */
 class StreamPhysicalDeduplicate(
     cluster: RelOptCluster,
