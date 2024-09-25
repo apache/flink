@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -94,13 +93,13 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
             env.addSource(new FailingSource(new Generator(), numElements, true))
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple2<Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -117,7 +116,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple2<Long, IntType>> out) {
@@ -155,7 +154,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(
                             SlidingProcessingTimeWindows.of(
                                     Duration.ofMillis(150), Duration.ofMillis(50)))
@@ -163,7 +162,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple2<Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -180,7 +179,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple2<Long, IntType>> out) {
@@ -226,7 +225,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
@@ -269,7 +268,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(
                             SlidingProcessingTimeWindows.of(
                                     Duration.ofMillis(150), Duration.ofMillis(50)))

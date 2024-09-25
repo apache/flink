@@ -91,7 +91,7 @@ public enum FileSinkProgram {
                             .withRollingPolicy(OnCheckpointRollingPolicy.build())
                             .build();
 
-            source.keyBy(0).addSink(sink);
+            source.keyBy(x -> x.f0).addSink(sink);
         } else if (sinkToTest.equalsIgnoreCase("FileSink")) {
             FileSink<Tuple2<Integer, Integer>> sink =
                     FileSink.forRowFormat(
@@ -104,7 +104,7 @@ public enum FileSinkProgram {
                             .withBucketAssigner(new KeyBucketAssigner())
                             .withRollingPolicy(OnCheckpointRollingPolicy.build())
                             .build();
-            source.keyBy(0).sinkTo(sink);
+            source.keyBy(x -> x.f0).sinkTo(sink);
         } else {
             throw new UnsupportedOperationException("Unsupported sink type: " + sinkToTest);
         }

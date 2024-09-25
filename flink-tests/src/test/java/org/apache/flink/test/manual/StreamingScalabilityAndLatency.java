@@ -85,7 +85,7 @@ public class StreamingScalabilityAndLatency {
 
         env.addSource(new TimeStampingSource())
                 .map(new IdMapper<Tuple2<Long, Long>>())
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new TimestampingSink());
 
         env.execute("Partitioning Program");

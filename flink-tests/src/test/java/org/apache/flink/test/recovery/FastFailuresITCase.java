@@ -67,7 +67,7 @@ public class FastFailuresITCase extends AbstractTestBaseJUnit4 {
                             public void cancel() {}
                         });
 
-        input.keyBy(0)
+        input.keyBy(x -> x.f0)
                 .map(
                         new MapFunction<Tuple2<Integer, Integer>, Integer>() {
 

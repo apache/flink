@@ -95,7 +95,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
                 .map(new StatefulCounterFunction())
 
                 // -------------- fourth vertex - reducer (failing) and the sink ----------------
-                .keyBy("prefix")
+                .keyBy(x -> x.prefix)
                 .reduce(new OnceFailingReducer(NUM_STRINGS))
                 .addSink(
                         new SinkFunction<PrefixCount>() {
