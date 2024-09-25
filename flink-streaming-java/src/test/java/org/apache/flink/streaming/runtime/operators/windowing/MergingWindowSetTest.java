@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
@@ -564,12 +563,6 @@ class MergingWindowSetTest {
         public Collection<TimeWindow> assignWindows(
                 Object element, long timestamp, WindowAssignerContext context) {
             return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
-        }
-
-        @Override
-        public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
         }
 
         @Override
