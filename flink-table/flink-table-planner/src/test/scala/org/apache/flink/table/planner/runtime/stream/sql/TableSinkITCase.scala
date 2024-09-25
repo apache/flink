@@ -338,6 +338,49 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @TestTemplate
+  def testCreateTableAsSelectWithColumnOrdering(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(votes, person)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[1, jason]",
+      "+I[1, jason]",
+      "+I[1, jason]",
+      "+I[1, jason]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement(votes, person)
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCreateTableAsSelectWithNewColumnsOnly(): Unit = {
     tEnv
       .executeSql("""

@@ -659,6 +659,80 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    public void tesCreateTableAsWithOrderingColumns() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1, f0) AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithNotFoundColumnIdentifiers() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1, f2) AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column 'f2' not found in the source schema.");
+    }
+
+    @Test
+    public void testCreateTableAsWithMismatchIdentifiersLength() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1) AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The number of columns in the column list "
+                                + "must match the number of columns in the source schema.");
+    }
+
+    @Test
     public void testCreateTableAsWithColumns() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()

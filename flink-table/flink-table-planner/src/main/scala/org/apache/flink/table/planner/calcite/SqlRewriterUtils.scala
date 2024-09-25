@@ -18,13 +18,19 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
-import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlSelect, rewriteSqlValues}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.calcite.PreValidateReWriter.{newValidationError, notSupported}
+import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlCall, rewriteSqlSelect, rewriteSqlValues}
+import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.runtime.{CalciteContextException, Resources}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlKind, SqlNode, SqlNodeList, SqlSelect}
+import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.validate.SqlValidatorException
+import org.apache.calcite.util.Static.RESOURCE
 
 import java.util
 import java.util.Collections
@@ -46,6 +52,24 @@ class SqlRewriterUtils(validator: FlinkCalciteSqlValidator) {
       assignedFields: util.LinkedHashMap[Integer, SqlNode],
       targetPosition: util.List[Int]): SqlCall = {
     rewriteSqlValues(svalues, targetRowType, assignedFields, targetPosition)
+  }
+
+  def rewriteCall(
+      rewriterUtils: SqlRewriterUtils,
+      validator: FlinkCalciteSqlValidator,
+      call: SqlCall,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int],
+      unsupportedErrorMessage: () => String): SqlCall = {
+    rewriteSqlCall(
+      rewriterUtils,
+      validator,
+      call,
+      targetRowType,
+      assignedFields,
+      targetPosition,
+      unsupportedErrorMessage)
   }
 
   // This code snippet is copied from the SqlValidatorImpl.
@@ -82,6 +106,64 @@ class SqlRewriterUtils(validator: FlinkCalciteSqlValidator) {
 }
 
 object SqlRewriterUtils {
+  def rewriteSqlCall(
+      rewriterUtils: SqlRewriterUtils,
+      validator: FlinkCalciteSqlValidator,
+      call: SqlCall,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int],
+      unsupportedErrorMessage: () => String): SqlCall = {
+
+    def rewrite(node: SqlNode): SqlCall = {
+      checkArgument(node.isInstanceOf[SqlCall], node)
+      rewriteSqlCall(
+        rewriterUtils,
+        validator,
+        node.asInstanceOf[SqlCall],
+        targetRowType,
+        assignedFields,
+        targetPosition,
+        unsupportedErrorMessage)
+    }
+
+    call.getKind match {
+      case SqlKind.SELECT =>
+        val sqlSelect = call.asInstanceOf[SqlSelect]
+
+        if (targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()) {
+          throw newValidationError(call, RESOURCE.columnCountMismatch())
+        }
+        rewriterUtils.rewriteSelect(sqlSelect, targetRowType, assignedFields, targetPosition)
+      case SqlKind.VALUES =>
+        call.getOperandList.toSeq.foreach {
+          case sqlCall: SqlCall => {
+            if (targetPosition.nonEmpty && sqlCall.getOperandList.size() != targetPosition.size()) {
+              throw newValidationError(call, RESOURCE.columnCountMismatch())
+            }
+          }
+        }
+        rewriterUtils.rewriteValues(call, targetRowType, assignedFields, targetPosition)
+      case kind if SqlKind.SET_QUERY.contains(kind) =>
+        call.getOperandList.zipWithIndex.foreach {
+          case (operand, index) => call.setOperand(index, rewrite(operand))
+        }
+        call
+      case SqlKind.ORDER_BY =>
+        val operands = call.getOperandList
+        new SqlOrderBy(
+          call.getParserPosition,
+          rewrite(operands.get(0)),
+          operands.get(1).asInstanceOf[SqlNodeList],
+          operands.get(2),
+          operands.get(3))
+      // Not support:
+      // case SqlKind.WITH =>
+      // case SqlKind.EXPLICIT_TABLE =>
+      case _ => throw new ValidationException(unsupportedErrorMessage())
+    }
+  }
+
   def rewriteSqlSelect(
       validator: FlinkCalciteSqlValidator,
       select: SqlSelect,
@@ -154,6 +236,14 @@ object SqlRewriterUtils {
         fixedNodes.add(SqlStdOperatorTable.ROW.createCall(value.getParserPosition, fieldNodes))
     }
     SqlStdOperatorTable.VALUES.createCall(values.getParserPosition, fixedNodes)
+  }
+
+  def newValidationError(
+      node: SqlNode,
+      e: Resources.ExInst[SqlValidatorException]): CalciteContextException = {
+    assert(node != null)
+    val pos = node.getParserPosition
+    SqlUtil.newContextException(pos, e)
   }
 
   /**
