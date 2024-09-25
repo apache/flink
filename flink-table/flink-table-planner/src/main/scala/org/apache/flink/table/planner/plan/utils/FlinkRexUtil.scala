@@ -439,17 +439,16 @@ object FlinkRexUtil {
   })
 
   private class EquivalentExprShuttle(rexBuilder: RexBuilder) extends RexShuttle {
-    private val equiExprMap = mutable.HashMap[String, RexNode]()
+    private val equiExprSet = mutable.HashSet[RexNode]()
 
     override def visitCall(call: RexCall): RexNode = {
       call.getOperator match {
         case EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN | GREATER_THAN_OR_EQUAL |
             LESS_THAN_OR_EQUAL =>
-          val swapped = swapOperands(call)
-          if (equiExprMap.contains(swapped.toString)) {
-            swapped
+          if (equiExprSet.contains(call)) {
+            swapOperands(call)
           } else {
-            equiExprMap.put(call.toString, call)
+            equiExprSet.add(call)
             call
           }
         case _ => super.visitCall(call)
