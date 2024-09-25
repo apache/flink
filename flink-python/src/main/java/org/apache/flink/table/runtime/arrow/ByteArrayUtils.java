@@ -32,7 +32,7 @@ import java.util.Base64;
 public class ByteArrayUtils {
 
     /** Convert byte[][] to String. */
-    public static String twoDimByteArrayToString(byte[][] byteArray) throws IOException {
+    public static String toDimByteArrayToString(byte[][] byteArray) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos);
         oos.writeObject(byteArray);

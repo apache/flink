@@ -494,7 +494,7 @@ public final class ArrowUtils {
             return TableDescriptor.forConnector(ArrowTableSourceFactory.IDENTIFIER)
                     .option(
                             ArrowTableSourceOptions.DATA,
-                            ByteArrayUtils.twoDimByteArrayToString(data))
+                            ByteArrayUtils.toDimByteArrayToString(data))
                     .schema(schemaBuilder.build())
                     .build();
         } catch (Throwable e) {
