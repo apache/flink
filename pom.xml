@@ -2376,7 +2376,6 @@ under the License.
 								<exclude>org.apache.flink.streaming.api.datastream.CoGroupedStreams</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.ConnectedStreams</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.DataStream</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.IterativeStream</exclude>
 								<exclude>apache.flink.streaming.api.datastream.JoinedStreams</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.WindowedStream</exclude>

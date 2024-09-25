@@ -29,7 +29,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
@@ -44,22 +43,6 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** Integration test for streaming programs in Java examples. */
 public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
-
-    @Test
-    public void testIterateExample() throws Exception {
-        final String inputPath =
-                createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS);
-        final String resultPath = getTempDirPath("result");
-
-        // the example is inherently non-deterministic. The iteration timeout of 5000 ms
-        // is frequently not enough to make the test run stable on CI infrastructure
-        // with very small containers, so we cannot do a validation here
-        org.apache.flink.streaming.examples.iteration.IterateExample.main(
-                new String[] {
-                    "--input", inputPath,
-                    "--output", resultPath
-                });
-    }
 
     @Test
     public void testWindowJoin() throws Exception {
