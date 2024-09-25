@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
@@ -29,7 +30,6 @@ import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
 import org.apache.flink.table.legacy.factories.TableSourceFactory
 import org.apache.flink.table.legacy.sources.{LookupableTableSource, TableSource}
 import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction, RESOURCE_COUNTER}
-import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row

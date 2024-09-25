@@ -18,11 +18,12 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider
 import org.apache.flink.streaming.api.functions.source.{ParallelSourceFunction, SourceFunction}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource, SourceFunctionProvider}
+import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.factories.{DynamicTableFactory, DynamicTableSourceFactory}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil, TestingTableEnvironment}

@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.legacy.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.legacy.factories.TableSourceFactory;
 import org.apache.flink.table.legacy.sources.TableSource;
-import org.apache.flink.table.sources.StreamTableSource;
 
 import java.util.Map;
 

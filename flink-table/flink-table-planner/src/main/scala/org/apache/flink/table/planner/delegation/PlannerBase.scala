@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
@@ -73,12 +74,12 @@ import scala.collection.mutable
 
 /**
  * Implementation of a [[Planner]]. It supports only streaming use cases. (The new
- * [[org.apache.flink.table.sources.InputFormatTableSource]] should work, but will be handled as
- * streaming sources, and no batch specific optimizations will be applied).
+ * [[InputFormatTableSource]] should work, but will be handled as streaming sources, and no batch
+ * specific optimizations will be applied).
  *
  * @param executor
  *   instance of [[Executor]], needed to extract [[StreamExecutionEnvironment]] for
- *   [[org.apache.flink.table.sources.StreamTableSource.getDataStream]]
+ *   [[StreamTableSource.getDataStream]]
  * @param tableConfig
  *   mutable configuration passed from corresponding [[TableEnvironment]]
  * @param moduleManager

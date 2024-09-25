@@ -22,6 +22,9 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.configuration.BatchExecutionOptions
+import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, UpsertStreamTableSink}
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
@@ -39,7 +42,7 @@ import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
@@ -64,8 +67,6 @@ import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils

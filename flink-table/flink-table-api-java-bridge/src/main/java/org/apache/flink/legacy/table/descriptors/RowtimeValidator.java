@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.legacy.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.DescriptorValidator;
 import org.apache.flink.table.legacy.descriptors.Rowtime;
 import org.apache.flink.table.legacy.sources.tsextractors.ExistingField;
 import org.apache.flink.table.legacy.sources.tsextractors.StreamRecordTimestamp;

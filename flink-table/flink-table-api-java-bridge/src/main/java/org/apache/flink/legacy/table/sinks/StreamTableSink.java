@@ -16,35 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks;
+package org.apache.flink.legacy.table.sinks;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.legacy.sinks.TableSink;
 
 /**
- * Defines an external {@link TableSink} to emit a bounded {@link Table}.
+ * Defines an external stream table and provides write access to its data.
  *
- * @param <T> Type of the bounded {@link OutputFormat} that this {@link TableSink} expects and
- *     supports.
+ * @param <T> Type of the {@link DataStream} created by this {@link TableSink}.
  * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
  *     consumes internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-@Experimental
-public abstract class OutputFormatTableSink<T> implements StreamTableSink<T> {
+public interface StreamTableSink<T> extends TableSink<T> {
 
-    /** Returns an {@link OutputFormat} for writing the data of the table. */
-    public abstract OutputFormat<T> getOutputFormat();
-
-    @Override
-    public final DataStreamSink<T> consumeDataStream(DataStream<T> dataStream) {
-        DataStreamSink<T> streamSink = dataStream.writeUsingOutputFormat(getOutputFormat());
-        streamSink.getTransformation().setParallelism(dataStream.getParallelism(), false);
-        return streamSink;
-    }
+    /**
+     * Consumes the DataStream and return the sink transformation {@link DataStreamSink}. The
+     * returned {@link DataStreamSink} will be used to set resources for the sink operator.
+     */
+    DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }

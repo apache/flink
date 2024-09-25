@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
+import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
+import org.apache.flink.legacy.table.sinks.StreamTableSink
+import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{DataTypes, TableEnvironment}
@@ -33,7 +36,6 @@ import org.apache.flink.table.descriptors._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
-import org.apache.flink.table.factories.StreamTableSourceFactory
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.legacy.api.TableSchema
@@ -47,8 +49,7 @@ import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{CsvBatchTableSinkFactory, StreamTableSink}
-import org.apache.flink.table.sources._
+import org.apache.flink.table.sinks.CsvBatchTableSinkFactory
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils

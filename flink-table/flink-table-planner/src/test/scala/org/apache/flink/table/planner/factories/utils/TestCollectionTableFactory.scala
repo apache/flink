@@ -22,6 +22,8 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, StreamTableSink}
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
@@ -33,8 +35,6 @@ import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink}
-import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row

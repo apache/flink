@@ -25,14 +25,14 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.legacy.table.sinks.StreamTableSink;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sources.StreamTableSource;
 
 import com.esotericsoftware.kryo.Serializer;
 

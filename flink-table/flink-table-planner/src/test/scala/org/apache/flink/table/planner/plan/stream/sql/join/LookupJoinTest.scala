@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -32,7 +33,6 @@ import org.apache.flink.table.legacy.sources.{LookupableTableSource, TableSource
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
-import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}

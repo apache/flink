@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.core.testutils.EachCallbackWrapper
+import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.{Schema, TableEnvironment, TableException, ValidationException}
@@ -39,7 +40,6 @@ import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase.
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.sinks.StreamTableSink
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.utils.LegacyRowExtension

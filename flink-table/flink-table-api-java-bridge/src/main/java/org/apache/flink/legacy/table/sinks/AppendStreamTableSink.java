@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks;
+package org.apache.flink.legacy.table.sinks;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.legacy.sinks.TableSink;
 
 /**
- * Defines an external stream table and provides write access to its data.
+ * Defines an external {@link TableSink} to emit streaming {@link Table} with only insert changes.
  *
- * @param <T> Type of the {@link DataStream} created by this {@link TableSink}.
+ * <p>If the {@link Table} is also modified by update or delete changes, a {@link TableException}
+ * will be thrown.
+ *
+ * @param <T> Type of {@link DataStream} that this {@link TableSink} expects and supports.
  * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
  *     consumes internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-public interface StreamTableSink<T> extends TableSink<T> {
-
-    /**
-     * Consumes the DataStream and return the sink transformation {@link DataStreamSink}. The
-     * returned {@link DataStreamSink} will be used to set resources for the sink operator.
-     */
-    DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
-}
+@PublicEvolving
+public interface AppendStreamTableSink<T> extends StreamTableSink<T> {}

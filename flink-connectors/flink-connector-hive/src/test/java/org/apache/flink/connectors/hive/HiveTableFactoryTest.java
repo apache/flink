@@ -19,6 +19,8 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.legacy.table.sinks.StreamTableSink;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -40,8 +42,6 @@ import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.legacy.sources.TableSource;
-import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;

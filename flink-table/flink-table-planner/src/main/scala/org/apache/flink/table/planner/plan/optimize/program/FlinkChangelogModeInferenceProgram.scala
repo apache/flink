@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.optimize.program
 
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
@@ -31,7 +32,6 @@ import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFast
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
-import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.rel.RelNode
