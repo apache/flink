@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
@@ -552,13 +553,13 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                                     }
                                 })
                         .process(
-                                new ProcessFunction<Integer, Integer>() {
-                                    private static final long serialVersionUID = 1L;
-
+                                new KeyedProcessFunction<Integer, Integer, Integer>() {
                                     @Override
                                     public void processElement(
-                                            Integer value, Context ctx, Collector<Integer> out)
-                                            throws Exception {
+                                            Integer value,
+                                            KeyedProcessFunction<Integer, Integer, Integer>.Context
+                                                    ctx,
+                                            Collector<Integer> out) {
                                         out.collect(value);
                                         ctx.output(
                                                 sideOutputTag, "sideout-" + String.valueOf(value));

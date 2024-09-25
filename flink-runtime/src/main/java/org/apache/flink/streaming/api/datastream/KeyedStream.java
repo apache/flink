@@ -35,7 +35,6 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
@@ -45,7 +44,6 @@ import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperato
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -297,68 +295,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         result.getLegacyTransformation().setStateKeySelector(keySelector);
         result.getLegacyTransformation().setStateKeyType(keyType);
         return result;
-    }
-
-    /**
-     * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed
-     * output stream.
-     *
-     * <p>The function will be called for every element in the input streams and can produce zero or
-     * more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)} function,
-     * this function can also query the time and set timers. When reacting to the firing of set
-     * timers the function can directly emit elements and/or register yet more timers.
-     *
-     * @param processFunction The {@link ProcessFunction} that is called for each element in the
-     *     stream.
-     * @param <R> The type of elements emitted by the {@code ProcessFunction}.
-     * @return The transformed {@link DataStream}.
-     * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction)}
-     */
-    @Deprecated
-    @Override
-    @PublicEvolving
-    public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
-
-        TypeInformation<R> outType =
-                TypeExtractor.getUnaryOperatorReturnType(
-                        processFunction,
-                        ProcessFunction.class,
-                        0,
-                        1,
-                        TypeExtractor.NO_INDEX,
-                        getType(),
-                        Utils.getCallLocationName(),
-                        true);
-
-        return process(processFunction, outType);
-    }
-
-    /**
-     * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed
-     * output stream.
-     *
-     * <p>The function will be called for every element in the input streams and can produce zero or
-     * more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)} function,
-     * this function can also query the time and set timers. When reacting to the firing of set
-     * timers the function can directly emit elements and/or register yet more timers.
-     *
-     * @param processFunction The {@link ProcessFunction} that is called for each element in the
-     *     stream.
-     * @param outputType {@link TypeInformation} for the result type of the function.
-     * @param <R> The type of elements emitted by the {@code ProcessFunction}.
-     * @return The transformed {@link DataStream}.
-     * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction, TypeInformation)}
-     */
-    @Deprecated
-    @Override
-    @Internal
-    public <R> SingleOutputStreamOperator<R> process(
-            ProcessFunction<T, R> processFunction, TypeInformation<R> outputType) {
-
-        LegacyKeyedProcessOperator<KEY, T, R> operator =
-                new LegacyKeyedProcessOperator<>(clean(processFunction));
-
-        return transform("Process", outputType, operator);
     }
 
     /**
