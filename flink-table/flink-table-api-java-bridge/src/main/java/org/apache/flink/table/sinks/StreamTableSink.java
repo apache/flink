@@ -21,6 +21,7 @@ package org.apache.flink.table.sinks;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.legacy.sinks.TableSink;
 
 /**
  * Defines an external stream table and provides write access to its data.

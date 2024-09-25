@@ -20,10 +20,15 @@ package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
-import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sources.DefinedFieldMapping;
+import org.apache.flink.table.legacy.sources.DefinedProctimeAttribute;
+import org.apache.flink.table.legacy.sources.DefinedRowtimeAttributes;
+import org.apache.flink.table.legacy.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.legacy.sources.TableSource;
+import org.apache.flink.table.legacy.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractorUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.TypeMappingUtils;

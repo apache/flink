@@ -19,10 +19,11 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset

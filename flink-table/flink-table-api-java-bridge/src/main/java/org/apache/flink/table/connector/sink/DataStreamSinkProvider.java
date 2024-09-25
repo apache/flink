@@ -26,6 +26,7 @@ import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.legacy.connector.sink.SinkProvider;
 
 import java.util.Optional;
 

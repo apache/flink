@@ -25,6 +25,7 @@ import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfi
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.expressions.utils.{TestNonDeterministicUdaf, TestNonDeterministicUdf, TestNonDeterministicUdtf}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit

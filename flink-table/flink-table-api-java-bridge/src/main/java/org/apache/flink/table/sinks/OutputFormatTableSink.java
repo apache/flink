@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.legacy.sinks.TableSink;
 
 /**
  * Defines an external {@link TableSink} to emit a bounded {@link Table}.

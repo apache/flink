@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.legacy.factories.TableFactory;
+import org.apache.flink.table.legacy.factories.TableSinkFactory;
+import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;

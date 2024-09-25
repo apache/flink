@@ -21,6 +21,7 @@ package org.apache.flink.table.sources;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.legacy.sources.TableSource;
 
 /**
  * Defines an external stream table and provides read access to its data.

@@ -1288,14 +1288,14 @@ under the License.
 									<artifact>org.apache.flink:flink-orc</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
-										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.legacy.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>org.apache.flink:flink-parquet</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
-										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.legacy.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 							</filters>

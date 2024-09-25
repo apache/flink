@@ -17,7 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._

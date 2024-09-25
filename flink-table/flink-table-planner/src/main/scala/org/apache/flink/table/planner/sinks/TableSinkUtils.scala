@@ -23,6 +23,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.legacy.api.{TableSchema, Types}
+import org.apache.flink.table.legacy.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink}
 import org.apache.flink.table.operations.SinkModifyOperation
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo

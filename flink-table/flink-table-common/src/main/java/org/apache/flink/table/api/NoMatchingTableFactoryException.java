@@ -20,7 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.legacy.factories.TableFactory;
 
 import javax.annotation.Nullable;
 

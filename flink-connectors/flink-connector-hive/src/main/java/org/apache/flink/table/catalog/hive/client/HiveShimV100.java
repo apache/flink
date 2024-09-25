@@ -21,11 +21,11 @@ package org.apache.flink.table.catalog.hive.client;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.orc.nohive.OrcNoHiveBulkWriterFactory;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
