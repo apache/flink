@@ -17,14 +17,12 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
-import org.apache.flink.api.scala.createTuple2TypeInformation
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{createTuple2TypeInformation, TableException}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.util.RowDataUtil
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy

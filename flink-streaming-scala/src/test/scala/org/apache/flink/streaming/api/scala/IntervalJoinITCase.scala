@@ -17,10 +17,10 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.eventtime.{AscendingTimestampsWatermarks, TimestampAssigner, TimestampAssignerSupplier, WatermarkGenerator, WatermarkGeneratorSupplier, WatermarkStrategy}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.test.util.AbstractTestBaseJUnit4
 import org.apache.flink.util.Collector
@@ -122,8 +122,15 @@ class ResultSink extends SinkFunction[(String, Long)] {
   }
 }
 
-class TimestampExtractor extends AscendingTimestampExtractor[(String, Long)] {
-  override def extractAscendingTimestamp(element: (String, Long)): Long = element._2
+class TimestampExtractor extends WatermarkStrategy[(String, Long)] {
+  override def createWatermarkGenerator(
+      context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(String, Long)] =
+    new AscendingTimestampsWatermarks[(String, Long)]
+
+  override def createTimestampAssigner(
+      context: TimestampAssignerSupplier.Context): TimestampAssigner[(String, Long)] = {
+    (e: (String, Long), _: Long) => e._2
+  }
 }
 
 class CombineJoinFunction

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The {@link StateExecutor} implementation which executing batch {@link StateRequest}s for
@@ -52,8 +53,16 @@ public class ForStStateExecutor implements StateExecutor {
      */
     private final ExecutorService coordinatorThread;
 
-    /** The worker thread that actually executes the {@link StateRequest}s. */
-    private final ExecutorService workerThreads;
+    /** The worker thread that actually executes the read {@link StateRequest}s. */
+    private final ExecutorService readThreads;
+
+    /** The worker thread that actually executes the write {@link StateRequest}s. */
+    private final ExecutorService writeThreads;
+
+    private final int readThreadCount;
+
+    /** Whether the write thread is sharing with others. */
+    private final boolean sharedWriteThread;
 
     private final RocksDB db;
 
@@ -61,15 +70,57 @@ public class ForStStateExecutor implements StateExecutor {
 
     private Throwable executionError;
 
-    public ForStStateExecutor(int ioParallelism, RocksDB db, WriteOptions writeOptions) {
-        this.coordinatorThread =
-                Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
-        this.workerThreads =
-                Executors.newFixedThreadPool(
-                        ioParallelism, new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
+    /** The ongoing sub-processes count. */
+    private final AtomicLong ongoing;
+
+    public ForStStateExecutor(
+            boolean isWriteInline,
+            int readIoParallelism,
+            int writeIoParallelism,
+            RocksDB db,
+            WriteOptions writeOptions) {
+        if (isWriteInline) {
+            Preconditions.checkState(readIoParallelism > 0);
+            this.coordinatorThread =
+                    Executors.newSingleThreadScheduledExecutor(
+                            new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator-And-Write"));
+            this.readThreadCount = readIoParallelism;
+            this.readThreads =
+                    Executors.newFixedThreadPool(
+                            readIoParallelism,
+                            new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
+            this.writeThreads =
+                    org.apache.flink.util.concurrent.Executors.newDirectExecutorService();
+            this.sharedWriteThread = true;
+        } else {
+            Preconditions.checkState(readIoParallelism > 0 || writeIoParallelism > 0);
+            this.coordinatorThread =
+                    Executors.newSingleThreadScheduledExecutor(
+                            new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
+            if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
+                this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
+                this.readThreads =
+                        Executors.newFixedThreadPool(
+                                readThreadCount,
+                                new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
+                this.writeThreads = readThreads;
+                this.sharedWriteThread = true;
+            } else {
+                this.readThreadCount = readIoParallelism;
+                this.readThreads =
+                        Executors.newFixedThreadPool(
+                                readIoParallelism,
+                                new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
+                this.writeThreads =
+                        Executors.newFixedThreadPool(
+                                writeIoParallelism,
+                                new ExecutorThreadFactory("ForSt-StateExecutor-write-IO"));
+                this.sharedWriteThread = false;
+            }
+        }
         this.db = db;
         this.writeOptions = writeOptions;
+        this.ongoing = new AtomicLong();
     }
 
     @Override
@@ -79,34 +130,49 @@ public class ForStStateExecutor implements StateExecutor {
         Preconditions.checkArgument(stateRequestContainer instanceof ForStStateRequestClassifier);
         ForStStateRequestClassifier stateRequestClassifier =
                 (ForStStateRequestClassifier) stateRequestContainer;
+        // Calculate ongoing sub-processes. Only count read ones.
+        // The fully loaded only consider read requests for now, since the write ones are quick.
+        final List<ForStDBGetRequest<?, ?, ?, ?>> getRequests =
+                stateRequestClassifier.pollDbGetRequests();
+        final List<ForStDBIterRequest<?, ?, ?, ?, ?>> iterRequests =
+                stateRequestClassifier.pollDbIterRequests();
+        if (!getRequests.isEmpty()) {
+            ongoing.addAndGet(1);
+        }
+        if (!iterRequests.isEmpty()) {
+            ongoing.addAndGet(1);
+        }
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         coordinatorThread.execute(
                 () -> {
                     long startTime = System.currentTimeMillis();
                     List<CompletableFuture<Void>> futures = new ArrayList<>(3);
+
+                    if (!getRequests.isEmpty()) {
+                        ForStGeneralMultiGetOperation getOperations =
+                                new ForStGeneralMultiGetOperation(
+                                        db, getRequests, readThreads, ongoing::decrementAndGet);
+                        // sub process count should -1, since we have added 1 on top.
+                        ongoing.addAndGet(getOperations.subProcessCount() - 1);
+                        futures.add(getOperations.process());
+                    }
+
+                    if (!iterRequests.isEmpty()) {
+                        ForStIterateOperation iterOperations =
+                                new ForStIterateOperation(
+                                        db, iterRequests, readThreads, ongoing::decrementAndGet);
+                        // sub process count should -1, since we have added 1 on top.
+                        ongoing.addAndGet(iterOperations.subProcessCount() - 1);
+                        futures.add(iterOperations.process());
+                    }
+
                     List<ForStDBPutRequest<?, ?, ?>> putRequests =
                             stateRequestClassifier.pollDbPutRequests();
                     if (!putRequests.isEmpty()) {
                         ForStWriteBatchOperation writeOperations =
                                 new ForStWriteBatchOperation(
-                                        db, putRequests, writeOptions, workerThreads);
+                                        db, putRequests, writeOptions, writeThreads);
                         futures.add(writeOperations.process());
-                    }
-
-                    List<ForStDBGetRequest<?, ?, ?, ?>> getRequests =
-                            stateRequestClassifier.pollDbGetRequests();
-                    if (!getRequests.isEmpty()) {
-                        ForStGeneralMultiGetOperation getOperations =
-                                new ForStGeneralMultiGetOperation(db, getRequests, workerThreads);
-                        futures.add(getOperations.process());
-                    }
-
-                    List<ForStDBIterRequest<?, ?, ?, ?, ?>> iterRequests =
-                            stateRequestClassifier.pollDbIterRequests();
-                    if (!iterRequests.isEmpty()) {
-                        ForStIterateOperation iterOperations =
-                                new ForStIterateOperation(db, iterRequests, workerThreads);
-                        futures.add(iterOperations.process());
                     }
 
                     FutureUtils.combineAll(futures)
@@ -146,6 +212,11 @@ public class ForStStateExecutor implements StateExecutor {
         return new ForStStateRequestClassifier();
     }
 
+    @Override
+    public boolean fullyLoaded() {
+        return ongoing.get() >= readThreadCount;
+    }
+
     private void checkState() {
         if (executionError != null) {
             throw new IllegalStateException(
@@ -155,7 +226,10 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public void shutdown() {
-        workerThreads.shutdown();
+        readThreads.shutdown();
+        if (!sharedWriteThread) {
+            writeThreads.shutdown();
+        }
         coordinatorThread.shutdown();
         LOG.info("Shutting down the ForStStateExecutor.");
     }

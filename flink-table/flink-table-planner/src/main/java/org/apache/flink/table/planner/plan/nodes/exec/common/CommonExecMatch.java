@@ -72,6 +72,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.tools.RelBuilder;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -232,7 +233,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
 
         final Pattern<RowData, RowData> cepPattern;
         if (matchSpec.getInterval().isPresent()) {
-            Time interval = translateTimeBound(matchSpec.getInterval().get());
+            Duration interval = translateTimeBound(matchSpec.getInterval().get()).toDuration();
             cepPattern = matchSpec.getPattern().accept(patternVisitor).within(interval);
         } else {
             cepPattern = matchSpec.getPattern().accept(patternVisitor);

@@ -19,16 +19,16 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -47,7 +47,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
@@ -79,6 +78,10 @@ class YarnConfigurationITCase extends YarnTestBase {
                     configuration.set(
                             JobManagerOptions.TOTAL_PROCESS_MEMORY,
                             MemorySize.ofMebiBytes(masterMemory));
+                    configuration.set(DeploymentOptions.TARGET, "yarn-application");
+                    configuration.setString(
+                            PipelineOptions.JARS.key(),
+                            getTestJarPath("WindowJoin.jar").getAbsolutePath());
 
                     final TaskExecutorProcessSpec tmResourceSpec =
                             TaskExecutorProcessUtils.processSpecFromConfig(configuration);
@@ -100,14 +103,6 @@ class YarnConfigurationITCase extends YarnTestBase {
                                     .map(file -> new Path(file.toURI()))
                                     .collect(Collectors.toList()));
 
-                    final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
-
-                    final PackagedProgram packagedProgram =
-                            PackagedProgram.newBuilder().setJarFile(streamingWordCountFile).build();
-                    final JobGraph jobGraph =
-                            PackagedProgramUtils.createJobGraph(
-                                    packagedProgram, configuration, 1, false);
-
                     try {
                         final ClusterSpecification clusterSpecification =
                                 new ClusterSpecification.ClusterSpecificationBuilder()
@@ -118,7 +113,10 @@ class YarnConfigurationITCase extends YarnTestBase {
 
                         final ClusterClient<ApplicationId> clusterClient =
                                 clusterDescriptor
-                                        .deployJobCluster(clusterSpecification, jobGraph, true)
+                                        .deployApplicationCluster(
+                                                clusterSpecification,
+                                                ApplicationConfiguration.fromConfiguration(
+                                                        configuration))
                                         .getClusterClient();
 
                         final ApplicationId clusterId = clusterClient.getClusterId();

@@ -110,7 +110,7 @@ public class StateBackendTestUtils {
         }
     }
 
-    private static class TestAsyncKeyedStateBackend implements AsyncKeyedStateBackend {
+    private static class TestAsyncKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         private final Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier;
         private final StateExecutor stateExecutor;
@@ -151,6 +151,27 @@ public class StateBackendTestUtils {
         @Override
         public void close() {
             // do nothing
+        }
+
+        @Override
+        public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+                long checkpointId,
+                long timestamp,
+                CheckpointStreamFactory streamFactory,
+                CheckpointOptions checkpointOptions)
+                throws Exception {
+            // do nothing
+            return null;
         }
     }
 

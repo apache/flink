@@ -60,7 +60,6 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -77,7 +76,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -192,16 +190,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
-
-    /**
-     * The state backend used for storing k/v state and state snapshots.
-     *
-     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     field will be removed entirely.
-     */
-    @Deprecated private StateBackend defaultStateBackend;
 
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -572,56 +560,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     /**
-     * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
-     * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
-     * restarted from the latest completed checkpoint.
-     *
-     * <p>The job draws checkpoints periodically, in the given interval. The state will be stored in
-     * the configured state backend.
-     *
-     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * If the "force" parameter is set to true, the system will execute the job nonetheless.
-     *
-     * @param interval Time interval between state checkpoints in millis.
-     * @param mode The checkpointing mode, selecting between "exactly once" and "at least once"
-     *     guaranteed.
-     * @param force If true checkpointing will be enabled for iterative jobs as well.
-     * @deprecated Use {@link #enableCheckpointing(long, CheckpointingMode)} instead. Forcing
-     *     checkpoints will be removed in the future.
-     */
-    @Deprecated
-    @SuppressWarnings("deprecation")
-    @PublicEvolving
-    public StreamExecutionEnvironment enableCheckpointing(
-            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
-        checkpointCfg.setCheckpointingMode(mode);
-        checkpointCfg.setCheckpointInterval(interval);
-        checkpointCfg.setForceCheckpointing(force);
-        return this;
-    }
-
-    /**
-     * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
-     * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
-     * restarted from the latest completed checkpoint. This method selects {@link
-     * CheckpointingMode#EXACTLY_ONCE} guarantees.
-     *
-     * <p>The job draws checkpoints periodically, in the default interval. The state will be stored
-     * in the configured state backend.
-     *
-     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
-     *
-     * @deprecated Use {@link #enableCheckpointing(long)} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public StreamExecutionEnvironment enableCheckpointing() {
-        checkpointCfg.setCheckpointInterval(500);
-        return this;
-    }
-
-    /**
      * Returns the checkpointing interval or -1 if checkpointing is disabled.
      *
      * <p>Shorthand for {@code getCheckpointConfig().getCheckpointInterval()}.
@@ -630,18 +568,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     public long getCheckpointInterval() {
         return checkpointCfg.getCheckpointInterval();
-    }
-
-    /**
-     * Returns whether checkpointing is force-enabled.
-     *
-     * @deprecated Forcing checkpoints will be removed in future version.
-     */
-    @Deprecated
-    @SuppressWarnings("deprecation")
-    @PublicEvolving
-    public boolean isForceCheckpointing() {
-        return checkpointCfg.isForceCheckpointing();
     }
 
     /** Returns whether unaligned checkpoints are enabled. */
@@ -678,70 +604,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     public CheckpointingMode getCheckpointingConsistencyMode() {
         return checkpointCfg.getCheckpointingConsistencyMode();
-    }
-
-    /**
-     * Sets the state backend that describes how to store operator. It defines the data structures
-     * that hold state during execution (for example hash tables, RocksDB, or other data stores).
-     *
-     * <p>State managed by the state backend includes both keyed state that is accessible on {@link
-     * org.apache.flink.streaming.api.datastream.KeyedStream keyed streams}, as well as state
-     * maintained directly by the user code that implements {@link
-     * org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction}.
-     *
-     * <p>The {@link org.apache.flink.runtime.state.hashmap.HashMapStateBackend} maintains state in
-     * heap memory, as objects. It is lightweight without extra dependencies, but is limited to JVM
-     * heap memory.
-     *
-     * <p>In contrast, the {@code EmbeddedRocksDBStateBackend} stores its state in an embedded
-     * {@code RocksDB} instance. This state backend can store very large state that exceeds memory
-     * and spills to local disk. All key/value state (including windows) is stored in the key/value
-     * index of RocksDB.
-     *
-     * <p>In both cases, fault tolerance is managed via the jobs {@link
-     * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
-     * backends persist during a checkpoint.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided for configuring state backend like the following code snippet:
-     *     <pre>{@code
-     * Configuration config = new Configuration();
-     * config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
-     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-     * }</pre>
-     *     For more details on using ConfigOption for state backend configuration, please refer to
-     *     the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends">state-backends</a>
-     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
-     * @see #getStateBackend()
-     * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
-     */
-    @Deprecated
-    @PublicEvolving
-    public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
-        this.defaultStateBackend = Preconditions.checkNotNull(backend);
-        return this;
-    }
-
-    /**
-     * Gets the state backend that defines how to store and checkpoint state.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to find which state backend is used by
-     *     state backend ConfigOption. For more details on using ConfigOption for state backend
-     *     configuration, please refer to the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends">state-backends</a>
-     * @see #setStateBackend(StateBackend)
-     */
-    @Deprecated
-    @PublicEvolving
-    public StateBackend getStateBackend() {
-        return defaultStateBackend;
     }
 
     /**
@@ -1061,11 +923,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
-
-        // reset state backend for backward compatibility
-        configuration
-                .getOptional(StateBackendOptions.STATE_BACKEND)
-                .ifPresent(ignored -> this.defaultStateBackend = null);
     }
 
     private void registerCustomListeners(
@@ -2495,7 +2352,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         // stream graph generation.
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
-                .setStateBackend(defaultStateBackend)
                 .setTimeCharacteristic(getStreamTimeCharacteristic())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }

@@ -26,9 +26,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.test.streaming.runtime.TimestampITCase.AscendingRecordTimestampsWatermarkStrategy;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
@@ -421,10 +421,9 @@ public class IntervalJoinITCase {
     }
 
     private static class AscendingTuple2TimestampExtractor
-            extends AscendingTimestampExtractor<Tuple2<String, Integer>> {
-        @Override
-        public long extractAscendingTimestamp(Tuple2<String, Integer> element) {
-            return element.f1;
+            extends AscendingRecordTimestampsWatermarkStrategy<Tuple2<String, Integer>> {
+        public AscendingTuple2TimestampExtractor() {
+            super((e) -> Long.valueOf(e.f1));
         }
     }
 

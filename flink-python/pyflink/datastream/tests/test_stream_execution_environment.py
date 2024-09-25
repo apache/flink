@@ -27,8 +27,7 @@ import uuid
 from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
-                                CheckpointingMode, MemoryStateBackend,
-                                SlotSharingGroup)
+                                CheckpointingMode, SlotSharingGroup)
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
@@ -154,21 +153,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(mode, CheckpointingMode.AT_LEAST_ONCE)
 
-    def test_get_state_backend(self):
-        state_backend = self.env.get_state_backend()
-
-        self.assertIsNone(state_backend)
-
-    def test_set_state_backend(self):
-        input_backend = MemoryStateBackend()
-
-        self.env.set_state_backend(input_backend)
-
-        output_backend = self.env.get_state_backend()
-
-        self.assertEqual(output_backend._j_memory_state_backend,
-                         input_backend._j_memory_state_backend)
-
     def test_is_changelog_state_backend_enabled(self):
         self.assertIsNone(self.env.is_changelog_state_backend_enabled())
 
@@ -191,7 +175,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(self.env.is_chaining_enabled(), False)
         self.assertEqual(self.env.get_buffer_timeout(), 60000)
         self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
-        self.assertTrue(self.env.get_state_backend() is None)
 
     def test_execute(self):
         tmp_dir = tempfile.gettempdir()

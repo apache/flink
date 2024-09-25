@@ -74,9 +74,6 @@ public class StateBackendLoader {
      */
     @Deprecated public static final String MEMORY_STATE_BACKEND_NAME = "jobmanager";
 
-    /** The shortcut configuration name for the FileSystem State backend. */
-    @Deprecated public static final String FS_STATE_BACKEND_NAME = "filesystem";
-
     /** The shortcut configuration name for the RocksDB State Backend. */
     public static final String ROCKSDB_STATE_BACKEND_NAME = "rocksdb";
 
@@ -94,9 +91,8 @@ public class StateBackendLoader {
      * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are '{@value StateBackendLoader#HASHMAP_STATE_BACKEND_NAME}',
-     * '{@value StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}' '{@value
-     * StateBackendLoader#MEMORY_STATE_BACKEND_NAME}' (Deprecated), and '{@value
-     * StateBackendLoader#FS_STATE_BACKEND_NAME}' (Deprecated).
+     * '{@value StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}' and '{@value
+     * StateBackendLoader#MEMORY_STATE_BACKEND_NAME}' (Deprecated)
      *
      * @param config The configuration to load the state backend from
      * @param classLoader The class loader that should be used to load the state backend
@@ -137,15 +133,6 @@ public class StateBackendLoader {
                 }
 
                 return backend;
-            case FS_STATE_BACKEND_NAME:
-                if (logger != null) {
-                    logger.warn(
-                            "{} state backend has been deprecated. Please use 'hashmap' state "
-                                    + "backend instead.",
-                            backendName.toLowerCase());
-                }
-                // fall through and use the HashMapStateBackend instead which
-                // utilizes the same HeapKeyedStateBackend runtime implementation.
             case HASHMAP_STATE_BACKEND_NAME:
                 HashMapStateBackend hashMapStateBackend =
                         new HashMapStateBackendFactory().createFromConfig(config, classLoader);

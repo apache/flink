@@ -95,7 +95,8 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                             maxParallelism,
                             asyncBufferSize,
                             asyncBufferTimeout,
-                            inFlightRecordsLimit);
+                            inFlightRecordsLimit,
+                            asyncKeyedStateBackend);
             asyncKeyedStateBackend.setup(asyncExecutionController);
         } else if (stateHandler.getKeyedStateBackend() != null) {
             throw new UnsupportedOperationException(
@@ -314,5 +315,11 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @VisibleForTesting
     RecordContext getCurrentProcessingContext() {
         return currentProcessingContext;
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        asyncExecutionController.close();
     }
 }

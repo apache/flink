@@ -160,7 +160,7 @@ class DelegatingConfigurationTest {
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(2);
 
         // integerOption exists in delegatingConf, and it should be value that set before.
-        delegatingConf.setInteger(integerOption, 3);
+        delegatingConf.set(integerOption, 3);
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
 
@@ -169,9 +169,7 @@ class DelegatingConfigurationTest {
                 ConfigOptions.key("float.key").floatType().noDefaultValue();
         original.set(floatOption, 4f);
         assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(5f);
-        assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(5f);
         delegatingConf.set(floatOption, 6f);
-        assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(6f);
         assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(6f);
 
         // Test for double
@@ -179,18 +177,14 @@ class DelegatingConfigurationTest {
                 ConfigOptions.key("double.key").doubleType().noDefaultValue();
         original.set(doubleOption, 7d);
         assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(8d);
-        assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(8d);
-        delegatingConf.set(doubleOption, 9.0);
-        assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(9f);
+        delegatingConf.set(doubleOption, 9d);
         assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(9f);
 
         // Test for long
         ConfigOption<Long> longOption = ConfigOptions.key("long.key").longType().noDefaultValue();
         original.set(longOption, 10L);
         assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(11L);
-        assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(11L);
         delegatingConf.set(longOption, 12L);
-        assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(12L);
         assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(12L);
 
         // Test for boolean
@@ -198,9 +192,7 @@ class DelegatingConfigurationTest {
                 ConfigOptions.key("boolean.key").booleanType().noDefaultValue();
         original.set(booleanOption, false);
         assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(true);
-        assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(true);
         delegatingConf.set(booleanOption, false);
-        assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(false);
         assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(false);
     }
 
@@ -217,13 +209,11 @@ class DelegatingConfigurationTest {
         assertThat(delegatingConf.get(integerOption)).isZero();
         delegatingConf.removeConfig(integerOption);
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
-        assertThat(delegatingConf.get(integerOption, 0)).isZero();
 
         // Test for removeKey
         delegatingConf.set(integerOption, 0);
         assertThat(delegatingConf.get(integerOption, -1)).isZero();
         delegatingConf.removeKey(integerOption.key());
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
-        assertThat(delegatingConf.get(integerOption, 0)).isZero();
     }
 }

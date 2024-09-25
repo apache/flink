@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
-import org.apache.flink.table.api.{TableException, TableSchema, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode

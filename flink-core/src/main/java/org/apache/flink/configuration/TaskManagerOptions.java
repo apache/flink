@@ -38,12 +38,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @ConfigGroups(groups = @ConfigGroup(name = "TaskManagerMemory", keyPrefix = "taskmanager.memory"))
 public class TaskManagerOptions {
 
-    /**
-     * @deprecated use {@link #MANAGED_MEMORY_CONSUMER_NAME_OPERATOR} and {@link
-     *     #MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND} instead
-     */
-    @Deprecated public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
-
     public static final String MANAGED_MEMORY_CONSUMER_NAME_OPERATOR = "OPERATOR";
     public static final String MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND = "STATE_BACKEND";
     public static final String MANAGED_MEMORY_CONSUMER_NAME_PYTHON = "PYTHON";
@@ -51,38 +45,6 @@ public class TaskManagerOptions {
     // ------------------------------------------------------------------------
     //  General TaskManager Options
     // ------------------------------------------------------------------------
-
-    /**
-     * JVM heap size for the TaskManagers with memory size.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    public static final ConfigOption<MemorySize> TASK_MANAGER_HEAP_MEMORY =
-            key("taskmanager.heap.size")
-                    .memoryType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "JVM heap size for the TaskManagers, which are the parallel workers of"
-                                    + " the system. On YARN setups, this value is automatically configured to the size of the TaskManager's"
-                                    + " YARN container, minus a certain tolerance value.");
-
-    /**
-     * JVM heap size (in megabytes) for the TaskManagers.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
-            key("taskmanager.heap.mb")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of"
-                                    + " the system. On YARN setups, this value is automatically configured to the size of the TaskManager's"
-                                    + " YARN container, minus a certain tolerance value.");
 
     /** Whether to kill the TaskManager when the task thread throws an OutOfMemoryError. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)

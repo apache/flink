@@ -31,8 +31,8 @@ import org.apache.flink.table.runtime.operators.join.stream.bundle.BufferBundle;
 import org.apache.flink.table.runtime.operators.join.stream.bundle.InputSideHasNoUniqueKeyBundle;
 import org.apache.flink.table.runtime.operators.join.stream.bundle.InputSideHasUniqueKeyBundle;
 import org.apache.flink.table.runtime.operators.join.stream.bundle.JoinKeyContainsUniqueKeyBundle;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.metrics.SimpleGauge;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
@@ -83,8 +83,9 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
         coBundleTrigger.reset();
         LOG.info("Initialize MiniBatchStreamingJoinOperator successfully.");
 
-        this.leftSerializer = leftType.createSerializer(getExecutionConfig());
-        this.rightSerializer = rightType.createSerializer(getExecutionConfig());
+        this.leftSerializer = leftType.createSerializer(getExecutionConfig().getSerializerConfig());
+        this.rightSerializer =
+                rightType.createSerializer(getExecutionConfig().getSerializerConfig());
 
         // register metrics
         leftBundleReducedSizeGauge = new SimpleGauge<>(0);

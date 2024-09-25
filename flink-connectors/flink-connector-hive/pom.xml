@@ -29,7 +29,7 @@ under the License.
 		<version>2.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-hive</artifactId>
 	<name>Flink : Connectors : Hive</name>
 
 	<packaging>jar</packaging>
@@ -239,7 +239,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
+			<artifactId>flink-hadoop-compatibility</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
@@ -1244,7 +1244,7 @@ under the License.
 									<include>org.apache.flink:flink-hadoop-fs</include>
 									<include>org.apache.flink:flink-orc</include>
 									<include>org.apache.flink:flink-orc-nohive</include>
-									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-hadoop-compatibility</include>
 									<include>org.apache.flink:flink-parquet</include>
 									<include>org.apache.flink:flink-hadoop-bulk</include>
 									<include>org.apache.parquet:parquet-hadoop</include>

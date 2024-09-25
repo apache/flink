@@ -29,12 +29,11 @@ import org.apache.flink.formats.common.Converter;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
-import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -355,12 +354,11 @@ class DataStreamCsvITCase {
 
     @Nonnull
     private static <T> List<T> getResultsFromStream(DataStream<T> stream) throws Exception {
-        final ClientAndIterator<T> client =
-                DataStreamUtils.collectWithClient(stream, "Bounded Results Fetch");
+        CloseableIterator<T> iterator = stream.executeAndCollect("Bounded Results Fetch");
 
         final List<T> result = new ArrayList<>();
-        while (client.iterator.hasNext()) {
-            T next = client.iterator.next();
+        while (iterator.hasNext()) {
+            T next = iterator.next();
             result.add(next);
         }
         return result;

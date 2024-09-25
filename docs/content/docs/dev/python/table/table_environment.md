@@ -222,28 +222,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>register_table_source(name, table_source)</strong>
-      </td>
-      <td>
-        Registers an external `TableSource` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_source" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_sink(name, table_sink)</strong>
-      </td>
-      <td>
-        Registers an external `TableSink` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>insert_into(target_path, table)</strong>
       </td>
       <td>
@@ -833,9 +811,9 @@ table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().set("execution.checkpointing.interval", "3min")
 
-# set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
+# set the statebackend type to "rocksdb", other available options are "hashmap"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
-# e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
+# e.g. org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend

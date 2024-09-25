@@ -199,10 +199,6 @@ public class CepOperator<IN, KEY, OUT>
                                         EVENT_QUEUE_STATE_NAME,
                                         LongSerializer.INSTANCE,
                                         new ListSerializer<>(inputSerializer)));
-
-        if (context.isRestored()) {
-            partialMatches.migrateOldState(getKeyedStateBackend(), computationStates);
-        }
     }
 
     @Override

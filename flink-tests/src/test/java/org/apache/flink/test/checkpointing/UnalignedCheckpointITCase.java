@@ -228,8 +228,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         }
     }
 
-    @Parameterized.Parameters(
-            name = "{0} with {2} channels, p = {1}, timeout = {3}, buffersPerChannel = {4}")
+    @Parameterized.Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
     public static Object[][] parameters() {
         Object[] defaults = {Topology.PIPELINE, 1, MIXED, 0};
 
@@ -248,12 +247,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         };
         return Stream.of(runs)
                 .map(params -> addDefaults(params, defaults))
-                .map(
-                        params ->
-                                new Object[][] {
-                                    ArrayUtils.insert(params.length, params, 0),
-                                    ArrayUtils.insert(params.length, params, BUFFER_PER_CHANNEL)
-                                })
+                .map(params -> new Object[][] {ArrayUtils.insert(params.length, params)})
                 .flatMap(Arrays::stream)
                 .toArray(Object[][]::new);
     }
@@ -266,11 +260,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     private final UnalignedSettings settings;
 
     public UnalignedCheckpointITCase(
-            Topology topology,
-            int parallelism,
-            ChannelType channelType,
-            int timeout,
-            int buffersPerChannel) {
+            Topology topology, int parallelism, ChannelType channelType, int timeout) {
         settings =
                 new UnalignedSettings(topology)
                         .setParallelism(parallelism)
@@ -282,8 +272,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         // after triggering)
                         .setCheckpointTimeout(Duration.ofSeconds(30))
                         .setTolerableCheckpointFailures(3)
-                        .setAlignmentTimeout(timeout)
-                        .setBuffersPerChannel(buffersPerChannel);
+                        .setAlignmentTimeout(timeout);
     }
 
     @Test

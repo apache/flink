@@ -30,6 +30,7 @@ import org.rocksdb.InfoLogLevel;
 
 import java.io.File;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -38,6 +39,9 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_READ_IO_PARALLELISM;
+import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_INLINE;
+import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_PARALLELISM;
 import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
 import static org.rocksdb.CompactionStyle.NONE;
@@ -300,8 +304,31 @@ public class ForStConfigurableOptions implements Serializable {
                             "If true, ForSt will use block-based filter instead of full filter, this only take effect when bloom filter is used. "
                                     + "The default value is 'false'.");
 
+    public static final ConfigOption<Long> COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES =
+            key("state.backend.forst.compaction.filter.query-time-after-num-entries")
+                    .longType()
+                    .defaultValue(1000L)
+                    .withDescription(
+                            "Number of state entries to process by compaction filter before updating current timestamp. "
+                                    + "Updating the timestamp more often can improve cleanup speed, "
+                                    + "but it decreases compaction performance because it uses JNI calls from native code.The default value is '1000L'.");
+
+    public static final ConfigOption<Duration> COMPACT_FILTER_PERIODIC_COMPACTION_TIME =
+            key("state.backend.forst.compaction.filter.periodic-compaction-time")
+                    .durationType()
+                    .defaultValue(Duration.ofDays(30))
+                    .withDescription(
+                            "Periodic compaction could speed up expired state entries cleanup, especially for state"
+                                    + " entries rarely accessed. Files older than this value will be picked up for compaction,"
+                                    + " and re-written to the same level as they were before. It makes sure a file goes through"
+                                    + " compaction filters periodically. 0 means turning off periodic compaction.The default value is '30days'.");
+
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
+                // configurable forst executor
+                EXECUTOR_WRITE_IO_INLINE,
+                EXECUTOR_WRITE_IO_PARALLELISM,
+                EXECUTOR_READ_IO_PARALLELISM,
                 // configurable DBOptions
                 MAX_BACKGROUND_THREADS,
                 MAX_OPEN_FILES,

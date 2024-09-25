@@ -28,7 +28,7 @@ under the License.
 		<version>2.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
+	<artifactId>flink-hadoop-compatibility</artifactId>
 	<name>Flink : Connectors : Hadoop compatibility</name>
 
 	<packaging>jar</packaging>
@@ -40,13 +40,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -129,40 +122,6 @@ under the License.
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
-				<configuration>
-					<scala>
-						<scalafmt>
-							<version>${spotless.scalafmt.version}</version>
-							<file>${project.basedir}/../../.scalafmt.conf</file>
-						</scalafmt>
-						<licenseHeader>
-							<content>${spotless.license.header}</content>
-							<delimiter>${spotless.delimiter}</delimiter>
-						</licenseHeader>
-					</scala>
-				</configuration>
-			</plugin>
-			<!-- Scala Compiler -->
-			<plugin>
-				<groupId>net.alchim31.maven</groupId>
-				<artifactId>scala-maven-plugin</artifactId>
-				<executions>
-					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-						scala classes can be resolved later in the (Java) compile phase -->
-					<execution>
-						<id>scala-compile-first</id>
-						<phase>process-resources</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<jvmArgs>
-						<jvmArg>-Xms128m</jvmArg>
-						<jvmArg>-Xmx512m</jvmArg>
-					</jvmArgs>
-				</configuration>
 			</plugin>
 
 			<!-- Eclipse Integration -->
@@ -173,47 +132,15 @@ under the License.
 				<configuration>
 					<downloadSources>true</downloadSources>
 					<projectnatures>
-						<projectnature>org.scala-ide.sdt.core.scalanature</projectnature>
 						<projectnature>org.eclipse.jdt.core.javanature</projectnature>
 					</projectnatures>
-					<buildcommands>
-						<buildcommand>org.scala-ide.sdt.core.scalabuilder</buildcommand>
-					</buildcommands>
 					<classpathContainers>
-						<classpathContainer>org.scala-ide.sdt.launching.SCALA_CONTAINER</classpathContainer>
 						<classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
 					</classpathContainers>
-					<excludes>
-						<exclude>org.scala-lang:scala-library</exclude>
-						<exclude>org.scala-lang:scala-compiler</exclude>
-					</excludes>
 					<sourceIncludes>
-						<sourceInclude>**/*.scala</sourceInclude>
 						<sourceInclude>**/*.java</sourceInclude>
 					</sourceIncludes>
 				</configuration>
-			</plugin>
-
-			<!-- Adding scala source directories to build path
-			 	 This is required for the source jar -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<executions>
-					<!-- Add src/main/scala to build path -->
-					<execution>
-						<id>add-source</id>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>add-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>src/main/scala</source>
-							</sources>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- Add test classes to test jar in order to test WritableTypeInfo. -->

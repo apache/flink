@@ -29,14 +29,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
@@ -226,7 +226,7 @@ public class DataStreamAllroundTestJobFactory {
                     .noDefaultValue()
                     .withDescription("The checkpoint directory.");
 
-    private static final ConfigOption<Boolean> STATE_BACKEND_ROCKS_INCREMENTAL =
+    static final ConfigOption<Boolean> STATE_BACKEND_ROCKS_INCREMENTAL =
             ConfigOptions.key("state_backend.rocks.incremental")
                     .booleanType()
                     .defaultValue(false)
@@ -268,10 +268,19 @@ public class DataStreamAllroundTestJobFactory {
 
     public static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt)
             throws Exception {
+        setupEnvironment(env, pt, true);
+    }
+
+    public static void setupEnvironment(
+            StreamExecutionEnvironment env, ParameterTool pt, boolean setupStateBackend)
+            throws Exception {
         setupCheckpointing(env, pt);
         setupParallelism(env, pt);
         setupRestartStrategy(env, pt);
-        setupStateBackend(env, pt);
+
+        if (setupStateBackend) {
+            setupStateBackend(env, pt);
+        }
 
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(pt);
@@ -292,7 +301,9 @@ public class DataStreamAllroundTestJobFactory {
         env.enableCheckpointing(checkpointInterval, checkpointingMode);
 
         final String checkpointDir = pt.getRequired(STATE_BACKEND_CHECKPOINT_DIR.key());
-        env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
+        Configuration configuration = new Configuration();
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        env.configure(configuration);
 
         boolean enableExternalizedCheckpoints =
                 pt.getBoolean(
@@ -379,14 +390,19 @@ public class DataStreamAllroundTestJobFactory {
         final String stateBackend = pt.get(STATE_BACKEND.key(), STATE_BACKEND.defaultValue());
 
         if ("hashmap".equalsIgnoreCase(stateBackend)) {
-            env.setStateBackend(new HashMapStateBackend());
+            env.configure(new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"));
         } else if ("rocks".equalsIgnoreCase(stateBackend)) {
             boolean incrementalCheckpoints =
                     pt.getBoolean(
                             STATE_BACKEND_ROCKS_INCREMENTAL.key(),
                             STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
 
-            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
+            env.configure(
+                    new Configuration()
+                            .set(StateBackendOptions.STATE_BACKEND, "rocksdb")
+                            .set(
+                                    CheckpointingOptions.INCREMENTAL_CHECKPOINTS,
+                                    incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
         }

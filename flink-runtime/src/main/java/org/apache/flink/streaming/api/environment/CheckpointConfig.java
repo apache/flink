@@ -25,29 +25,18 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateRecoveryOptions;
-import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
-import java.net.URI;
 import java.time.Duration;
 
-import static org.apache.flink.configuration.description.TextElement.text;
-import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,59 +57,6 @@ public class CheckpointConfig implements java.io.Serializable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointConfig.class);
 
-    @Deprecated
-    /**
-     * The default checkpoint mode: exactly once.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE} instead.
-     */
-    public static final org.apache.flink.streaming.api.CheckpointingMode DEFAULT_MODE =
-            ExecutionCheckpointingOptions.CHECKPOINTING_MODE.defaultValue();
-
-    /**
-     * The default timeout of a checkpoint attempt: 10 minutes.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT} instead.
-     */
-    @Deprecated
-    public static final long DEFAULT_TIMEOUT =
-            ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue().toMillis();
-
-    /**
-     * The default minimum pause to be made between checkpoints: none.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS} instead.
-     */
-    @Deprecated
-    public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS =
-            ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS.defaultValue().toMillis();
-
-    /**
-     * The default limit of concurrently happening checkpoints: one.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS} instead.
-     */
-    @Deprecated
-    public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS =
-            ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue();
-
-    /** @deprecated This field is no longer used. */
-    @Deprecated public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
-
-    /**
-     * Default id of checkpoint for which in-flight data should be ignored on recovery.
-     *
-     * @deprecated This field is no longer used. Please use {@link
-     *     StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
-     */
-    @Deprecated
-    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
-            StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA.defaultValue().intValue();
-
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -128,14 +64,6 @@ public class CheckpointConfig implements java.io.Serializable {
      * {@link StreamExecutionEnvironment}.
      */
     private final Configuration configuration;
-
-    /**
-     * The checkpoint storage for this application. This field is marked as transient because it may
-     * contain user-code.
-     *
-     * @deprecated this should be moved somehow to {@link #configuration}.
-     */
-    @Deprecated private transient CheckpointStorage storage;
 
     /**
      * Creates a deep copy of the provided {@link CheckpointConfig}.
@@ -146,7 +74,6 @@ public class CheckpointConfig implements java.io.Serializable {
         checkNotNull(checkpointConfig);
 
         this.configuration = new Configuration(checkpointConfig.configuration);
-        this.storage = checkpointConfig.getCheckpointStorage();
     }
 
     public CheckpointConfig() {
@@ -182,7 +109,8 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated
     public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
-        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE);
+        return org.apache.flink.streaming.api.CheckpointingMode.convertFromCheckpointingMode(
+                configuration.get(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE));
     }
 
     /**
@@ -194,7 +122,10 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     public void setCheckpointingMode(
             org.apache.flink.streaming.api.CheckpointingMode checkpointingMode) {
-        configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, checkpointingMode);
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode(
+                        checkpointingMode));
     }
 
     /**
@@ -399,32 +330,6 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether checkpointing is forced, despite currently non-checkpointable iteration
-     * feedback.
-     *
-     * @return True, if checkpointing is forced, false otherwise.
-     * @deprecated This will be removed once iterations properly participate in checkpointing.
-     */
-    @Deprecated
-    @PublicEvolving
-    public boolean isForceCheckpointing() {
-        return configuration.get(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING);
-    }
-
-    /**
-     * Checks whether checkpointing is forced, despite currently non-checkpointable iteration
-     * feedback.
-     *
-     * @param forceCheckpointing The flag to force checkpointing.
-     * @deprecated This will be removed once iterations properly participate in checkpointing.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setForceCheckpointing(boolean forceCheckpointing) {
-        configuration.set(ExecutionCheckpointingOptions.FORCE_CHECKPOINTING, forceCheckpointing);
-    }
-
-    /**
      * Checks whether unaligned checkpoints are forced, despite iteration feedback.
      *
      * @return True, if unaligned checkpoints are forced, false otherwise.
@@ -443,51 +348,6 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setForceUnalignedCheckpoints(boolean forceUnalignedCheckpoints) {
         configuration.set(CheckpointingOptions.FORCE_UNALIGNED, forceUnalignedCheckpoints);
-    }
-
-    /**
-     * This determines the behaviour when meeting checkpoint errors. If this returns true, which is
-     * equivalent to get tolerableCheckpointFailureNumber as zero, job manager would fail the whole
-     * job once it received a decline checkpoint message. If this returns false, which is equivalent
-     * to get tolerableCheckpointFailureNumber as the maximum of integer (means unlimited), job
-     * manager would not fail the whole job no matter how many declined checkpoints it received.
-     *
-     * @deprecated Use {@link #getTolerableCheckpointFailureNumber()}.
-     */
-    @Deprecated
-    public boolean isFailOnCheckpointingErrors() {
-        return getTolerableCheckpointFailureNumber() == 0;
-    }
-
-    /**
-     * Sets the expected behaviour for tasks in case that they encounter an error when
-     * checkpointing. If this is set as true, which is equivalent to set
-     * tolerableCheckpointFailureNumber as zero, job manager would fail the whole job once it
-     * received a decline checkpoint message. If this is set as false, which is equivalent to set
-     * tolerableCheckpointFailureNumber as the maximum of integer (means unlimited), job manager
-     * would not fail the whole job no matter how many declined checkpoints it received.
-     *
-     * <p>{@link #setTolerableCheckpointFailureNumber(int)} would always overrule this deprecated
-     * method if they have conflicts.
-     *
-     * @deprecated Use {@link #setTolerableCheckpointFailureNumber(int)}.
-     */
-    @Deprecated
-    public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
-        if (configuration.getOptional(CheckpointingOptions.TOLERABLE_FAILURE_NUMBER).isPresent()) {
-            LOG.warn(
-                    "Since CheckpointingOptions.TOLERABLE_FAILURE_NUMBER has been configured as {}, deprecated "
-                            + "#setFailOnCheckpointingErrors(boolean) method would not take any effect and please use "
-                            + "#setTolerableCheckpointFailureNumber(int) method to "
-                            + "determine your expected behaviour when checkpoint errors on task side.",
-                    getTolerableCheckpointFailureNumber());
-            return;
-        }
-        if (failOnCheckpointingErrors) {
-            setTolerableCheckpointFailureNumber(0);
-        } else {
-            setTolerableCheckpointFailureNumber(UNLIMITED_TOLERABLE_FAILURE_NUMBER);
-        }
     }
 
     /**
@@ -519,34 +379,6 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
      * automatically unless the mode is set to {@link
-     * ExternalizedCheckpointCleanup#NO_EXTERNALIZED_CHECKPOINTS}.
-     *
-     * <p>Externalized checkpoints write their meta data out to persistent storage and are
-     * <strong>not</strong> automatically cleaned up when the owning job fails or is suspended
-     * (terminating with job status {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In
-     * this case, you have to manually clean up the checkpoint state, both the meta data and actual
-     * program state.
-     *
-     * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an externalized checkpoint
-     * should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on
-     * cancellation you have to handle checkpoint clean-up manually when you cancel the job as well
-     * (terminating with job status {@link JobStatus#CANCELED}).
-     *
-     * <p>The target directory for externalized checkpoints is configured via {@link
-     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
-     *
-     * @param cleanupMode Externalized checkpoint clean-up behaviour.
-     * @deprecated Use {@link #setExternalizedCheckpointRetention} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup cleanupMode) {
-        configuration.set(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT, cleanupMode);
-    }
-
-    /**
-     * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
-     * automatically unless the mode is set to {@link
      * ExternalizedCheckpointRetention#NO_EXTERNALIZED_CHECKPOINTS}.
      *
      * <p>Externalized checkpoints write their meta data out to persistent storage and are
@@ -571,43 +403,14 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Sets the mode for externalized checkpoint clean-up. Externalized checkpoints will be enabled
-     * automatically unless the mode is set to {@link
-     * ExternalizedCheckpointCleanup#NO_EXTERNALIZED_CHECKPOINTS}.
-     *
-     * <p>Externalized checkpoints write their meta data out to persistent storage and are
-     * <strong>not</strong> automatically cleaned up when the owning job fails or is suspended
-     * (terminating with job status {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In
-     * this case, you have to manually clean up the checkpoint state, both the meta data and actual
-     * program state.
-     *
-     * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an externalized checkpoint
-     * should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on
-     * cancellation you have to handle checkpoint clean-up manually when you cancel the job as well
-     * (terminating with job status {@link JobStatus#CANCELED}).
-     *
-     * <p>The target directory for externalized checkpoints is configured via {@link
-     * CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
-     *
-     * @param cleanupMode Externalized checkpoint clean-up behaviour.
-     * @deprecated use {@link #setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup)}
-     *     instead.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void enableExternalizedCheckpoints(ExternalizedCheckpointCleanup cleanupMode) {
-        setExternalizedCheckpointCleanup(cleanupMode);
-    }
-
-    /**
      * Returns whether checkpoints should be persisted externally.
      *
      * @return <code>true</code> if checkpoints should be externalized.
      */
     @PublicEvolving
     public boolean isExternalizedCheckpointsEnabled() {
-        return getExternalizedCheckpointCleanup()
-                != ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS;
+        return getExternalizedCheckpointRetention()
+                != ExternalizedCheckpointRetention.NO_EXTERNALIZED_CHECKPOINTS;
     }
 
     /**
@@ -667,36 +470,6 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Only relevant if {@link #isUnalignedCheckpointsEnabled} is enabled.
-     *
-     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to
-     * <code>0</code>, checkpoints will always start unaligned.
-     *
-     * <p>If {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value greater then
-     * <code>0</code>, checkpoints will start aligned. If during checkpointing, checkpoint start
-     * delay exceeds this {@link ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT},
-     * alignment will timeout and checkpoint will start working as unaligned checkpoint.
-     *
-     * @deprecated Use {@link #setAlignedCheckpointTimeout(Duration)} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setAlignmentTimeout(Duration alignmentTimeout) {
-        setAlignedCheckpointTimeout(alignmentTimeout);
-    }
-
-    /**
-     * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
-     *     or {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
-     * @deprecated User {@link #getAlignedCheckpointTimeout()} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public Duration getAlignmentTimeout() {
-        return getAlignedCheckpointTimeout();
-    }
-
-    /**
      * @return value of alignment timeout, as configured via {@link
      *     #setAlignedCheckpointTimeout(Duration)} or {@link
      *     CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}.
@@ -707,7 +480,7 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Only relevant if {@link CheckpointingOptions.ENABLE_UNALIGNED} is enabled.
+     * Only relevant if {@link CheckpointingOptions#ENABLE_UNALIGNED} is enabled.
      *
      * <p>If {@link CheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT} has value equal to <code>0
      * </code>, checkpoints will
@@ -782,171 +555,10 @@ public class CheckpointConfig implements java.io.Serializable {
      *
      * @return The cleanup behaviour for externalized checkpoints or <code>null</code> if none is
      *     configured.
-     * @deprecated Use {@link #getExternalizedCheckpointRetention} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
-        return configuration.get(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT);
-    }
-
-    /**
-     * Returns the cleanup behaviour for externalized checkpoints.
-     *
-     * @return The cleanup behaviour for externalized checkpoints or <code>null</code> if none is
-     *     configured.
      */
     @PublicEvolving
     public ExternalizedCheckpointRetention getExternalizedCheckpointRetention() {
         return configuration.get(CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION);
-    }
-
-    /**
-     * CheckpointStorage defines how {@link StateBackend}'s checkpoint their state for fault
-     * tolerance in streaming applications. Various implementations store their checkpoints in
-     * different fashions and have different requirements and availability guarantees.
-     *
-     * <p>For example, {@link org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
-     * JobManagerCheckpointStorage} stores checkpoints in the memory of the JobManager. It is
-     * lightweight and without additional dependencies but is not highly available and only supports
-     * small state sizes. This checkpoint storage policy is convenient for local testing and
-     * development.
-     *
-     * <p>{@link org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
-     * FileSystemCheckpointStorage} stores checkpoints in a filesystem. For systems like HDFS, NFS
-     * Drives, S3, and GCS, this storage policy supports large state size, in the magnitude of many
-     * terabytes while providing a highly available foundation for stateful applications. This
-     * checkpoint storage policy is recommended for most production deployments.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided for configuring checkpoint storage like the following code snippet:
-     *     <pre>{@code
-     * Configuration config = new Configuration();
-     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
-     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
-     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-     * }</pre>
-     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
-     *     to the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
-     * @param storage The checkpoint storage policy.
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setCheckpointStorage(CheckpointStorage storage) {
-        Preconditions.checkNotNull(storage, "Checkpoint storage must not be null");
-        this.storage = storage;
-    }
-
-    /**
-     * Configures the application to write out checkpoint snapshots to the configured directory. See
-     * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided for configuring checkpoint storage like the following code snippet:
-     *     <pre>{@code
-     * Configuration config = new Configuration();
-     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
-     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
-     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-     * }</pre>
-     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
-     *     to the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
-     * @param checkpointDirectory The path to write checkpoint metadata to.
-     * @see #setCheckpointStorage(CheckpointStorage)
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setCheckpointStorage(String checkpointDirectory) {
-        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
-        this.configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory);
-        this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
-    }
-
-    /**
-     * Configures the application to write out checkpoint snapshots to the configured directory. See
-     * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided for configuring checkpoint storage like the following code snippet:
-     *     <pre>{@code
-     * Configuration config = new Configuration();
-     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
-     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
-     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-     * }</pre>
-     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
-     *     to the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
-     * @param checkpointDirectory The path to write checkpoint metadata to.
-     * @see #setCheckpointStorage(CheckpointStorage)
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setCheckpointStorage(URI checkpointDirectory) {
-        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
-        this.configuration.set(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory.toString());
-        this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
-    }
-
-    /**
-     * Configures the application to write out checkpoint snapshots to the configured directory. See
-     * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
-     *
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
-     *     provided for configuring checkpoint storage like the following code snippet:
-     *     <pre>{@code
-     * Configuration config = new Configuration();
-     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
-     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
-     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-     * }</pre>
-     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
-     *     to the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
-     * @param checkpointDirectory The path to write checkpoint metadata to.
-     * @see #setCheckpointStorage(String)
-     */
-    @Deprecated
-    @PublicEvolving
-    public void setCheckpointStorage(Path checkpointDirectory) {
-        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
-        this.configuration.set(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory.toString());
-        this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
-    }
-
-    /**
-     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
-     *     all complex Java objects related to configuration, including their getter and setter
-     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
-     *     method will be removed entirely. It is recommended to find which checkpoint storage is
-     *     used by checkpoint storage ConfigOption. For more details on using ConfigOption for
-     *     checkpoint storage configuration, please refer to the Flink documentation: <a
-     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
-     * @return The {@link CheckpointStorage} that has been configured for the job. Or {@code null}
-     *     if none has been set.
-     * @see #setCheckpointStorage(CheckpointStorage)
-     */
-    @Deprecated
-    @Nullable
-    @PublicEvolving
-    public CheckpointStorage getCheckpointStorage() {
-        return this.storage;
     }
 
     /**
@@ -971,68 +583,6 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public long getCheckpointIdOfIgnoredInFlightData() {
         return configuration.get(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
-    }
-
-    /**
-     * Cleanup behaviour for externalized checkpoints when the job is cancelled.
-     *
-     * @deprecated This class has been moved to {@link ExternalizedCheckpointRetention}.
-     */
-    @Deprecated
-    @PublicEvolving
-    public enum ExternalizedCheckpointCleanup implements DescribedEnum {
-
-        /**
-         * Delete externalized checkpoints on job cancellation.
-         *
-         * <p>All checkpoint state will be deleted when you cancel the owning job, both the meta
-         * data and actual program state. Therefore, you cannot resume from externalized checkpoints
-         * after the job has been cancelled.
-         *
-         * <p>Note that checkpoint state is always kept if the job terminates with state {@link
-         * JobStatus#FAILED}.
-         */
-        DELETE_ON_CANCELLATION(
-                text(
-                        "Checkpoint state is only kept when the owning job fails. It is deleted if "
-                                + "the job is cancelled.")),
-
-        /**
-         * Retain externalized checkpoints on job cancellation.
-         *
-         * <p>All checkpoint state is kept when you cancel the owning job. You have to manually
-         * delete both the checkpoint meta data and actual program state after cancelling the job.
-         *
-         * <p>Note that checkpoint state is always kept if the job terminates with state {@link
-         * JobStatus#FAILED}.
-         */
-        RETAIN_ON_CANCELLATION(
-                text("Checkpoint state is kept when the owning job is cancelled or fails.")),
-
-        /** Externalized checkpoints are disabled completely. */
-        NO_EXTERNALIZED_CHECKPOINTS(text("Externalized checkpoints are disabled."));
-
-        private final InlineElement description;
-
-        ExternalizedCheckpointCleanup(InlineElement description) {
-            this.description = description;
-        }
-
-        /**
-         * Returns whether persistent checkpoints shall be discarded on cancellation of the job.
-         *
-         * @return <code>true</code> if persistent checkpoints shall be discarded on cancellation of
-         *     the job.
-         */
-        public boolean deleteOnCancellation() {
-            return this == DELETE_ON_CANCELLATION;
-        }
-
-        @Override
-        @Internal
-        public InlineElement getDescription() {
-            return description;
-        }
     }
 
     /**
@@ -1067,9 +617,6 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(CheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
                 .ifPresent(this::setTolerableCheckpointFailureNumber);
         configuration
-                .getOptional(ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT)
-                .ifPresent(this::setExternalizedCheckpointCleanup);
-        configuration
                 .getOptional(CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION)
                 .ifPresent(this::setExternalizedCheckpointRetention);
         configuration
@@ -1092,16 +639,17 @@ public class CheckpointConfig implements java.io.Serializable {
                 .ifPresent(this::setForceUnalignedCheckpoints);
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
-                .ifPresent(this::setCheckpointStorage);
-        // reset checkpoint storage for backward compatibility
-        configuration
-                .getOptional(CheckpointingOptions.CHECKPOINT_STORAGE)
-                .ifPresent(ignored -> this.storage = null);
+                .ifPresent(this::setCheckpointDirectory);
+    }
+
+    private void setCheckpointDirectory(String checkpointDirectory) {
+        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory);
     }
 
     /**
      * @return A copy of internal {@link #configuration}. Note it is missing all options that are
-     *     stored as plain java fields in {@link CheckpointConfig}, for example {@link #storage}.
+     *     stored as plain java fields in {@link CheckpointConfig}.
      */
     @Internal
     public Configuration toConfiguration() {

@@ -66,11 +66,6 @@ class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A]) extends 
     }
   }
 
-  @PublicEvolving
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
-    createSerializer(executionConfig.getSerializerConfig)
-  }
-
   override def equals(obj: Any): Boolean = {
     obj match {
       case tryTypeInfo: TryTypeInfo[_, _] =>

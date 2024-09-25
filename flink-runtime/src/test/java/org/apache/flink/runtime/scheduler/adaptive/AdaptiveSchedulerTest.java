@@ -153,11 +153,11 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
@@ -411,10 +411,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -467,10 +469,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -560,7 +564,8 @@ public class AdaptiveSchedulerTest {
         final Duration resourceTimeout = Duration.ofMinutes(1234);
         final Configuration configuration = new Configuration();
 
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, resourceTimeout);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, resourceTimeout);
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -689,10 +694,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(10L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(10L));
         configuration.set(
                 MetricOptions.JOB_STATUS_METRICS,
                 Arrays.asList(MetricOptions.JobStatusMetrics.TOTAL_TIME));
@@ -776,7 +783,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -797,7 +804,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
@@ -826,10 +833,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -919,10 +928,12 @@ public class AdaptiveSchedulerTest {
     void testJobStatusListenerNotifiedOfJobStatusChanges() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         final CompletableFuture<Void> jobCreatedNotification = new CompletableFuture<>();
         final CompletableFuture<Void> jobRunningNotification = new CompletableFuture<>();
@@ -1062,7 +1073,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = streamingJobGraph(vertex);
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -1130,7 +1141,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1165,7 +1176,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1191,7 +1202,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1227,7 +1238,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
         int scaledUpParallelism = PARALLELISM * 10;
@@ -1292,7 +1303,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final int availableSlots = 1;
         JobResourceRequirements initialJobResourceRequirements =
@@ -1303,7 +1314,8 @@ public class AdaptiveSchedulerTest {
                         .withConfigurationOverride(
                                 conf -> {
                                     conf.set(
-                                            JobManagerOptions.RESOURCE_WAIT_TIMEOUT,
+                                            JobManagerOptions
+                                                    .SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
                                             Duration.ofMillis(1));
                                     return conf;
                                 })
@@ -1330,7 +1342,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final int availableSlots = 1;
         JobResourceRequirements initialJobResourceRequirements =
@@ -1358,13 +1370,19 @@ public class AdaptiveSchedulerTest {
 
     private static Configuration createConfigurationWithNoTimeouts() {
         return new Configuration()
-                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
-                .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L))
-                .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L))
                 .set(
-                        JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                        JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                        Duration.ofMillis(-1L))
+                .set(
+                        JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
                         Duration.ofMillis(1L))
-                .set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, Duration.ZERO);
+                .set(
+                        JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                        Duration.ofMillis(1L))
+                .set(
+                        JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                        Duration.ofMillis(1L))
+                .set(JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY, Duration.ZERO);
     }
 
     private AdaptiveSchedulerBuilder prepareSchedulerWithNoTimeouts(
@@ -2049,7 +2067,8 @@ public class AdaptiveSchedulerTest {
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
         final DeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID(), slotIdleTimeout);
+                createDeclarativeSlotPool(
+                        jobGraph.getJobID(), singleThreadMainThreadExecutor, slotIdleTimeout);
         scheduler =
                 new AdaptiveSchedulerBuilder(
                                 jobGraph,
@@ -2198,17 +2217,19 @@ public class AdaptiveSchedulerTest {
 
     @Test
     void testScalingIntervalConfigurationIsRespected() throws ConfigurationException {
-        final Duration scalingIntervalMin = Duration.ofMillis(1337);
+        final Duration executingCooldownTimeout = Duration.ofMillis(1337);
         final Duration scalingStabilizationTimeout = Duration.ofMillis(7331);
         final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
         configuration.set(
-                JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                executingCooldownTimeout);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
                 scalingStabilizationTimeout);
 
         final AdaptiveScheduler.Settings settings = AdaptiveScheduler.Settings.of(configuration);
-        assertThat(settings.getScalingIntervalMin()).isEqualTo(scalingIntervalMin);
-        assertThat(settings.getScalingResourceStabilizationTimeout())
+        assertThat(settings.getExecutingCooldownTimeout()).isEqualTo(executingCooldownTimeout);
+        assertThat(settings.getExecutingResourceStabilizationTimeout())
                 .isEqualTo(scalingStabilizationTimeout);
     }
 
@@ -2288,7 +2309,8 @@ public class AdaptiveSchedulerTest {
         final Configuration configuration = new Configuration();
         final Duration resourceStabilizationTimeout = Duration.ofMillis(10L);
         configuration.set(
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, resourceStabilizationTimeout);
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                resourceStabilizationTimeout);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2328,15 +2350,18 @@ public class AdaptiveSchedulerTest {
                                         }));
 
         final Configuration configuration = new Configuration();
-        final Duration scalingIntervalMin = Duration.ofMillis(1L);
-        final Duration scalingResourceStabilizationTimeout = Duration.ofMillis(5L);
+        final Duration executingCooldownTimeout = Duration.ofMillis(1L);
+        final Duration executingResourceStabilizationTimeout = Duration.ofMillis(5L);
         final Duration maxDelayForTrigger = Duration.ofMillis(10L);
 
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
-        configuration.set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maxDelayForTrigger);
         configuration.set(
-                JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
-                scalingResourceStabilizationTimeout);
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                executingCooldownTimeout);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY, maxDelayForTrigger);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                executingResourceStabilizationTimeout);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2355,10 +2380,10 @@ public class AdaptiveSchedulerTest {
         latch.await();
 
         assertThat(scheduler.getState()).isInstanceOf(Executing.class);
-        assertThat(factory.cooldownTimeout).isEqualTo(scalingIntervalMin);
+        assertThat(factory.cooldownTimeout).isEqualTo(executingCooldownTimeout);
         assertThat(factory.maximumDelayForTrigger).isEqualTo(maxDelayForTrigger);
         assertThat(factory.resourceStabilizationTimeout)
-                .isEqualTo(scalingResourceStabilizationTimeout);
+                .isEqualTo(executingResourceStabilizationTimeout);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -2383,10 +2408,10 @@ public class AdaptiveSchedulerTest {
 
         public StateTransitionManager create(
                 StateTransitionManager.Context context,
+                Supplier<Temporal> ignoredClock,
                 Duration cooldownTimeout,
                 Duration resourceStabilizationTimeout,
-                Duration maximumDelayForTrigger,
-                Temporal ignoredTimestamp) {
+                Duration maximumDelayForTrigger) {
             this.cooldownTimeout = cooldownTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
             this.maximumDelayForTrigger = maximumDelayForTrigger;
@@ -2403,7 +2428,7 @@ public class AdaptiveSchedulerTest {
             throws Exception {
         final Configuration config = new Configuration();
         config.set(
-                JobManagerOptions.SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT,
+                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES,
                 onFailedCheckpointCount);
 
         final JobGraph jobGraph =
@@ -2429,10 +2454,10 @@ public class AdaptiveSchedulerTest {
                         .setDeclarativeSlotPool(slotPool)
                         .setStateTransitionManagerFactory(
                                 (context,
+                                        ignoredClock,
                                         ignoredCooldown,
                                         ignoredResourceStabilizationTimeout,
-                                        ignoredMaxTriggerDelay,
-                                        ignoredTimestamp) ->
+                                        ignoredMaxTriggerDelay) ->
                                         TestingStateTransitionManager.withOnTriggerEventOnly(
                                                 () -> {
                                                     singleThreadMainThreadExecutor
@@ -2480,12 +2505,13 @@ public class AdaptiveSchedulerTest {
                                                 executionAttemptId, ExecutionState.CANCELED)));
     }
 
-    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(JobID jobId) {
-        return createDeclarativeSlotPool(jobId, DEFAULT_TIMEOUT);
+    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
+            JobID jobId, ComponentMainThreadExecutor mainThreadExecutor) {
+        return createDeclarativeSlotPool(jobId, mainThreadExecutor, DEFAULT_TIMEOUT);
     }
 
     private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
-            JobID jobId, Duration idleSlotTimeout) {
+            JobID jobId, ComponentMainThreadExecutor mainThreadExecutor, Duration idleSlotTimeout) {
         return new DefaultDeclarativeSlotPool(
                 jobId,
                 new DefaultAllocatedSlotPool(),
@@ -2493,7 +2519,7 @@ public class AdaptiveSchedulerTest {
                 idleSlotTimeout,
                 DEFAULT_TIMEOUT,
                 Duration.ZERO,
-                forMainThread());
+                mainThreadExecutor);
     }
 
     /**
@@ -2722,10 +2748,12 @@ public class AdaptiveSchedulerTest {
                             completedCheckpointStore, checkpointIDCounter);
 
             final DefaultDeclarativeSlotPool declarativeSlotPool =
-                    createDeclarativeSlotPool(jobGraph.getJobID());
+                    createDeclarativeSlotPool(jobGraph.getJobID(), mainThreadExecutor);
 
             final Configuration configuration = new Configuration();
-            configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+            configuration.set(
+                    JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                    Duration.ofMillis(1L));
 
             AdaptiveSchedulerBuilder builder =
                     new AdaptiveSchedulerBuilder(

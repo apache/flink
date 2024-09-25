@@ -69,15 +69,12 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     public NettyShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
         Configuration conf = shuffleMasterContext.getConfiguration();
         checkNotNull(conf);
-        buffersPerInputChannel =
-                conf.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
-        floatingBuffersPerGate =
-                conf.get(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+        buffersPerInputChannel = 2;
+        floatingBuffersPerGate = 8;
         maxRequiredBuffersPerGate =
                 conf.getOptional(
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE);
-        sortShuffleMinParallelism =
-                conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
+        sortShuffleMinParallelism = 1;
         sortShuffleMinBuffers =
                 conf.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
@@ -94,11 +91,6 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                         "At least one buffer is required for each gate, please increase the value of %s.",
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE
                                 .key()));
-        checkArgument(
-                floatingBuffersPerGate >= 1,
-                String.format(
-                        "The configured floating buffer should be at least 1, please increase the value of %s.",
-                        NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.key()));
     }
 
     @Override
@@ -147,11 +139,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     /**
      * JM announces network memory requirement from the calculating result of this method. Please
      * note that the calculating algorithm depends on both I/O details of a vertex and network
-     * configuration, e.g. {@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and
-     * {@link NettyShuffleEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}, which means we should
-     * always keep the consistency of configurations between JM, RM and TM in fine-grained resource
-     * management, thus to guarantee that the processes of memory announcing and allocating respect
-     * each other.
+     * configuration, which means we should always keep the consistency of configurations between
+     * JM, RM and TM in fine-grained resource management, thus to guarantee that the processes of
+     * memory announcing and allocating respect each other.
      */
     @Override
     public MemorySize computeShuffleMemorySizeForTask(TaskInputsOutputsDescriptor desc) {

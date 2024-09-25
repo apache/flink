@@ -66,6 +66,5 @@ class ExternalizedCheckpointRetention(Enum):
     def _to_j_externalized_checkpoint_retention(self):
         gateway = get_gateway()
         JExternalizedCheckpointRetention = \
-            gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \
-            .ExternalizedCheckpointRetention
+            gateway.jvm.org.apache.flink.configuration.ExternalizedCheckpointRetention
         return getattr(JExternalizedCheckpointRetention, self.name)

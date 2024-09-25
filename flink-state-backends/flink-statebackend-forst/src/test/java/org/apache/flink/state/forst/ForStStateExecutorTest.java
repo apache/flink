@@ -27,7 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.v2.InternalKeyedState;
+import org.apache.flink.runtime.state.v2.AbstractKeyedState;
 
 import org.junit.jupiter.api.Test;
 import org.rocksdb.WriteOptions;
@@ -46,7 +46,8 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
     @Test
     @SuppressWarnings("unchecked")
     void testExecuteValueStateRequest() throws Exception {
-        ForStStateExecutor forStStateExecutor = new ForStStateExecutor(4, db, new WriteOptions());
+        ForStStateExecutor forStStateExecutor =
+                new ForStStateExecutor(false, 3, 1, db, new WriteOptions());
         ForStValueState<Integer, VoidNamespace, String> state1 =
                 buildForStValueState("value-state-1");
         ForStValueState<Integer, VoidNamespace, String> state2 =
@@ -129,7 +130,8 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
     @Test
     void testExecuteMapStateRequest() throws Exception {
-        ForStStateExecutor forStStateExecutor = new ForStStateExecutor(4, db, new WriteOptions());
+        ForStStateExecutor forStStateExecutor =
+                new ForStStateExecutor(false, 3, 1, db, new WriteOptions());
         ForStMapState<Integer, VoidNamespace, String, String> state =
                 buildForStMapState("map-state");
         StateRequestContainer stateRequestContainer =
@@ -230,7 +232,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private <K, N, V, R> StateRequest<?, ?, ?, ?> buildStateRequest(
-            InternalKeyedState<K, N, V> innerTable,
+            AbstractKeyedState<K, N, V> innerTable,
             StateRequestType requestType,
             K key,
             V value,

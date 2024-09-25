@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,6 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link FileSystem} that wraps an {@link org.apache.hadoop.fs.FileSystem Hadoop File System}.
  */
 public class HadoopFileSystem extends FileSystem {
+
+    private static final String HDFS_NO_LOCAL_WRITE = "fs.hdfs.no-local-write";
 
     /** The wrapped Hadoop File System. */
     private final org.apache.hadoop.fs.FileSystem fs;
@@ -213,6 +216,21 @@ public class HadoopFileSystem extends FileSystem {
         // specific versions. We check these schemes and versions eagerly for better error
         // messages in the constructor of the writer.
         return new HadoopRecoverableWriter(fs);
+    }
+
+    @Override
+    public RecoverableWriter createRecoverableWriter(Map<String, String> conf) throws IOException {
+        // This writer is only supported on a subset of file systems, and on
+        // specific versions. We check these schemes and versions eagerly for better error
+        // messages in the constructor of the writer.
+        if (conf == null || conf.isEmpty()) {
+            return createRecoverableWriter();
+        } else if (conf.containsKey(HDFS_NO_LOCAL_WRITE)) {
+            return new HadoopRecoverableWriter(
+                    fs, Boolean.parseBoolean(conf.get(HDFS_NO_LOCAL_WRITE)));
+        } else {
+            return new HadoopRecoverableWriter(fs);
+        }
     }
 
     // ------------------------------------------------------------------------

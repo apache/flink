@@ -35,8 +35,6 @@ import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -149,20 +147,6 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
                                 .getSerializerConfig()
                                 .getDefaultKryoSerializerClasses())
                 .isEqualTo(serializers);
-    }
-
-    @Test
-    void testNotOverridingStateBackendWithDefaultsFromConfiguration() {
-        StreamExecutionEnvironment envFromConfiguration =
-                StreamExecutionEnvironment.getExecutionEnvironment();
-        envFromConfiguration.setStateBackend(new MemoryStateBackend());
-
-        // mutate config according to configuration
-        envFromConfiguration.configure(
-                new Configuration(), Thread.currentThread().getContextClassLoader());
-
-        StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
-        assertThat(actualStateBackend).isInstanceOf(MemoryStateBackend.class);
     }
 
     @Test

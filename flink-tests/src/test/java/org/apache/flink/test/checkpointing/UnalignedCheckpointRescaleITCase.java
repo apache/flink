@@ -70,7 +70,6 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
     private final Topology topology;
     private final int oldParallelism;
     private final int newParallelism;
-    private final int buffersPerChannel;
     private final long sourceSleepMs;
 
     enum Topology implements DagCreator {
@@ -538,8 +537,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         }
     }
 
-    @Parameterized.Parameters(
-            name = "{0} {1} from {2} to {3}, sourceSleepMs = {4}, buffersPerChannel = {5}")
+    @Parameterized.Parameters(name = "{0} {1} from {2} to {3}, sourceSleepMs = {4}")
     public static Object[][] getScaleFactors() {
         // We use `sourceSleepMs` > 0 to test rescaling without backpressure and only very few
         // captured in-flight records, see FLINK-31963.
@@ -596,12 +594,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                     new Object[] {"no scale", Topology.MULTI_INPUT, 7, 7, 0L},
                 };
         return Arrays.stream(parameters)
-                .map(
-                        params ->
-                                new Object[][] {
-                                    ArrayUtils.insert(params.length, params, 0),
-                                    ArrayUtils.insert(params.length, params, BUFFER_PER_CHANNEL)
-                                })
+                .map(params -> new Object[][] {ArrayUtils.insert(params.length, params)})
                 .flatMap(Arrays::stream)
                 .toArray(Object[][]::new);
     }
@@ -611,13 +604,11 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
             Topology topology,
             int oldParallelism,
             int newParallelism,
-            long sourceSleepMs,
-            int buffersPerChannel) {
+            long sourceSleepMs) {
         this.topology = topology;
         this.oldParallelism = oldParallelism;
         this.newParallelism = newParallelism;
         this.sourceSleepMs = sourceSleepMs;
-        this.buffersPerChannel = buffersPerChannel;
     }
 
     @Test
@@ -626,7 +617,6 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
                         .setExpectedFailures(1)
-                        .setBuffersPerChannel(buffersPerChannel)
                         .setSourceSleepMs(sourceSleepMs);
         prescaleSettings.setGenerateCheckpoint(true);
         final File checkpointDir = super.execute(prescaleSettings);
@@ -635,8 +625,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         final UnalignedSettings postscaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(newParallelism)
-                        .setExpectedFailures(1)
-                        .setBuffersPerChannel(buffersPerChannel);
+                        .setExpectedFailures(1);
         postscaleSettings.setRestoreCheckpoint(checkpointDir);
         super.execute(postscaleSettings);
     }

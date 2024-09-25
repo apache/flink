@@ -41,7 +41,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -71,7 +70,6 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
-import java.io.Serializable;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -836,41 +834,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
         public long getCurrentWatermark() {
             return internalTimerService.currentWatermark();
-        }
-
-        @Override
-        public <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, Class<S> stateType, S defaultState) {
-            checkNotNull(stateType, "The state type class must not be null");
-
-            TypeInformation<S> typeInfo;
-            try {
-                typeInfo = TypeExtractor.getForClass(stateType);
-            } catch (Exception e) {
-                throw new RuntimeException(
-                        "Cannot analyze type '"
-                                + stateType.getName()
-                                + "' from the class alone, due to generic type parameters. "
-                                + "Please specify the TypeInformation directly.",
-                        e);
-            }
-
-            return getKeyValueState(name, typeInfo, defaultState);
-        }
-
-        @Override
-        public <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, TypeInformation<S> stateType, S defaultState) {
-
-            checkNotNull(name, "The name of the state must not be null");
-            checkNotNull(stateType, "The state type information must not be null");
-
-            ValueStateDescriptor<S> stateDesc =
-                    new ValueStateDescriptor<>(
-                            name,
-                            stateType.createSerializer(getExecutionConfig().getSerializerConfig()),
-                            defaultState);
-            return getPartitionedState(stateDesc);
         }
 
         @SuppressWarnings("unchecked")

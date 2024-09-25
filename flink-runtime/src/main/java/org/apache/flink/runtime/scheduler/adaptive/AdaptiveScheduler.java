@@ -151,8 +151,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
-import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER;
+import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 
 /**
@@ -192,16 +193,16 @@ public class AdaptiveScheduler
      *
      * @see
      *     DefaultStateTransitionManager#DefaultStateTransitionManager(StateTransitionManager.Context,
-     *     Duration, Duration, Duration, Temporal)
+     *     Supplier, Duration, Duration, Duration)
      */
     @FunctionalInterface
     interface StateTransitionManagerFactory {
         StateTransitionManager create(
                 StateTransitionManager.Context context,
+                Supplier<Temporal> clock,
                 Duration cooldownTimeout,
                 Duration resourceStabilizationTimeout,
-                Duration maximumDelayForTrigger,
-                Temporal lastStateTransition);
+                Duration maximumDelayForTrigger);
     }
 
     /**
@@ -220,26 +221,28 @@ public class AdaptiveScheduler
                 throws ConfigurationException {
             final SchedulerExecutionMode executionMode =
                     configuration.get(JobManagerOptions.SCHEDULER_MODE);
-            Duration allocationTimeoutDefault =
-                    JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue();
-            Duration stabilizationTimeoutDefault =
-                    JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT.defaultValue();
+            Duration submissionResourceWaitTimeoutDefault =
+                    JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT.defaultValue();
+            Duration submissionStabilizationTimeoutDefault =
+                    JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT
+                            .defaultValue();
             if (executionMode == SchedulerExecutionMode.REACTIVE) {
-                allocationTimeoutDefault = Duration.ofMillis(-1);
-                stabilizationTimeoutDefault = Duration.ZERO;
+                submissionResourceWaitTimeoutDefault = Duration.ofMillis(-1);
+                submissionStabilizationTimeoutDefault = Duration.ZERO;
             }
 
-            final Duration scalingIntervalMin =
-                    configuration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN);
+            final Duration executingCooldownTimeout =
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING);
 
             final int rescaleOnFailedCheckpointsCount =
                     configuration.get(
-                            JobManagerOptions.SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT);
+                            JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES);
             if (rescaleOnFailedCheckpointsCount < 1) {
                 throw new ConfigurationException(
                         String.format(
                                 "%s should have a value of 1 or higher.",
-                                JobManagerOptions.SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT
+                                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES
                                         .key()));
             }
 
@@ -251,13 +254,13 @@ public class AdaptiveScheduler
                                             .isCheckpointingEnabled()
                             // incrementing the rescaleOnFailedCheckpointsCount by 1 is done to
                             // avoid introducing a race-condition between the two parameters
-                            // (SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT and
-                            // MAXIMUM_DELAY_FOR_SCALE_TRIGGER). Without the increment, we would
+                            // (SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES and
+                            // SCHEDULER_RESCALE_TRIGGER_MAX_DELAY). Without the increment, we would
                             // have two configuration parameters that result in roughly the same
-                            // timeout (with the MAXIMUM_DELAY_FOR_SCALE_TRIGGER being probably a
-                            // bit faster). The user might experience unexpected behavior if the
-                            // SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT is configured and
-                            // MAXIMUM_DELAY_FOR_SCALE_TRIGGER is kept untouched in that case.
+                            // timeout (with the SCHEDULER_RESCALE_TRIGGER_MAX_DELAY being probably
+                            // a bit faster). The user might experience unexpected behavior if the
+                            // SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES is configured and
+                            // SCHEDULER_RESCALE_TRIGGER_MAX_DELAY is kept untouched in that case.
                             // Incrementing the default value should help avoiding causing this kind
                             // of confusing race condition.
                             ? Duration.ofMillis(
@@ -270,53 +273,58 @@ public class AdaptiveScheduler
             if (configuration.getOptional(JobManagerOptions.MIN_PARALLELISM_INCREASE).isPresent()) {
                 LOG.warn(
                         "The configuration option {} is deprecated and will be removed in future versions. It's not used anymore. "
-                                + "Please use the configuration option {} and {} to control the sensitivity of a scaling operation.",
+                                + "Please use the configuration option {} and {} to control the sensitivity of a scaling operation. "
+                                + "Or you can change resource requirements of a running job can using the REST API.",
                         JobManagerOptions.MIN_PARALLELISM_INCREASE.key(),
-                        JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key(),
-                        JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT.key());
+                        JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING.key(),
+                        JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT.key());
             }
 
             return new Settings(
                     executionMode,
                     configuration
-                            .getOptional(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)
-                            .orElse(allocationTimeoutDefault),
+                            .getOptional(
+                                    JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT)
+                            .orElse(submissionResourceWaitTimeoutDefault),
                     configuration
-                            .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
-                            .orElse(stabilizationTimeoutDefault),
+                            .getOptional(
+                                    JobManagerOptions
+                                            .SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT)
+                            .orElse(submissionStabilizationTimeoutDefault),
                     configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT),
-                    scalingIntervalMin,
+                    executingCooldownTimeout,
                     configuration.get(
-                            JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT),
+                            JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT),
                     configuration.get(
-                            MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTriggerDefault),
+                            SCHEDULER_RESCALE_TRIGGER_MAX_DELAY,
+                            maximumDelayForRescaleTriggerDefault),
                     rescaleOnFailedCheckpointsCount);
         }
 
         private final SchedulerExecutionMode executionMode;
-        private final Duration initialResourceAllocationTimeout;
-        private final Duration resourceStabilizationTimeout;
+        private final Duration submissionResourceWaitTimeout;
+        private final Duration submissionResourceStabilizationTimeout;
         private final Duration slotIdleTimeout;
-        private final Duration scalingIntervalMin;
-        private final Duration scalingResourceStabilizationTimeout;
+        private final Duration executingCooldownTimeout;
+        private final Duration executingResourceStabilizationTimeout;
         private final Duration maximumDelayForTriggeringRescale;
         private final int rescaleOnFailedCheckpointCount;
 
         private Settings(
                 SchedulerExecutionMode executionMode,
-                Duration initialResourceAllocationTimeout,
-                Duration resourceStabilizationTimeout,
+                Duration submissionResourceWaitTimeout,
+                Duration submissionResourceStabilizationTimeout,
                 Duration slotIdleTimeout,
-                Duration scalingIntervalMin,
-                Duration scalingResourceStabilizationTimeout,
+                Duration executingCooldownTimeout,
+                Duration executingResourceStabilizationTimeout,
                 Duration maximumDelayForTriggeringRescale,
                 int rescaleOnFailedCheckpointCount) {
             this.executionMode = executionMode;
-            this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
-            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+            this.submissionResourceWaitTimeout = submissionResourceWaitTimeout;
+            this.submissionResourceStabilizationTimeout = submissionResourceStabilizationTimeout;
             this.slotIdleTimeout = slotIdleTimeout;
-            this.scalingIntervalMin = scalingIntervalMin;
-            this.scalingResourceStabilizationTimeout = scalingResourceStabilizationTimeout;
+            this.executingCooldownTimeout = executingCooldownTimeout;
+            this.executingResourceStabilizationTimeout = executingResourceStabilizationTimeout;
             this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
             this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
@@ -325,24 +333,24 @@ public class AdaptiveScheduler
             return executionMode;
         }
 
-        public Duration getInitialResourceAllocationTimeout() {
-            return initialResourceAllocationTimeout;
+        public Duration getSubmissionResourceWaitTimeout() {
+            return submissionResourceWaitTimeout;
         }
 
-        public Duration getResourceStabilizationTimeout() {
-            return resourceStabilizationTimeout;
+        public Duration getSubmissionResourceStabilizationTimeout() {
+            return submissionResourceStabilizationTimeout;
         }
 
         public Duration getSlotIdleTimeout() {
             return slotIdleTimeout;
         }
 
-        public Duration getScalingIntervalMin() {
-            return scalingIntervalMin;
+        public Duration getExecutingCooldownTimeout() {
+            return executingCooldownTimeout;
         }
 
-        public Duration getScalingResourceStabilizationTimeout() {
-            return scalingResourceStabilizationTimeout;
+        public Duration getExecutingResourceStabilizationTimeout() {
+            return executingResourceStabilizationTimeout;
         }
 
         public Duration getMaximumDelayForTriggeringRescale() {
@@ -410,6 +418,8 @@ public class AdaptiveScheduler
 
     private final JobFailureMetricReporter jobFailureMetricReporter;
     private final boolean reportEventsAsSpans;
+
+    private final Supplier<Temporal> clock = Instant::now;
 
     public AdaptiveScheduler(
             Settings settings,
@@ -1146,7 +1156,7 @@ public class AdaptiveScheduler
                 new WaitingForResources.Factory(
                         this,
                         LOG,
-                        settings.getInitialResourceAllocationTimeout(),
+                        settings.getSubmissionResourceWaitTimeout(),
                         this::createWaitingForResourceStateTransitionManager,
                         previousExecutionGraph));
     }
@@ -1155,10 +1165,10 @@ public class AdaptiveScheduler
             StateTransitionManager.Context ctx) {
         return stateTransitionManagerFactory.create(
                 ctx,
+                clock,
                 Duration.ZERO, // skip cooldown phase
-                settings.getResourceStabilizationTimeout(),
-                Duration.ZERO, // trigger immediately once the stabilization phase is over
-                Instant.now());
+                settings.getSubmissionResourceStabilizationTimeout(),
+                Duration.ZERO); // trigger immediately once the stabilization phase is over
     }
 
     private void declareDesiredResources() {
@@ -1194,13 +1204,13 @@ public class AdaptiveScheduler
     }
 
     private StateTransitionManager createExecutingStateTransitionManager(
-            StateTransitionManager.Context ctx, Instant lastRescaleTimestamp) {
+            StateTransitionManager.Context ctx) {
         return stateTransitionManagerFactory.create(
                 ctx,
-                settings.getScalingIntervalMin(),
-                settings.getScalingResourceStabilizationTimeout(),
-                settings.getMaximumDelayForTriggeringRescale(),
-                lastRescaleTimestamp);
+                clock,
+                settings.getExecutingCooldownTimeout(),
+                settings.getExecutingResourceStabilizationTimeout(),
+                settings.getMaximumDelayForTriggeringRescale());
     }
 
     @Override

@@ -39,14 +39,14 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.TestingUtils;
@@ -169,8 +169,9 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private JobGraph createJobGraph(File stateBackendFolder) throws Exception {
         final StreamExecutionEnvironment sEnv =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-        final StateBackend stateBackend = new FsStateBackend(stateBackendFolder.toURI(), 1);
-        sEnv.setStateBackend(stateBackend);
+        StateBackendUtils.configureHashMapStateBackend(sEnv);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                sEnv, stateBackendFolder.toURI().toString(), 1);
 
         sEnv.addSource(new InfiniteSourceFunction())
                 .keyBy(e -> e)

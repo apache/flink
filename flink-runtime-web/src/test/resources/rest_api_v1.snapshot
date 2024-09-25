@@ -290,9 +290,6 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -308,9 +305,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -355,9 +349,6 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -373,9 +364,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -426,9 +414,6 @@
         "key" : "savepointPath",
         "mandatory" : false
       }, {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -444,9 +429,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -467,6 +449,10 @@
         "savepointPath" : {
           "type" : "string"
         },
+        "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+        },
         "claimMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
@@ -476,10 +462,6 @@
           "additionalProperties" : {
             "type" : "string"
           }
-        },
-        "restoreMode" : {
-          "type" : "string",
-          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         }
       }
     },

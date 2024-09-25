@@ -1337,7 +1337,8 @@ class WindowOperatorTest {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(
+                                new ExecutionConfig().getSerializerConfig()));
 
         WindowOperator<
                         String,
@@ -1351,7 +1352,7 @@ class WindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new ExecutionConfig().getSerializerConfig()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<

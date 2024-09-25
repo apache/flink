@@ -91,10 +91,12 @@ class RescaleOnCheckpointITCase {
 
         // rescale shouldn't be triggered due to the timeout
         configuration.set(
-                JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, TestingUtils.infiniteDuration());
+                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY,
+                TestingUtils.infiniteDuration());
 
         // no cooldown to avoid delaying the test even more
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ZERO);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING, Duration.ZERO);
 
         return configuration;
     }

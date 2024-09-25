@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream.bundle;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 
 import javax.annotation.Nullable;
 

@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -111,7 +110,6 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
         }
     }
 
-    @VisibleForTesting
     public TypeSerializer<Object>[] getFieldSerializers() {
         return fieldSerializers;
     }

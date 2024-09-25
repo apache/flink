@@ -27,13 +27,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -98,6 +98,8 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
                 Duration.ofMillis(pt.getInt("restartDelay", 0)));
+        String checkpointDir = pt.getRequired("checkpointDir");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 
         env.configure(configuration);
         if (pt.getBoolean("externalizedCheckpoints", false)) {
@@ -106,17 +108,19 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                             ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         }
 
-        String checkpointDir = pt.getRequired("checkpointDir");
-        env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
-
         boolean killJvmOnFail = pt.getBoolean("killJvmOnFail", false);
 
         String stateBackend = pt.get("stateBackend", "hashmap");
         if ("hashmap".equals(stateBackend)) {
-            env.setStateBackend(new HashMapStateBackend());
+            env.configure(new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"));
         } else if ("rocks".equals(stateBackend)) {
             boolean incrementalCheckpoints = pt.getBoolean("incrementalCheckpoints", false);
-            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
+            env.configure(
+                    new Configuration()
+                            .set(StateBackendOptions.STATE_BACKEND, "rocksdb")
+                            .set(
+                                    CheckpointingOptions.INCREMENTAL_CHECKPOINTS,
+                                    incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend: " + stateBackend);
         }

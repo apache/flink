@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.batch.table.validation
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{Tumble, ValidationException, _}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.TableTestBase

@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -47,7 +46,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (2, Array(41, 5), Array(Array(18), Array(87))),
       (3, Array(18, 42), Array(Array(1), Array(45)))
     )
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, s FROM T, UNNEST(T.b) AS A (s)"
@@ -73,7 +72,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (2, Array(41, 5), Array(Array(18), Array(87))),
       (3, Array(18, 42), Array(Array(1), Array(45)))
     )
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)"
@@ -93,7 +92,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (2, Array((13, "41.6"), (14, "45.2136"))),
       (3, Array((18, "42.6")))
     )
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13"
@@ -114,7 +113,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, 2, (13, "41.6")),
       (4, 3, (14, "45.2136")),
       (5, 3, (18, "42.6")))
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery =
@@ -146,7 +145,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (7, "8", "Hello World")
     )
 
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery =
@@ -206,7 +205,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, 2L, Array("Hello world", "x"))
     )
 
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)"
@@ -251,7 +250,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING))
     )
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, v FROM T CROSS JOIN UNNEST(c) as f (k, v)"
@@ -274,7 +273,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (3, Array((18, "42.6")))
     )
 
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, x, y " +
@@ -301,7 +300,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (2, Array((13, "41.6"), (14, "45.2136"))),
       (3, Array((18, "42.6")))
     )
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, A._1, A._2 FROM T, UNNEST(T.b) AS A where A._1 > 13"
@@ -321,7 +320,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       (2, Array((13, "41.6"), (14, "45.2136"))),
       (3, Array((18, "42.6")))
     )
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =

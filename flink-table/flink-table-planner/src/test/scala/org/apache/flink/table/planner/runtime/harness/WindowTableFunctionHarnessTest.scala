@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
@@ -30,7 +29,6 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
-import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}

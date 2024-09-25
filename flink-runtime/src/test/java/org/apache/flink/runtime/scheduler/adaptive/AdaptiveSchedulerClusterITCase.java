@@ -92,10 +92,14 @@ public class AdaptiveSchedulerClusterITCase {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
         configuration.set(
-                JobManagerOptions.SCHEDULER_SCALING_RESOURCE_STABILIZATION_TIMEOUT,
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
                 Duration.ofMillis(1L));
         // required for #testCheckpointStatsPersistedAcrossRescale
         configuration.set(WebOptions.CHECKPOINTS_HISTORY_SIZE, Integer.MAX_VALUE);
@@ -183,6 +187,12 @@ public class AdaptiveSchedulerClusterITCase {
 
         miniCluster.submitJob(jobGraph).join();
 
+        // wait until the desired parallelism is reached
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(),
+                JOB_VERTEX_ID,
+                NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS);
+
         // wait until some checkpoints have been completed
         CommonTestUtils.waitUntilCondition(
                 () ->
@@ -246,6 +256,11 @@ public class AdaptiveSchedulerClusterITCase {
 
         @Override
         public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public Future<Void> notifyCheckpointSubsumedAsync(long checkpointId) {
             return CompletableFuture.completedFuture(null);
         }
     }

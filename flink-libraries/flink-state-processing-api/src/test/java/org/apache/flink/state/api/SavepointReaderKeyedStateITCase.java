@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
@@ -53,12 +54,13 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     private static final List<Pojo> elements =
             Arrays.asList(Pojo.of(1, 1), Pojo.of(2, 2), Pojo.of(3, 3));
 
-    protected abstract B getStateBackend();
+    protected abstract Tuple2<Configuration, B> getStateBackendTuple();
 
     @Test
     public void testUserKeyedStateReader() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(getStateBackend());
+        Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
         env.setParallelism(4);
 
         env.addSource(createSource(elements))
@@ -71,7 +73,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
 
         List<Pojo> results =
                 JobResultRetriever.collect(

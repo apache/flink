@@ -32,8 +32,6 @@ class CaseClassTypeInfoTest extends TypeInformationTestBase[CaseClassTypeInfo[_]
       Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
       Array("_1", "_2")) {
       override def createSerializer(config: SerializerConfig): TypeSerializer[(Int, String)] = ???
-
-      override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, String)] = ???
     },
     new CaseClassTypeInfo[(Int, Boolean)](
       classOf[(Int, Boolean)],
@@ -41,8 +39,6 @@ class CaseClassTypeInfoTest extends TypeInformationTestBase[CaseClassTypeInfo[_]
       Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO),
       Array("_1", "_2")) {
       override def createSerializer(config: SerializerConfig): TypeSerializer[(Int, Boolean)] = ???
-
-      override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, Boolean)] = ???
     }
   )
 }

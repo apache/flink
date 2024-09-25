@@ -19,7 +19,6 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -101,11 +100,6 @@ public class ListViewTypeInfo<T> extends TypeInformation<ListView<T>> {
             TypeSerializer<T> elementSerializer = elementType.createSerializer(config);
             return new ListViewSerializer<>(new ListSerializer<>(elementSerializer));
         }
-    }
-
-    @Override
-    public TypeSerializer<ListView<T>> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

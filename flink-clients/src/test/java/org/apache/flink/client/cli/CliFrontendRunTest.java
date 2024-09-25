@@ -286,7 +286,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                         new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
 
         testFrontend.run(new String[] {option, value, getTestJarPath()});
-        assertThat(testFrontend.runApplicationCalled).isFalse();
         assertThat(testFrontend.runCalled).isTrue();
         assertThat(testFrontend.application).isFalse();
         assertThat(testFrontend.executeProgramCalled).isTrue();
@@ -310,24 +309,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                         new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
 
         testFrontend.run(new String[] {option, value, getTestJarPath()});
-        assertThat(testFrontend.runApplicationCalled).isFalse();
-        assertThat(testFrontend.runCalled).isTrue();
-        assertThat(testFrontend.application).isTrue();
-        assertThat(testFrontend.executeProgramCalled).isFalse();
-    }
-
-    @ParameterizedTest
-    @MethodSource("applicationTypeParams")
-    void testRunApplicationWithApplicationTypeDeployment(String option, String value)
-            throws Exception {
-        final Configuration configuration = new Configuration();
-        final RunApplicationTestingCliFrontend testFrontend =
-                new RunApplicationTestingCliFrontend(
-                        configuration,
-                        new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
-
-        testFrontend.runApplication(new String[] {option, value, getTestJarPath()});
-        assertThat(testFrontend.runApplicationCalled).isTrue();
         assertThat(testFrontend.runCalled).isTrue();
         assertThat(testFrontend.application).isTrue();
         assertThat(testFrontend.executeProgramCalled).isFalse();
@@ -377,7 +358,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
     private static final class RunApplicationTestingCliFrontend extends CliFrontend {
 
         private boolean runCalled;
-        private boolean runApplicationCalled;
         private boolean application;
         private boolean executeProgramCalled;
 
@@ -393,12 +373,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         protected void run(String[] args) throws Exception {
             super.run(args);
             runCalled = true;
-        }
-
-        @Override
-        protected void runApplication(String[] args) throws Exception {
-            super.runApplication(args);
-            runApplicationCalled = true;
         }
 
         @Override

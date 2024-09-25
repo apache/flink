@@ -34,7 +34,6 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -111,26 +110,22 @@ public class AutoRescalingITCase extends TestLogger {
     private static final int slotsPerTaskManager = 2;
     private static final int totalSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}, useIngestDB = {2}")
+    @Parameterized.Parameters(name = "backend = {0}, useIngestDB = {1}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {"rocksdb", 0, false},
-                    {"rocksdb", 2, true},
-                    {"filesystem", 0, false},
-                    {"filesystem", 2, false}
+                    {"rocksdb", false},
+                    {"rocksdb", true},
+                    {"hashmap", false}
                 });
     }
 
-    public AutoRescalingITCase(String backend, int buffersPerChannel, boolean useIngestDB) {
+    public AutoRescalingITCase(String backend, boolean useIngestDB) {
         this.backend = backend;
-        this.buffersPerChannel = buffersPerChannel;
         this.useIngestDB = useIngestDB;
     }
 
     private final String backend;
-
-    private final int buffersPerChannel;
 
     private final boolean useIngestDB;
 
@@ -168,12 +163,12 @@ public class AutoRescalingITCase extends TestLogger {
             config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
             config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-            config.set(
-                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
             // Disable the scaling cooldown to speed up the test
-            config.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(0));
+            config.set(
+                    JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                    Duration.ofMillis(0));
 
             // speed the test suite up
             // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache

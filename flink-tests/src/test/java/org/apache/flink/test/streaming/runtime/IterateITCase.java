@@ -25,7 +25,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -631,65 +630,8 @@ public class IterateITCase extends AbstractTestBaseJUnit4 {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testWithCheckPointing() throws Exception {
-        int numRetries = 5;
-        int timeoutScale = 1;
-
-        for (int numRetry = 0; numRetry < numRetries; numRetry++) {
-            try {
-                StreamExecutionEnvironment env =
-                        StreamExecutionEnvironment.getExecutionEnvironment();
-
-                try {
-                    createIteration(env, timeoutScale);
-                    env.execute();
-
-                    // this statement should never be reached
-                    fail();
-                } catch (UnsupportedOperationException e) {
-                    // expected behaviour
-                }
-
-                // Test force checkpointing
-
-                try {
-                    createIteration(env, timeoutScale);
-                    env.enableCheckpointing(
-                            CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
-                            org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE,
-                            false);
-                    env.execute();
-
-                    // this statement should never be reached
-                    fail();
-                } catch (UnsupportedOperationException e) {
-                    // expected behaviour
-                }
-
-                createIteration(env, timeoutScale);
-                env.enableCheckpointing(
-                        CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
-                        org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE,
-                        true);
-                env.getStreamGraph().getJobGraph();
-
-                break; // success
-            } catch (Throwable t) {
-                LOG.info("Run " + (numRetry + 1) + "/" + numRetries + " failed", t);
-
-                if (numRetry >= numRetries - 1) {
-                    throw t;
-                } else {
-                    timeoutScale *= 2;
-                }
-            }
-        }
-    }
-
     private void createIteration(StreamExecutionEnvironment env, int timeoutScale) {
-        env.enableCheckpointing();
+        env.enableCheckpointing(500L);
 
         DataStream<Boolean> source =
                 env.fromData(Collections.nCopies(parallelism * 2, false))

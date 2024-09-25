@@ -24,7 +24,6 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -169,7 +168,9 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      */
     public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing)
             throws IOException {
-        this(new FsStateBackend(checkpointDataUri), enableIncrementalCheckpointing);
+        this(
+                new FsStateBackend(checkpointDataUri),
+                TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
     }
 
     /**
@@ -206,19 +207,6 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         }
         this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
         this.rocksDBStateBackend = new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
-    }
-
-    /** @deprecated Use {@link #RocksDBStateBackend(StateBackend)} instead. */
-    @Deprecated
-    public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {
-        this(checkpointStreamBackend, TernaryBoolean.UNDEFINED);
-    }
-
-    /** @deprecated Use {@link #RocksDBStateBackend(StateBackend, TernaryBoolean)} instead. */
-    @Deprecated
-    public RocksDBStateBackend(
-            AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
-        this(checkpointStreamBackend, TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
     }
 
     /**

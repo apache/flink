@@ -31,7 +31,6 @@ import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{CheckpointingMode, JobClient, JobListener}
 import org.apache.flink.core.fs.Path
-import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
@@ -183,34 +182,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
    * restarted from the latest completed checkpoint.
    *
-   * The job draws checkpoints periodically, in the given interval. The state will be stored in the
-   * configured state backend.
-   *
-   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. If
-   * the "force" parameter is set to true, the system will execute the job nonetheless.
-   *
-   * @param interval
-   *   Time interval between state checkpoints in millis.
-   * @param mode
-   *   The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
-   * @param force
-   *   If true checkpointing will be enabled for iterative jobs as well.
-   */
-  @deprecated
-  @PublicEvolving
-  def enableCheckpointing(
-      interval: Long,
-      mode: org.apache.flink.streaming.api.CheckpointingMode,
-      force: Boolean): StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing(interval, mode, force)
-    this
-  }
-
-  /**
-   * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
-   * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
-   * restarted from the latest completed checkpoint.
-   *
    * The job draws checkpoints periodically, in the given interval. The system uses the given
    * [[org.apache.flink.streaming.api.CheckpointingMode]] for the checkpointing ("exactly once" vs
    * "at least once"). The state will be stored in the configured state backend.
@@ -274,63 +245,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
     enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE)
   }
 
-  /**
-   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming operator
-   * states. Time interval between state checkpoints is specified in in millis.
-   *
-   * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling the [[setRestartStrategy]] method in case of failure the job
-   * will be resubmitted to the cluster indefinitely.
-   */
-  @deprecated
-  @PublicEvolving
-  def enableCheckpointing(): StreamExecutionEnvironment = {
-    javaEnv.enableCheckpointing()
-    this
-  }
-
   /** @deprecated Use [[getCheckpointingConsistencyMode()]] instead. */
   @deprecated
   def getCheckpointingMode = javaEnv.getCheckpointingMode()
 
   def getCheckpointingConsistencyMode = javaEnv.getCheckpointingConsistencyMode()
-
-  /**
-   * Sets the state backend that describes how to store operator. It defines the data structures
-   * that hold state during execution (for example hash tables, RocksDB, or other data stores).
-   *
-   * State managed by the state backend includes both keyed state that is accessible on
-   * [[org.apache.flink.streaming.api.scala.KeyedStream]], as well as state maintained directly by
-   * the user code that implements
-   * [[org.apache.flink.streaming.api.checkpoint.CheckpointedFunction]].
-   *
-   * The [[org.apache.flink.runtime.state.hashmap.HashMapStateBackend]] maintains state in heap
-   * memory, as objects. It is lightweight without extra dependencies, but is limited to JVM heap
-   * memory.
-   *
-   * In contrast, the '''EmbeddedRocksDBStateBackend''' stores its state in an embedded
-   * '''RocksDB''' instance. This state backend can store very large state that exceeds memory and
-   * spills to local disk. All key/value state (including windows) is stored in the key/value index
-   * of RocksDB.
-   *
-   * In both cases, fault tolerance is managed via the jobs
-   * [[org.apache.flink.runtime.state.CheckpointStorage]] which configures how and where state
-   * backends persist during a checkpoint.
-   *
-   * @return
-   *   This StreamExecutionEnvironment itself, to allow chaining of function calls.
-   * @see
-   *   #getStateBackend()
-   */
-  @PublicEvolving
-  def setStateBackend(backend: StateBackend): StreamExecutionEnvironment = {
-    javaEnv.setStateBackend(backend)
-    this
-  }
-
-  /** Returns the state backend that defines how to store and checkpoint state. */
-  @PublicEvolving
-  def getStateBackend: StateBackend = javaEnv.getStateBackend()
 
   /**
    * Enable the change log for current state backend. This change log allows operators to persist

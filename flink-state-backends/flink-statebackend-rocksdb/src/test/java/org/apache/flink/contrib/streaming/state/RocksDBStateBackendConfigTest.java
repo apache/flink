@@ -50,6 +50,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.Assert;
@@ -834,7 +835,7 @@ public class RocksDBStateBackendConfigTest {
         final boolean incremental = !CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue();
 
         final RocksDBStateBackend original =
-                new RocksDBStateBackend(checkpointBackend, incremental);
+                new RocksDBStateBackend(checkpointBackend, TernaryBoolean.fromBoolean(incremental));
 
         // these must not be the default options
         final PredefinedOptions predOptions = PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;

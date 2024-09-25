@@ -107,7 +107,7 @@ Please find the required dependencies for different Hive major versions below.
    /lib
 
        // Flink's Hive connector.Contains flink-hadoop-compatibility and flink-orc jars
-       flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
+       flink-connector-hive-{{< version >}}.jar
 
        // Hive dependencies
        hive-exec-2.3.4.jar
@@ -123,7 +123,7 @@ Please find the required dependencies for different Hive major versions below.
    /lib
 
        // Flink's Hive connector
-       flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
+       flink-connector-hive-{{< version >}}.jar
 
        // Hive dependencies
        hive-exec-3.1.0.jar
@@ -146,7 +146,7 @@ You're supposed to add dependencies as stated above at runtime.
 <!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{< scala_version >}}</artifactId>
+  <artifactId>flink-connector-hive</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
