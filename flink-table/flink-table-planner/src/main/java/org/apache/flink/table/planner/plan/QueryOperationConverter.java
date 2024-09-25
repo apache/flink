@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.bridge.PlannerExternalQueryOperation;
@@ -92,7 +93,6 @@ import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
 import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
-import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 

@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -51,7 +52,6 @@ import org.apache.flink.table.legacy.sources.DefinedFieldMapping;
 import org.apache.flink.table.legacy.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.legacy.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.legacy.sources.tsextractors.ExistingField;
-import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.types.Row;
 

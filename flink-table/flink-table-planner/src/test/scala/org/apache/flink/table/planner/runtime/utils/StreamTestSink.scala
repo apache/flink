@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
@@ -34,7 +35,6 @@ import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.RowDataTestUtil
-import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
 

@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.sinks
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.legacy.table.sinks.{RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
@@ -29,7 +30,6 @@ import org.apache.flink.table.operations.SinkModifyOperation
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeTransformations.toNullable
 import org.apache.flink.table.types.logical.{LegacyTypeInformationType, RowType}

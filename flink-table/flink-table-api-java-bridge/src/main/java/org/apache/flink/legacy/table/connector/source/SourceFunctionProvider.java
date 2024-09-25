@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector.source;
+package org.apache.flink.legacy.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;

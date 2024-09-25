@@ -19,11 +19,11 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.descriptors.SchemaValidator;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
-import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.factories.TableFactory;
