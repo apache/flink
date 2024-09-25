@@ -31,6 +31,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,11 +45,11 @@ import static org.apache.flink.cep.utils.NFAUtils.compile;
 @RunWith(Parameterized.class)
 public class TimesOrMoreITCase extends TestLogger {
 
-    @Parameterized.Parameter public Time time;
+    @Parameterized.Parameter public Duration time;
 
     @Parameterized.Parameters(name = "Times Range Time: {0}")
-    public static Collection<Time> parameters() {
-        return Arrays.asList(null, Time.milliseconds(3));
+    public static Collection<Duration> parameters() {
+        return Arrays.asList(null, Time.milliseconds(3).toDuration());
     }
 
     @Test

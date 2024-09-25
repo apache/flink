@@ -492,7 +492,7 @@ Pattern<Event, ?> relaxedNot = start.notFollowedBy("not").where(...);
 {{< tabs "8228f5b0-b6b3-4ca6-a56b-e5a8fd5fdc3b" >}}
 {{< tab "Java" >}}
 ```java
-next.within(Time.seconds(10));
+next.within(Duration.ofSeconds(10));
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -508,7 +508,7 @@ Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("a")))
     .notFollowedBy("end")
     .where(SimpleCondition.of(value -> value.getName().equals("b")))
-    .within(Time.seconds(10));
+    .within(Duration.ofSeconds(10));
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -757,7 +757,7 @@ Pattern<Event, ?> notFollowedBy = start.notFollowedBy("not");
         <p>定义匹配模式的事件序列出现的最大时间间隔。如果未完成的事件序列超过了这个事件，就会被丢弃：</p>
 
 ```java
-pattern.within(Time.seconds(10));
+pattern.within(Duration.ofSeconds(10));
 ```
 </td>
 </tr>
@@ -1151,7 +1151,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("error")))
     .followedBy("end")
     .where(SimpleCondition.of(value -> value.getName().equals("critical")))
-    .within(Time.seconds(10));
+    .within(Duration.ofSeconds(10));
 
 PatternStream<Event> patternStream = CEP.pattern(partitionedInput, pattern);
 

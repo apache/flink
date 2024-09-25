@@ -39,6 +39,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -176,7 +177,7 @@ public class NFACompilerTest extends TestLogger {
                         .where(startFilter)
                         .notFollowedBy("middle")
                         .where(endFilter)
-                        .within(Time.milliseconds(1));
+                        .within(Duration.ofMillis(1));
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -301,9 +302,9 @@ public class NFACompilerTest extends TestLogger {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .followedBy("middle")
-                        .within(Time.seconds(10))
+                        .within(Duration.ofSeconds(10))
                         .followedBy("then")
-                        .within(Time.seconds(20))
+                        .within(Duration.ofSeconds(20))
                         .followedBy("end");
 
         NFACompiler.NFAFactoryCompiler<Event> factory =
@@ -317,9 +318,9 @@ public class NFACompilerTest extends TestLogger {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .followedBy("middle")
-                        .within(Time.seconds(10), WithinType.PREVIOUS_AND_CURRENT)
+                        .within(Duration.ofSeconds(10), WithinType.PREVIOUS_AND_CURRENT)
                         .followedBy("then")
-                        .within(Time.seconds(20), WithinType.PREVIOUS_AND_CURRENT)
+                        .within(Duration.ofSeconds(20), WithinType.PREVIOUS_AND_CURRENT)
                         .followedBy("end");
 
         NFACompiler.NFAFactoryCompiler<Event> factory =
@@ -337,9 +338,9 @@ public class NFACompilerTest extends TestLogger {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .followedBy("middle")
-                        .within(Time.seconds(10))
+                        .within(Duration.ofSeconds(10))
                         .followedBy("then")
-                        .within(Time.seconds(0))
+                        .within(Duration.ofSeconds(0))
                         .followedBy("end");
 
         NFACompiler.NFAFactoryCompiler<Event> factory =
@@ -357,11 +358,11 @@ public class NFACompilerTest extends TestLogger {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .followedBy("middle")
-                        .within(Time.seconds(3), WithinType.PREVIOUS_AND_CURRENT)
+                        .within(Duration.ofSeconds(3), WithinType.PREVIOUS_AND_CURRENT)
                         .followedBy("then")
-                        .within(Time.seconds(1), WithinType.PREVIOUS_AND_CURRENT)
+                        .within(Duration.ofSeconds(1), WithinType.PREVIOUS_AND_CURRENT)
                         .followedBy("end")
-                        .within(Time.milliseconds(2));
+                        .within(Duration.ofMillis(2));
 
         NFACompiler.NFAFactoryCompiler<Event> factory =
                 new NFACompiler.NFAFactoryCompiler<>(pattern);

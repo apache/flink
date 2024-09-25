@@ -39,12 +39,11 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -423,7 +422,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
         Pattern<Integer, ?> pattern =
                 Pattern.<Integer>begin("start")
                         .followedByAny("end")
-                        .within(Time.days(1), withinType);
+                        .within(Duration.ofDays(1), withinType);
 
         DataStream<Integer> result =
                 CEP.pattern(input, pattern)
@@ -490,11 +489,13 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                         .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
                         .where(SimpleCondition.of(value -> value.getName().equals("end")))
-                        .within(Time.milliseconds(3));
+                        .within(Duration.ofMillis(3));
 
-        DataStream<Either<String, String>> result =
+        OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
+        SingleOutputStreamOperator<String> result =
                 CEP.pattern(input, pattern)
                         .select(
+                                outputTag,
                                 new PatternTimeoutFunction<Event, String>() {
                                     @Override
                                     public String timeout(
@@ -519,20 +520,21 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
                                 });
 
-        List<Either<String, String>> resultList = new ArrayList<>();
+        List<String> resultList = new ArrayList<>();
 
         result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(Comparator.comparing(Object::toString));
 
-        List<Either<String, String>> expected =
-                Arrays.asList(
-                        Either.Left.of("1.0"),
-                        Either.Left.of("2.0"),
-                        Either.Left.of("2.0"),
-                        Either.Right.of("2.0,2.0,2.0"));
+        List<String> timeoutList = new ArrayList<>();
+        result.getSideOutput(outputTag).executeAndCollect().forEachRemaining(timeoutList::add);
+        timeoutList.sort(Comparator.comparing(Object::toString));
 
-        assertEquals(expected, resultList);
+        List<String> timeoutExpected = Arrays.asList("1.0", "2.0", "2.0");
+        List<String> resultExpected = Arrays.asList("2.0,2.0,2.0");
+
+        assertEquals(timeoutExpected, timeoutList);
+        assertEquals(resultExpected, resultList);
     }
 
     @Test
@@ -580,11 +582,14 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                         .where(SimpleCondition.of(value -> value.getName().equals("middle")))
                         .followedByAny("end")
                         .where(SimpleCondition.of(value -> value.getName().equals("end")))
-                        .within(Time.milliseconds(3), WithinType.PREVIOUS_AND_CURRENT);
+                        .within(Duration.ofMillis(3), WithinType.PREVIOUS_AND_CURRENT);
 
-        DataStream<Either<String, String>> result =
+        OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
+
+        SingleOutputStreamOperator<String> result =
                 CEP.pattern(input, pattern)
                         .select(
+                                outputTag,
                                 new PatternTimeoutFunction<Event, String>() {
                                     @Override
                                     public String timeout(
@@ -609,20 +614,21 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                     }
                                 });
 
-        List<Either<String, String>> resultList = new ArrayList<>();
+        List<String> resultList = new ArrayList<>();
 
         result.executeAndCollect().forEachRemaining(resultList::add);
 
         resultList.sort(Comparator.comparing(Object::toString));
 
-        List<Either<String, String>> expected =
-                Arrays.asList(
-                        Either.Left.of("1.0"),
-                        Either.Left.of("2.0"),
-                        Either.Right.of("1.0,2.0,2.0"),
-                        Either.Right.of("2.0,2.0,2.0"));
+        List<String> timeoutList = new ArrayList<>();
+        result.getSideOutput(outputTag).executeAndCollect().forEachRemaining(timeoutList::add);
+        timeoutList.sort(Comparator.comparing(Object::toString));
 
-        assertEquals(expected, resultList);
+        List<String> timeoutExpected = Arrays.asList("1.0", "2.0");
+        List<String> resultExpected = Arrays.asList("1.0,2.0,2.0", "2.0,2.0,2.0");
+
+        assertEquals(timeoutExpected, timeoutList);
+        assertEquals(resultExpected, resultList);
     }
 
     /**
@@ -1081,7 +1087,7 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                         }
                                     }
                                 })
-                        .within(Time.milliseconds(100L));
+                        .within(Duration.ofMillis(100L));
 
         DataStream<String> result =
                 CEP.pattern(input, pattern)

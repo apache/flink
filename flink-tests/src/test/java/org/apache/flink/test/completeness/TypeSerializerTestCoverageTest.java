@@ -49,14 +49,11 @@ import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.cep.nfa.DeweyNumber;
-import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
-import org.apache.flink.cep.nfa.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.Lockable;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
@@ -156,7 +153,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
-                        SharedBuffer.SharedBufferSerializer.class.getName(),
                         WindowKeySerializer.class.getName(),
                         DeweyNumber.DeweyNumberSerializer.class.getName(),
                         SharedBufferNodeSerializer.class.getName(),
@@ -182,8 +178,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
-                        SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
-                        NFA.NFASerializer.class.getName(),
                         AvroSerializer.class.getName());
 
         //  type serializer whitelist for TypeSerializerUpgradeTestBase test coverage
@@ -216,7 +210,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         GlobalWindow.Serializer.class.getName(),
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
-                        SharedBuffer.SharedBufferSerializer.class.getName(),
                         WindowKeySerializer.class.getName(),
                         DeweyNumber.DeweyNumberSerializer.class.getName(),
                         SharedBufferNodeSerializer.class.getName(),
@@ -242,8 +235,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
-                        SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
-                        NFA.NFASerializer.class.getName(),
                         AvroSerializer.class.getName(),
                         // KeyAndValueSerializer shouldn't be used to serialize data to state and
                         // doesn't need to ensure upgrade compatibility.

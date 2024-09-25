@@ -25,6 +25,8 @@ import org.apache.flink.table.api.TableException
 import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 
+import java.time.Duration
+
 class PatternTranslatorTest extends PatternTranslatorTestBase {
 
   @Test
@@ -257,7 +259,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
       Pattern
         .begin("A", skipToNext())
         .next("B")
-        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000 + 4))
+        .within(Duration.ofMillis(10 * 24 * 60 * 60 * 1000 + 4))
     )
 
     verifyPattern(
@@ -273,7 +275,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
       Pattern
         .begin("A", skipToNext())
         .next("B")
-        .within(Time.milliseconds(10 * 24 * 60 * 60 * 1000))
+        .within(Duration.ofMillis(10 * 24 * 60 * 60 * 1000))
     )
 
     verifyPattern(
@@ -289,7 +291,7 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
       Pattern
         .begin("A", skipToNext())
         .next("B")
-        .within(Time.milliseconds(10 * 60 * 1000))
+        .within(Duration.ofMillis(10 * 60 * 1000))
     )
   }
 

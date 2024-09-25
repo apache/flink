@@ -32,7 +32,6 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -40,6 +39,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -457,7 +457,7 @@ public class CEPRescalingTest {
                             .where(SimpleCondition.of(value -> value.getName().equals("end")))
                             // add a window timeout to test whether timestamps of elements in the
                             // priority queue in CEP operator are correctly checkpointed/restored
-                            .within(Time.milliseconds(10L));
+                            .within(Duration.ofMillis(10L));
 
             return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
         }
