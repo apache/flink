@@ -106,7 +106,6 @@ import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -503,79 +502,6 @@ public class DataStream<T> {
     @PublicEvolving
     public DataStream<T> global() {
         return setConnectionType(new GlobalPartitioner<T>());
-    }
-
-    /**
-     * Initiates an iterative part of the program that feeds back data streams. The iterative part
-     * needs to be closed by calling {@link IterativeStream#closeWith(DataStream)}. The
-     * transformation of this IterativeStream will be the iteration head. The data stream given to
-     * the {@link IterativeStream#closeWith(DataStream)} method is the data stream that will be fed
-     * back and used as the input for the iteration head. The user can also use different feedback
-     * type than the input of the iteration and treat the input and feedback streams as a {@link
-     * ConnectedStreams} be calling {@link IterativeStream#withFeedbackType(TypeInformation)}
-     *
-     * <p>A common usage pattern for streaming iterations is to use output splitting to send a part
-     * of the closing data stream to the head. Refer to {@link
-     * ProcessFunction.Context#output(OutputTag, Object)} for more information.
-     *
-     * <p>The iteration edge will be partitioned the same way as the first input of the iteration
-     * head unless it is changed in the {@link IterativeStream#closeWith(DataStream)} call.
-     *
-     * <p>By default a DataStream with iteration will never terminate, but the user can use the
-     * maxWaitTime parameter to set a max waiting time for the iteration head. If no data received
-     * in the set time, the stream terminates.
-     *
-     * @return The iterative data stream created.
-     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
-     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
-     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
-     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
-     *     the Flink ML iteration implementation a separate common library.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
-     *     FLIP-357: Deprecate Iteration API of DataStream </a>
-     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
-     */
-    @Deprecated
-    public IterativeStream<T> iterate() {
-        return new IterativeStream<>(this, 0);
-    }
-
-    /**
-     * Initiates an iterative part of the program that feeds back data streams. The iterative part
-     * needs to be closed by calling {@link IterativeStream#closeWith(DataStream)}. The
-     * transformation of this IterativeStream will be the iteration head. The data stream given to
-     * the {@link IterativeStream#closeWith(DataStream)} method is the data stream that will be fed
-     * back and used as the input for the iteration head. The user can also use different feedback
-     * type than the input of the iteration and treat the input and feedback streams as a {@link
-     * ConnectedStreams} be calling {@link IterativeStream#withFeedbackType(TypeInformation)}
-     *
-     * <p>A common usage pattern for streaming iterations is to use output splitting to send a part
-     * of the closing data stream to the head. Refer to {@link
-     * ProcessFunction.Context#output(OutputTag, Object)} for more information.
-     *
-     * <p>The iteration edge will be partitioned the same way as the first input of the iteration
-     * head unless it is changed in the {@link IterativeStream#closeWith(DataStream)} call.
-     *
-     * <p>By default a DataStream with iteration will never terminate, but the user can use the
-     * maxWaitTime parameter to set a max waiting time for the iteration head. If no data received
-     * in the set time, the stream terminates.
-     *
-     * @param maxWaitTimeMillis Number of milliseconds to wait between inputs before shutting down
-     * @return The iterative data stream created.
-     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
-     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
-     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
-     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
-     *     the Flink ML iteration implementation a separate common library.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
-     *     FLIP-357: Deprecate Iteration API of DataStream </a>
-     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
-     */
-    @Deprecated
-    public IterativeStream<T> iterate(long maxWaitTimeMillis) {
-        return new IterativeStream<>(this, maxWaitTimeMillis);
     }
 
     /**

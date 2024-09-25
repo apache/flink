@@ -23,7 +23,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.InputFormat;
@@ -71,8 +70,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -89,7 +86,6 @@ import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -125,7 +121,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
@@ -599,92 +594,6 @@ class StreamingJobGraphGeneratorTest {
         assertThat(reduceSinkVertex.getPreferredResources()).isEqualTo(resource4.merge(resource5));
     }
 
-    /**
-     * Verifies that the resources are merged correctly for chained operators (covers middle
-     * chaining and iteration cases) when generating job graph.
-     */
-    @Test
-    void testResourcesForIteration() throws Exception {
-        ResourceSpec resource1 = ResourceSpec.newBuilder(0.1, 100).build();
-        ResourceSpec resource2 = ResourceSpec.newBuilder(0.2, 200).build();
-        ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
-        ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
-        ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
-
-        Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
-        Method sinkMethod = getSetResourcesMethodAndSetAccessible(DataStreamSink.class);
-
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<Integer> source =
-                env.addSource(
-                                new ParallelSourceFunction<Integer>() {
-                                    @Override
-                                    public void run(SourceContext<Integer> ctx) throws Exception {}
-
-                                    @Override
-                                    public void cancel() {}
-                                })
-                        .name("test_source");
-        opMethod.invoke(source, resource1);
-
-        IterativeStream<Integer> iteration = source.iterate(3000);
-        opMethod.invoke(iteration, resource2);
-
-        DataStream<Integer> flatMap =
-                iteration
-                        .flatMap(
-                                new FlatMapFunction<Integer, Integer>() {
-                                    @Override
-                                    public void flatMap(Integer value, Collector<Integer> out)
-                                            throws Exception {
-                                        out.collect(value);
-                                    }
-                                })
-                        .name("test_flatMap");
-        opMethod.invoke(flatMap, resource3);
-
-        // CHAIN(flatMap -> Filter)
-        DataStream<Integer> increment =
-                flatMap.filter(
-                                new FilterFunction<Integer>() {
-                                    @Override
-                                    public boolean filter(Integer value) throws Exception {
-                                        return false;
-                                    }
-                                })
-                        .name("test_filter");
-        opMethod.invoke(increment, resource4);
-
-        DataStreamSink<Integer> sink =
-                iteration
-                        .closeWith(increment)
-                        .addSink(
-                                new SinkFunction<Integer>() {
-                                    @Override
-                                    public void invoke(Integer value) throws Exception {}
-                                })
-                        .disableChaining()
-                        .name("test_sink");
-        sinkMethod.invoke(sink, resource5);
-
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            if (jobVertex.getName().contains("test_source")) {
-                assertThat(jobVertex.getMinResources()).isEqualTo(resource1);
-            } else if (jobVertex.getName().contains("Iteration_Source")) {
-                assertThat(jobVertex.getPreferredResources()).isEqualTo(resource2);
-            } else if (jobVertex.getName().contains("test_flatMap")) {
-                assertThat(jobVertex.getMinResources()).isEqualTo(resource3.merge(resource4));
-            } else if (jobVertex.getName().contains("Iteration_Tail")) {
-                assertThat(jobVertex.getPreferredResources()).isEqualTo(ResourceSpec.DEFAULT);
-            } else if (jobVertex.getName().contains("test_sink")) {
-                assertThat(jobVertex.getMinResources()).isEqualTo(resource5);
-            }
-        }
-    }
-
     @Test
     void testInputOutputFormat() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -1068,49 +977,6 @@ class StreamingJobGraphGeneratorTest {
                 assertThat(output.getBufferTimeout()).isEqualTo(-1L);
             }
         }
-    }
-
-    /** Test iteration job, check slot sharing group and co-location group. */
-    @Test
-    void testIteration() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
-        IterativeStream<Integer> iteration = source.iterate(3000);
-        iteration.name("iteration").setParallelism(2);
-        DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
-        DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
-        iteration.closeWith(filter).print();
-
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-
-        SlotSharingGroup slotSharingGroup = jobGraph.getVerticesAsArray()[0].getSlotSharingGroup();
-        assertThat(slotSharingGroup).isNotNull();
-
-        CoLocationGroup iterationSourceCoLocationGroup = null;
-        CoLocationGroup iterationSinkCoLocationGroup = null;
-
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            // all vertices have same slot sharing group by default
-            assertThat(jobVertex.getSlotSharingGroup()).isEqualTo(slotSharingGroup);
-
-            // all iteration vertices have same co-location group,
-            // others have no co-location group by default
-            if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
-                iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertThat(iterationSourceCoLocationGroup.getVertexIds())
-                        .contains(jobVertex.getID());
-            } else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
-                iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertThat(iterationSinkCoLocationGroup.getVertexIds()).contains(jobVertex.getID());
-            } else {
-                assertThat(jobVertex.getCoLocationGroup()).isNull();
-            }
-        }
-
-        assertThat(iterationSourceCoLocationGroup).isNotNull();
-        assertThat(iterationSinkCoLocationGroup).isNotNull();
-        assertThat(iterationSinkCoLocationGroup).isEqualTo(iterationSourceCoLocationGroup);
     }
 
     /** Test default job type. */

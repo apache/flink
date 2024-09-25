@@ -48,7 +48,6 @@ under the License.
 		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
-		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
