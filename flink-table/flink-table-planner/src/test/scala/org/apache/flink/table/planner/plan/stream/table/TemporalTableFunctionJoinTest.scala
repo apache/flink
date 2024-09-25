@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}

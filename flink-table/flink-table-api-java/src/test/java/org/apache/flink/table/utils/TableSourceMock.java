@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.utils;
 
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 

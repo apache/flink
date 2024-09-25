@@ -21,8 +21,9 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.legacy.factories.TableSinkFactory;
+import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sinks.TableSink;
 
 import java.util.Map;
 

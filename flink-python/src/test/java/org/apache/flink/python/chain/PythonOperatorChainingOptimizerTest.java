@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.operators.python.process.ExternalPythonPro
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.table.api.Types;
+import org.apache.flink.table.legacy.api.Types;
 
 import org.junit.jupiter.api.Test;
 

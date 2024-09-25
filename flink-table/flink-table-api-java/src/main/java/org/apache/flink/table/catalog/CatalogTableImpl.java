@@ -20,8 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.legacy.api.TableSchema;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA;
 
 /**
  * A catalog table implementation.

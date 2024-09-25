@@ -18,11 +18,11 @@
 
 package org.apache.flink.connector.file.table;
 
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestingAppendTableSink;
 import org.apache.flink.table.planner.utils.TestTableSource;
 import org.apache.flink.table.sinks.StreamTableSink;
@@ -34,7 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA;
 
 /** A legacy {@link TableFactory} uses user define options. */
 public class LegacyTableFactory

@@ -1447,8 +1447,8 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 import java.lang.{Long => JLong, Integer => JInteger}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.legacy.api.Types
 
 /**
  * Accumulator for WeightedAvg.
@@ -1965,8 +1965,8 @@ tab.groupBy("key")
 {{< tab "Scala" >}}
 ```scala
 import java.lang.{Integer => JInteger}
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.TableAggregateFunction
+import org.apache.flink.table.legacy.api.Types
 
 /**
  * Accumulator for top2.
@@ -2111,8 +2111,8 @@ tab.groupBy("key")
 {{< tab "Scala" >}}
 ```scala
 import java.lang.{Integer => JInteger}
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.TableAggregateFunction
+import org.apache.flink.table.legacy.api.Types
 
 /**
  * Accumulator for top2.

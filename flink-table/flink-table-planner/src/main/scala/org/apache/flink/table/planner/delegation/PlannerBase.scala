@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation._
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
@@ -38,7 +39,7 @@ import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
-import org.apache.flink.table.planner.connectors.DynamicSinkUtils.{convertCreateTableAsToRel, validateSchemaAndApplyImplicitCast}
+import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
@@ -54,7 +55,6 @@ import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_C
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
 import _root_.scala.collection.JavaConversions._

@@ -19,14 +19,15 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.sources.DefinedProctimeAttribute;
-import org.apache.flink.table.sources.DefinedRowtimeAttributes;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.api.TableColumn;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.DefinedProctimeAttribute;
+import org.apache.flink.table.legacy.sources.DefinedRowtimeAttributes;
+import org.apache.flink.table.legacy.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
@@ -49,10 +50,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 
-/**
- * Utility methods for dealing with field types in {@link
- * org.apache.flink.table.sources.TableSource} and {@link org.apache.flink.table.sinks.TableSink}.
- */
+/** Utility methods for dealing with field types in {@link TableSource} and {@link TableSink}. */
 @Internal
 public final class TypeMappingUtils {
 
@@ -151,8 +149,7 @@ public final class TypeMappingUtils {
      * Checks whether the given physical field type and logical field type are compatible at the
      * edges of the table ecosystem. Types are still compatible if the physical type is a legacy
      * decimal type (converted from Types#BIG_DEC) and the logical type is DECIMAL(38, 18). This is
-     * to support legacy TypeInformation for {@link TableSource} and {@link
-     * org.apache.flink.table.sinks.TableSink}.
+     * to support legacy TypeInformation for {@link TableSource} and {@link TableSink}.
      *
      * @param physicalFieldType physical field type
      * @param logicalFieldType logical field type

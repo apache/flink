@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.legacy.sources.FilterableTableSource;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
@@ -27,8 +29,6 @@ import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
-import org.apache.flink.table.sources.FilterableTableSource;
-import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
