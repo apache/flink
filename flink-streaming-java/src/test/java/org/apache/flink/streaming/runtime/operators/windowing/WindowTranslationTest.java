@@ -29,7 +29,6 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -91,7 +90,7 @@ class WindowTranslationTest {
 
         assertThatThrownBy(
                         () ->
-                                source.keyBy(0)
+                                source.keyBy(x -> x.f0)
                                         .window(
                                                 SlidingEventTimeWindows.of(
                                                         Duration.ofSeconds(1),
@@ -122,7 +121,7 @@ class WindowTranslationTest {
 
         assertThatThrownBy(
                         () ->
-                                source.keyBy(0)
+                                source.keyBy(x -> x.f0)
                                         .window(
                                                 SlidingEventTimeWindows.of(
                                                         Duration.ofSeconds(1),
@@ -1071,7 +1070,7 @@ class WindowTranslationTest {
         DummyReducer reducer = new DummyReducer();
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.keyBy(0)
+                source.keyBy(x -> x.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
                                         Duration.ofSeconds(1), Duration.ofMillis(100)))
@@ -1212,7 +1211,7 @@ class WindowTranslationTest {
         DummyReducer reducer = new DummyReducer();
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.keyBy(0)
+                source.keyBy(x -> x.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
                                         Duration.ofSeconds(1), Duration.ofMillis(100)))
@@ -1250,7 +1249,7 @@ class WindowTranslationTest {
         DummyReducer reducer = new DummyReducer();
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.keyBy(0)
+                source.keyBy(x -> x.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
                                         Duration.ofSeconds(1), Duration.ofMillis(100)))
@@ -1260,11 +1259,11 @@ class WindowTranslationTest {
                                 new ProcessWindowFunction<
                                         Tuple2<String, Integer>,
                                         Tuple2<String, Integer>,
-                                        Tuple,
+                                        String,
                                         TimeWindow>() {
                                     @Override
                                     public void process(
-                                            Tuple tuple,
+                                            String str,
                                             Context context,
                                             Iterable<Tuple2<String, Integer>> elements,
                                             Collector<Tuple2<String, Integer>> out)

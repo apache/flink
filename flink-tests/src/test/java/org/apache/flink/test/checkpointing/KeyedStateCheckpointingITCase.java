@@ -167,7 +167,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         stream1.union(stream2)
                 .keyBy(new IdentityKeySelector<Integer>())
                 .map(new OnceFailingPartitionedSum(failurePos))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new CounterSink());
 
         env.execute();

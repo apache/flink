@@ -99,7 +99,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         env.addSource(new RandomTupleSource(numEventsPerInstance, numUniqueKeys))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new ToPartitionFileSink(partitionFiles));
 
         env.execute();

@@ -72,7 +72,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
                 .map(new StatefulCounterFunction())
 
                 // -------------- third vertex - counter and the sink ----------------
-                .keyBy("prefix")
+                .keyBy(x -> x.prefix)
                 .map(new OnceFailingPrefixCounter(NUM_STRINGS))
                 .addSink(
                         new SinkFunction<PrefixCount>() {

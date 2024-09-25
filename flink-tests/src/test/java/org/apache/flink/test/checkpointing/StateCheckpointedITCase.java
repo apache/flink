@@ -95,7 +95,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
                 .map(new StatefulCounterFunction())
 
                 // -------------- third vertex - reducer and the sink ----------------
-                .keyBy("prefix")
+                .keyBy(x -> x.prefix)
                 .flatMap(new OnceFailingAggregator(failurePos))
                 .addSink(new ValidatingSink());
     }

@@ -462,7 +462,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
         env.addSource(new NotifyingInfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
                 .reduce((value1, value2) -> Tuple2.of(value1.f0, value1.f1 + value2.f1))
                 .filter(value -> value.f0.startsWith("Tuple 0"));

@@ -112,7 +112,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
                     .startNewChain()
 
                     // -------------- fourth vertex - reducer and the sink ----------------
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .reduce(new OnceFailingReducer(numElements))
                     .sinkTo(new DiscardingSink<>());
 

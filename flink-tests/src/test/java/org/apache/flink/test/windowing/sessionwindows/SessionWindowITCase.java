@@ -19,7 +19,7 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
@@ -94,17 +94,18 @@ public class SessionWindowITCase extends AbstractTestBaseJUnit4 {
 
     private void runTest(
             SourceFunction<SessionEvent<Integer, TestEventPayload>> dataSource,
-            WindowFunction<SessionEvent<Integer, TestEventPayload>, String, Tuple, TimeWindow>
+            WindowFunction<SessionEvent<Integer, TestEventPayload>, String, Integer, TimeWindow>
                     windowFunction)
             throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        WindowedStream<SessionEvent<Integer, TestEventPayload>, Tuple, TimeWindow> windowedStream =
-                env.addSource(dataSource)
-                        .keyBy("sessionKey")
-                        .window(
-                                EventTimeSessionWindows.withGap(
-                                        Duration.ofMillis(MAX_SESSION_EVENT_GAP_MS)));
+        WindowedStream<SessionEvent<Integer, TestEventPayload>, Integer, TimeWindow>
+                windowedStream =
+                        env.addSource(dataSource)
+                                .keyBy(SessionEvent::getSessionKey, Types.INT)
+                                .window(
+                                        EventTimeSessionWindows.withGap(
+                                                Duration.ofMillis(MAX_SESSION_EVENT_GAP_MS)));
 
         if (ALLOWED_LATENESS_MS != Long.MAX_VALUE) {
             windowedStream = windowedStream.allowedLateness(Duration.ofMillis(ALLOWED_LATENESS_MS));
@@ -131,13 +132,13 @@ public class SessionWindowITCase extends AbstractTestBaseJUnit4 {
     /** Window function that performs correctness checks for this test case. */
     private static final class ValidatingWindowFunction
             extends RichWindowFunction<
-                    SessionEvent<Integer, TestEventPayload>, String, Tuple, TimeWindow> {
+                    SessionEvent<Integer, TestEventPayload>, String, Integer, TimeWindow> {
 
         static final long serialVersionUID = 865723993979L;
 
         @Override
         public void apply(
-                Tuple tuple,
+                Integer i,
                 TimeWindow timeWindow,
                 Iterable<SessionEvent<Integer, TestEventPayload>> input,
                 Collector<String> output)

@@ -34,7 +34,6 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -360,8 +359,9 @@ class DataStreamTest {
     }
 
     /**
-     * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionCustom(Partitioner, int)}
-     * result in different and correct topologies. Does the some for the {@link ConnectedStreams}.
+     * Tests that {@link DataStream#keyBy(KeySelector)} and {@link
+     * DataStream#partitionCustom(Partitioner, int)} result in different and correct topologies.
+     * Does the some for the {@link ConnectedStreams}.
      */
     @Test
     void testPartitioning() {
@@ -372,15 +372,14 @@ class DataStreamTest {
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connected = src1.connect(src2);
 
         // Testing DataStream grouping
-        DataStream<Tuple2<Long, Long>> group1 = src1.keyBy(0);
-        DataStream<Tuple2<Long, Long>> group2 = src1.keyBy(1, 0);
-        DataStream<Tuple2<Long, Long>> group3 = src1.keyBy("f0");
-        DataStream<Tuple2<Long, Long>> group4 = src1.keyBy(new FirstSelector());
+        DataStream<Tuple2<Long, Long>> group1 = src1.keyBy(x -> x.f0);
+        DataStream<Tuple2<Long, Long>> group2 =
+                src1.keyBy(x -> Tuple2.of(x.f1, x.f0), Types.TUPLE(Types.LONG, Types.LONG));
+        DataStream<Tuple2<Long, Long>> group3 = src1.keyBy(new FirstSelector());
 
         int id1 = createDownStreamId(group1);
         int id2 = createDownStreamId(group2);
         int id3 = createDownStreamId(group3);
-        int id4 = createDownStreamId(group4);
 
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id1)))
                 .isTrue();
@@ -388,24 +387,20 @@ class DataStreamTest {
                 .isTrue();
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id3)))
                 .isTrue();
-        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id4)))
-                .isTrue();
 
         assertThat(isKeyed(group1)).isTrue();
         assertThat(isKeyed(group2)).isTrue();
         assertThat(isKeyed(group3)).isTrue();
-        assertThat(isKeyed(group4)).isTrue();
 
         // Testing DataStream partitioning
-        DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(0);
-        DataStream<Tuple2<Long, Long>> partition2 = src1.keyBy(1, 0);
-        DataStream<Tuple2<Long, Long>> partition3 = src1.keyBy("f0");
-        DataStream<Tuple2<Long, Long>> partition4 = src1.keyBy(new FirstSelector());
+        DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(x -> x.f0);
+        DataStream<Tuple2<Long, Long>> partition2 =
+                src1.keyBy(x -> Tuple2.of(x.f1, x.f0), Types.TUPLE(Types.LONG, Types.LONG));
+        DataStream<Tuple2<Long, Long>> partition3 = src1.keyBy(new FirstSelector());
 
         int pid1 = createDownStreamId(partition1);
         int pid2 = createDownStreamId(partition2);
         int pid3 = createDownStreamId(partition3);
-        int pid4 = createDownStreamId(partition4);
 
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid1)))
                 .isTrue();
@@ -413,13 +408,10 @@ class DataStreamTest {
                 .isTrue();
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid3)))
                 .isTrue();
-        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid4)))
-                .isTrue();
 
         assertThat(isKeyed(partition1)).isTrue();
-        assertThat(isKeyed(partition3)).isTrue();
         assertThat(isKeyed(partition2)).isTrue();
-        assertThat(isKeyed(partition4)).isTrue();
+        assertThat(isKeyed(partition3)).isTrue();
 
         // Testing DataStream custom partitioning
         Partitioner<Long> longPartitioner =
@@ -1565,12 +1557,10 @@ class DataStreamTest {
 
         DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
-        TypeInformation<?> expectedTypeInfo =
-                new TupleTypeInfo<Tuple1<int[]>>(
-                        PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+        TypeInformation<?> expectedTypeInfo = PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
 
         // adjust the rule
-        assertThatThrownBy(() -> input.keyBy("id"))
+        assertThatThrownBy(() -> input.keyBy(POJOWithoutHashCode::getId))
                 .isInstanceOf(InvalidProgramException.class)
                 .hasMessageStartingWith("Type " + expectedTypeInfo + " cannot be used as key.");
     }

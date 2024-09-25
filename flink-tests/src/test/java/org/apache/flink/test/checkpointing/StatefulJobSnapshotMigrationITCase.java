@@ -25,7 +25,10 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -210,11 +213,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
 
         env.addSource(nonParallelSource)
                 .uid("CheckpointingSource1")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .flatMap(flatMap)
                 .startNewChain()
                 .uid("CheckpointingKeyedStateFlatMap1")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .transform(
                         "timely_stateful_operator",
                         new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
@@ -224,11 +227,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
 
         env.addSource(parallelSource)
                 .uid("CheckpointingSource2")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .flatMap(flatMap)
                 .startNewChain()
                 .uid("CheckpointingKeyedStateFlatMap2")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .transform(
                         "timely_stateful_operator",
                         new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),

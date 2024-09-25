@@ -38,8 +38,6 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
@@ -295,40 +293,7 @@ public class DataStream<T> {
         return new KeyedStream<>(this, clean(key), keyType);
     }
 
-    /**
-     * Partitions the operator state of a {@link DataStream} by the given key positions.
-     *
-     * @deprecated Use {@link DataStream#keyBy(KeySelector)}.
-     * @param fields The position of the fields on which the {@link DataStream} will be grouped.
-     * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
-     */
-    @Deprecated
-    public KeyedStream<T, Tuple> keyBy(int... fields) {
-        if (getType() instanceof BasicArrayTypeInfo
-                || getType() instanceof PrimitiveArrayTypeInfo) {
-            return keyBy(KeySelectorUtil.getSelectorForArray(fields, getType()));
-        } else {
-            return keyBy(new Keys.ExpressionKeys<>(fields, getType()));
-        }
-    }
-
-    /**
-     * Partitions the operator state of a {@link DataStream} using field expressions. A field
-     * expression is either the name of a public field or a getter method with parentheses of the
-     * {@link DataStream}'s underlying type. A dot can be used to drill down into objects, as in
-     * {@code "field1.getInnerField2()" }.
-     *
-     * @deprecated Use {@link DataStream#keyBy(KeySelector)}.
-     * @param fields One or more field expressions on which the state of the {@link DataStream}
-     *     operators will be partitioned.
-     * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
-     */
-    @Deprecated
-    public KeyedStream<T, Tuple> keyBy(String... fields) {
-        return keyBy(new Keys.ExpressionKeys<>(fields, getType()));
-    }
-
-    private KeyedStream<T, Tuple> keyBy(Keys<T> keys) {
+    protected KeyedStream<T, Tuple> keyBy(Keys<T> keys) {
         return new KeyedStream<>(
                 this,
                 clean(KeySelectorUtil.getSelectorForKeys(keys, getType(), getExecutionConfig())));

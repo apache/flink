@@ -179,7 +179,7 @@ class StreamingJobGraphGeneratorTest {
                                 });
 
         DataStream<Tuple2<String, String>> result =
-                input.keyBy(0)
+                input.keyBy(x -> x.f0)
                         .map(
                                 new MapFunction<Tuple2<String, String>, Tuple2<String, String>>() {
 
@@ -559,7 +559,7 @@ class StreamingJobGraphGeneratorTest {
         opMethod.invoke(filter, resource3);
 
         DataStream<Tuple2<Integer, Integer>> reduce =
-                filter.keyBy(0)
+                filter.keyBy(x -> x.f0)
                         .reduce(
                                 new ReduceFunction<Tuple2<Integer, Integer>>() {
                                     @Override
