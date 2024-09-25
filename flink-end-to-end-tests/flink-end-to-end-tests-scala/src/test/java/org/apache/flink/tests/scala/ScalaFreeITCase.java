@@ -70,7 +70,9 @@ public class ScalaFreeITCase extends TestLogger {
     }
 
     public ScalaFreeITCase(TestParams testParams) {
-        final FlinkResourceSetup.FlinkResourceSetupBuilder builder = FlinkResourceSetup.builder();
+        final FlinkResourceSetup.FlinkResourceSetupBuilder builder =
+                FlinkResourceSetup.builder()
+                        .moveJar("flink-scala", JarLocation.LIB, JarLocation.OPT);
         testParams.builderSetup.accept(builder);
         flink = FlinkResource.get(builder.build());
         mainClass = testParams.mainClass;
