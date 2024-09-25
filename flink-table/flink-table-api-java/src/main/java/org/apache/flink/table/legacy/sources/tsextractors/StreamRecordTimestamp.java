@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources.tsextractors;
+package org.apache.flink.table.legacy.sources.tsextractors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -24,7 +24,6 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.legacy.descriptors.Rowtime;
-import org.apache.flink.table.legacy.sources.tsextractors.TimestampExtractor;
 
 import java.util.HashMap;
 import java.util.Map;

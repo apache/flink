@@ -50,8 +50,8 @@ import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.sources.DefinedFieldMapping;
 import org.apache.flink.table.legacy.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.legacy.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.legacy.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.types.Row;
 

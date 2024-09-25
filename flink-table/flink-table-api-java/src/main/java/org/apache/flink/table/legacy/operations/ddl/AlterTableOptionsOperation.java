@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.ddl;
+package org.apache.flink.table.legacy.operations.ddl;
 
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOperation;
 
 import java.util.stream.Collectors;
 

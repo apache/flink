@@ -41,6 +41,7 @@ import org.apache.flink.table.legacy.descriptors.Schema
 import org.apache.flink.table.legacy.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.legacy.sources._
+import org.apache.flink.table.legacy.sources.tsextractors.ExistingField
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -48,7 +49,6 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSource
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.sinks.{CsvBatchTableSinkFactory, StreamTableSink}
 import org.apache.flink.table.sources._
-import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
