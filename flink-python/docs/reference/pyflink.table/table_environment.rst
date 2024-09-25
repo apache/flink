@@ -48,13 +48,11 @@ might be convenient as shortcuts.
     :toctree: api/
 
     EnvironmentSettings.new_instance
-    EnvironmentSettings.from_configuration
     EnvironmentSettings.in_streaming_mode
     EnvironmentSettings.in_batch_mode
     EnvironmentSettings.get_built_in_catalog_name
     EnvironmentSettings.get_built_in_database_name
     EnvironmentSettings.is_streaming_mode
-    EnvironmentSettings.to_configuration
     EnvironmentSettings.get_configuration
     EnvironmentSettings.Builder.with_configuration
     EnvironmentSettings.Builder.in_batch_mode
@@ -174,7 +172,6 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.from_elements
     TableEnvironment.from_pandas
     TableEnvironment.from_path
-    TableEnvironment.from_table_source
     TableEnvironment.get_catalog
     TableEnvironment.get_config
     TableEnvironment.get_current_catalog
@@ -191,10 +188,6 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.list_views
     TableEnvironment.load_module
     TableEnvironment.register_catalog
-    TableEnvironment.register_function
-    TableEnvironment.register_java_function
-    TableEnvironment.register_table
-    TableEnvironment.scan
     TableEnvironment.set_python_requirements
     TableEnvironment.sql_query
     TableEnvironment.unload_module
@@ -233,7 +226,6 @@ StreamTableEnvironment
     StreamTableEnvironment.from_elements
     StreamTableEnvironment.from_pandas
     StreamTableEnvironment.from_path
-    StreamTableEnvironment.from_table_source
     StreamTableEnvironment.from_data_stream
     StreamTableEnvironment.from_changelog_stream
     StreamTableEnvironment.get_catalog
@@ -252,10 +244,6 @@ StreamTableEnvironment
     StreamTableEnvironment.list_views
     StreamTableEnvironment.load_module
     StreamTableEnvironment.register_catalog
-    StreamTableEnvironment.register_function
-    StreamTableEnvironment.register_java_function
-    StreamTableEnvironment.register_table
-    StreamTableEnvironment.scan
     StreamTableEnvironment.set_python_requirements
     StreamTableEnvironment.sql_query
     StreamTableEnvironment.to_data_stream
