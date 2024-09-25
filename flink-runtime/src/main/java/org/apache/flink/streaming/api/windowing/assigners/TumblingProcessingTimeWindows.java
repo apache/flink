@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.windowing.assigners;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -82,12 +81,6 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
     public long getSize() {
         return size;
-    }
-
-    @Override
-    public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
     }
 
     @Override
