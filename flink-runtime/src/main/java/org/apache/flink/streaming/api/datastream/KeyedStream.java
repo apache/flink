@@ -23,8 +23,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,8 +40,6 @@ import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
-import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
@@ -77,7 +73,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -1082,76 +1077,5 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     @Override
     public PartitionWindowedStream<T> fullWindowPartition() {
         return new KeyedPartitionWindowedStream<>(environment, this);
-    }
-
-    /**
-     * Publishes the keyed stream as queryable ValueState instance.
-     *
-     * @param queryableStateName Name under which to the publish the queryable state instance
-     * @return Queryable state instance
-     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
-     *     in a future Flink major version.
-     */
-    @PublicEvolving
-    @Deprecated
-    public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
-        ValueStateDescriptor<T> valueStateDescriptor =
-                new ValueStateDescriptor<>(UUID.randomUUID().toString(), getType());
-
-        return asQueryableState(queryableStateName, valueStateDescriptor);
-    }
-
-    /**
-     * Publishes the keyed stream as a queryable ValueState instance.
-     *
-     * @param queryableStateName Name under which to the publish the queryable state instance
-     * @param stateDescriptor State descriptor to create state instance from
-     * @return Queryable state instance
-     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
-     *     in a future Flink major version.
-     */
-    @PublicEvolving
-    @Deprecated
-    public QueryableStateStream<KEY, T> asQueryableState(
-            String queryableStateName, ValueStateDescriptor<T> stateDescriptor) {
-
-        transform(
-                "Queryable state: " + queryableStateName,
-                getType(),
-                new QueryableValueStateOperator<>(queryableStateName, stateDescriptor));
-
-        stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-        return new QueryableStateStream<>(
-                queryableStateName,
-                stateDescriptor,
-                getKeyType().createSerializer(getExecutionConfig().getSerializerConfig()));
-    }
-
-    /**
-     * Publishes the keyed stream as a queryable ReducingState instance.
-     *
-     * @param queryableStateName Name under which to the publish the queryable state instance
-     * @param stateDescriptor State descriptor to create state instance from
-     * @return Queryable state instance
-     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
-     *     in a future Flink major version.
-     */
-    @PublicEvolving
-    @Deprecated
-    public QueryableStateStream<KEY, T> asQueryableState(
-            String queryableStateName, ReducingStateDescriptor<T> stateDescriptor) {
-
-        transform(
-                "Queryable state: " + queryableStateName,
-                getType(),
-                new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
-
-        stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-        return new QueryableStateStream<>(
-                queryableStateName,
-                stateDescriptor,
-                getKeyType().createSerializer(getExecutionConfig().getSerializerConfig()));
     }
 }
