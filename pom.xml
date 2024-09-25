@@ -68,14 +68,12 @@ under the License.
 		<module>flink-core-api</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
-		<module>flink-scala</module>
 		<module>flink-filesystems</module>
 		<module>flink-rpc</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
 		<module>flink-streaming-java</module>
-		<module>flink-streaming-scala</module>
 		<module>flink-connectors</module>
 		<module>flink-formats</module>
 		<module>flink-examples</module>
@@ -1646,7 +1644,6 @@ under the License.
 						<exclude>**/src/test/resources/*-data</exclude>
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
                         <exclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</exclude>
-						<exclude>flink-scala/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
 						<exclude>flink-core/src/test/resources/abstractID-with-toString-field</exclude>
 						<exclude>flink-core/src/test/resources/abstractID-with-toString-field-set</exclude>

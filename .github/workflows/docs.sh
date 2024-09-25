@@ -59,11 +59,6 @@ mvn javadoc:aggregate -B \
     -Denforcer.skip=true \
     -Dheader="<a href=\"http://flink.apache.org/\" target=\"_top\"><h1>Back to Flink Website</h1></a> <script>var _paq=window._paq=window._paq||[];_paq.push([\"disableCookies\"]),_paq.push([\"setDomains\",[\"*.flink.apache.org\",\"*.nightlies.apache.org/flink\"]]),_paq.push([\"trackPageView\"]),_paq.push([\"enableLinkTracking\"]),function(){var u=\"//matomo.privacy.apache.org/\";_paq.push([\"setTrackerUrl\",u+\"matomo.php\"]),_paq.push([\"setSiteId\",\"1\"]);var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s)}();</script>"
 mv target/site/apidocs docs/target/api/java
-mvn -pl flink-scala scala:doc -B \
-    -Dcheckstyle.skip=true \
-    -Dspotless.skip=true \
-    -Denforcer.skip=true
-mv flink-scala/target/site/scaladocs docs/target/api/scala
 
 # build python docs
 if [ -f  ./flink-python/dev/lint-python.sh ]; then
