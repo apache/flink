@@ -62,6 +62,10 @@ public class StateBackendLoader {
     private static final String ROCKSDB_STATE_BACKEND_FACTORY =
             "org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory";
 
+    /** Used for loading ForStStateBackend. */
+    private static final String FORST_STATE_BACKEND_FACTORY =
+            "org.apache.flink.state.forst.ForStStateBackendFactory";
+
     // ------------------------------------------------------------------------
     //  Configuration shortcut names
     // ------------------------------------------------------------------------
@@ -76,6 +80,8 @@ public class StateBackendLoader {
 
     /** The shortcut configuration name for the RocksDB State Backend. */
     public static final String ROCKSDB_STATE_BACKEND_NAME = "rocksdb";
+
+    public static final String FORST_STATE_BACKEND_NAME = "forst";
 
     // ------------------------------------------------------------------------
     //  Loading the state backend from a configuration
@@ -144,38 +150,45 @@ public class StateBackendLoader {
             case ROCKSDB_STATE_BACKEND_NAME:
                 factoryClassName = ROCKSDB_STATE_BACKEND_FACTORY;
 
-                // fall through to the 'default' case that uses reflection to load the backend
+                // fall through to the case that uses reflection to load the backend
                 // that way we can keep RocksDB in a separate module
+                break;
 
-            default:
-                if (logger != null) {
-                    logger.info("Loading state backend via factory {}", factoryClassName);
-                }
+            case FORST_STATE_BACKEND_NAME:
+                factoryClassName = FORST_STATE_BACKEND_FACTORY;
 
-                StateBackendFactory<?> factory;
-                try {
-                    @SuppressWarnings("rawtypes")
-                    Class<? extends StateBackendFactory> clazz =
-                            Class.forName(factoryClassName, false, classLoader)
-                                    .asSubclass(StateBackendFactory.class);
-
-                    factory = clazz.newInstance();
-                } catch (ClassNotFoundException e) {
-                    throw new DynamicCodeLoadingException(
-                            "Cannot find configured state backend factory class: " + backendName,
-                            e);
-                } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
-                    throw new DynamicCodeLoadingException(
-                            "The class configured under '"
-                                    + StateBackendOptions.STATE_BACKEND.key()
-                                    + "' is not a valid state backend factory ("
-                                    + backendName
-                                    + ')',
-                            e);
-                }
-
-                return factory.createFromConfig(config, classLoader);
+                // fall through to the case that uses reflection to load the backend
+                // that way we can keep ForSt in a separate module
+                break;
         }
+
+        // The reflection loading path
+        if (logger != null) {
+            logger.info("Loading state backend via factory {}", factoryClassName);
+        }
+
+        StateBackendFactory<?> factory;
+        try {
+            @SuppressWarnings("rawtypes")
+            Class<? extends StateBackendFactory> clazz =
+                    Class.forName(factoryClassName, false, classLoader)
+                            .asSubclass(StateBackendFactory.class);
+
+            factory = clazz.newInstance();
+        } catch (ClassNotFoundException e) {
+            throw new DynamicCodeLoadingException(
+                    "Cannot find configured state backend factory class: " + backendName, e);
+        } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+            throw new DynamicCodeLoadingException(
+                    "The class configured under '"
+                            + StateBackendOptions.STATE_BACKEND.key()
+                            + "' is not a valid state backend factory ("
+                            + backendName
+                            + ')',
+                    e);
+        }
+
+        return factory.createFromConfig(config, classLoader);
     }
 
     /**
