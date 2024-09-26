@@ -24,7 +24,7 @@ DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 DOCKER_IMAGE_BUILD_RETRIES=3
 BUILD_BACKOFF_TIME=5
 
-export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
+export FLINK_JOB=org.apache.flink.streaming.examples.wordcount.WordCount
 export FLINK_DOCKER_IMAGE_NAME=test_nat
 export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
 export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
@@ -63,7 +63,7 @@ if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} "build_image 
 fi
 popd
 
-export USER_LIB=${FLINK_DIR}/examples/batch
+export USER_LIB=${FLINK_DIR}/examples/streaming
 docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
 docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs job-cluster > $FLINK_LOG_DIR/jobmanager.log
 docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs taskmanager1 > $FLINK_LOG_DIR/taskmanager1.log
