@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
@@ -47,8 +48,8 @@ public class CollectITCase extends MultipleProgramsTestBaseJUnit4 {
 
         Integer[] input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-        DataStreamSource<Long> data = env.fromSequence(1, 10);
-        List<Long> collectedResult = CollectionUtil.iteratorToList(data.executeAndCollect());
+        DataStreamSource<Integer> data = env.fromData(input);
+        List<Integer> collectedResult = CollectionUtil.iteratorToList(data.executeAndCollect());
 
         // count
         long numEntries = collectedResult.size();
@@ -64,16 +65,16 @@ public class CollectITCase extends MultipleProgramsTestBaseJUnit4 {
         env.getConfig().disableObjectReuse();
 
         DataStreamSource<Long> data = env.fromSequence(1, 10);
-        SingleOutputStreamOperator<Long> data2 = data.map(x -> x + 10).filter(x -> x / 2 == 0);
-        List<Long> collectedResult = CollectionUtil.iteratorToList(data2.collectAsync());
-
-        Integer[] expectedOutput = {11, 13, 15, 17, 19};
+        SingleOutputStreamOperator<Long> data2 = data.map(x -> x + 10).filter(x -> x % 2 == 0);
+        CloseableIterator<Long> longCloseableIterator = data2.executeAndCollect();
+        List<Long> collectedResult = CollectionUtil.iteratorToList(longCloseableIterator);
+        Long[] expectedOutput = {12L, 14L, 16L, 18L, 20L};
 
         // count
         long numEntries = collectedResult.size();
         assertEquals(expectedOutput.length, numEntries);
 
         // collect
-        assertArrayEquals(expectedOutput, collectedResult.toArray());
+        assertArrayEquals(expectedOutput, collectedResult.stream().sorted().toArray());
     }
 }

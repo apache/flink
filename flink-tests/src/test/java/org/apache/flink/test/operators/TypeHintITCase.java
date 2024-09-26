@@ -118,12 +118,12 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
                 ds1.join(ds2)
                         .where(x -> x.f0)
                         .equalTo(x -> x.f0)
-                        .window(GlobalWindows.create())
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
                         .apply(
                                 new Joiner<
                                         Tuple3<Integer, Long, String>,
                                         Tuple3<Integer, Long, String>,
-                                        Integer>());
+                                        Integer>() {});
         List<Integer> result = CollectionUtil.iteratorToList(resultDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";
@@ -143,12 +143,12 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
                 ds1.join(ds2)
                         .where(x -> x.f0)
                         .equalTo(x -> x.f0)
-                        .window(GlobalWindows.create())
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
                         .apply(
                                 new FlatJoiner<
                                         Tuple3<Integer, Long, String>,
                                         Tuple3<Integer, Long, String>,
-                                        Integer>());
+                                        Integer>() {});
         List<Integer> result = CollectionUtil.iteratorToList(resultDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";
@@ -168,12 +168,12 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
                 ds1.coGroup(ds2)
                         .where(x -> x.f0)
                         .equalTo(x -> x.f0)
-                        .window(GlobalWindows.create())
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
                         .apply(
                                 new CoGrouper<
                                         Tuple3<Integer, Long, String>,
                                         Tuple3<Integer, Long, String>,
-                                        Integer>());
+                                        Integer>() {});
         List<Integer> result = CollectionUtil.iteratorToList(resultDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";

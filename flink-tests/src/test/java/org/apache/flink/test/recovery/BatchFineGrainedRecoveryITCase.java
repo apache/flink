@@ -20,7 +20,7 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -49,6 +49,9 @@ import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.CollectionUtil;
@@ -130,10 +133,9 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
     private static final int EMITTED_RECORD_NUMBER = 1000;
     private static final int MAP_NUMBER = 3;
 
-    private static final String MAP_PARTITION_TEST_PARTITION_MAPPER =
-            "MapPartition (Test partition mapper ";
+    private static final String MAP_PARTITION_TEST_PARTITION_MAPPER = "Test partition mapper ";
     private static final Pattern MAPPER_NUMBER_IN_TASK_NAME_PATTERN =
-            Pattern.compile("MapPartition \\(Test partition mapper (\\d+)\\)");
+            Pattern.compile("Test partition mapper (\\d+)");
 
     /**
      * Number of job failures for all mappers due to backtracking when the produced partitions get
@@ -218,13 +220,13 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
     @Test
     public void testProgram() throws Exception {
         StreamExecutionEnvironment env = createExecutionEnvironment();
-
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         DataStream<Long> input = env.fromSequence(0, EMITTED_RECORD_NUMBER - 1);
-
+        env.disableOperatorChaining();
         for (int trackingIndex = 0; trackingIndex < MAP_NUMBER; trackingIndex++) {
             input =
-                    input.fullWindowPartition()
-                            .mapPartition(
+                    input.windowAll(GlobalWindows.createWithEndOfStreamTrigger())
+                            .apply(
                                     new TestPartitionMapper(
                                             trackingIndex, createFailureStrategy(trackingIndex)))
                             .name(TASK_NAME_PREFIX + trackingIndex);
@@ -542,7 +544,8 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         }
     }
 
-    private static class TestPartitionMapper extends RichMapPartitionFunction<Long, Long> {
+    private static class TestPartitionMapper
+            implements AllWindowFunction<Long, Long, GlobalWindow> {
         private static final long serialVersionUID = 1L;
 
         private final int trackingIndex;
@@ -553,8 +556,18 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
             this.failureStrategy = failureStrategy;
         }
 
+        //        @Override
+        //        public void mapPartition(Iterable<Long> values, Collector<Long> out) throws
+        // Exception {
+        //            for (Long value : values) {
+        //                failureStrategy.failOrNot(trackingIndex);
+        //                out.collect(value + 1);
+        //            }
+        //        }
+
         @Override
-        public void mapPartition(Iterable<Long> values, Collector<Long> out) throws Exception {
+        public void apply(GlobalWindow window, Iterable<Long> values, Collector<Long> out)
+                throws Exception {
             for (Long value : values) {
                 failureStrategy.failOrNot(trackingIndex);
                 out.collect(value + 1);

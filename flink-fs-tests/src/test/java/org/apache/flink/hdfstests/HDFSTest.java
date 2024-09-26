@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.avro.AvroOutputFormat;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TestingBlobHelpers;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
 import org.apache.flink.streaming.examples.wordcount.WordCount;
 import org.apache.flink.util.OperatingSystem;
 
@@ -166,7 +166,7 @@ public class HDFSTest {
         Path path = new Path(hdfsPath.toString());
 
         String type = "one";
-        AvroOutputFormat<String> outputFormat = new AvroOutputFormat<>(path, String.class);
+        TextOutputFormat<String> outputFormat = new TextOutputFormat<>(path);
 
         outputFormat.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
         outputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);

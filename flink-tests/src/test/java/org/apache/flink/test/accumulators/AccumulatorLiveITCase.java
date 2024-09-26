@@ -67,7 +67,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
 
-    @Parameterized.Parameter private boolean testBatchJob;
+    @Parameterized.Parameter public boolean testBatchJob;
 
     @ClassRule
     public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =

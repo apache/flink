@@ -20,7 +20,6 @@
 package org.apache.flink.test.example.client;
 
 import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.client.deployment.executors.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.util.TestLogger;

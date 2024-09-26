@@ -25,7 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.avro.AvroInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -34,6 +33,7 @@ import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOpera
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -121,7 +121,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBaseJUnit4 {
          * reader.
          * */
 
-        AvroInputFormat format = new AvroInputFormat(new Path(hdfsURI), String.class);
+        TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
         format.setFilePath(hdfsURI);
         format.setFilesFilter(FilePathFilter.createDefaultFilter());
 

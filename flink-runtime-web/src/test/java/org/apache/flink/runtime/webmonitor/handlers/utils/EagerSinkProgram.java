@@ -24,6 +24,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 public class EagerSinkProgram {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromData("hello", "world").print();
+        env.fromData("hello", "world").executeAndCollect();
     }
 }

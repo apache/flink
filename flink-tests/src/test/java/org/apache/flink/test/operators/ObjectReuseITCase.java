@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.operators;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -66,8 +67,8 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
 
     @Test
     public void testKeyedReduce() throws Exception {
-
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         if (objectReuse) {
             env.getConfig().enableObjectReuse();
         } else {
@@ -98,6 +99,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
     public void testGlobalReduce() throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         if (objectReuse) {
             env.getConfig().enableObjectReuse();
         } else {
@@ -107,7 +109,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
         DataStreamSource<Tuple2<String, Integer>> input = env.fromData(REDUCE_DATA);
 
         DataStream<Tuple2<String, Integer>> result =
-                input.windowAll(GlobalWindows.create())
+                input.windowAll(GlobalWindows.createWithEndOfStreamTrigger())
                         .reduce(
                                 new ReduceFunction<Tuple2<String, Integer>>() {
 

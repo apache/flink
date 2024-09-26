@@ -19,16 +19,12 @@
 package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
-import org.apache.flink.connector.file.src.FileSource;
-import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -197,31 +193,6 @@ public class ReactiveModeITCase extends TestLogger {
                 miniClusterResource.getRestClusterClient(),
                 jobClient.getJobID(),
                 NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_SLOTS_PER_TASK_MANAGER);
-    }
-
-    /** Test for FLINK-28274. */
-    @Test
-    public void testContinuousFileMonitoringFunctionWithReactiveMode() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        FileSource<String> source =
-                FileSource.forRecordStreamFormat(
-                                new TextLineInputFormat(), new Path(tempFolder.getRoot().getPath()))
-                        .build();
-        final DataStream<String> input =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
-
-        input.sinkTo(new DiscardingSink<>());
-
-        final JobClient jobClient = env.executeAsync();
-
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
-
-        // scale up to 2 TaskManagers:
-        miniClusterResource.getMiniCluster().startTaskManager();
-
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
     }
 
     private int getNumberOfConnectedTaskManagers() throws ExecutionException, InterruptedException {

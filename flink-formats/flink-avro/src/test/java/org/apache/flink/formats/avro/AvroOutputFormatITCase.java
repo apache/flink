@@ -21,7 +21,6 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.Path;
@@ -32,6 +31,7 @@ import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import org.apache.avro.file.DataFileReader;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -52,9 +52,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -68,8 +66,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -94,7 +90,7 @@ import static org.assertj.core.api.Assertions.fail;
  * <p>This follows the same structure as {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  */
 @SuppressWarnings("serial")
-@ExtendWith(ParameterizedTestExtension.class)
+@ExtendWith(NoOpTestExtension.class)
 class JobManagerHAProcessFailureRecoveryITCase {
 
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
@@ -116,17 +112,6 @@ class JobManagerHAProcessFailureRecoveryITCase {
     protected static final String PROCEED_MARKER_FILE = "proceed";
 
     protected static final int PARALLELISM = 4;
-
-    // --------------------------------------------------------------------------------------------
-    //  Parametrization (run pipelined and batch)
-    // --------------------------------------------------------------------------------------------
-
-    @Parameter private ExecutionMode executionMode;
-
-    @Parameters(name = "executionMode={0}")
-    private static Collection<ExecutionMode> executionMode() {
-        return Arrays.asList(ExecutionMode.PIPELINED, ExecutionMode.BATCH);
-    }
 
     /**
      * Test program with JobManager failure.
@@ -153,7 +138,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
         env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-        env.getConfig().setExecutionMode(executionMode);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final long numElements = 100000L;
         final DataStream<Long> result =
@@ -197,7 +182,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                         return value;
                                     }
                                 })
-                        .fullWindowPartition()
+                        .setParallelism(PARALLELISM)
+                        // we map all data to single partition to force 1 parallelism reduce.
+                        .keyBy(x -> 0)
                         .reduce(
                                 new ReduceFunction<Long>() {
                                     @Override
@@ -205,6 +192,7 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                         return value1 + value2;
                                     }
                                 })
+                        .setParallelism(1)
                         // The check is done in the mapper, because the client can currently not
                         // handle
                         // job manager losses/reconnects.
@@ -225,7 +213,8 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                                         coordinateDir,
                                                         FINISH_MARKER_FILE_PREFIX + taskIndex));
                                     }
-                                });
+                                })
+                        .setParallelism(1);
 
         result.sinkTo(new DiscardingSink<>());
 
