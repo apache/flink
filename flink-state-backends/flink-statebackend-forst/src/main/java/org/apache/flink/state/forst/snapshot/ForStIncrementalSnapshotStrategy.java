@@ -376,7 +376,7 @@ public class ForStIncrementalSnapshotStrategy<K>
             HandleAndLocalPath currentFileWriteResult =
                     stateTransfer.writeFileToCheckpointFs(
                             CURRENT_FILE_NAME,
-                            snapshotResources.manifestFileName,
+                            snapshotResources.getCurrentFileContent(),
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,

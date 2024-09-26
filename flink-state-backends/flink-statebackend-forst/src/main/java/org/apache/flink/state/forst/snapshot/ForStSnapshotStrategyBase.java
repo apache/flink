@@ -328,6 +328,11 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
             this.previousSnapshot = previousSnapshot;
         }
 
+        public String getCurrentFileContent() {
+            // RocksDB require CURRENT file end with a new line
+            return manifestFileName + "\n";
+        }
+
         @Override
         public void release() {
             // make sure only release once
