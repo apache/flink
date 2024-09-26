@@ -40,7 +40,6 @@ import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
-import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -114,7 +113,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
             Output<StreamRecord<CommittableMessage<CommT>>> output) {
         super.setup(containingTask, config, output);
         metricGroup = InternalSinkCommitterMetricGroup.wrap(getMetricGroup());
-        committableCollector = CommittableCollector.of(getRuntimeContext(), metricGroup);
+        committableCollector = CommittableCollector.of(metricGroup);
     }
 
     @Override
@@ -179,15 +178,19 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
             // if not endInput, we can schedule retrying later
             retryWithDelay();
         }
+        committableCollector.compact();
     }
 
-    private void commitAndEmit(CommittableManager<CommT> committableManager)
+    private void commitAndEmit(CheckpointCommittableManager<CommT> committableManager)
             throws IOException, InterruptedException {
         Collection<CommittableWithLineage<CommT>> committed = committableManager.commit(committer);
         if (emitDownstream && !committed.isEmpty()) {
-            output.collect(new StreamRecord<>(committableManager.getSummary()));
+            int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+            int numberOfSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            output.collect(
+                    new StreamRecord<>(committableManager.getSummary(subtaskId, numberOfSubtasks)));
             for (CommittableWithLineage<CommT> committable : committed) {
-                output.collect(new StreamRecord<>(committable));
+                output.collect(new StreamRecord<>(committable.withSubtaskId(subtaskId)));
             }
         }
     }

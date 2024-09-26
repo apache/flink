@@ -19,18 +19,52 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
+import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
+
+import java.io.IOException;
+import java.util.Collection;
 
 /**
- * This interface adds checkpoint meta information to the committable.
+ * A {@code CheckpointCommittableManager} collects committables for one checkpoint across
+ * potentially multiple upstream subtasks.
+ *
+ * <p>While it collects committables from multiple upstream subtasks, it belongs to exactly one
+ * committer subtask.
+ *
+ * <p>Each upstream subtask of this particular checkpoint is represented by a {@link
+ * SubtaskCommittableManager}.
  *
  * @param <CommT> type of the committable
  */
 @Internal
-public interface CheckpointCommittableManager<CommT> extends CommittableManager<CommT> {
+public interface CheckpointCommittableManager<CommT> {
     /**
-     * Returns the checkpoint id in which the committable was created.
+     * Returns the checkpoint id in which the committables were created.
      *
      * @return checkpoint id
      */
     long getCheckpointId();
+
+    /** Returns the number of upstream subtasks belonging to the checkpoint. */
+    int getNumberOfSubtasks();
+
+    /**
+     * Returns a summary of the current commit progress for the owning subtask identified by the
+     * parameters.
+     */
+    CommittableSummary<CommT> getSummary(int subtaskId, int numberOfSubtasks);
+
+    /**
+     * Commits all due committables if all respective committables of the specific subtask and
+     * checkpoint have been received.
+     *
+     * @param committer used to commit to the external system
+     * @return successfully committed committables with meta information
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
+            throws IOException, InterruptedException;
 }
