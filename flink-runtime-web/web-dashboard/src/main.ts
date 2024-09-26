@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { registerLocaleData } from '@angular/common';
+import { APP_BASE_HREF, registerLocaleData } from '@angular/common';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import en from '@angular/common/locales/en';
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, Injector } from '@angular/core';
@@ -51,6 +51,10 @@ export function AppInitServiceFactory(
   };
 }
 
+export function getWindowLocationPath() {
+  return window.location.pathname;
+}
+
 const ngZorroConfig: NzConfig = {
   notification: { nzMaxStack: 1 }
 };
@@ -79,6 +83,10 @@ bootstrapApplication(AppComponent, {
       useFactory: AppInitServiceFactory,
       deps: [StatusService, Injector],
       multi: true
+    },
+    {
+      provide: APP_BASE_HREF,
+      useFactory: getWindowLocationPath
     },
     importProvidersFrom(HttpClientModule),
     importProvidersFrom(BrowserAnimationsModule),
