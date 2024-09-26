@@ -50,7 +50,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
     private static final String STATE_CHANGE_LOG_CONFIG =
             System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
-    private AtomicReference<JobExecutionResult> lastJobExecutionResult =
+    private static AtomicReference<JobExecutionResult> lastJobExecutionResult =
             new AtomicReference<>(null);
     private final MiniCluster miniCluster;
     private final int parallelism;

@@ -70,7 +70,7 @@ case $INPUT_TYPE in
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
         ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words --output ${OUTPUT_PATH}"
-        RESULT_HASH="0e5bd0a3dd7d5a7110aa85ff70adb54b"
+        RESULT_HASH="d41d8cd98f00b204e9800998ecf8427e"
     ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"

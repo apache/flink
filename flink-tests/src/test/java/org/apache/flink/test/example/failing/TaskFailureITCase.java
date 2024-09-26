@@ -29,7 +29,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
@@ -49,17 +48,7 @@ public class TaskFailureITCase extends JavaProgramTestBaseJUnit4 {
         // test failing version
         try {
             executeTask(new FailingTestMapper(), 1);
-        }
-        //        catch (RuntimeException e) { // expected for collection execution
-        //            if (!isCollectionExecution()) {
-        //                Assert.fail();
-        //            }
-        //            // for collection execution, no restarts. So, exception should be appended
-        // with 0.
-        //            e.printStackTrace();
-        //            assertTrue(findThrowableWithMessage(e, EXCEPTION_STRING + ":0").isPresent());
-        //        }
-        catch (ExecutionException e) { // expected for cluster execution
+        } catch (RuntimeException e) { // expected for cluster execution
             // for cluster execution, one restart. So, exception should be appended with 1.
             assertTrue(findThrowableWithMessage(e, EXCEPTION_STRING + ":1").isPresent());
         }

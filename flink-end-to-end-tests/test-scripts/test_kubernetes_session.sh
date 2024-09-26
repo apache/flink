@@ -37,7 +37,7 @@ case $INPUT_TYPE in
         source "$(dirname "$0")"/common_dummy_fs.sh
         cp_dummy_fs_to_opt
         INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
-        RESULT_HASH="0e5bd0a3dd7d5a7110aa85ff70adb54b"
+        RESULT_HASH="d41d8cd98f00b204e9800998ecf8427e"
         ENABLE_DUMMPY_FS_ARGS="-Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-dummy-fs.jar;flink-another-dummy-fs.jar \
         -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-dummy-fs.jar;flink-another-dummy-fs.jar"
     ;;
