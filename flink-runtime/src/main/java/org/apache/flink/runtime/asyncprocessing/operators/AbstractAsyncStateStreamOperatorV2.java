@@ -30,6 +30,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
+import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -45,6 +46,9 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -58,6 +62,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractStreamOperatorV2<OUT>
         implements AsyncStateProcessingOperator {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractAsyncStateStreamOperatorV2.class);
 
     private final Environment environment;
     private AsyncExecutionController asyncExecutionController;
@@ -95,6 +102,13 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                             inFlightRecordsLimit,
                             asyncKeyedStateBackend);
             asyncKeyedStateBackend.setup(asyncExecutionController);
+            if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
+                LOG.warn(
+                        "A normal KeyedStateBackend({}) is used when enabling the async state "
+                                + "processing. Parallel asynchronous processing does not work. "
+                                + "All state access will be processed synchronously.",
+                        stateHandler.getKeyedStateBackend());
+            }
         } else if (stateHandler.getKeyedStateBackend() != null) {
             throw new UnsupportedOperationException(
                     "Current State Backend doesn't support async access, AsyncExecutionController could not work");
