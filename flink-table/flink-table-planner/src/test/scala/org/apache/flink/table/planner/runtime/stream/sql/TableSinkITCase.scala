@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.S
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.JavaConversions._
@@ -91,6 +91,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                        |""".stripMargin)
   }
 
+  @Disabled("FLINK-36166")
   @TestTemplate
   def testJoinDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
