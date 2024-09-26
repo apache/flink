@@ -21,11 +21,15 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * The default implementation of {@link AggregatingState}, which delegates all async requests to
@@ -86,16 +90,108 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
 
     @Override
     public void add(IN value) {
-        handleRequestSync(StateRequestType.AGGREGATING_ADD, value);
+        ACC acc = handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+        try {
+            ACC newValue =
+                    acc == null
+                            ? this.aggregateFunction.createAccumulator()
+                            : this.aggregateFunction.add(value, acc);
+            handleRequestSync(StateRequestType.AGGREGATING_PUT, newValue);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        handleRequestSync(StateRequestType.AGGREGATING_PUT, value);
     }
 
     @Override
     public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
-        throw new UnsupportedOperationException("To be implemented.");
+        if (sources == null || sources.isEmpty()) {
+            return StateFutureUtils.completedVoidFuture();
+        }
+        // phase 1: read from the sources and target
+        List<StateFuture<ACC>> futures = new ArrayList<>(sources.size() + 1);
+        for (N source : sources) {
+            if (source != null) {
+                setCurrentNamespace(source);
+                futures.add(handleRequest(StateRequestType.AGGREGATING_GET, null));
+            }
+        }
+        setCurrentNamespace(target);
+        futures.add(handleRequest(StateRequestType.AGGREGATING_GET, null));
+        // phase 2: merge the sources to the target
+        return StateFutureUtils.combineAll(futures)
+                .thenCompose(
+                        values -> {
+                            List<StateFuture<ACC>> updateFutures =
+                                    new ArrayList<>(sources.size() + 1);
+                            ACC current = null;
+                            Iterator<ACC> valueIterator = values.iterator();
+                            for (N source : sources) {
+                                ACC value = valueIterator.next();
+                                if (value != null) {
+                                    setCurrentNamespace(source);
+                                    updateFutures.add(
+                                            handleRequest(
+                                                    StateRequestType.AGGREGATING_REMOVE, null));
+                                    if (current == null) {
+                                        current = value;
+                                    } else {
+                                        current = aggregateFunction.merge(current, value);
+                                    }
+                                }
+                            }
+                            ACC targetValue = valueIterator.next();
+                            if (current != null) {
+                                if (targetValue != null) {
+                                    current = aggregateFunction.merge(current, targetValue);
+                                }
+                                setCurrentNamespace(target);
+                                updateFutures.add(
+                                        handleRequest(StateRequestType.AGGREGATING_PUT, current));
+                            }
+                            return StateFutureUtils.combineAll(updateFutures)
+                                    .thenAccept(ignores -> {});
+                        });
     }
 
     @Override
     public void mergeNamespaces(N target, Collection<N> sources) {
-        throw new UnsupportedOperationException("To be implemented.");
+        if (sources == null || sources.isEmpty()) {
+            return;
+        }
+        try {
+            ACC current = null;
+            // merge the sources to the target
+            for (N source : sources) {
+                if (source != null) {
+                    setCurrentNamespace(source);
+                    ACC oldValue = handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+
+                    if (oldValue != null) {
+                        handleRequestSync(StateRequestType.AGGREGATING_REMOVE, null);
+
+                        if (current != null) {
+                            current = aggregateFunction.merge(current, oldValue);
+                        } else {
+                            current = oldValue;
+                        }
+                    }
+                }
+            }
+
+            // if something came out of merging the sources, merge it or write it to the target
+            if (current != null) {
+                // create the target full-binary-key
+                setCurrentNamespace(target);
+                ACC targetValue = handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+
+                if (targetValue != null) {
+                    current = aggregateFunction.merge(current, targetValue);
+                }
+                handleRequestSync(StateRequestType.AGGREGATING_PUT, current);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("merge namespace fail.", e);
+        }
     }
 }

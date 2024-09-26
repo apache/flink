@@ -67,8 +67,9 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
         validateRequestRun(state, StateRequestType.AGGREGATING_GET, null, 0);
 
         state.asyncAdd(1);
-        validateRequestRun(state, StateRequestType.AGGREGATING_ADD, 1, 0);
-//=======
+        validateRequestRun(state, StateRequestType.AGGREGATING_GET, null, 1);
+        validateRequestRun(state, StateRequestType.AGGREGATING_PUT, 2, 0);
+
         state.asyncAdd(5);
         validateRequestRun(state, StateRequestType.AGGREGATING_GET, null, false);
         // the default value is 1

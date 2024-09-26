@@ -28,8 +28,9 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.v2.AbstractAggregatingState;
 import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
-import org.apache.flink.runtime.state.v2.InternalAggregatingState;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 
@@ -45,14 +46,25 @@ import java.util.function.Supplier;
  * @param <OUT> type of output
  */
 public class ForStAggregatingState<K, N, IN, ACC, OUT>
-        extends InternalAggregatingState<K, N, IN, ACC, OUT>
-        implements AggregatingState<IN, OUT>, ForStInnerTable<K, N, ACC> {
+        extends AbstractAggregatingState<K, N, IN, ACC, OUT> implements ForStInnerTable<K, N, ACC> {
 
+    /** The column family which this internal value state belongs to. */
     private final ColumnFamilyHandle columnFamilyHandle;
+
+    /** The serialized key builder which should be thread-safe. */
     private final ThreadLocal<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder;
+
+    /** The data outputStream used for value serializer, which should be thread-safe. */
     private final ThreadLocal<DataOutputSerializer> valueSerializerView;
+
+    /** The data inputStream used for value deserializer, which should be thread-safe. */
     private final ThreadLocal<DataInputDeserializer> valueDeserializerView;
+
+    /** The serializer for namespace. * */
     private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
+
+    /** The default namespace if not set. * */
+    private final N defaultNamespace;
     /* Creates a new InternalKeyedState with the given asyncExecutionController and stateDescriptor.
      *
      * @param stateRequestHandler The async request handler for handling all requests.
@@ -63,6 +75,7 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
+            N defaultNamespace,
             Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer) {
@@ -70,6 +83,7 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
         this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
+        this.defaultNamespace = defaultNamespace;
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
     }
@@ -85,8 +99,10 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
                 ctxKey -> {
                     SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
                     builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
+                    N namespace = ctxKey.getNamespace();
                     return builder.buildCompositeKeyNamespace(
-                            key.getNamespace(this), namespaceSerializer.get());
+                            namespace == null ? defaultNamespace : namespace,
+                            namespaceSerializer.get());
                 });
     }
 
@@ -107,20 +123,32 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBGetRequest<K, N, ACC> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBGetRequest<K, N, ACC, ?> buildDBGetRequest(
+            StateRequest<?, ?, ?, ?> stateRequest) {
+        Preconditions.checkArgument(
+                stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
-        return ForStDBGetRequest.of(
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
+        return new ForStDBSingleGetRequest<>(
                 contextKey, this, (InternalStateFuture<ACC>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBPutRequest<K, N, ACC> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBPutRequest<?, ?, ?> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
+        Preconditions.checkArgument(
+                stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE
+                        || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
         ACC aggregate =
-                (stateRequest.getRequestType() == StateRequestType.CLEAR)
+                (stateRequest.getRequestType() == StateRequestType.CLEAR
+                                || stateRequest.getRequestType()
+                                        == StateRequestType.AGGREGATING_REMOVE)
                         ? null
                         : (ACC) stateRequest.getPayload();
         return ForStDBPutRequest.of(

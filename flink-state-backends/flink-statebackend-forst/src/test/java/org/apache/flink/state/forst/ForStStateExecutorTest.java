@@ -230,11 +230,11 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.shutdown();
     }
 
-
     @Test
     @SuppressWarnings("unchecked")
     public void testExecuteAggregatingStateRequest() throws Exception {
-        ForStStateExecutor forStStateExecutor = new ForStStateExecutor(4, db, new WriteOptions());
+        ForStStateExecutor forStStateExecutor =
+                new ForStStateExecutor(false, 4, 1, db, new WriteOptions());
         ForStAggregatingState<String, ?, Integer, Integer, Integer> state =
                 buildForStSumAggregateState("agg-state-1");
 
@@ -253,11 +253,11 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
         // 2. get all value and verify
-        List<StateRequest<String, Integer, Integer>> requests = new ArrayList<>();
+        List<StateRequest<String, ?, Integer, Integer>> requests = new ArrayList<>();
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
         for (int i = 0; i < keyNum; i++) {
-            StateRequest<String, Integer, Integer> r =
-                    (StateRequest<String, Integer, Integer>)
+            StateRequest<String, ?, Integer, Integer> r =
+                    (StateRequest<String, ?, Integer, Integer>)
                             buildStateRequest(
                                     state,
                                     StateRequestType.AGGREGATING_GET,
@@ -270,7 +270,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
-        for (StateRequest<String, Integer, Integer> request : requests) {
+        for (StateRequest<String, ?, Integer, Integer> request : requests) {
             assertThat(request.getRequestType()).isEqualTo(StateRequestType.AGGREGATING_GET);
             String key = request.getRecordContext().getKey();
             assertThat(request.getRecordContext().getRecord()).isEqualTo("record" + key);
@@ -283,8 +283,8 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         int addCnt = 10;
         for (int i = 0; i < keyNum; i++) {
             for (int j = 0; j < addCnt; j++) {
-                StateRequest<String, Integer, Integer> r =
-                        (StateRequest<String, Integer, Integer>)
+                StateRequest<String, ?, Integer, Integer> r =
+                        (StateRequest<String, ?, Integer, Integer>)
                                 buildStateRequest(
                                         state, StateRequestType.AGGREGATING_PUT, "" + i, 1, i * 2);
                 requests.add(r);
@@ -294,8 +294,8 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
         // clear first 100 state
         for (int i = 0; i < 100; i++) {
-            StateRequest<String, Integer, Integer> r =
-                    (StateRequest<String, Integer, Integer>)
+            StateRequest<String, ?, Integer, Integer> r =
+                    (StateRequest<String, ?, Integer, Integer>)
                             buildStateRequest(
                                     state, StateRequestType.CLEAR, "" + i, null, "record" + i);
             requests.add(r);
@@ -308,8 +308,8 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         requests = new ArrayList<>();
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
         for (int i = 0; i < keyNum; i++) {
-            StateRequest<String, Integer, Integer> r =
-                    (StateRequest<String, Integer, Integer>)
+            StateRequest<String, ?, Integer, Integer> r =
+                    (StateRequest<String, ?, Integer, Integer>)
                             buildStateRequest(
                                     state,
                                     StateRequestType.AGGREGATING_GET,
@@ -323,13 +323,13 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
         for (int i = 0; i < 100; i++) {
-            StateRequest<String, Integer, Integer> request = requests.get(i);
+            StateRequest<String, ?, Integer, Integer> request = requests.get(i);
             assertThat(request.getRequestType()).isEqualTo(StateRequestType.AGGREGATING_GET);
             assertThat(((TestStateFuture<Integer>) request.getFuture()).getCompletedResult())
                     .isEqualTo(null);
         }
         for (int i = 100; i < keyNum; i++) {
-            StateRequest<String, Integer, Integer> request = requests.get(i);
+            StateRequest<String, ?, Integer, Integer> request = requests.get(i);
             assertThat(request.getRequestType()).isEqualTo(StateRequestType.AGGREGATING_GET);
             String key = request.getRecordContext().getKey();
             assertThat(request.getRecordContext().getRecord()).isEqualTo("record" + key);
@@ -337,7 +337,6 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
                     .isEqualTo(1);
         }
     }
-
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private <K, N, V, R> StateRequest<?, ?, ?, ?> buildStateRequest(
