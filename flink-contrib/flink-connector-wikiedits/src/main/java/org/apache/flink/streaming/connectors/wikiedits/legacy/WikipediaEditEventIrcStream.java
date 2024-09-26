@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.wikiedits;
+package org.apache.flink.streaming.connectors.wikiedits.legacy;
+
+import org.apache.flink.streaming.connectors.wikiedits.WikipediaEditEvent;
 
 import org.schwering.irc.lib.IRCConnection;
 import org.schwering.irc.lib.IRCEventListener;

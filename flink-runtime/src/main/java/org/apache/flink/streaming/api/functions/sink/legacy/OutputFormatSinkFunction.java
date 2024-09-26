@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -39,11 +39,10 @@ import java.io.IOException;
  *
  * @param <IN> Input type
  * @deprecated Please use the {@link
- *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
- *     for writing to files from a streaming program.
+ *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink
+ *     StreamingFileSink} for writing to files from a streaming program.
  */
-@PublicEvolving
-@Deprecated
+@Internal
 public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN>
         implements InputTypeConfigurable {
 

@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -45,12 +45,10 @@ import java.util.Deque;
  * <p>NOTE: this source will be removed together with the deprecated
  * StreamExecutionEnvironmetn#generateSequence() method.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
-@PublicEvolving
+@Internal
 public class StatefulSequenceSource extends RichParallelSourceFunction<Long>
         implements CheckpointedFunction {
 

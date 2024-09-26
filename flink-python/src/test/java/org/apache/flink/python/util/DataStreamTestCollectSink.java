@@ -18,7 +18,7 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 
 import java.util.ArrayList;
 import java.util.List;

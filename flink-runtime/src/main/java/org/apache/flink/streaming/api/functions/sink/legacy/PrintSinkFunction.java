@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
@@ -36,8 +36,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
  * @deprecated This interface will be removed in future versions. Use the new {@link PrintSink}
  *     interface instead.
  */
-@Deprecated
-@PublicEvolving
+@Internal
 public class PrintSinkFunction<IN> extends RichSinkFunction<IN>
         implements SupportsConcurrentExecutionAttempts {
 

@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.functions.source.legacy.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import org.junit.jupiter.api.Test;
 
-/** Tests for the {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction}. */
+/** Tests for the {@link FileMonitoringFunction}. */
 class FileMonitoringFunctionTest {
 
     @Test

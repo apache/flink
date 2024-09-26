@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector.sink;
+package org.apache.flink.table.connector.sink.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;
@@ -30,8 +31,11 @@ import java.util.Optional;
 /**
  * Provider of a {@link SinkFunction} instance as a runtime implementation for {@link
  * DynamicTableSink}.
+ *
+ * @deprecated This interface is based on the {@link SinkFunction} API, which is due to be removed.
+ *     Use {@link org.apache.flink.table.connector.sink.SinkV2Provider} instead.
  */
-@PublicEvolving
+@Internal
 public interface SinkFunctionProvider
         extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 

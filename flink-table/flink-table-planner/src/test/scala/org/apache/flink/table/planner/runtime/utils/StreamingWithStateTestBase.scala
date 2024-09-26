@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.{CheckpointingOptions, Configuration, RestartStrategyOptions, StateBackendOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.data.binary.BinaryRowData

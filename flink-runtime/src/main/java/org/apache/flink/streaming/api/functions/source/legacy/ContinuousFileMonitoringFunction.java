@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -33,6 +33,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -65,11 +68,9 @@ import java.util.TreeMap;
  * <p><b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending modification
  * time order, based on the modification time of the files they belong to.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
         extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction {

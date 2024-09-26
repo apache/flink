@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem;
+package org.apache.flink.streaming.api.functions.sink.filesystem.legacy;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
@@ -29,12 +28,22 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketFactory;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.Buckets;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BulkBucketWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.DefaultBucketFactoryImpl;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RowWiseBucketWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSinkHelper;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.Preconditions;
 
@@ -88,8 +97,7 @@ import java.io.Serializable;
  * @param <IN> Type of the elements emitted by this sink
  * @deprecated Use {@link org.apache.flink.connector.file.sink.FileSink} instead.
  */
-@PublicEvolving
-@Deprecated
+@Internal
 public class StreamingFileSink<IN> extends RichSinkFunction<IN>
         implements CheckpointedFunction, CheckpointListener {
 
@@ -109,7 +117,8 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
      * Creates a new {@code StreamingFileSink} that writes files to the given base directory with
      * the give buckets properties.
      */
-    protected StreamingFileSink(
+    @VisibleForTesting
+    public StreamingFileSink(
             BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
             long bucketCheckInterval) {
 
@@ -134,6 +143,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
      *     configured. In order to instantiate the sink, call {@link RowFormatBuilder#build()} after
      *     specifying the desired parameters.
      */
+    @Internal
     public static <IN> StreamingFileSink.DefaultRowFormatBuilder<IN> forRowFormat(
             final Path basePath, final Encoder<IN> encoder) {
         return new DefaultRowFormatBuilder<>(basePath, encoder, new DateTimeBucketAssigner<>());
@@ -151,6 +161,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
      *     configured. In order to instantiate the sink, call {@link BulkFormatBuilder#build()}
      *     after specifying the desired parameters.
      */
+    @Internal
     public static <IN> StreamingFileSink.DefaultBulkFormatBuilder<IN> forBulkFormat(
             final Path basePath, final BulkWriter.Factory<IN> writerFactory) {
         return new StreamingFileSink.DefaultBulkFormatBuilder<>(
@@ -181,7 +192,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
     }
 
     /** A builder for configuring the sink for row-wise encoding formats. */
-    @PublicEvolving
+    @Internal
     public static class RowFormatBuilder<IN, BucketID, T extends RowFormatBuilder<IN, BucketID, T>>
             extends StreamingFileSink.BucketsBuilder<IN, BucketID, T> {
 
@@ -278,7 +289,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
         }
 
         @VisibleForTesting
-        T withBucketFactory(final BucketFactory<IN, BucketID> factory) {
+        public T withBucketFactory(final BucketFactory<IN, BucketID> factory) {
             this.bucketFactory = Preconditions.checkNotNull(factory);
             return self();
         }
@@ -309,6 +320,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
      *
      * @param <IN> record type
      */
+    @Internal
     public static final class DefaultRowFormatBuilder<IN>
             extends RowFormatBuilder<IN, String, DefaultRowFormatBuilder<IN>> {
         private static final long serialVersionUID = -8503344257202146718L;
@@ -320,7 +332,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
     }
 
     /** A builder for configuring the sink for bulk-encoding formats, e.g. Parquet/ORC. */
-    @PublicEvolving
+    @Internal
     public static class BulkFormatBuilder<
                     IN, BucketID, T extends BulkFormatBuilder<IN, BucketID, T>>
             extends StreamingFileSink.BucketsBuilder<IN, BucketID, T> {
@@ -392,7 +404,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
         }
 
         @VisibleForTesting
-        T withBucketFactory(final BucketFactory<IN, BucketID> factory) {
+        public T withBucketFactory(final BucketFactory<IN, BucketID> factory) {
             this.bucketFactory = Preconditions.checkNotNull(factory);
             return self();
         }
@@ -449,6 +461,7 @@ public class StreamingFileSink<IN> extends RichSinkFunction<IN>
      *
      * @param <IN> record type
      */
+    @Internal
     public static final class DefaultBulkFormatBuilder<IN>
             extends BulkFormatBuilder<IN, String, DefaultBulkFormatBuilder<IN>> {
 

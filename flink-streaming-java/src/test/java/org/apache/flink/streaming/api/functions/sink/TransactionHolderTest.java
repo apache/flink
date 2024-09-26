@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction.TransactionHolder;
+import org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction.TransactionHolder;
 
 import org.junit.jupiter.api.Test;
 

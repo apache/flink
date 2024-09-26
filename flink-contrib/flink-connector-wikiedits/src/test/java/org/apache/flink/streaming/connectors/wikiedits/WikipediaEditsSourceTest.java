@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.connectors.wikiedits;
 
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.wikiedits.legacy.WikipediaEditsSource;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 

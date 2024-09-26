@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.util.SerializableObject;
@@ -45,8 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @deprecated This interface will be removed in future versions. Use the new {@link
  *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
-@Deprecated
-@PublicEvolving
+@Internal
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 
     private static final long serialVersionUID = 1L;
@@ -286,7 +286,8 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
     //  For testing
     // ------------------------------------------------------------------------
 
-    int getCurrentNumberOfRetries() {
+    @VisibleForTesting
+    public int getCurrentNumberOfRetries() {
         synchronized (lock) {
             return retries;
         }

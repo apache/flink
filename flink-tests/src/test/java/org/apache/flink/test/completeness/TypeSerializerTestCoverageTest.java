@@ -61,7 +61,7 @@ import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
-import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.InternalTimersSnapshotReaderWriters;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;

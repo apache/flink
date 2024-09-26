@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -47,7 +47,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link TwoPhaseCommitSinkFunction}. */
+/**
+ * Tests for {@link
+ * org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction}.
+ */
 class TwoPhaseCommitSinkFunctionTest {
 
     private ContentDumpSinkFunction sinkFunction;

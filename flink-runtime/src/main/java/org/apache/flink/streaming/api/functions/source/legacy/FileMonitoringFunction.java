@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -38,18 +38,17 @@ import java.util.Map;
  * new files. Used together with {@link FileReadFunction}.
  *
  * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
-@Deprecated
 public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Long, Long>> {
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(FileMonitoringFunction.class);
 
     /** The watch type of the {@code FileMonitoringFunction}. */
+    @Internal
     public enum WatchType {
         ONLY_NEW_FILES, // Only new files will be processed.
         REPROCESS_WITH_APPENDED, // When some files are appended, all contents

@@ -23,8 +23,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
@@ -43,7 +43,6 @@ import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.legacy.connector.sink.SinkProvider;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
@@ -478,10 +477,7 @@ class CommonExecSinkITCase {
 
     private static TestSinkV2<RowData> buildRecordWriterTestSink(
             TestSinkV2.DefaultSinkWriter<RowData> writer) {
-        return TestSinkV2.<RowData>newBuilder()
-                .setWriter(writer)
-                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
-                .build();
+        return TestSinkV2.<RowData>newBuilder().setWriter(writer).build();
     }
 
     private TableFactoryHarness.SinkBase buildRuntimeSinkProvider(

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 
@@ -31,12 +31,10 @@ import org.apache.flink.api.common.functions.OpenContext;
  * and {@link #close()}.
  *
  * @param <OUT> The type of the records produced by this source.
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
-@Public
+@Internal
 public abstract class RichParallelSourceFunction<OUT> extends AbstractRichFunction
         implements ParallelSourceFunction<OUT> {
 

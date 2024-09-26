@@ -15,31 +15,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.util.SplittableIterator;
 
 import java.util.Iterator;
 
 /**
- * A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them.
+ * A {@link SourceFunction} that reads elements from an {@link SplittableIterator} and emits them.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
-@PublicEvolving
-public class FromIteratorFunction<T> implements SourceFunction<T> {
+@Internal
+public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 
     private static final long serialVersionUID = 1L;
 
-    private final Iterator<T> iterator;
+    private SplittableIterator<T> fullIterator;
+
+    private transient Iterator<T> iterator;
 
     private volatile boolean isRunning = true;
 
-    public FromIteratorFunction(Iterator<T> iterator) {
-        this.iterator = iterator;
+    public FromSplittableIteratorFunction(SplittableIterator<T> iterator) {
+        this.fullIterator = iterator;
+    }
+
+    @Override
+    public void open(OpenContext openContext) throws Exception {
+        int numberOfSubTasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        int indexofThisSubTask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
+        isRunning = true;
     }
 
     @Override

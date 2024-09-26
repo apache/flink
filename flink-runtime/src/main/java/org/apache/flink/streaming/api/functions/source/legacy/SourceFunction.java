@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
@@ -98,8 +99,7 @@ import java.io.Serializable;
  *     org.apache.flink.api.connector.source.Source} interface instead. NOTE: All sub-tasks from
  *     FLINK-28045 must be closed before this API can be completely removed.
  */
-@Deprecated
-@Public
+@Internal
 public interface SourceFunction<T> extends Function, Serializable {
 
     /**

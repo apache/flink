@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -32,16 +32,15 @@ import java.util.concurrent.ScheduledFuture;
 /**
  * Source contexts for various stream time characteristics.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Deprecated
 public class StreamSourceContexts {
 
     /**
      * Depending on the {@link TimeCharacteristic}, this method will return the adequate {@link
-     * org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}. That is:
+     * SourceFunction.SourceContext}. That is:
      *
      * <ul>
      *   <li>{@link TimeCharacteristic#IngestionTime} = {@code AutomaticWatermarkContext}

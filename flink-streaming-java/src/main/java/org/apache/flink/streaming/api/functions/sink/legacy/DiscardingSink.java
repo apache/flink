@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 
 /**
@@ -28,8 +28,7 @@ import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
  * @deprecated This interface will be removed in future versions. Use the new {@link
  *     org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink} interface instead.
  */
-@Deprecated
-@Public
+@Internal
 public class DiscardingSink<T> implements SinkFunction<T>, SupportsConcurrentExecutionAttempts {
 
     private static final long serialVersionUID = 1L;

@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.Function;
@@ -30,12 +31,11 @@ import java.io.Serializable;
  * @deprecated This interface will be removed in future versions. Use the new {@link
  *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
+@Internal
 @Deprecated
-@Public
 public interface SinkFunction<IN> extends Function, Serializable {
 
     /** @deprecated Use {@link #invoke(Object, Context)}. */
-    @Deprecated
     default void invoke(IN value) throws Exception {}
 
     /**

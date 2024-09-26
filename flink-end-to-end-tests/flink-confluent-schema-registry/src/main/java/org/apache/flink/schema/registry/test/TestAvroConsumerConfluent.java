@@ -19,11 +19,16 @@ package org.apache.flink.schema.registry.test;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
+import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -81,39 +86,35 @@ public class TestAvroConsumerConfluent {
         SingleOutputStreamOperator<String> mapToString =
                 input.map((MapFunction<User, String>) SpecificRecordBase::toString);
 
-        // TODO: [FLINK-36245] Release comments after KafkaSink does not rely on the Depreciated API
-        //        KafkaSink<String> stringSink =
-        //                KafkaSink.<String>builder()
-        //                        .setBootstrapServers(bootstrapServers)
-        //                        .setRecordSerializer(
-        //                                KafkaRecordSerializationSchema.builder()
-        //                                        .setValueSerializationSchema(new
-        // SimpleStringSchema())
-        //
-        // .setTopic(parameterTool.getRequired("output-string-topic"))
-        //                                        .build())
-        //                        .setKafkaProducerConfig(config)
-        //                        .build();
-        //        mapToString.sinkTo(stringSink);
-        //
-        //        KafkaSink<User> avroSink =
-        //                KafkaSink.<User>builder()
-        //                        .setBootstrapServers(bootstrapServers)
-        //                        .setRecordSerializer(
-        //                                KafkaRecordSerializationSchema.builder()
-        //                                        .setValueSerializationSchema(
-        //                                                ConfluentRegistryAvroSerializationSchema
-        //                                                        .forSpecific(
-        //                                                                User.class,
-        //                                                                parameterTool.getRequired(
-        //                                                                        "output-subject"),
-        //                                                                schemaRegistryUrl))
-        //
-        // .setTopic(parameterTool.getRequired("output-avro-topic"))
-        //                                        .build())
-        //                        .build();
-        //        input.sinkTo(avroSink);
-        //
-        //        env.execute("Kafka Confluent Schema Registry AVRO Example");
+        KafkaSink<String> stringSink =
+                KafkaSink.<String>builder()
+                        .setBootstrapServers(bootstrapServers)
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setValueSerializationSchema(new SimpleStringSchema())
+                                        .setTopic(parameterTool.getRequired("output-string-topic"))
+                                        .build())
+                        .setKafkaProducerConfig(config)
+                        .build();
+        mapToString.sinkTo((Sink) stringSink);
+
+        KafkaSink<User> avroSink =
+                KafkaSink.<User>builder()
+                        .setBootstrapServers(bootstrapServers)
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setValueSerializationSchema(
+                                                ConfluentRegistryAvroSerializationSchema
+                                                        .forSpecific(
+                                                                User.class,
+                                                                parameterTool.getRequired(
+                                                                        "output-subject"),
+                                                                schemaRegistryUrl))
+                                        .setTopic(parameterTool.getRequired("output-avro-topic"))
+                                        .build())
+                        .build();
+        input.sinkTo((Sink) avroSink);
+
+        env.execute("Kafka Confluent Schema Registry AVRO Example");
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -46,8 +47,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *       task is considered to be active. {@link StreamSource}s are responsible for toggling the
  *       status of the containing source task and ensuring that no watermarks will be emitted while
  *       the task is idle. This guarantee should be enforced on sources through {@link
- *       org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}
- *       implementations.
+ *       SourceFunction.SourceContext} implementations.
  *   <li>Downstream tasks: a downstream task is considered to be idle if all its input streams are
  *       idle, i.e. the last received Watermark Status element from all input streams is a {@link
  *       WatermarkStatus#IDLE}. As long as one of its input streams is active, i.e. the last

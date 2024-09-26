@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.wikiedits;
+package org.apache.flink.streaming.connectors.wikiedits.legacy;
 
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.connectors.wikiedits.WikipediaEditEvent;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -27,11 +30,10 @@ import java.util.concurrent.TimeUnit;
  * This class is a SourceFunction that reads {@link WikipediaEditEvent} instances from the IRC
  * channel <code>#en.wikipedia</code>.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
+@Internal
 public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent> {
 
     /** Hostname of the server to connect to. */

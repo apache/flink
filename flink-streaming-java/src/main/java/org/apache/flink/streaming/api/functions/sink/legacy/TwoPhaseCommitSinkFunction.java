@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
@@ -73,8 +72,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @deprecated This interface will be removed in future versions. Use the new {@link
  *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
-@Deprecated
-@PublicEvolving
+@Internal
 public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichSinkFunction<IN>
         implements CheckpointedFunction, CheckpointListener {
 
@@ -631,7 +629,8 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
             this.transactionStartTime = transactionStartTime;
         }
 
-        long elapsedTime(Clock clock) {
+        @VisibleForTesting
+        public long elapsedTime(Clock clock) {
             return clock.millis() - transactionStartTime;
         }
 

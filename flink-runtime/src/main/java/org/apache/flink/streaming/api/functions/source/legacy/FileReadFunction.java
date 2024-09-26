@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -30,13 +30,14 @@ import java.io.InputStreamReader;
 import java.net.URI;
 
 /**
- * This is used together with {@link FileMonitoringFunction} to read from files that the monitoring
- * functions discovers.
+ * This is used together with {@link
+ * org.apache.flink.streaming.api.functions.source.legacy.FileMonitoringFunction} to read from files
+ * that the monitoring functions discovers.
  *
- * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
+ * @deprecated Internal class deprecated in favour of {@link
+ *     org.apache.flink.streaming.api.functions.source.legacy.ContinuousFileMonitoringFunction}.
  */
 @Internal
-@Deprecated
 public class FileReadFunction implements FlatMapFunction<Tuple3<String, Long, Long>, String> {
 
     private static final long serialVersionUID = 1L;

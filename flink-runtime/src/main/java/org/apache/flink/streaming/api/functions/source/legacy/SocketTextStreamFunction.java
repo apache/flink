@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.streaming.api.functions.source.legacy;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.IOUtils;
 
 import org.slf4j.Logger;
@@ -43,12 +43,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The function can be set to reconnect to the server socket in case that the stream is closed on
  * the server side.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
-@PublicEvolving
+@Internal
 public class SocketTextStreamFunction implements SourceFunction<String> {
 
     private static final long serialVersionUID = 1L;

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink;
+package org.apache.flink.streaming.api.functions.sink.legacy;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
 /**
@@ -26,8 +26,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  * @deprecated This interface will be removed in future versions. Use the new {@link
  *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
-@Deprecated
-@Public
+@Internal
 public abstract class RichSinkFunction<IN> extends AbstractRichFunction
         implements SinkFunction<IN> {
 
