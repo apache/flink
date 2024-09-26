@@ -157,6 +157,13 @@ public class ForStOptions {
                                             + "of rocksdb timer service, but consumes more heap memory at the same time.",
                                     TIMER_SERVICE_FACTORY.key(), ForStDB.name()));
 
+    public static final ConfigOption<Boolean> EXECUTOR_COORDINATOR_INLINE =
+            ConfigOptions.key("state.backend.forst.executor.inline-coordinator")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to let the task thread be the coordinator thread responsible for distributing requests.");
+
     public static final ConfigOption<Boolean> EXECUTOR_WRITE_IO_INLINE =
             ConfigOptions.key("state.backend.forst.executor.inline-write")
                     .booleanType()
