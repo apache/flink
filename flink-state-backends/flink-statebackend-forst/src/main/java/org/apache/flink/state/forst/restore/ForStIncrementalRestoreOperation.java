@@ -47,9 +47,9 @@ import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.rocksdb.ColumnFamilyDescriptor;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
