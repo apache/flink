@@ -46,12 +46,6 @@
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-client</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-java</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<!-- Table ecosystem -->
 		<dependency>

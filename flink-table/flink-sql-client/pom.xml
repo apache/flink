@@ -51,6 +51,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Table ecosystem -->
@@ -58,6 +64,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- SQL Gateway -->
@@ -103,6 +115,12 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -118,6 +136,12 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -139,6 +163,12 @@ under the License.
 			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -146,6 +176,12 @@ under the License.
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -169,6 +205,12 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
