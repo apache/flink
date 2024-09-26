@@ -2454,7 +2454,7 @@ LogicalProject(c=[$2], EXPR$1=[$4])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="optimized rel plan">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, EXPR$1])
 +- GroupAggregate(groupBy=[window_start, window_end, c, window_time], select=[window_start, window_end, c, window_time, COUNT_RETRACT(a) AS EXPR$1])
@@ -2464,7 +2464,7 @@ Calc(select=[c, EXPR$1])
             +- Exchange(distribution=[hash[c]])
                +- Calc(select=[a, c, proctime, window_start, window_end, window_time])
                   +- WindowTableFunction(window=[CUMULATE(time_col=[proctime], max_size=[5 min], step=[10 s])])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
                         +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
                            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
@@ -2497,7 +2497,7 @@ LogicalProject(c=[$2], EXPR$1=[$4])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="optimized rel plan">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, EXPR$1])
 +- GroupAggregate(groupBy=[window_start, window_end, c, window_time], select=[window_start, window_end, c, window_time, COUNT_RETRACT(a) AS EXPR$1])
@@ -2507,7 +2507,7 @@ Calc(select=[c, EXPR$1])
             +- Exchange(distribution=[hash[c]])
                +- Calc(select=[a, c, proctime, window_start, window_end, window_time])
                   +- WindowTableFunction(window=[CUMULATE(time_col=[proctime], max_size=[5 min], step=[10 s])])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
                         +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
                            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>

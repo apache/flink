@@ -64,7 +64,6 @@ class HiveParallelismInference {
 
     /**
      * Infer parallelism by number of files and number of splits. If {@link
-     * HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM} is false or {@link
      * HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE} is none, this method does nothing.
      */
     HiveParallelismInference infer(

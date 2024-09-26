@@ -114,21 +114,16 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
 
     @Override
     public byte[] serializeKey(ContextKey<K, N> contextKey) throws IOException {
-        contextKey.resetExtra();
-        return contextKey.getOrCreateSerializedKey(
-                ctxKey -> {
-                    SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
-                    builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = contextKey.getNamespace();
-                    builder.setNamespace(
-                            namespace == null ? defaultNamespace : namespace,
-                            namespaceSerializer.get());
-                    if (contextKey.getUserKey() == null) { // value get
-                        return builder.build();
-                    }
-                    UK userKey = (UK) contextKey.getUserKey(); // map get
-                    return builder.buildCompositeKeyUserKey(userKey, userKeySerializer);
-                });
+        SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
+        builder.setKeyAndKeyGroup(contextKey.getRawKey(), contextKey.getKeyGroup());
+        N namespace = contextKey.getNamespace();
+        builder.setNamespace(
+                namespace == null ? defaultNamespace : namespace, namespaceSerializer.get());
+        if (contextKey.getUserKey() == null) { // value get
+            return builder.build();
+        }
+        UK userKey = (UK) contextKey.getUserKey(); // map get
+        return builder.buildCompositeKeyUserKey(userKey, userKeySerializer);
     }
 
     @Override

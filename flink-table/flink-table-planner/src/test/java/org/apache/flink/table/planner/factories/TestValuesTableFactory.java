@@ -395,6 +395,9 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Boolean> ENABLE_PROJECTION_PUSH_DOWN =
             ConfigOptions.key("enable-projection-push-down").booleanType().defaultValue(true);
 
+    private static final ConfigOption<Boolean> ENABLE_AGGREGATE_PUSH_DOWN =
+            ConfigOptions.key("enable-aggregate-push-down").booleanType().defaultValue(true);
+
     private static final ConfigOption<Boolean> NESTED_PROJECTION_SUPPORTED =
             ConfigOptions.key("nested-projection-supported").booleanType().defaultValue(false);
 
@@ -501,6 +504,7 @@ public final class TestValuesTableFactory
         String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
         boolean disableLookup = helper.getOptions().get(DISABLE_LOOKUP);
         boolean enableProjectionPushDown = helper.getOptions().get(ENABLE_PROJECTION_PUSH_DOWN);
+        boolean enableAggregatePushDown = helper.getOptions().get(ENABLE_AGGREGATE_PUSH_DOWN);
         boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
         boolean enableWatermarkPushDown = helper.getOptions().get(ENABLE_WATERMARK_PUSH_DOWN);
         boolean failingSource = helper.getOptions().get(FAILING_SOURCE);
@@ -585,7 +589,8 @@ public final class TestValuesTableFactory
                         partitions,
                         readableMetadata,
                         null,
-                        parallelism);
+                        parallelism,
+                        enableAggregatePushDown);
             }
 
             if (disableLookup) {
@@ -607,7 +612,8 @@ public final class TestValuesTableFactory
                             Long.MAX_VALUE,
                             partitions,
                             readableMetadata,
-                            null);
+                            null,
+                            enableAggregatePushDown);
                 } else {
                     return new TestValuesScanTableSource(
                             producedDataType,
@@ -626,7 +632,8 @@ public final class TestValuesTableFactory
                             Long.MAX_VALUE,
                             partitions,
                             readableMetadata,
-                            null);
+                            null,
+                            enableAggregatePushDown);
                 }
             } else {
                 return new TestValuesScanLookupTableSource(
@@ -652,7 +659,8 @@ public final class TestValuesTableFactory
                         null,
                         cache,
                         reloadTrigger,
-                        lookupThreshold);
+                        lookupThreshold,
+                        enableAggregatePushDown);
             }
         } else {
             try {
@@ -749,6 +757,7 @@ public final class TestValuesTableFactory
                         RUNTIME_SINK,
                         SINK_EXPECTED_MESSAGES_NUM,
                         ENABLE_PROJECTION_PUSH_DOWN,
+                        ENABLE_AGGREGATE_PUSH_DOWN,
                         NESTED_PROJECTION_SUPPORTED,
                         FILTERABLE_FIELDS,
                         DYNAMIC_FILTERING_FIELDS,
@@ -930,6 +939,7 @@ public final class TestValuesTableFactory
         protected List<Map<String, String>> allPartitions;
         protected final Map<String, DataType> readableMetadata;
         protected @Nullable int[] projectedMetadataFields;
+        protected final boolean enableAggregatePushDown;
 
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
@@ -954,7 +964,8 @@ public final class TestValuesTableFactory
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
                 @Nullable int[] projectedMetadataFields,
-                @Nullable Integer parallelism) {
+                @Nullable Integer parallelism,
+                boolean enableAggregatePushDown) {
             this.producedDataType = producedDataType;
             this.changelogMode = changelogMode;
             this.boundedness = boundedness;
@@ -975,6 +986,7 @@ public final class TestValuesTableFactory
             this.groupingSet = null;
             this.aggregateExpressions = Collections.emptyList();
             this.parallelism = parallelism;
+            this.enableAggregatePushDown = enableAggregatePushDown;
         }
 
         @Override
@@ -1143,7 +1155,8 @@ public final class TestValuesTableFactory
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields,
-                    parallelism);
+                    parallelism,
+                    enableAggregatePushDown);
         }
 
         @Override
@@ -1395,6 +1408,9 @@ public final class TestValuesTableFactory
                 List<int[]> groupingSets,
                 List<AggregateExpression> aggregateExpressions,
                 DataType producedDataType) {
+            if (!enableAggregatePushDown) {
+                return false;
+            }
             // This TestValuesScanTableSource only supports single group aggregate ar present.
             if (groupingSets.size() > 1) {
                 return false;
@@ -1488,7 +1504,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                boolean enableAggregatePushDown) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1507,7 +1524,8 @@ public final class TestValuesTableFactory
                     allPartitions,
                     readableMetadata,
                     projectedMetadataFields,
-                    null);
+                    null,
+                    enableAggregatePushDown);
         }
 
         @Override
@@ -1529,7 +1547,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    enableAggregatePushDown);
         }
 
         @Override
@@ -1571,7 +1590,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                boolean enableAggregatePushDown) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1589,7 +1609,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    enableAggregatePushDown);
             this.tableName = tableName;
         }
 
@@ -1643,7 +1664,8 @@ public final class TestValuesTableFactory
                             limit,
                             allPartitions,
                             readableMetadata,
-                            projectedMetadataFields);
+                            projectedMetadataFields,
+                            enableAggregatePushDown);
             newSource.watermarkStrategy = watermarkStrategy;
             return newSource;
         }
@@ -1689,7 +1711,8 @@ public final class TestValuesTableFactory
                 @Nullable int[] projectedMetadataFields,
                 @Nullable LookupCache cache,
                 @Nullable CacheReloadTrigger reloadTrigger,
-                int lookupThreshold) {
+                int lookupThreshold,
+                boolean enableAggregatePushDown) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1707,7 +1730,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    enableAggregatePushDown);
             this.originType = originType;
             this.lookupFunctionClass = lookupFunctionClass;
             this.isAsync = isAsync;
@@ -1897,7 +1921,8 @@ public final class TestValuesTableFactory
                     projectedMetadataFields,
                     cache,
                     reloadTrigger,
-                    lookupThreshold);
+                    lookupThreshold,
+                    enableAggregatePushDown);
         }
     }
 

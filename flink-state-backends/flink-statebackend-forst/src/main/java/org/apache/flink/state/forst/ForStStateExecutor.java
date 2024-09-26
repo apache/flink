@@ -151,7 +151,11 @@ public class ForStStateExecutor implements StateExecutor {
                     if (!getRequests.isEmpty()) {
                         ForStGeneralMultiGetOperation getOperations =
                                 new ForStGeneralMultiGetOperation(
-                                        db, getRequests, readThreads, ongoing::decrementAndGet);
+                                        db,
+                                        getRequests,
+                                        readThreads,
+                                        readThreadCount,
+                                        ongoing::decrementAndGet);
                         // sub process count should -1, since we have added 1 on top.
                         ongoing.addAndGet(getOperations.subProcessCount() - 1);
                         futures.add(getOperations.process());

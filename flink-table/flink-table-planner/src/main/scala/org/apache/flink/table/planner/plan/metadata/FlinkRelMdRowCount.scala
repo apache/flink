@@ -17,16 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMdRowCount.ROWS_PER_LOCAL_AGG
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, SortUtil}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.adapter.enumerable.EnumerableLimit
 import org.apache.calcite.plan.volcano.RelSubset
@@ -36,7 +33,7 @@ import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util._
 
-import java.lang.{Double => JDouble, Long => JLong}
+import java.lang.{Double => JDouble}
 
 import scala.collection.JavaConversions._
 
@@ -178,9 +175,7 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       ndvOfGroupKeysOnGlobalAgg
     } else {
       val inputRowCnt = mq.getRowCount(input)
-      val tableConfig = unwrapTableConfig(rel)
-      val parallelism = (inputRowCnt /
-        tableConfig.get(FlinkRelMdRowCount.TABLE_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
+      val parallelism = (inputRowCnt / ROWS_PER_LOCAL_AGG + 1).toInt
       if (parallelism == 1) {
         ndvOfGroupKeysOnGlobalAgg
       } else if (grouping.isEmpty) {
@@ -451,14 +446,8 @@ object FlinkRelMdRowCount {
   val SOURCE: RelMetadataProvider =
     ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.ROW_COUNT.method, INSTANCE)
 
-  /** This configuration will be removed in Flink 2.0. */
-  @Deprecated
-  @Experimental
-  val TABLE_OPTIMIZER_ROWS_PER_LOCALAGG: ConfigOption[JLong] =
-    key("table.optimizer.rows-per-local-agg")
-      .longType()
-      .defaultValue(JLong.valueOf(1000000L))
-      .withDescription("Sets estimated number of records that one local-agg processes. " +
-        "Optimizer will infer whether to use local/global aggregate according to it.")
+  // the estimated number of records that one local-agg processes
+  // optimizer will infer whether to use local/global aggregate according to it
+  val ROWS_PER_LOCAL_AGG = 1000000L
 
 }

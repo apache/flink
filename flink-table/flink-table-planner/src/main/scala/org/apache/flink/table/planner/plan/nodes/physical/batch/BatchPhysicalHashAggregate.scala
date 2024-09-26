@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
@@ -114,11 +113,7 @@ class BatchPhysicalHashAggregate(
           // so return true if shuffleKeys(Hash[a, b]) start with groupKeys(Hash[a])
           true
         } else {
-          // If partialKey is enabled, try to use partial key to satisfy the required distribution
-          val tableConfig = unwrapTableConfig(this)
-          val partialKeyEnabled = tableConfig.get(
-            BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
-          partialKeyEnabled && groupKeysList.containsAll(shuffleKeys)
+          false
         }
       case _ => false
     }

@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRel;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank;
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
@@ -57,8 +57,8 @@ import scala.collection.JavaConverters;
  * a table source or a view only if it contains the unique key and time attribute.
  *
  * <p>Flink supports extract the primary key and row time attribute from the view if the view comes
- * from {@link StreamPhysicalRank} node which can convert to a {@link StreamPhysicalDeduplicate}
- * node.
+ * from {@link StreamPhysicalRank} node which can convert to a {@link StreamExecDeduplicate} node
+ * finally.
  */
 @Value.Enclosing
 public class TemporalJoinRewriteWithUniqueKeyRule

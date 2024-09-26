@@ -1684,7 +1684,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @TestTemplate
   def testProctimeWindowTVFWithDedupWhenCantMerge(): Unit = {
-    util.verifyRelPlan(
+    util.verifyExecPlan(
       """
         |select c, count(a)
         |from (

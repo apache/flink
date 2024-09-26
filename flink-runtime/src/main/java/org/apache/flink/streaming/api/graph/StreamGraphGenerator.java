@@ -68,7 +68,6 @@ import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTra
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
-import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.KeyedBroadcastStateTransformationTranslator;
@@ -277,7 +276,8 @@ public class StreamGraphGenerator {
         streamGraph.setLineageGraph(lineageGraph);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
-            if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
+            if (node.getInEdges().stream()
+                    .anyMatch(e -> !e.getPartitioner().isSupportsUnalignedCheckpoint())) {
                 for (StreamEdge edge : node.getInEdges()) {
                     edge.setSupportsUnalignedCheckpoints(false);
                 }
@@ -291,11 +291,6 @@ public class StreamGraphGenerator {
         streamGraph = null;
 
         return builtStreamGraph;
-    }
-
-    private boolean shouldDisableUnalignedCheckpointing(StreamEdge edge) {
-        StreamPartitioner<?> partitioner = edge.getPartitioner();
-        return partitioner.isPointwise() || partitioner.isBroadcast();
     }
 
     private void setDynamic(final StreamGraph graph) {

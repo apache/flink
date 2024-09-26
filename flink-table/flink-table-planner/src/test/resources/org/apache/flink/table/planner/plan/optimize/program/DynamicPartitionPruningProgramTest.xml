@@ -1120,7 +1120,7 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[fac
   </TestCase>
   <TestCase name="testDppWithAggInFactSideWithAggPushDownDisable">
     <Resource name="sql">
-      <![CDATA[Select * from (Select id, amount, fact_date_sk, count(name), sum(price) from fact_part where fact_date_sk > 100 group by id, amount, fact_date_sk) t1 join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ]]>
+      <![CDATA[Select * from (Select id, amount, fact_date_sk, count(name), sum(price) from fact_part_without_agg_push_down where fact_date_sk > 100 group by id, amount, fact_date_sk) t1 join dim on t1.fact_date_sk = dim.dim_date_sk where dim.price < 500 and dim.price > 300 ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1130,7 +1130,7 @@ LogicalProject(id=[$0], amount=[$1], fact_date_sk=[$2], EXPR$3=[$3], EXPR$4=[$4]
       :- LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)], EXPR$4=[SUM($4)])
       :  +- LogicalProject(id=[$0], amount=[$2], fact_date_sk=[$4], name=[$1], price=[$3])
       :     +- LogicalFilter(condition=[>($4, 100)])
-      :        +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+      :        +- LogicalTableScan(table=[[testCatalog, test_database, fact_part_without_agg_push_down]])
       +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
 ]]>
     </Resource>
@@ -1141,7 +1141,7 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
 :  +- HashAggregate(isMerge=[true], groupBy=[id, amount, fact_date_sk], select=[id, amount, fact_date_sk, Final_COUNT(count$0) AS EXPR$3, Final_SUM(sum$1) AS EXPR$4])
 :     +- Exchange(distribution=[hash[id, amount, fact_date_sk]])
 :        +- LocalHashAggregate(groupBy=[id, amount, fact_date_sk], select=[id, amount, fact_date_sk, Partial_COUNT(name) AS count$0, Partial_SUM(price) AS sum$1])
-:           +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, partitions=[{fact_date_sk=1990}, {fact_date_sk=1991}, {fact_date_sk=1992}]]], fields=[id, name, amount, price, fact_date_sk])
+:           +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part_without_agg_push_down, partitions=[{fact_date_sk=1990}, {fact_date_sk=1991}, {fact_date_sk=1992}]]], fields=[id, name, amount, price, fact_date_sk])
 :              +- DynamicFilteringDataCollector(fields=[dim_date_sk])
 :                 +- Calc(select=[id, male, amount, price, dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
 :                    +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])

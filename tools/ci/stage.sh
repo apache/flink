@@ -44,9 +44,7 @@ flink-rpc/flink-rpc-akka,\
 flink-rpc/flink-rpc-akka-loader,\
 flink-runtime,\
 flink-runtime-web,\
-flink-scala,\
 flink-streaming-java,\
-flink-streaming-scala,\
 flink-metrics,\
 flink-metrics/flink-metrics-core,\
 flink-external-resources,\

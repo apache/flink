@@ -148,7 +148,7 @@ show columns from orders;
 5 rows in set
 !ok
 
-SET 'sql-client.display.max-column-width' = '10';
+SET 'table.display.max-column-width' = '10';
 [INFO] Execute statement succeeded.
 !info
 
@@ -165,7 +165,7 @@ show columns from orders;
 5 rows in set
 !ok
 
-SET 'sql-client.display.max-column-width' = '100';
+SET 'table.display.max-column-width' = '100';
 [INFO] Execute statement succeeded.
 !info
 

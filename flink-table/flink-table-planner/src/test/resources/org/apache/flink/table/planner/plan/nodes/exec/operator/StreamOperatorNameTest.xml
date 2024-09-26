@@ -282,7 +282,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 
 == Optimized Physical Plan ==
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[ROWTIME rowtime ASC], select=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
@@ -377,7 +377,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 
 == Optimized Physical Plan ==
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[ROWTIME rowtime ASC], select=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])

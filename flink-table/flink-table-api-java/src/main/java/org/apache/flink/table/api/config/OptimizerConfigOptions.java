@@ -102,28 +102,6 @@ public class OptimizerConfigOptions {
                                     + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
                                     + " is true.");
 
-    /** This configuration will be removed in Flink 2.0. */
-    @Deprecated
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
-    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED =
-            key("table.optimizer.source.aggregate-pushdown-enabled")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            "When it is true, the optimizer will push down the local aggregates into "
-                                    + "the TableSource which implements SupportsAggregatePushDown.");
-
-    /** This configuration will be removed in Flink 2.0. */
-    @Deprecated
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
-            key("table.optimizer.source.predicate-pushdown-enabled")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            "When it is true, the optimizer will push down predicates into the FilterableTableSource. "
-                                    + "Default value is true.");
-
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED =
             key("table.optimizer.source.report-statistics-enabled")
@@ -267,7 +245,6 @@ public class OptimizerConfigOptions {
             key("table.optimizer.sql2rel.project-merge.enabled")
                     .booleanType()
                     .defaultValue(false)
-                    .withDeprecatedKeys("table.optimizer.sql-to-rel.project.merge.enabled")
                     .withDescription(
                             Description.builder()
                                     .text(
