@@ -37,6 +37,8 @@ import static org.apache.flink.state.forst.ForStDBIterRequest.startWithKeyPrefix
  */
 public class ForStDBMapCheckRequest<K, N, V> extends ForStDBGetRequest<K, N, V, Boolean> {
 
+    private static final byte[] VALID_PLACEHOLDER = new byte[0];
+
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
 
@@ -60,7 +62,7 @@ public class ForStDBMapCheckRequest<K, N, V> extends ForStDBGetRequest<K, N, V, 
             try (RocksIterator iter = db.newIterator(getColumnFamilyHandle())) {
                 iter.seek(key);
                 if (iter.isValid() && startWithKeyPrefix(key, iter.key(), keyGroupPrefixBytes)) {
-                    completeStateFuture(new byte[0]);
+                    completeStateFuture(VALID_PLACEHOLDER);
                 } else {
                     completeStateFuture(null);
                 }

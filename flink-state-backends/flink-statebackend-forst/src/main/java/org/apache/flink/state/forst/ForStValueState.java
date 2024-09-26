@@ -28,6 +28,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.AbstractValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
@@ -64,6 +66,9 @@ public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
     /** The data inputStream used for value deserializer, which should be thread-safe. */
     private final ThreadLocal<DataInputDeserializer> valueDeserializerView;
 
+    /** Whether to enable the reuse of serialized key(and namespace). */
+    private final boolean enableKeyReuse;
+
     public ForStValueState(
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
@@ -80,6 +85,11 @@ public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
         this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
+        // We only enable key reuse for the most common namespace across all states.
+        this.enableKeyReuse =
+                (defaultNamespace instanceof VoidNamespace)
+                        && (namespaceSerializerInitializer.get()
+                                instanceof VoidNamespaceSerializer);
     }
 
     @Override
@@ -89,15 +99,12 @@ public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
 
     @Override
     public byte[] serializeKey(ContextKey<K, N> contextKey) throws IOException {
-        return contextKey.getOrCreateSerializedKey(
-                ctxKey -> {
-                    SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
-                    builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = contextKey.getNamespace();
-                    return builder.buildCompositeKeyNamespace(
-                            namespace == null ? defaultNamespace : namespace,
-                            namespaceSerializer.get());
-                });
+        return ForStSerializerUtils.serializeKeyAndNamespace(
+                contextKey,
+                serializedKeyBuilder.get(),
+                defaultNamespace,
+                namespaceSerializer.get(),
+                enableKeyReuse);
     }
 
     @Override
