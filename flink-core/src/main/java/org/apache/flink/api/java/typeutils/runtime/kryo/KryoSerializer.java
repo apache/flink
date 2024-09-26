@@ -72,23 +72,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * basic types, tuples, and POJOs.
  *
  * <p>The set of serializers registered with Kryo via {@link Kryo#register}, with their respective
- * IDs, depends on whether flink-java or flink-scala are on the classpath. This is for
- * backwards-compatibility reasons.
+ * IDs, depends on whether flink-java are on the classpath. This is for backwards-compatibility
+ * reasons.
  *
  * <p>If neither are available (which should only apply to tests in flink-core), then:
  *
  * <ul>
  *   <li>0-9 are used for Java primitives
  *   <li>10+ are used for user-defined registration
- * </ul>
- *
- * <p>If flink-scala is available, then:
- *
- * <ul>
- *   <li>0-9 are used for Java primitives
- *   <li>10-72 are used for Scala classes
- *   <li>73-84 are used for Java classes
- *   <li>85+ are used for user-defined registration
  * </ul>
  *
  * <p>If *only* flink-java is available, then:
