@@ -65,6 +65,13 @@ public class AvroConfluentFormatOptions {
     // Commonly used options maintained by Flink for convenience
     // --------------------------------------------------------------------------------------------
 
+    public static final ConfigOption<Boolean> AUTO_REGISTER_SCHEMAS =
+            ConfigOptions.key("auto.register.schemas")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Flag to indicate if the schema should be registered automatically.");
+
     public static final ConfigOption<String> SSL_KEYSTORE_LOCATION =
             ConfigOptions.key("ssl.keystore.location")
                     .stringType()
