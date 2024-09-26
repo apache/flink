@@ -38,6 +38,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
+import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
 import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -585,7 +586,9 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             @Nonnull final CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
-        throw new UnsupportedOperationException("This method is not supported.");
+
+        // TODO: implement snapshot on sync keyed state backend later, skip now.
+        return DoneFuture.of(SnapshotResult.empty());
     }
 
     @Nonnull
@@ -596,12 +599,12 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @Override
     public void notifyCheckpointComplete(long completedCheckpointId) throws Exception {
-        throw new UnsupportedOperationException("This method is not supported.");
+        // TODO: maybe do some thing when implement checkpoint
     }
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
-        throw new UnsupportedOperationException("This method is not supported.");
+        // TODO: maybe do some thing when implement checkpoint
     }
 
     /**
