@@ -26,11 +26,6 @@ under the License.
 
 This page lists which Java versions Flink supports and what limitations apply (if any).
 
-## Java 8 (deprecated)
-
-Support for Java 8 has been deprecated in 1.15.0.
-It is recommended to migrate to Java 11.
-
 ## Java 11
 
 Support for Java 11 was added in 1.10.0 and is the recommended Java version to run Flink on.

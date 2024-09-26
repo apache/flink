@@ -127,7 +127,7 @@ under the License.
 		<flink.shaded.jackson.version>2.15.3</flink.shaded.jackson.version>
 		<flink.shaded.jsonpath.version>2.7.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
-		<target.java.version>1.8</target.java.version>
+		<target.java.version>11</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
@@ -1062,40 +1062,8 @@ under the License.
 								</excludedGroups>
 							</configuration>
 						</plugin>
-						<plugin>
-							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-javadoc-plugin</artifactId>
-							<configuration>
-								<additionalJOptions>
-									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
-									<additionalJOption>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</additionalJOption>
-								</additionalJOptions>
-							</configuration>
-						</plugin>
 					</plugins>
 				</pluginManagement>
-			</build>
-		</profile>
-
-		<profile>
-			<id>java11-target</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<configuration>
-							<source>11</source>
-							<target>11</target>
-							<compilerArgs combine.children="append">
-								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
-								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
-								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
-								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
-							</compilerArgs>
-						</configuration>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 
@@ -1431,7 +1399,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<target.java.version>1.8</target.java.version>
+				<target.java.version>11</target.java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -1463,7 +1431,7 @@ under the License.
 										<!-- versions for certain build tools are enforced to match the CI setup -->
 										<!-- the rules below should stay in sync with Flink Release wiki documentation and the CI scripts -->
 										<requireJavaVersion>
-											<version>[1.8.0,1.8.1)</version>
+											<version>[11.0.0,11.1.0)</version>
 										</requireJavaVersion>
 									</rules>
 								</configuration>
@@ -2127,6 +2095,10 @@ under the License.
 						<compilerArgs>
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
+							<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
+							<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+							<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
+							<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
 						</compilerArgs>
 					</configuration>
 				</plugin>
@@ -2216,9 +2188,12 @@ under the License.
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>
+						<release>11</release>
 						<additionalJOptions>
 							<additionalJOption>-Xdoclint:none</additionalJOption>
 							<additionalJOption>--allow-script-in-comments</additionalJOption>
+							<!-- Suppress the error that is accepted by JDK 8 but not by JDK 11. -->
+							<additionalJOption>--ignore-source-errors</additionalJOption>
 						</additionalJOptions>
 					</configuration>
 				</plugin>
@@ -2294,7 +2269,6 @@ under the License.
 					<configuration>
 						<args>
 							<arg>-nobootcp</arg>
-							<arg>-target:jvm-${target.java.version}</arg>
 						</args>
 						<jvmArgs>
 							<arg>-Xss2m</arg>

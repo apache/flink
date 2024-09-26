@@ -433,6 +433,17 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<configuration>
+					<!-- flink-table-planner throws NPE in JDK 11 when we specify ignore-source-errors.
+					See https://bugs.openjdk.org/browse/JDK-8268582. We get around this exception by not
+					generating the class hierarchy pages. -->
+					<notree>true</notree>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
