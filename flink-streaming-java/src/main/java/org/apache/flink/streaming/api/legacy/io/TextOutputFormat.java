@@ -58,6 +58,7 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
      *
      * @param <IN> type of input elements
      */
+    @PublicEvolving
     public interface TextFormatter<IN> extends Serializable {
         String format(IN value);
     }

@@ -83,14 +83,14 @@ public class MultipleProgramsTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
         TestStreamEnvironment testStreamEnvironment;
         switch (mode) {
             case CLUSTER:
-                // This only works because of the quirks we built in the TestEnvironment.
+                // This only works because of the quirks we built in the TestStreamEnvironment.
                 // We should refactor this in the future!!!
                 testStreamEnvironment = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
                 testStreamEnvironment.getConfig().disableObjectReuse();
                 testStreamEnvironment.setAsContext();
                 break;
             case CLUSTER_OBJECT_REUSE:
-                // This only works because of the quirks we built in the TestEnvironment.
+                // This only works because of the quirks we built in the TestStreamEnvironment.
                 // We should refactor this in the future!!!
                 testStreamEnvironment = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
                 testStreamEnvironment.getConfig().enableObjectReuse();

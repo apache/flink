@@ -37,6 +37,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
 
@@ -49,12 +50,12 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
     private static final String STATE_CHANGE_LOG_CONFIG =
             System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
-    private static JobExecutionResult lastJobExecutionResult;
-    private MiniCluster miniCluster;
-    private Configuration config;
-    private int parallelism;
-    private Collection<Path> jarFiles;
-    private Collection<URL> classPaths;
+    private AtomicReference<JobExecutionResult> lastJobExecutionResult =
+            new AtomicReference<>(null);
+    private final MiniCluster miniCluster;
+    private final int parallelism;
+    private final Collection<Path> jarFiles;
+    private final Collection<URL> classPaths;
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
@@ -70,7 +71,6 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
         setParallelism(parallelism);
         this.miniCluster = miniCluster;
-        this.config = config;
         this.parallelism = parallelism;
         this.jarFiles = jarFiles;
         this.classPaths = classPaths;
@@ -117,7 +117,6 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
     }
 
     public void setAsContext() {
-
         StreamExecutionEnvironmentFactory factory =
                 conf -> {
                     TestStreamEnvironment env =
@@ -223,7 +222,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
     @Override
     public JobExecutionResult execute(String jobName) throws Exception {
         JobExecutionResult result = super.execute(jobName);
-        this.lastJobExecutionResult = result;
+        this.lastJobExecutionResult.set(result);
         return result;
     }
 
@@ -232,11 +231,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         JobClient jobClient = super.executeAsync(jobName);
         CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
                 jobClient.getJobExecutionResult();
-        this.lastJobExecutionResult = jobExecutionResultFuture.get();
+        jobExecutionResultFuture.thenAccept((e) -> this.lastJobExecutionResult.set(e));
         return jobClient;
     }
 
     public JobExecutionResult getLastJobExecutionResult() {
-        return lastJobExecutionResult;
+        return lastJobExecutionResult.get();
     }
 }
