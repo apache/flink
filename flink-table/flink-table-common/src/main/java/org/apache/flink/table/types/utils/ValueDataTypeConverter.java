@@ -126,6 +126,10 @@ public final class ValueDataTypeConverter {
             // negative scale is not supported, normalize it
             return DataTypes.DECIMAL(precision - scale, 0);
         }
+
+        if (scale > precision) {
+            return DataTypes.DECIMAL(precision + scale, scale);
+        }
         return DataTypes.DECIMAL(precision, scale);
     }
 
