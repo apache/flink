@@ -176,7 +176,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
     @Override
     public int computeSourceParallelismUpperBound(JobVertexID jobVertexId, int maxParallelism) {
-        return Math.min(maxParallelism, globalDefaultSourceParallelism);
+        return globalDefaultSourceParallelism;
     }
 
     @Override
