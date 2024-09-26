@@ -21,6 +21,7 @@ package org.apache.flink.formats.testcsv;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -40,9 +41,12 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -66,6 +70,15 @@ public class TestCsvFormatFactory
 
     public static final String IDENTIFIER = "testcsv";
 
+    public static final ConfigOption<String> SPECIFIC_CONVERSION_FOR_TIMESTAMP_TYPE_WHEN_DECODING =
+            ConfigOptions.key("specific-conversion-for-timestamp-type-when-decoding")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Let TimestampType bridge to specify conversion.\n"
+                                    + "See more at AtomicDataType#bridgedTo and TimestampType#getDefaultConversion.\n"
+                                    + "Note: Currently, it is not supported to resolve timestamp types in nested types.");
+
     @Override
     public String factoryIdentifier() {
         return IDENTIFIER;
@@ -78,7 +91,9 @@ public class TestCsvFormatFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>();
+        Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(SPECIFIC_CONVERSION_FOR_TIMESTAMP_TYPE_WHEN_DECODING);
+        return set;
     }
 
     @Override
@@ -104,12 +119,22 @@ public class TestCsvFormatFactory
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        return new TestCsvInputFormat();
+        String specificConversionForTimestampType =
+                formatOptions
+                        .getOptional(SPECIFIC_CONVERSION_FOR_TIMESTAMP_TYPE_WHEN_DECODING)
+                        .orElse(null);
+        return new TestCsvInputFormat(specificConversionForTimestampType);
     }
 
     private static class TestCsvInputFormat
             implements ProjectableDecodingFormat<DeserializationSchema<RowData>>,
                     FileBasedStatisticsReportableInputFormat {
+
+        @Nullable private final String specificConversionForTimestampType;
+
+        public TestCsvInputFormat(@Nullable String specificConversionForTimestampType) {
+            this.specificConversionForTimestampType = specificConversionForTimestampType;
+        }
 
         @Override
         public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -122,9 +147,29 @@ public class TestCsvFormatFactory
                     projectedPhysicalDataType,
                     context.createTypeInformation(projectedPhysicalDataType),
                     DataType.getFieldNames(physicalDataType),
-                    // Check out the FileSystemTableSink#createSourceContext for more details on
-                    // why we need this
-                    ScanRuntimeProviderContext.INSTANCE::createDataStructureConverter);
+                    producedDataType -> {
+                        if (producedDataType.getLogicalType() instanceof TimestampType
+                                && specificConversionForTimestampType != null) {
+                            try {
+                                producedDataType =
+                                        producedDataType.bridgedTo(
+                                                context.getClass()
+                                                        .getClassLoader()
+                                                        .loadClass(
+                                                                specificConversionForTimestampType));
+                            } catch (ClassNotFoundException e) {
+                                throw new RuntimeException(
+                                        String.format(
+                                                "Failed to bridge the timestamp type to the specific conversion '%s'",
+                                                specificConversionForTimestampType),
+                                        e);
+                            }
+                        }
+                        // Check out the FileSystemTableSink#createSourceContext for more details on
+                        // why we need this
+                        return ScanRuntimeProviderContext.INSTANCE.createDataStructureConverter(
+                                producedDataType);
+                    });
         }
 
         @Override

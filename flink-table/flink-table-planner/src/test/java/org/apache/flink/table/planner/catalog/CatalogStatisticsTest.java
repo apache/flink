@@ -113,13 +113,9 @@ class CatalogStatisticsTest {
     @Test
     void testGetStatsFromCatalogForCatalogTableImpl() throws Exception {
         Map<String, String> properties = new HashMap<>();
-        properties.put("connector.type", "filesystem");
-        properties.put("connector.property-version", "1");
-        properties.put("connector.path", "/path/to/csv");
-
-        properties.put("format.type", "csv");
-        properties.put("format.property-version", "1");
-        properties.put("format.field-delimiter", ";");
+        properties.put("connector", "filesystem");
+        properties.put("path", "/path/to/csv");
+        properties.put("format", "testcsv");
 
         final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
         catalog.createTable(

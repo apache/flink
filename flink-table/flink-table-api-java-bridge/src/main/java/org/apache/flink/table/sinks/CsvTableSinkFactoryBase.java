@@ -29,6 +29,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.sql.Date;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
@@ -52,7 +54,6 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_NUM_FILE
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_WRITE_MODE;
 import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA;
-import static org.apache.flink.table.sources.CsvTableSourceFactoryBase.getFieldLogicalTypes;
 
 /**
  * Factory base for creating configured instances of {@link CsvTableSink}.
@@ -156,5 +157,11 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
         return new CsvTableSink(
                 path, fieldDelimiter, numFiles, writeMode, tableSchema.getFieldNames(), dataTypes);
+    }
+
+    private static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
+        return Arrays.stream(schema.getFieldDataTypes())
+                .map(DataType::getLogicalType)
+                .collect(Collectors.toList());
     }
 }

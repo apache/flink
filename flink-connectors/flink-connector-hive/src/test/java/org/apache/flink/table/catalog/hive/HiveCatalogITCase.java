@@ -121,11 +121,11 @@ public class HiveCatalogITCase {
 
         tableEnv.executeSql(
                 "create table test2 (name String, age Int) with (\n"
-                        + "   'connector.type' = 'filesystem',\n"
-                        + "   'connector.path' = 'file://"
+                        + "   'connector' = 'filesystem',\n"
+                        + "   'path' = 'file://"
                         + path
                         + "',\n"
-                        + "   'format.type' = 'csv'\n"
+                        + "   'format' = 'csv'\n"
                         + ")");
 
         Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
@@ -167,9 +167,9 @@ public class HiveCatalogITCase {
                         null);
 
         final Map<String, String> sourceOptions = new HashMap<>();
-        sourceOptions.put("connector.type", "filesystem");
-        sourceOptions.put("connector.path", getClass().getResource("/csv/test.csv").getPath());
-        sourceOptions.put("format.type", "csv");
+        sourceOptions.put("connector", "filesystem");
+        sourceOptions.put("path", getClass().getResource("/csv/test.csv").getPath());
+        sourceOptions.put("format", "csv");
 
         CatalogTable source =
                 new ResolvedCatalogTable(
@@ -183,9 +183,9 @@ public class HiveCatalogITCase {
         Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
 
         final Map<String, String> sinkOptions = new HashMap<>();
-        sinkOptions.put("connector.type", "filesystem");
-        sinkOptions.put("connector.path", p.toAbsolutePath().toString());
-        sinkOptions.put("format.type", "csv");
+        sinkOptions.put("connector", "filesystem");
+        sinkOptions.put("path", p.toAbsolutePath().toString());
+        sinkOptions.put("format", "csv");
 
         CatalogTable sink =
                 new ResolvedCatalogTable(
@@ -248,7 +248,7 @@ public class HiveCatalogITCase {
                 "CREATE TABLE src ("
                         + "price DECIMAL(10, 2),currency STRING,ts6 TIMESTAMP(6),ts AS CAST(ts6 AS TIMESTAMP(3)),WATERMARK FOR ts AS ts) "
                         + String.format(
-                                "WITH ('connector.type' = 'filesystem','connector.path' = 'file://%s','format.type' = 'csv')",
+                                "WITH ('connector' = 'filesystem','path' = 'file://%s','format' = 'csv')",
                                 srcPath));
 
         String sinkPath = new File(tempFolder.newFolder(), "csv-order-sink").toURI().toString();
@@ -257,7 +257,7 @@ public class HiveCatalogITCase {
                 "CREATE TABLE sink ("
                         + "window_end TIMESTAMP(3),max_ts TIMESTAMP(6),counter BIGINT,total_price DECIMAL(10, 2)) "
                         + String.format(
-                                "WITH ('connector.type' = 'filesystem','connector.path' = '%s','format.type' = 'csv')",
+                                "WITH ('connector' = 'filesystem','path' = '%s','format' = 'csv')",
                                 sinkPath));
 
         tableEnv.executeSql(
@@ -339,9 +339,9 @@ public class HiveCatalogITCase {
                         + // test " " in proctime()
                         String.format(
                                 "WITH ("
-                                        + "'connector.type' = 'filesystem',"
-                                        + "'connector.path' = 'file://%s',"
-                                        + "'format.type' = 'csv')",
+                                        + "'connector' = 'filesystem',"
+                                        + "'path' = 'file://%s',"
+                                        + "'format' = 'csv')",
                                 srcPath));
 
         return tableEnv;
@@ -365,9 +365,9 @@ public class HiveCatalogITCase {
                         + "  WATERMARK FOR ts AS ts,\n"
                         + "  constraint ct1 PRIMARY KEY(uuid) NOT ENFORCED)\n"
                         + "  WITH (\n"
-                        + "    'connector.type' = 'filesystem',"
-                        + "    'connector.path' = 'file://fakePath',"
-                        + "    'format.type' = 'csv')";
+                        + "    'connector' = 'filesystem',"
+                        + "    'path' = 'file://fakePath',"
+                        + "    'format' = 'csv')";
 
         tableEnv.executeSql(createTable);
 
@@ -411,11 +411,11 @@ public class HiveCatalogITCase {
 
             tEnv.executeSql(
                     "create table csv_table (name String, age Int) with ("
-                            + "'connector.type' = 'filesystem',"
-                            + "'connector.path' = 'file://"
+                            + "'connector' = 'filesystem',"
+                            + "'path' = 'file://"
                             + path
                             + "',"
-                            + "'format.type' = 'csv')");
+                            + "'format' = 'csv')");
             tEnv.executeSql(
                     "create table print_table (name String, age Int) with ('connector' = 'print')");
 

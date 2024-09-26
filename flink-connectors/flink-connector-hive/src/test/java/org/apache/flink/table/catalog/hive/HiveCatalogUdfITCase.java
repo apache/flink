@@ -105,9 +105,9 @@ public class HiveCatalogUdfITCase extends AbstractTestBaseJUnit4 {
                         Column.physical("age", DataTypes.INT()));
 
         final Map<String, String> sourceOptions = new HashMap<>();
-        sourceOptions.put("connector.type", "filesystem");
-        sourceOptions.put("connector.path", getClass().getResource("/csv/test.csv").getPath());
-        sourceOptions.put("format.type", "csv");
+        sourceOptions.put("connector", "filesystem");
+        sourceOptions.put("path", getClass().getResource("/csv/test.csv").getPath());
+        sourceOptions.put("format", "csv");
 
         CatalogTable unresolved =
                 CatalogTable.of(
@@ -183,9 +183,9 @@ public class HiveCatalogUdfITCase extends AbstractTestBaseJUnit4 {
                             Column.physical("sum2", DataTypes.BIGINT()));
 
             final Map<String, String> sinkOptions = new HashMap<>();
-            sinkOptions.put("connector.type", "filesystem");
-            sinkOptions.put("connector.path", p.toAbsolutePath().toString());
-            sinkOptions.put("format.type", "csv");
+            sinkOptions.put("connector", "filesystem");
+            sinkOptions.put("path", p.toAbsolutePath().toString());
+            sinkOptions.put("format", "csv");
 
             CatalogTable unresolved =
                     CatalogTable.of(

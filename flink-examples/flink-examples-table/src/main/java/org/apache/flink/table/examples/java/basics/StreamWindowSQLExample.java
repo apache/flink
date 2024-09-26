@@ -60,11 +60,11 @@ public class StreamWindowSQLExample {
                         + "  ts TIMESTAMP(3),\n"
                         + "  WATERMARK FOR ts AS ts - INTERVAL '3' SECOND\n"
                         + ") WITH (\n"
-                        + "  'connector.type' = 'filesystem',\n"
-                        + "  'connector.path' = '"
+                        + "  'connector' = 'filesystem',\n"
+                        + "  'path' = '"
                         + path
                         + "',\n"
-                        + "  'format.type' = 'csv'\n"
+                        + "  'format' = 'csv'\n"
                         + ")";
         tEnv.executeSql(ddl);
 

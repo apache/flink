@@ -60,8 +60,8 @@ def word_count():
             `count` BIGINT,
             `count_java` BIGINT
         ) with (
-            'connector.type' = 'filesystem',
-            'format.type' = 'csv',
+            'connector' = 'filesystem',
+            'format' = 'csv',
             'connector.path' = '{}'
         )
         """.format(result_path)

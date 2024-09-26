@@ -164,11 +164,9 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '{source_path}',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '{source_path}'
             )
         """
         self.t_env.execute_sql(source_table_ddl)
@@ -224,11 +222,9 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '{source_path}',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '{source_path}'
             )
         """
         self.t_env.execute_sql(source_table_ddl)
@@ -387,11 +383,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '{source_path}',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '{source_path}'
             )
         """
         self.t_env.execute_sql(source_table_ddl)
@@ -455,11 +449,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 c SMALLINT,
                 protime as PROCTIME()
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '%s',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '%s'
             )
         """ % source_path
         self.t_env.execute_sql(source_table_ddl)
@@ -513,11 +505,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '%s',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '%s'
             )
         """ % source_path
         self.t_env.execute_sql(source_table_ddl)
@@ -581,11 +571,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 c SMALLINT,
                 protime as PROCTIME()
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '%s',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '%s'
             )
         """ % source_path
         self.t_env.execute_sql(source_table_ddl)
@@ -633,11 +621,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '{source_path}',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '{source_path}'
             )
         """
         self.t_env.execute_sql(source_table_ddl)
@@ -695,11 +681,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '{source_path}',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '{source_path}'
             )
         """
         self.t_env.execute_sql(source_table_ddl)
@@ -755,11 +739,9 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                 b SMALLINT,
                 proctime as PROCTIME()
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '{source_path}',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '{source_path}'
             )
         """
         self.t_env.execute_sql(source_table_ddl)

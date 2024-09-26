@@ -29,13 +29,14 @@ import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.{DataTypes, TableEnvironment}
+import org.apache.flink.table.api.{DataTypes, TableDescriptor, TableEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.factories.FactoryUtil
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.legacy.api.TableSchema
@@ -56,13 +57,15 @@ import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row
 
+import _root_.java.{lang, util}
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
-import _root_.java.util
 import _root_.java.util.Collections
 import _root_.java.util.function.BiConsumer
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
+
+import java.nio.file.Files
 
 object TestTableSourceSinks {
   def createPersonCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
@@ -73,13 +76,9 @@ object TestTableSourceSinks {
                        |  score DOUBLE,
                        |  last STRING
                        |) WITH (
-                       |  'connector.type' = 'filesystem',
-                       |  'connector.path' = '$getPersonCsvPath',
-                       |  'format.type' = 'csv',
-                       |  'format.field-delimiter' = '#',
-                       |  'format.line-delimiter' = '$$',
-                       |  'format.ignore-first-line' = 'true',
-                       |  'format.comment-prefix' = '%'
+                       |  'connector' = 'filesystem',
+                       |  'path' = '$getPersonCsvPath',
+                       |  'format' = 'testcsv'
                        |)
                        |""".stripMargin)
   }
@@ -91,11 +90,9 @@ object TestTableSourceSinks {
                        |  currency STRING,
                        |  ts BIGINT
                        |) WITH (
-                       |  'connector.type' = 'filesystem',
-                       |  'connector.path' = '$getOrdersCsvPath',
-                       |  'format.type' = 'csv',
-                       |  'format.field-delimiter' = ',',
-                       |  'format.line-delimiter' = '$$'
+                       |  'connector' = 'filesystem',
+                       |  'path' = '$getOrdersCsvPath',
+                       |  'format' = 'testcsv'
                        |)
                        |""".stripMargin)
   }
@@ -106,54 +103,49 @@ object TestTableSourceSinks {
                        |  currency STRING,
                        |  rate BIGINT
                        |) WITH (
-                       |  'connector.type' = 'filesystem',
-                       |  'connector.path' = '$getRatesCsvPath',
-                       |  'format.type' = 'csv',
-                       |  'format.field-delimiter' = ',',
-                       |  'format.line-delimiter' = '$$'
+                       |  'connector' = 'filesystem',
+                       |  'path' = '$getRatesCsvPath',
+                       |  'format' = 'testcsv',
                        |)
                        |""".stripMargin)
   }
 
   def createCsvTemporarySinkTable(
       tEnv: TableEnvironment,
-      schema: TableSchema,
+      tableSchema: TableSchema,
       tableName: String,
       numFiles: Int = 1): String = {
-    val tempFile = File.createTempFile("csv-test", null)
-    tempFile.deleteOnExit()
-    val path = tempFile.getAbsolutePath
+    val tempDir = Files.createTempDirectory("csv-test").toFile
+    tempDir.deleteOnExit()
+    val tempDirPath = tempDir.getAbsolutePath
 
-    val sinkOptions = collection.mutable.Map(
-      "connector.type" -> "filesystem",
-      "connector.path" -> path,
-      "format.type" -> "csv",
-      "format.write-mode" -> "OVERWRITE",
-      "format.num-files" -> numFiles.toString
-    )
-    sinkOptions.putAll(new Schema().schema(schema).toProperties)
+    Files.createTempDirectory("csv-test")
+    val schema = tableSchema.toSchema
+    val tableDescriptor = TableDescriptor
+      .forConnector("filesystem")
+      .schema(schema)
+      .option("path", tempDirPath)
+      .option(FactoryUtil.SINK_PARALLELISM, lang.Integer.valueOf(numFiles))
+      .format("testcsv")
+      .build()
 
-    val sink = new CsvBatchTableSinkFactory().createStreamTableSink(sinkOptions);
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
-
-    path
+    tEnv.createTable(tableName, tableDescriptor)
+    tempDirPath
   }
 
   lazy val getPersonCsvPath = {
     val csvRecords = Seq(
-      "First#Id#Score#Last",
-      "Mike#1#12.3#Smith",
-      "Bob#2#45.6#Taylor",
-      "Sam#3#7.89#Miller",
-      "Peter#4#0.12#Smith",
-      "% Just a comment",
-      "Liz#5#34.5#Williams",
-      "Sally#6#6.78#Miller",
-      "Alice#7#90.1#Smith",
-      "Kelly#8#2.34#Williams"
+      "Mike,1,12.3,Smith",
+      "Bob,2,45.6,Taylor",
+      "Sam,3,7.89,Miller",
+      "Peter,4,0.12,Smith",
+      "Liz,5,34.5,Williams",
+      "Sally,6,6.78,Miller",
+      "Alice,7,90.1,Smith",
+      "Kelly,8,2.34,Williams"
     )
 
-    writeToTempFile(csvRecords.mkString("$"), "csv-test", "tmp")
+    writeToTempFile(csvRecords.mkString("\n"), "csv-test", "tmp")
   }
 
   lazy val getOrdersCsvPath = {
@@ -165,7 +157,7 @@ object TestTableSourceSinks {
       "5,US Dollar,6"
     )
 
-    writeToTempFile(csvRecords.mkString("$"), "csv-order-test", "tmp")
+    writeToTempFile(csvRecords.mkString("\n"), "csv-order-test", "tmp")
   }
 
   lazy val getRatesCsvPath = {
@@ -175,7 +167,7 @@ object TestTableSourceSinks {
       "Euro,119",
       "RMB,702"
     )
-    writeToTempFile(csvRecords.mkString("$"), "csv-rate-test", "tmp")
+    writeToTempFile(csvRecords.mkString("\n"), "csv-rate-test", "tmp")
 
   }
 

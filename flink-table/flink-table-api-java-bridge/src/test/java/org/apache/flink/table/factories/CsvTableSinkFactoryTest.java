@@ -26,7 +26,6 @@ import org.apache.flink.table.legacy.factories.TableSourceFactory;
 import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.sinks.CsvTableSink;
-import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,7 +39,7 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for CsvTableSourceFactory and CsvTableSinkFactory. */
+/** Tests for CsvTableSinkFactory. */
 class CsvTableSinkFactoryTest {
 
     private static TableSchema testingSchema =
@@ -79,27 +78,6 @@ class CsvTableSinkFactoryTest {
 
         assertThat(sink).isInstanceOf(CsvTableSink.class);
         assertThat(sink.getConsumedDataType()).isEqualTo(testingSchema.toRowDataType());
-    }
-
-    @ParameterizedTest(name = "deriveSchema = {0}")
-    @MethodSource("getDeriveSchema")
-    void testAppendTableSourceFactory(TernaryBoolean deriveSchema) {
-        DescriptorProperties descriptor = createDescriptor(testingSchema, deriveSchema);
-        descriptor.putString("update-mode", "append");
-        TableSource sink = createTableSource(descriptor);
-
-        assertThat(sink).isInstanceOf(CsvTableSource.class);
-        assertThat(sink.getProducedDataType()).isEqualTo(testingSchema.toRowDataType());
-    }
-
-    @ParameterizedTest(name = "deriveSchema = {0}")
-    @MethodSource("getDeriveSchema")
-    void testBatchTableSourceFactory(TernaryBoolean deriveSchema) {
-        DescriptorProperties descriptor = createDescriptor(testingSchema, deriveSchema);
-        TableSource sink = createTableSource(descriptor);
-
-        assertThat(sink).isInstanceOf(CsvTableSource.class);
-        assertThat(sink.getProducedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
     private DescriptorProperties createDescriptor(TableSchema schema, TernaryBoolean deriveSchema) {

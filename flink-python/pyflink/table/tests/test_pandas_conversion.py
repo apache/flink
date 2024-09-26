@@ -224,11 +224,9 @@ class StreamPandasConversionTests(PandasConversionITTests,
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = '%s',
-                'format.ignore-first-line' = 'false',
-                'format.field-delimiter' = ','
+                'connector' = 'filesystem',
+                'format' = 'csv',
+                'path' = '%s'
             )
         """ % source_path
         self.t_env.execute_sql(source_table)

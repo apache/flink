@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util.Optional
@@ -41,6 +41,7 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
     TestCollectionTableFactory.reset()
   }
 
+  @Disabled("FLINK-33748")
   @TestTemplate
   def testTableSourceSinkFactory(): Unit = {
     val factory = new TestContextTableFactory(
@@ -62,9 +63,9 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b varchar,
         |  c as a + 1
         |) with (
-        |  'connector.type' = 'filesystem',
-        |  'connector.path' = '/to/my/path1',
-        |  'format.type' = 'csv'
+        |  'connector' = 'filesystem',
+        |  'path' = '/to/my/path1',
+        |  'format' = 'csv'
         |)
       """.stripMargin
     val sinkDDL =
@@ -74,9 +75,9 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b as c - 1,
         |  c int
         |) with (
-        |  'connector.type' = 'filesystem',
-        |  'connector.path' = '/to/my/path2',
-        |  'format.type' = 'csv'
+        |  'connector' = 'filesystem',
+        |  'path' = '/to/my/path2',
+        |  'format' = 'csv'
         |)
       """.stripMargin
     val query =
