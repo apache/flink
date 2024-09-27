@@ -85,7 +85,7 @@ public class ForStStateExecutor implements StateExecutor {
             this.coordinatorThread =
                     coordinatorInline
                             ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
-                            : Executors.newSingleThreadScheduledExecutor(
+                            : Executors.newSingleThreadExecutor(
                                     new ExecutorThreadFactory(
                                             "ForSt-StateExecutor-Coordinator-And-Write"));
             this.readThreadCount = readIoParallelism;
@@ -101,7 +101,7 @@ public class ForStStateExecutor implements StateExecutor {
             this.coordinatorThread =
                     coordinatorInline
                             ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
-                            : Executors.newSingleThreadScheduledExecutor(
+                            : Executors.newSingleThreadExecutor(
                                     new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
             if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
                 this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
