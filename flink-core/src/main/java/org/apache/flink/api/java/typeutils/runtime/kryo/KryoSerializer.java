@@ -119,7 +119,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
         try {
             return (ChillSerializerRegistrar)
                     Class.forName(
-                                    "org.apache.flink.api.java.typeutils.runtime.kryo.FlinkChillPackageRegistrar")
+                                    "org.apache.flink.streaming.util.serialize.FlinkChillPackageRegistrar")
                             .getDeclaredConstructor()
                             .newInstance();
         } catch (Exception e) {
