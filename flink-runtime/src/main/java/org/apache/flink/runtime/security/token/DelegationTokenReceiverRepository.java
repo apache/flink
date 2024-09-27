@@ -80,8 +80,9 @@ public class DelegationTokenReceiverRepository {
                                     receiver.serviceName());
                             checkState(
                                     !receivers.containsKey(receiver.serviceName()),
-                                    "Delegation token receiver with service name {} has multiple implementations",
-                                    receiver.serviceName());
+                                    "Delegation token receiver with service name "
+                                            + receiver.serviceName()
+                                            + " has multiple implementations");
                             receivers.put(receiver.serviceName(), receiver);
                         } else {
                             LOG.info(
