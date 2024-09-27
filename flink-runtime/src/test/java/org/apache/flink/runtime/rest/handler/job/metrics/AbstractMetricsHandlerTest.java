@@ -197,7 +197,7 @@ class AbstractMetricsHandlerTest {
         @Override
         protected MetricStore.ComponentMetricStore getComponentMetricStore(
                 HandlerRequest<EmptyRequestBody> request, MetricStore metricStore) {
-            return returnComponentMetricStore ? metricStore.getJobManager() : null;
+            return returnComponentMetricStore ? metricStore.getJobManagerMetricStore() : null;
         }
     }
 
