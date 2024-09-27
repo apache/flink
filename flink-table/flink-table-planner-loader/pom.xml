@@ -43,12 +43,6 @@
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-bridge-base</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-java</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
