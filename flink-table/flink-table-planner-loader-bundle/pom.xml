@@ -45,12 +45,6 @@
 			<version>${project.version}</version>
 			<scope>runtime</scope>
 			<optional>${flink.markBundledAsOptional}</optional>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-java</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	</dependencies>
 
