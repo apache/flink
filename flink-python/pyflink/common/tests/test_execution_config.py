@@ -109,26 +109,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.PIPELINED_FORCED)
 
-    def test_disable_enable_force_kryo(self):
-
-        self.execution_config.disable_force_kryo()
-
-        self.assertFalse(self.execution_config.is_force_kryo_enabled())
-
-        self.execution_config.enable_force_kryo()
-
-        self.assertTrue(self.execution_config.is_force_kryo_enabled())
-
-    def test_disable_enable_generic_types(self):
-
-        self.execution_config.disable_generic_types()
-
-        self.assertTrue(self.execution_config.has_generic_types_disabled())
-
-        self.execution_config.enable_generic_types()
-
-        self.assertFalse(self.execution_config.has_generic_types_disabled())
-
     def test_disable_enable_auto_generated_uids(self):
 
         self.execution_config.disable_auto_generated_uids()
@@ -138,16 +118,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.execution_config.enable_auto_generated_uids()
 
         self.assertTrue(self.execution_config.has_auto_generated_uids_enabled())
-
-    def test_disable_enable_force_avro(self):
-
-        self.execution_config.disable_force_avro()
-
-        self.assertFalse(self.execution_config.is_force_avro_enabled())
-
-        self.execution_config.enable_force_avro()
-
-        self.assertTrue(self.execution_config.is_force_avro_enabled())
 
     def test_disable_enable_object_reuse(self):
 
