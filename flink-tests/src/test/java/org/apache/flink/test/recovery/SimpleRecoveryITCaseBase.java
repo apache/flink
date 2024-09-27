@@ -26,6 +26,7 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -33,7 +34,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -69,14 +69,16 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
                 env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 try {
-                    env.fromSequence(1, 10)
-                            .rebalance()
-                            .map(new FailingMapper1<>())
-                            .fullWindowPartition()
-                            .reduce(Long::sum)
-                            .executeAndCollect();
+                    CloseableIterator<Long> iterator =
+                            env.fromSequence(1, 10)
+                                    .rebalance()
+                                    .map(new FailingMapper1<>())
+                                    .fullWindowPartition()
+                                    .reduce(Long::sum)
+                                    .executeAndCollect();
+                    CollectionUtil.iteratorToList(iterator);
                     fail("The program should have failed, but run successfully");
-                } catch (ExecutionException e) {
+                } catch (RuntimeException e) {
                     // expected
                 }
             }

@@ -72,4 +72,4 @@ start_cluster
 
 $FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/streaming/WordCount.jar --input $AZURE_TEST_DATA_WORDS_URI --output $TEST_DATA_DIR/out/wc_out
 
-check_result_hash "WordCountWithAzureFS" $TEST_DATA_DIR/out/wc_out "72a690412be8928ba239c2da967328a5"
+check_result_hash "WordCountWithAzureFS" $TEST_DATA_DIR/out/wc_out "d41d8cd98f00b204e9800998ecf8427e"

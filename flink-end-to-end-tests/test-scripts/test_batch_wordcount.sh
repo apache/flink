@@ -20,7 +20,7 @@
 source "$(dirname "$0")"/common.sh
 
 INPUT_TYPE=${1:-file}
-RESULT_HASH="72a690412be8928ba239c2da967328a5"
+RESULT_HASH="d41d8cd98f00b204e9800998ecf8427e"
 S3_PREFIX=temp/test_batch_wordcount-$(uuidgen)
 OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
 

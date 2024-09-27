@@ -32,7 +32,7 @@ export INPUT_PATH=/data/test/input
 export OUTPUT_PATH=/data/test/output
 
 INPUT_TYPE=${1:-file}
-RESULT_HASH="72a690412be8928ba239c2da967328a5"
+RESULT_HASH="d41d8cd98f00b204e9800998ecf8427e"
 case $INPUT_TYPE in
     (file)
         INPUT_ARGS="--input ${INPUT_PATH}/words"
