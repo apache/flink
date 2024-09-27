@@ -236,11 +236,12 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public void shutdown() {
+        // Coordinator should be shutdown before others, since it submit jobs to others.
+        coordinatorThread.shutdown();
         readThreads.shutdown();
         if (!sharedWriteThread) {
             writeThreads.shutdown();
         }
-        coordinatorThread.shutdown();
         LOG.info("Shutting down the ForStStateExecutor.");
     }
 }

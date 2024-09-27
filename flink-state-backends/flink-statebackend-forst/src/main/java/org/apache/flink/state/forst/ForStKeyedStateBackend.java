@@ -139,11 +139,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @GuardedBy("lock")
     private final Set<StateExecutor> managedStateExecutors;
 
-    /** The flag indicating whether ForStKeyedStateBackend is closed. */
+    /** Mark whether this backend is already disposed and prevent duplicate disposing. */
     @GuardedBy("lock")
-    private boolean closed = false;
-
-    // mark whether this backend is already disposed and prevent duplicate disposing
     private boolean disposed = false;
 
     public ForStKeyedStateBackend(
@@ -282,7 +279,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @Nonnull
     public StateExecutor createStateExecutor() {
         synchronized (lock) {
-            if (closed) {
+            if (disposed) {
                 throw new FlinkRuntimeException(
                         "Attempt to create StateExecutor after ForStKeyedStateBackend is disposed.");
             }
@@ -338,51 +335,49 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
     @Override
     public void dispose() {
-        if (this.disposed) {
-            return;
-        }
         synchronized (lock) {
-            if (!closed) {
-                IOUtils.closeQuietly(this);
+            if (this.disposed) {
+                return;
             }
-        }
-
-        // IMPORTANT: null reference to signal potential async checkpoint workers that the db was
-        // disposed, as
-        // working on the disposed object results in SEGFAULTS.
-        if (db != null) {
-
-            // Metric collection occurs on a background thread. When this method returns
-            // it is guaranteed that thr ForSt reference has been invalidated
-            // and no more metric collection will be attempted against the database.
-            if (nativeMetricMonitor != null) {
-                nativeMetricMonitor.close();
+            for (StateExecutor executor : managedStateExecutors) {
+                executor.shutdown();
             }
+            // IMPORTANT: null reference to signal potential async checkpoint workers that the db
+            // was disposed, as working on the disposed object results in SEGFAULTS.
+            if (db != null) {
 
-            IOUtils.closeQuietly(defaultColumnFamily);
+                // Metric collection occurs on a background thread. When this method returns
+                // it is guaranteed that thr ForSt reference has been invalidated
+                // and no more metric collection will be attempted against the database.
+                if (nativeMetricMonitor != null) {
+                    nativeMetricMonitor.close();
+                }
 
-            // ... and finally close the DB instance ...
-            IOUtils.closeQuietly(db);
+                IOUtils.closeQuietly(defaultColumnFamily);
 
-            LOG.info(
-                    "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
-                    optionsContainer.getLocalBasePath(),
-                    optionsContainer.getRemoteBasePath());
+                // ... and finally close the DB instance ...
+                IOUtils.closeQuietly(db);
 
-            try {
-                optionsContainer.clearDirectories();
-            } catch (Exception ex) {
-                LOG.warn(
-                        "Could not delete ForSt local working directory {}, remote working directory {}.",
+                LOG.info(
+                        "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
                         optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath(),
-                        ex);
-            }
+                        optionsContainer.getRemoteBasePath());
 
-            IOUtils.closeQuietly(optionsContainer);
+                try {
+                    optionsContainer.clearDirectories();
+                } catch (Exception ex) {
+                    LOG.warn(
+                            "Could not delete ForSt local working directory {}, remote working directory {}.",
+                            optionsContainer.getLocalBasePath(),
+                            optionsContainer.getRemoteBasePath(),
+                            ex);
+                }
+
+                IOUtils.closeQuietly(optionsContainer);
+            }
+            IOUtils.closeQuietly(snapshotStrategy);
+            this.disposed = true;
         }
-        IOUtils.closeQuietly(snapshotStrategy);
-        this.disposed = true;
     }
 
     @VisibleForTesting
@@ -397,15 +392,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     @Override
     public void close() throws IOException {
-        synchronized (lock) {
-            if (closed) {
-                return;
-            }
-            closed = true;
-            for (StateExecutor executor : managedStateExecutors) {
-                executor.shutdown();
-            }
-        }
+        dispose();
     }
 
     /** ForSt specific information about the k/v states. */
