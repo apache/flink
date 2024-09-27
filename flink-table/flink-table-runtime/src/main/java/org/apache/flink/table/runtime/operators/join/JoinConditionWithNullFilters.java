@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.NullAwareGetters;
