@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,9 +78,10 @@ class DelegationTokenReceiverRepositoryTest {
     @Test
     public void testDelegationTokenDisabled() {
         Configuration configuration = new Configuration();
-        configuration.setBoolean("security.delegation.tokens.enabled", false);
+        configuration.set(SecurityOptions.DELEGATION_TOKENS_ENABLED, false);
         DelegationTokenReceiverRepository delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, null);
+
         assertEquals(0, delegationTokenReceiverRepository.delegationTokenReceivers.size());
         assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));
         assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
