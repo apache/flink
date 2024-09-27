@@ -87,12 +87,6 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT>
         mainOperator
                 .getMetricGroup()
                 .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
-        mainOperator
-                .getMetricGroup()
-                .gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
-        mainOperator
-                .getMetricGroup()
-                .gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
         // wrap watermark gauge since registered metrics must be unique
         getEnvironment()
                 .getMetricGroup()
