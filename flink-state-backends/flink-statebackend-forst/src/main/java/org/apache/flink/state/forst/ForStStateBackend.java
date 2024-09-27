@@ -46,6 +46,7 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
@@ -65,6 +66,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -312,7 +316,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         // first, make sure that the ForSt JNI library is loaded
         // we do this explicitly here to have better error handling
         String tempDir = env.getTaskManagerInfo().getTmpWorkingDirectory().getAbsolutePath();
-        ensureForStIsLoaded(tempDir);
+        ensureForStIsLoaded(tempDir, env.getAsyncOperationsThreadPool());
 
         // replace all characters that are not legal for filenames with underscore
         String fileCompatibleIdentifier =
@@ -373,7 +377,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         // first, make sure that the RocksDB JNI library is loaded
         // we do this explicitly here to have better error handling
         String tempDir = env.getTaskManagerInfo().getTmpWorkingDirectory().getAbsolutePath();
-        ensureForStIsLoaded(tempDir);
+        ensureForStIsLoaded(tempDir, env.getAsyncOperationsThreadPool());
 
         // replace all characters that are not legal for filenames with underscore
         String fileCompatibleIdentifier =
@@ -696,8 +700,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    static void ensureForStIsLoaded(String tempDirectory) throws IOException {
-        ensureForStIsLoaded(tempDirectory, NativeLibraryLoader::getInstance);
+    static void ensureForStIsLoaded(String tempDirectory, Executor executor) throws IOException {
+        ensureForStIsLoaded(tempDirectory, NativeLibraryLoader::getInstance, executor);
     }
 
     @VisibleForTesting
@@ -707,7 +711,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     @VisibleForTesting
     static void ensureForStIsLoaded(
-            String tempDirectory, Supplier<NativeLibraryLoader> nativeLibraryLoaderSupplier)
+            String tempDirectory,
+            Supplier<NativeLibraryLoader> nativeLibraryLoaderSupplier,
+            Executor executor)
             throws IOException {
         synchronized (ForStStateBackend.class) {
             if (!forStInitialized) {
@@ -719,7 +725,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
                 Throwable lastException = null;
                 for (int attempt = 1; attempt <= FORST_LIB_LOADING_ATTEMPTS; attempt++) {
-                    File rocksLibFolder = null;
+                    AtomicReference<File> rocksLibFolder = new AtomicReference<>(null);
                     try {
                         // when multiple instances of this class and ForSt exist in different
                         // class loaders, then we can see the following exception:
@@ -734,22 +740,38 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         // loaders, but
                         //  apparently not when coming from the same file path, so there we go)
 
-                        rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+                        // We use an async procedure to load the library, to make current thread be
+                        // able to interrupt for a fast quit.
+                        CompletableFuture<Void> future =
+                                FutureUtils.runAsync(
+                                        () -> {
+                                            File libFolder =
+                                                    new File(
+                                                            tempDirParent,
+                                                            "rocksdb-lib-" + new AbstractID());
+                                            rocksLibFolder.set(libFolder);
 
-                        // make sure the temp path exists
-                        LOG.debug(
-                                "Attempting to create ForSt native library folder {}",
-                                rocksLibFolder);
-                        // noinspection ResultOfMethodCallIgnored
-                        rocksLibFolder.mkdirs();
+                                            // make sure the temp path exists
+                                            LOG.debug(
+                                                    "Attempting to create ForSt native library folder {}",
+                                                    libFolder);
+                                            // noinspection ResultOfMethodCallIgnored
+                                            libFolder.mkdirs();
 
-                        // explicitly load the JNI dependency if it has not been loaded before
-                        nativeLibraryLoaderSupplier
-                                .get()
-                                .loadLibrary(rocksLibFolder.getAbsolutePath());
+                                            // explicitly load the JNI dependency if it has not been
+                                            // loaded before
+                                            nativeLibraryLoaderSupplier
+                                                    .get()
+                                                    .loadLibrary(libFolder.getAbsolutePath());
 
-                        // this initialization here should validate that the loading succeeded
-                        RocksDB.loadLibrary();
+                                            // this initialization here should validate that the
+                                            // loading succeeded
+                                            RocksDB.loadLibrary();
+                                        },
+                                        executor);
+
+                        // wait for finish or be interrupted.
+                        future.get();
 
                         // seems to have worked
                         LOG.info("Successfully loaded ForSt native library");
@@ -768,7 +790,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                     tt);
                         }
 
-                        FileUtils.deleteDirectoryQuietly(rocksLibFolder);
+                        FileUtils.deleteDirectoryQuietly(rocksLibFolder.get());
                     }
                 }
 
