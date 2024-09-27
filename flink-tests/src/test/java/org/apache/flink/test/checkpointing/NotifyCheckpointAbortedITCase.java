@@ -48,6 +48,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.BackendBuildingException;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
@@ -60,7 +61,8 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackendFactory;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -395,11 +397,13 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
      * The state backend to create {@link DeclineSinkFailingOperatorStateBackend} at {@link
      * DeclineSink}.
      */
-    private static class DeclineSinkFailingStateBackend extends FsStateBackend {
+    private static class DeclineSinkFailingStateBackend extends HashMapStateBackend {
         private static final long serialVersionUID = 1L;
+        private final CheckpointStorage checkpointStorage;
 
         public DeclineSinkFailingStateBackend(Path checkpointDataUri) {
-            super(checkpointDataUri);
+            super();
+            checkpointStorage = new FileSystemCheckpointStorage(checkpointDataUri);
         }
 
         @Override

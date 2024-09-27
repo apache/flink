@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -70,10 +71,11 @@ public class RocksDBStateOptionTest {
      */
     @Test
     public void testUseOptimizePointLookupWithMapState() throws Exception {
-        RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
+        EmbeddedRocksDBStateBackend rocksDBStateBackend =
+                createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
-                        rocksDBStateBackend.getEmbeddedRocksDBStateBackend(),
+                        rocksDBStateBackend,
                         new MockEnvironmentBuilder().build(),
                         IntSerializer.INSTANCE);
         try {
@@ -113,10 +115,11 @@ public class RocksDBStateOptionTest {
      */
     @Test
     public void testUseOptimizePointLookupWithPriorityQueue() throws IOException {
-        RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
+        EmbeddedRocksDBStateBackend rocksDBStateBackend =
+                createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
-                        rocksDBStateBackend.getEmbeddedRocksDBStateBackend(),
+                        rocksDBStateBackend,
                         new MockEnvironmentBuilder().build(),
                         IntSerializer.INSTANCE);
         try {
@@ -159,11 +162,10 @@ public class RocksDBStateOptionTest {
         }
     }
 
-    private RocksDBStateBackend createStateBackendWithOptimizePointLookup() throws IOException {
-        RocksDBStateBackend rocksDBStateBackend =
-                new RocksDBStateBackend(tempFolder.newFolder().toURI(), true);
-        rocksDBStateBackend.setPriorityQueueStateType(
-                RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+    private EmbeddedRocksDBStateBackend createStateBackendWithOptimizePointLookup()
+            throws IOException {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        rocksDBStateBackend.setPriorityQueueStateType(PriorityQueueStateType.ROCKSDB);
         rocksDBStateBackend.setRocksDBOptions(
                 new RocksDBOptionsFactory() {
 

@@ -96,21 +96,16 @@ public class MemoryCheckpointStorageAccessTest extends AbstractFileCheckpointSto
     @Test
     void testParametrizationDirectories() throws Exception {
         final JobID jid = new JobID();
-        final Path checkpointPath = new Path(TempDirUtils.newFolder(tmp).toURI().toString());
-        final Path savepointPath = new Path(TempDirUtils.newFolder(tmp).toURI().toString());
+        final String checkpointPath = TempDirUtils.newFolder(tmp).toURI().toString();
 
         JobManagerCheckpointStorage jobManagerCheckpointStorage =
-                new JobManagerCheckpointStorage(checkpointPath, savepointPath, 1000);
+                new JobManagerCheckpointStorage(checkpointPath);
 
         MemoryBackendCheckpointStorageAccess storage =
                 (MemoryBackendCheckpointStorageAccess)
                         jobManagerCheckpointStorage.createCheckpointStorage(jid);
 
         assertThat(storage.supportsHighlyAvailableStorage()).isTrue();
-        assertThat(storage.hasDefaultSavepointLocation()).isTrue();
-        assertThat(storage.getDefaultSavepointDirectory()).isNotNull();
-
-        assertThat(storage.getDefaultSavepointDirectory()).isEqualTo(savepointPath);
     }
 
     @Test

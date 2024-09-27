@@ -40,6 +40,7 @@ import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.IOUtils;
@@ -79,15 +80,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
     protected abstract B getStateBackend() throws Exception;
 
     protected CheckpointStorage getCheckpointStorage() throws Exception {
-        StateBackend stateBackend = getStateBackend();
-        if (stateBackend instanceof CheckpointStorage) {
-            return (CheckpointStorage) stateBackend;
-        }
-
-        throw new IllegalStateException(
-                "The state backend under test does not implement CheckpointStorage."
-                        + "Please override 'createCheckpointStorage' and provide an appropriate"
-                        + "checkpoint storage instance");
+        return new JobManagerCheckpointStorage();
     }
 
     /**
