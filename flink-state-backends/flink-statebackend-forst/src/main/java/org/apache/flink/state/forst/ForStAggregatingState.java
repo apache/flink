@@ -139,7 +139,8 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
     @Override
     public ForStDBPutRequest<?, ?, ?> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE
+                stateRequest.getRequestType() == StateRequestType.AGGREGATING_PUT
+                        || stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
