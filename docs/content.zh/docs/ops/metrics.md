@@ -1270,11 +1270,6 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>fullRestarts</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
       <td>numRestarts</td>
       <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
