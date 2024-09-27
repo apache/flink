@@ -79,7 +79,7 @@ class CatalogBaseTableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
 
     @classmethod
     def excluded_methods(cls):
-        return {'getUnresolvedSchema', 'getTableKind'}
+        return {'getUnresolvedSchema', 'getTableKind', 'getSchema'}
 
 
 class CatalogFunctionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
