@@ -273,8 +273,7 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           ProcessWindowFunction, BroadcastProcessFunction,
                                           KeyedBroadcastProcessFunction)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
-from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
-                                              RocksDBStateBackend, CustomStateBackend,
+from pyflink.datastream.state_backend import (StateBackend, CustomStateBackend,
                                               PredefinedOptions, HashMapStateBackend,
                                               EmbeddedRocksDBStateBackend)
 from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
@@ -322,9 +321,6 @@ __all__ = [
     'HashMapStateBackend',
     'EmbeddedRocksDBStateBackend',
     'CustomStateBackend',
-    'MemoryStateBackend',
-    'RocksDBStateBackend',
-    'FsStateBackend',
     'PredefinedOptions',
     'CheckpointStorage',
     'JobManagerCheckpointStorage',
