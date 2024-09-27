@@ -162,6 +162,7 @@ class StreamOperatorStateHandlerTest {
                                             new MemCheckpointStreamFactory(1024),
                                             operatorSnapshotResult,
                                             context,
+                                            false,
                                             false))
                     .isInstanceOfSatisfying(
                             CheckpointException.class,

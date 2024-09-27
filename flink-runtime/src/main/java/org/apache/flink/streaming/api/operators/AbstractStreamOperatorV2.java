@@ -317,7 +317,8 @@ public abstract class AbstractStreamOperatorV2<OUT>
                 timestamp,
                 checkpointOptions,
                 factory,
-                isUsingCustomRawKeyedState());
+                isUsingCustomRawKeyedState(),
+                false);
     }
 
     /**

@@ -26,14 +26,17 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -50,6 +53,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -203,6 +208,25 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         if (isAsyncStateProcessingEnabled()) {
             asyncExecutionController.drainInflightRecords(0);
         }
+    }
+
+    @Override
+    public OperatorSnapshotFutures snapshotState(
+            long checkpointId,
+            long timestamp,
+            CheckpointOptions checkpointOptions,
+            CheckpointStreamFactory factory)
+            throws Exception {
+        return stateHandler.snapshotState(
+                this,
+                Optional.ofNullable(timeServiceManager),
+                getOperatorName(),
+                checkpointId,
+                timestamp,
+                checkpointOptions,
+                factory,
+                isUsingCustomRawKeyedState(),
+                true);
     }
 
     @SuppressWarnings("unchecked")

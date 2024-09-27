@@ -188,7 +188,8 @@ public class StreamOperatorStateHandler {
             long timestamp,
             CheckpointOptions checkpointOptions,
             CheckpointStreamFactory factory,
-            boolean isUsingCustomRawKeyedState)
+            boolean isUsingCustomRawKeyedState,
+            boolean useAsyncState)
             throws CheckpointException {
         KeyGroupRange keyGroupRange =
                 null != keyedStateBackend
@@ -211,7 +212,8 @@ public class StreamOperatorStateHandler {
                 factory,
                 snapshotInProgress,
                 snapshotContext,
-                isUsingCustomRawKeyedState);
+                isUsingCustomRawKeyedState,
+                useAsyncState);
 
         return snapshotInProgress;
     }
@@ -227,7 +229,8 @@ public class StreamOperatorStateHandler {
             CheckpointStreamFactory factory,
             OperatorSnapshotFutures snapshotInProgress,
             StateSnapshotContextSynchronousImpl snapshotContext,
-            boolean isUsingCustomRawKeyedState)
+            boolean isUsingCustomRawKeyedState,
+            boolean useAsyncState)
             throws CheckpointException {
         try {
             if (timeServiceManager.isPresent()) {
@@ -262,7 +265,17 @@ public class StreamOperatorStateHandler {
                                 checkpointId, timestamp, factory, checkpointOptions));
             }
 
-            if (null != keyedStateBackend) {
+            if (useAsyncState && null != asyncKeyedStateBackend) {
+                if (isCanonicalSavepoint(checkpointOptions.getCheckpointType())) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                } else {
+                    snapshotInProgress.setKeyedStateManagedFuture(
+                            asyncKeyedStateBackend.snapshot(
+                                    checkpointId, timestamp, factory, checkpointOptions));
+                }
+            }
+
+            if (!useAsyncState && null != keyedStateBackend) {
                 if (isCanonicalSavepoint(checkpointOptions.getCheckpointType())) {
                     SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
                             snapshotRunner =
@@ -275,15 +288,6 @@ public class StreamOperatorStateHandler {
                 } else {
                     snapshotInProgress.setKeyedStateManagedFuture(
                             keyedStateBackend.snapshot(
-                                    checkpointId, timestamp, factory, checkpointOptions));
-                }
-
-            } else if (null != asyncKeyedStateBackend) {
-                if (isCanonicalSavepoint(checkpointOptions.getCheckpointType())) {
-                    throw new UnsupportedOperationException("Not supported yet.");
-                } else {
-                    snapshotInProgress.setKeyedStateManagedFuture(
-                            asyncKeyedStateBackend.snapshot(
                                     checkpointId, timestamp, factory, checkpointOptions));
                 }
             }
