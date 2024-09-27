@@ -607,6 +607,10 @@ under the License.
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-test-utils</artifactId>
 								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-test-utils-junit</artifactId>
+								</artifactItem>
 							</artifactItems>
 							<outputDirectory>${project.build.directory}/test-dependencies</outputDirectory>
 						</configuration>
