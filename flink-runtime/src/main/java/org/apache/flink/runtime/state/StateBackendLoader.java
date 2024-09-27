@@ -27,8 +27,6 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackendFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.slf4j.Logger;
@@ -68,12 +66,6 @@ public class StateBackendLoader {
     /** The shortcut configuration name of the HashMap state backend. */
     public static final String HASHMAP_STATE_BACKEND_NAME = "hashmap";
 
-    /**
-     * The shortcut configuration name for the MemoryState backend that checkpoints to the
-     * JobManager.
-     */
-    @Deprecated public static final String MEMORY_STATE_BACKEND_NAME = "jobmanager";
-
     /** The shortcut configuration name for the RocksDB State Backend. */
     public static final String ROCKSDB_STATE_BACKEND_NAME = "rocksdb";
 
@@ -91,8 +83,7 @@ public class StateBackendLoader {
      * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are '{@value StateBackendLoader#HASHMAP_STATE_BACKEND_NAME}',
-     * '{@value StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}' and '{@value
-     * StateBackendLoader#MEMORY_STATE_BACKEND_NAME}' (Deprecated)
+     * '{@value StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}'
      *
      * @param config The configuration to load the state backend from
      * @param classLoader The class loader that should be used to load the state backend
@@ -119,20 +110,6 @@ public class StateBackendLoader {
         String factoryClassName = backendName;
 
         switch (backendName.toLowerCase()) {
-            case MEMORY_STATE_BACKEND_NAME:
-                MemoryStateBackend backend =
-                        new MemoryStateBackendFactory().createFromConfig(config, classLoader);
-
-                if (logger != null) {
-                    logger.warn(
-                            "MemoryStateBackend has been deprecated. Please use 'hashmap' state "
-                                    + "backend instead with JobManagerCheckpointStorage for equivalent "
-                                    + "functionality");
-
-                    logger.info("State backend is set to job manager {}", backend);
-                }
-
-                return backend;
             case HASHMAP_STATE_BACKEND_NAME:
                 HashMapStateBackend hashMapStateBackend =
                         new HashMapStateBackendFactory().createFromConfig(config, classLoader);

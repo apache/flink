@@ -58,7 +58,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -767,7 +767,7 @@ public class CheckpointCoordinatorTestingUtils {
         private CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
 
-        private CheckpointStorage checkpointStorage = new MemoryStateBackend();
+        private CheckpointStorage checkpointStorage = new JobManagerCheckpointStorage();
 
         private Executor ioExecutor = Executors.directExecutor();
 

@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.input.operator.WindowReaderOperator;
 import org.apache.flink.state.api.input.operator.window.PassThroughReader;
@@ -91,7 +91,7 @@ public class WindowReaderTest {
         KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         WindowReaderOperator.reduce(
                                 new ReduceSum(),
@@ -118,7 +118,7 @@ public class WindowReaderTest {
         KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         WindowReaderOperator.reduce(
                                 new ReduceSum(),
@@ -145,7 +145,7 @@ public class WindowReaderTest {
         KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         WindowReaderOperator.aggregate(
                                 new AggregateSum(),
@@ -172,7 +172,7 @@ public class WindowReaderTest {
         KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         WindowReaderOperator.process(
                                 new PassThroughReader<>(),
@@ -199,7 +199,7 @@ public class WindowReaderTest {
         KeyedStateInputFormat<Integer, TimeWindow, Tuple2<Integer, Integer>> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         WindowReaderOperator.process(
                                 new MultiFireReaderFunction(),

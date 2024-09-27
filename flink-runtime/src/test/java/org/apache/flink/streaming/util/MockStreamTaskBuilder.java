@@ -23,7 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
@@ -63,8 +64,9 @@ public class MockStreamTaskBuilder {
         this.environment = environment;
         this.config = new StreamConfig(environment.getTaskConfiguration());
 
-        MemoryStateBackend stateBackend = new MemoryStateBackend();
-        this.checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
+        HashMapStateBackend stateBackend = new HashMapStateBackend();
+        this.checkpointStorage =
+                new JobManagerCheckpointStorage().createCheckpointStorage(new JobID());
         this.streamTaskStateInitializer =
                 new StreamTaskStateInitializerImpl(environment, stateBackend);
     }

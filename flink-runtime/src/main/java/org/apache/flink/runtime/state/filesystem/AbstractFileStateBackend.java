@@ -35,9 +35,7 @@ import java.net.URI;
 
 /**
  * A base class for all state backends that store their metadata (and data) in files. Examples that
- * inherit from this are the {@link FsStateBackend}, the {@link
- * org.apache.flink.runtime.state.memory.MemoryStateBackend MemoryStateBackend}, or the {@code
- * RocksDBStateBackend}.
+ * inherit from this are the {@link FsStateBackend} or the {@code RocksDBStateBackend}.
  *
  * <p>This class takes the base checkpoint- and savepoint directory paths, but also accepts null for
  * both of then, in which case creating externalized checkpoint is not possible, and it is not
