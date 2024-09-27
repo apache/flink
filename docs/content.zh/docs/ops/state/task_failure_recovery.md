@@ -172,10 +172,10 @@ restart-strategy.exponential-delay.attempts-before-reset-backoff: 10
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Time.milliseconds(1),
-  Time.milliseconds(1000),
+  Duration.ofMillis(1),
+  Duration.ofMillis(1000),
   1.1, // exponential multiplier
-  Time.milliseconds(2000), // 重置延迟时间到初始值的阈值
+  Duration.ofMillis(2000), // 重置延迟时间到初始值的阈值
   0.1 // jitter
 ));
 ```
