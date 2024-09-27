@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro.testjar;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.AvroInputFormat;
@@ -140,6 +141,14 @@ public class AvroExternalJarProgram {
         }
     }
 
+    private static final class KeyAssigner implements KeySelector<Tuple2<String, MyUser>, String> {
+
+        @Override
+        public String getKey(Tuple2<String, MyUser> record) throws Exception {
+            return record.f0;
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Test Data
     // --------------------------------------------------------------------------------------------
@@ -205,7 +214,7 @@ public class AvroExternalJarProgram {
                 env.createInput(new AvroInputFormat<MyUser>(new Path(inputPath), MyUser.class));
 
         DataStream<Tuple2<String, MyUser>> result =
-                input.map(new NameExtractor()).keyBy(x -> x.f0).reduce(new NameGrouper());
+                input.map(new NameExtractor()).keyBy(new KeyAssigner()).reduce(new NameGrouper());
 
         result.sinkTo(new DiscardingSink<>());
         env.execute();
