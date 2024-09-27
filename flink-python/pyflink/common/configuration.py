@@ -241,10 +241,7 @@ class Configuration:
         :param key: The config key to remove.
         :return: True if config has been removed, false otherwise.
         """
-        gateway = get_gateway()
-        JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
-        config_option = JConfigOptions.key(key).noDefaultValue()
-        return self._j_configuration.removeConfig(config_option)
+        return self._j_configuration.removeKey(key)
 
     def __deepcopy__(self, memodict=None):
         return Configuration(j_configuration=self._j_configuration.clone())
