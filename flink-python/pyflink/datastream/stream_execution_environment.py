@@ -17,7 +17,6 @@
 ################################################################################
 import os
 import tempfile
-import warnings
 
 from typing import List, Any, Optional, cast
 
@@ -40,7 +39,7 @@ from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
+from pyflink.util.java_utils import add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
 
@@ -375,85 +374,6 @@ class StreamExecutionEnvironment(object):
             return None
         else:
             return j_path.toString()
-
-    def add_default_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
-        """
-        Adds a new Kryo default serializer to the Runtime.
-
-        Example:
-        ::
-
-            >>> env.add_default_kryo_serializer("com.aaa.bbb.TypeClass", "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with the
-                                given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-
-        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
-                  codes is deprecated, because you need to modify the codes when upgrading job
-                  version. You should configure this by option `pipeline.serialization-config`.
-        """
-        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
-                      " hard codes is deprecated, because you need to modify the codes when"
-                      " upgrading job version. You should configure this by config option "
-                      " 'pipeline.serialization-config'.", DeprecationWarning)
-
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_stream_execution_environment.addDefaultKryoSerializer(type_clz, j_serializer_clz)
-
-    def register_type_with_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
-        """
-        Registers the given Serializer via its class as a serializer for the given type at the
-        KryoSerializer.
-
-        Example:
-        ::
-
-            >>> env.register_type_with_kryo_serializer("com.aaa.bbb.TypeClass",
-            ...                                        "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with
-                                the given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-
-        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
-                  codes is deprecated, because you need to modify the codes when upgrading job
-                  version. You should configure this by option `pipeline.serialization-config`.
-        """
-        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
-                      " hard codes is deprecated, because you need to modify the codes when"
-                      " upgrading job version. You should configure this by config option "
-                      " 'pipeline.serialization-config'.", DeprecationWarning)
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_stream_execution_environment.registerTypeWithKryoSerializer(
-            type_clz, j_serializer_clz)
-
-    def register_type(self, type_class_name: str):
-        """
-        Registers the given type with the serialization stack. If the type is eventually
-        serialized as a POJO, then the type is registered with the POJO serializer. If the
-        type ends up being serialized with Kryo, then it will be registered at Kryo to make
-        sure that only tags are written.
-
-        Example:
-        ::
-
-            >>> env.register_type("com.aaa.bbb.TypeClass")
-
-        :param type_class_name: The full-qualified java class name of the type to register.
-
-        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
-                  codes is deprecated, because you need to modify the codes when upgrading job
-                  version. You should configure this by option `pipeline.serialization-config`.
-        """
-        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
-                      " hard codes is deprecated, because you need to modify the codes when"
-                      " upgrading job version. You should configure this by config option "
-                      " 'pipeline.serialization-config'.", DeprecationWarning)
-        type_clz = load_java_class(type_class_name)
-        self._j_stream_execution_environment.registerType(type_clz)
 
     def set_stream_time_characteristic(self, characteristic: TimeCharacteristic):
         """

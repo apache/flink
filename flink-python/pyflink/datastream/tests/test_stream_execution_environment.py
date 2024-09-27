@@ -76,38 +76,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(parallelism, 8)
 
-    def test_add_default_kryo_serializer(self):
-        self.env.add_default_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_default_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type_with_kryo_serializer(self):
-        self.env.register_type_with_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type(self):
-        self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.env.get_config().get_registered_pojo_types()
-
-        self.assertEqual(type_list,
-                         ['org.apache.flink.runtime.state.StateBackendTestBase$TestPojo'])
-
     def test_get_set_max_parallelism(self):
         self.env.set_max_parallelism(12)
 

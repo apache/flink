@@ -55,9 +55,6 @@ access).
     StreamExecutionEnvironment.is_changelog_state_backend_enabled
     StreamExecutionEnvironment.set_default_savepoint_directory
     StreamExecutionEnvironment.get_default_savepoint_directory
-    StreamExecutionEnvironment.add_default_kryo_serializer
-    StreamExecutionEnvironment.register_type_with_kryo_serializer
-    StreamExecutionEnvironment.register_type
     StreamExecutionEnvironment.set_stream_time_characteristic
     StreamExecutionEnvironment.get_stream_time_characteristic
     StreamExecutionEnvironment.configure

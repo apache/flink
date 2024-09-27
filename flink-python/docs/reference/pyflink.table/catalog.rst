@@ -102,7 +102,6 @@ the properties of the table.
     CatalogBaseTable.create_table
     CatalogBaseTable.create_view
     CatalogBaseTable.get_options
-    CatalogBaseTable.get_schema
     CatalogBaseTable.get_unresolved_schema
     CatalogBaseTable.get_comment
     CatalogBaseTable.copy

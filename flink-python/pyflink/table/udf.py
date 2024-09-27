@@ -627,8 +627,8 @@ def _create_udtaf(f, input_types, result_type, accumulator_type, func_type, dete
 def udf(f: Union[Callable, ScalarFunction, Type] = None,
         input_types: Union[List[DataType], DataType, str, List[str]] = None,
         result_type: Union[DataType, str] = None,
-        deterministic: bool = None, name: str = None, func_type: str = "general",
-        udf_type: str = None) -> Union[UserDefinedScalarFunctionWrapper, Callable]:
+        deterministic: bool = None, name: str = None, func_type: str = "general"
+        ) -> Union[UserDefinedScalarFunctionWrapper, Callable]:
     """
     Helper method for creating a user-defined function.
 
@@ -667,10 +667,6 @@ def udf(f: Union[Callable, ScalarFunction, Type] = None,
 
     .. versionadded:: 1.10.0
     """
-    if udf_type:
-        import warnings
-        warnings.warn("The param udf_type is deprecated in 1.12. Use func_type instead.")
-        func_type = udf_type
 
     if func_type not in ('general', 'pandas'):
         raise ValueError("The func_type must be one of 'general, pandas', got %s."
