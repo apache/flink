@@ -73,4 +73,18 @@ class DelegationTokenReceiverRepositoryTest {
         assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
         assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
     }
+
+    @Test
+    public void testDelegationTokenDisabled() {
+        Configuration configuration = new Configuration();
+        configuration.setBoolean("security.delegation.tokens.enabled", false);
+        DelegationTokenReceiverRepository delegationTokenReceiverRepository =
+                new DelegationTokenReceiverRepository(configuration, null);
+        assertEquals(0, delegationTokenReceiverRepository.delegationTokenReceivers.size());
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("test"));
+        assertFalse(ExceptionThrowingDelegationTokenReceiver.constructed.get());
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
+    }
 }
