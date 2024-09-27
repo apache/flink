@@ -140,12 +140,13 @@ function run_group_1 {
         # Skip PyFlink e2e test, because MiniConda and Pyarrow which Pyflink depends doesn't support aarch64 currently.
         run_test "Run kubernetes pyflink application test" "$END_TO_END_DIR/test-scripts/test_kubernetes_pyflink_application.sh"
 
+        # Disable the test as we use JDK11 by default. We should enable it once we use the yarn docker image with JDK 11.
         # Hadoop YARN doesn't support aarch64 at this moment. See: https://issues.apache.org/jira/browse/HADOOP-16723
         # These tests are known to fail on JDK11. See FLINK-13719
-        if [[ ${PROFILE} != *"jdk11"* ]]; then
-            run_test "Running Kerberized YARN application on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh"
-            run_test "Running Kerberized YARN application on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh dummy-fs"
-        fi
+        # if [[ ${PROFILE} != *"jdk11"* ]]; then
+        #     run_test "Running Kerberized YARN application on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh"
+        #     run_test "Running Kerberized YARN application on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh dummy-fs"
+        # fi
     fi
 
     ################################################################################
@@ -219,10 +220,11 @@ function run_group_2 {
     if [[ `uname -i` != 'aarch64' ]]; then
         run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
     fi
+    # Disable the test as we use JDK11 by default. We should enable it once we use the yarn docker image with JDK 11.
     # These tests are known to fail on JDK11. See FLINK-13719
-    if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
-        run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
-    fi
+    # if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
+    #     run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
+    # fi
 
     ################################################################################
     # Sticky Scheduling
