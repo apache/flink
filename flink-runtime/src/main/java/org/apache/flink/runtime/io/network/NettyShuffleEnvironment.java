@@ -27,16 +27,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
-import org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
@@ -306,23 +303,6 @@ public class NettyShuffleEnvironment
             registerInputMetrics(config.isNetworkDetailedMetrics(), networkInputGroup, inputGates);
             return Arrays.asList(inputGates);
         }
-    }
-
-    /**
-     * Registers legacy network metric groups before shuffle service refactoring.
-     *
-     * <p>Registers legacy metric groups if shuffle service implementation is original default one.
-     *
-     * @deprecated should be removed in future
-     */
-    @SuppressWarnings("DeprecatedIsStillUsed")
-    @Deprecated
-    public void registerLegacyNetworkMetrics(
-            MetricGroup metricGroup,
-            ResultPartitionWriter[] producedPartitions,
-            InputGate[] inputGates) {
-        NettyShuffleMetricFactory.registerLegacyNetworkMetrics(
-                config.isNetworkDetailedMetrics(), metricGroup, producedPartitions, inputGates);
     }
 
     @Override
