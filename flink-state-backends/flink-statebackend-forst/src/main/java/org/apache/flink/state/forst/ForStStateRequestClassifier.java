@@ -77,7 +77,7 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
             case MAP_PUT:
             case MAP_REMOVE:
             case REDUCING_ADD:
-            case AGGREGATING_PUT:
+            case AGGREGATING_ADD:
                 {
                     ForStInnerTable<?, ?, ?> innerTable =
                             (ForStInnerTable<?, ?, ?>) stateRequest.getState();

@@ -78,7 +78,7 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                                             ? this.aggregateFunction.createAccumulator()
                                             : acc;
                             handleRequest(
-                                    StateRequestType.AGGREGATING_PUT,
+                                    StateRequestType.AGGREGATING_ADD,
                                     this.aggregateFunction.add(value, safeAcc));
                         });
     }
@@ -96,11 +96,11 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                     acc == null
                             ? this.aggregateFunction.createAccumulator()
                             : this.aggregateFunction.add(value, acc);
-            handleRequestSync(StateRequestType.AGGREGATING_PUT, newValue);
+            handleRequestSync(StateRequestType.AGGREGATING_ADD, newValue);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        handleRequestSync(StateRequestType.AGGREGATING_PUT, value);
+        handleRequestSync(StateRequestType.AGGREGATING_ADD, value);
     }
 
     @Override
@@ -147,7 +147,7 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                                 }
                                 setCurrentNamespace(target);
                                 updateFutures.add(
-                                        handleRequest(StateRequestType.AGGREGATING_PUT, current));
+                                        handleRequest(StateRequestType.AGGREGATING_ADD, current));
                             }
                             return StateFutureUtils.combineAll(updateFutures)
                                     .thenAccept(ignores -> {});
@@ -188,7 +188,7 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                 if (targetValue != null) {
                     current = aggregateFunction.merge(current, targetValue);
                 }
-                handleRequestSync(StateRequestType.AGGREGATING_PUT, current);
+                handleRequestSync(StateRequestType.AGGREGATING_ADD, current);
             }
         } catch (Exception e) {
             throw new RuntimeException("merge namespace fail.", e);

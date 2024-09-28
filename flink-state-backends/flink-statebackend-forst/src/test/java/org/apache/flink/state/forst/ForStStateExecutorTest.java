@@ -247,7 +247,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         for (int i = 0; i < keyNum; i++) {
             stateRequestContainer.offer(
                     buildStateRequest(
-                            state, StateRequestType.AGGREGATING_PUT, "" + i, i, "record" + i));
+                            state, StateRequestType.AGGREGATING_ADD, "" + i, i, "record" + i));
         }
 
         forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
@@ -286,7 +286,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
                 StateRequest<String, ?, Integer, Integer> r =
                         (StateRequest<String, ?, Integer, Integer>)
                                 buildStateRequest(
-                                        state, StateRequestType.AGGREGATING_PUT, "" + i, 1, i * 2);
+                                        state, StateRequestType.AGGREGATING_ADD, "" + i, 1, i * 2);
                 requests.add(r);
                 stateRequestContainer.offer(r);
             }

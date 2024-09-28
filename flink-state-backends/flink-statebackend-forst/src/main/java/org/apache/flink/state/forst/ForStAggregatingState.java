@@ -28,6 +28,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.AbstractAggregatingState;
 import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.util.Preconditions;
@@ -65,6 +67,10 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
 
     /** The default namespace if not set. * */
     private final N defaultNamespace;
+
+    /** Whether to enable the reuse of serialized key(and namespace). */
+    private final boolean enableKeyReuse;
+
     /* Creates a new InternalKeyedState with the given asyncExecutionController and stateDescriptor.
      *
      * @param stateRequestHandler The async request handler for handling all requests.
@@ -86,6 +92,11 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
         this.defaultNamespace = defaultNamespace;
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
+        // We only enable key reuse for the most common namespace across all states.
+        this.enableKeyReuse =
+                (defaultNamespace instanceof VoidNamespace)
+                        && (namespaceSerializerInitializer.get()
+                                instanceof VoidNamespaceSerializer);
     }
 
     @Override
@@ -94,16 +105,13 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
     }
 
     @Override
-    public byte[] serializeKey(ContextKey<K, N> key) throws IOException {
-        return key.getOrCreateSerializedKey(
-                ctxKey -> {
-                    SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
-                    builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = ctxKey.getNamespace();
-                    return builder.buildCompositeKeyNamespace(
-                            namespace == null ? defaultNamespace : namespace,
-                            namespaceSerializer.get());
-                });
+    public byte[] serializeKey(ContextKey<K, N> contextKey) throws IOException {
+        return ForStSerializerUtils.serializeKeyAndNamespace(
+                contextKey,
+                serializedKeyBuilder.get(),
+                defaultNamespace,
+                namespaceSerializer.get(),
+                enableKeyReuse);
     }
 
     @Override
@@ -139,7 +147,7 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
     @Override
     public ForStDBPutRequest<?, ?, ?> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.AGGREGATING_PUT
+                stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD
                         || stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =

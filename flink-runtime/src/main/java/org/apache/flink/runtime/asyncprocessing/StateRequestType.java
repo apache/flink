@@ -117,6 +117,6 @@ public enum StateRequestType {
     /** Remove element from aggregate state. */
     AGGREGATING_REMOVE,
 
-    /** Put element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
-    AGGREGATING_PUT
+    /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
+    AGGREGATING_ADD
 }
