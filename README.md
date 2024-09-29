@@ -9,7 +9,7 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 * A streaming-first runtime that supports both batch processing and data streaming programs
 
-* Elegant and fluent APIs in Java and Scala
+* Elegant and fluent APIs in Java
 
 * A runtime that supports very high throughput and low event latency at the same time
 
@@ -23,8 +23,6 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 * Libraries for Graph processing (batch), Machine Learning (batch), and Complex Event Processing (streaming)
 
-* Built-in support for iterative programs (BSP) in the DataSet (batch) API
-
 * Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 
 * Compatibility layers for Apache Hadoop MapReduce
@@ -33,32 +31,68 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 
 ### Streaming Example
-```scala
-case class WordWithCount(word: String, count: Long)
+```java
+// pojo class WordWithCount
+public class WordWithCount {
+    public String word;
+    public int count;
 
-val text = env.socketTextStream(host, port, '\n')
+    public WordWithCount() {}
+    
+    public WordWithCount(String word, int count) {
+        this.word = word;
+        this.count = count;
+    }
+}
 
-val windowCounts = text.flatMap { w => w.split("\\s") }
-  .map { w => WordWithCount(w, 1) }
-  .keyBy("word")
-  .window(TumblingProcessingTimeWindow.of(Duration.ofSeconds(5)))
-  .sum("count")
+// main method
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+DataStreamSource<String> text = env.socketTextStream(host, port);
+DataStream<WordWithCount> windowCounts = text
+    .flatMap(
+        (FlatMapFunction<String, String>) (line, collector) 
+            -> Arrays.stream(line.split("\\s")).forEach(collector::collect)
+    ).returns(String.class)
+    .map(word -> new WordWithCount(word, 1)).returns(TypeInformation.of(WordWithCount.class))
+    .keyBy(wordWithCnt -> wordWithCnt.word)
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
+    .sum("count").returns(TypeInformation.of(WordWithCount.class));
 
-windowCounts.print()
+windowCounts.print();
+env.execute();
+}
 ```
 
 ### Batch Example
-```scala
-case class WordWithCount(word: String, count: Long)
+```java
+// pojo class WordWithCount
+public class WordWithCount {
+    public String word;
+    public int count;
 
-val text = env.readTextFile(path)
+    public WordWithCount() {}
 
-val counts = text.flatMap { w => w.split("\\s") }
-  .map { w => WordWithCount(w, 1) }
-  .groupBy("word")
-  .sum("count")
+    public WordWithCount(String word, int count) {
+        this.word = word;
+        this.count = count;
+    }
+}
 
-counts.writeAsCsv(outputPath)
+// main method
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+FileSource<String> source = FileSource.forRecordStreamFormat(new TextLineInputFormat(), new Path("MyInput.txt")).build();
+DataStreamSource<String> text = env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySource");
+DataStream<WordWithCount> windowCounts = text
+        .flatMap((FlatMapFunction<String, String>) (line, collector) -> Arrays
+                .stream(line.split("\\s"))
+                .forEach(collector::collect)).returns(String.class)
+        .map(word -> new WordWithCount(word, 1)).returns(TypeInformation.of(WordWithCount.class))
+        .keyBy(wordWintCount -> wordWintCount.word)
+        .sum("count").returns(TypeInformation.of(WordWithCount.class));
+
+windowCounts.print();
+env.execute();
 ```
 
 

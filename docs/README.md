@@ -124,14 +124,14 @@ to its documentation markdown. The following are available for use:
 
 #### Flink Artifact
 
-    {{< artifact flink-streaming-scala withScalaVersion >}}
+    {{< artifact flink-table-api-scala withScalaVersion >}}
 
-This will be replaced by the maven artifact for flink-streaming-scala that users should copy into their pom.xml file. It will render out to:
+This will be replaced by the maven artifact for flink-table-api-scala that users should copy into their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-streaming-scala_2.12</artifactId>
+    <artifactId>flink-table-api-scala_2.12</artifactId>
     <version><!-- current flink version --></version>
 </dependency>
 ```
