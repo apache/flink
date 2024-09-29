@@ -34,10 +34,14 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.buildBufferCompressor;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getMemoryTierName;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The implementation of {@link TierFactory} for memory tier. */
@@ -51,9 +55,12 @@ public class MemoryTierFactory implements TierFactory {
 
     private int bufferSizeBytes = -1;
 
+    @Nullable private Configuration conf;
+
     @Override
     public void setup(Configuration configuration) {
         this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
+        this.conf = checkNotNull(configuration);
     }
 
     @Override
@@ -103,7 +110,8 @@ public class MemoryTierFactory implements TierFactory {
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,
-                resourceRegistry);
+                resourceRegistry,
+                buildBufferCompressor(bufferSizeBytes, checkNotNull(conf)));
     }
 
     @Override

@@ -121,7 +121,8 @@ class MemoryTierProducerAgentTest {
                         false,
                         memoryManager,
                         nettyService,
-                        new TieredStorageResourceRegistry())) {
+                        new TieredStorageResourceRegistry(),
+                        null)) {
             memoryTierProducerAgent.connectionEstablished(
                     SUBPARTITION_ID, new TestingNettyConnectionWriter.Builder().build());
             assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isFalse();
@@ -220,6 +221,7 @@ class MemoryTierProducerAgentTest {
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,
-                resourceRegistry);
+                resourceRegistry,
+                null);
     }
 }

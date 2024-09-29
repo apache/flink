@@ -52,8 +52,8 @@ mvn clean install -B -DskipTests -Dfast -Pskip-webui-build
 # build java/scala docs
 mkdir -p docs/target/api
 mvn javadoc:aggregate -B \
-    -DadditionalJOption="-Xdoclint:none --allow-script-in-comments" \
-    -Dmaven.javadoc.failOnError=false \
+    -Pskip-webui-build \
+    -Dmaven.javadoc.failOnError=true \
     -Dcheckstyle.skip=true \
     -Dspotless.check.skip=true \
     -Denforcer.skip=true \

@@ -1652,12 +1652,22 @@ public class StreamingJobGraphGenerator {
     /** Backtraces the head of an operator chain. */
     private static StreamOperatorFactory<?> getHeadOperator(
             StreamNode upStreamVertex, StreamGraph streamGraph) {
-        if (upStreamVertex.getInEdges().size() == 1
-                && isChainable(upStreamVertex.getInEdges().get(0), streamGraph)) {
-            return getHeadOperator(
-                    streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
+        if (streamGraph.getHeadOperatorForNodeFromCache(upStreamVertex) == null) {
+            if (upStreamVertex.getInEdges().size() == 1
+                    && isChainable(upStreamVertex.getInEdges().get(0), streamGraph)) {
+                StreamOperatorFactory<?> headOperator =
+                        getHeadOperator(
+                                streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)),
+                                streamGraph);
+                streamGraph.cacheHeadOperatorForNode(upStreamVertex, headOperator);
+            } else {
+                Preconditions.checkNotNull(upStreamVertex.getOperatorFactory());
+                streamGraph.cacheHeadOperatorForNode(
+                        upStreamVertex, upStreamVertex.getOperatorFactory());
+            }
         }
-        return Preconditions.checkNotNull(upStreamVertex.getOperatorFactory());
+
+        return streamGraph.getHeadOperatorForNodeFromCache(upStreamVertex);
     }
 
     private void markSupportingConcurrentExecutionAttempts() {

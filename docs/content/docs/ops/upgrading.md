@@ -283,22 +283,14 @@ Savepoints are compatible across Flink versions as indicated by the table below:
   <thead>
     <tr>
       <th class="text-left" style="width: 25%">Created with \ Resumed with</th>
-      <th class="text-center">1.16.x</th>
       <th class="text-center">1.17.x</th>
       <th class="text-center">1.18.x</th>
       <th class="text-center">1.19.x</th>
+      <th class="text-center">1.20.x</th>
       <th class="text-center" style="width: 50%">Limitations</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-          <td class="text-center"><strong>1.7.x</strong></td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left"></td>
-    </tr>
     <tr>
           <td class="text-center"><strong>1.8.x</strong></td>
           <td class="text-center">O</td>
@@ -381,7 +373,7 @@ Savepoints are compatible across Flink versions as indicated by the table below:
         </tr>
     <tr>
           <td class="text-center"><strong>1.17.x</strong></td>
-          <td class="text-center"></td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -390,13 +382,21 @@ Savepoints are compatible across Flink versions as indicated by the table below:
     <tr>
           <td class="text-center"><strong>1.18.x</strong></td>
           <td class="text-center"></td>
-          <td class="text-center"></td>
+          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.19.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>1.20.x</strong></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>

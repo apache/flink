@@ -459,9 +459,7 @@ class MultipleInputStreamTaskTest {
             int numRecords3 = 2;
             // add source splits before processing any elements, so the MockSourceReader does not
             // end prematurely
-            for (int x = 0; x < numRecords2; x++) {
-                addSourceRecords(testHarness, 1, 42);
-            }
+            addSourceRecords(testHarness, 1, 42, 43, 44);
             for (int x = 0; x < numRecords1; x++) {
                 testHarness.processElement(new StreamRecord<>("hello"), 0, 0);
             }

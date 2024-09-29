@@ -21,14 +21,18 @@ import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.clock.RelativeClock;
 
 import static org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,6 +70,9 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
     /** Whether to emit intermediate watermarks or only one final watermark at the end of input. */
     private final boolean emitProgressiveWatermarks;
 
+    /** {@link PausableRelativeClock} that will be paused in case of backpressure. */
+    private transient PausableRelativeClock inputActivityClock;
+
     public TimestampsAndWatermarksOperator(
             WatermarkStrategy<T> watermarkStrategy, boolean emitProgressiveWatermarks) {
         this.watermarkStrategy = checkNotNull(watermarkStrategy);
@@ -76,11 +83,28 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
     @Override
     public void open() throws Exception {
         super.open();
+        inputActivityClock = new PausableRelativeClock(getProcessingTimeService().getClock());
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .registerBackPressureListener(inputActivityClock);
 
         timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
         watermarkGenerator =
                 emitProgressiveWatermarks
-                        ? watermarkStrategy.createWatermarkGenerator(this::getMetricGroup)
+                        ? watermarkStrategy.createWatermarkGenerator(
+                                new WatermarkGeneratorSupplier.Context() {
+                                    @Override
+                                    public MetricGroup getMetricGroup() {
+                                        return this.getMetricGroup();
+                                    }
+
+                                    @Override
+                                    public RelativeClock getInputActivityClock() {
+                                        return inputActivityClock;
+                                    }
+                                })
                         : new NoWatermarksGenerator<>();
 
         wmOutput = new WatermarkEmitter(output);
@@ -90,6 +114,16 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
             final long now = getProcessingTimeService().getCurrentProcessingTime();
             getProcessingTimeService().registerTimer(now + watermarkInterval, this);
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        getContainingTask()
+                .getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .unregisterBackPressureListener(inputActivityClock);
+        super.close();
     }
 
     @Override
