@@ -96,6 +96,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -1622,7 +1623,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan graph,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1633,7 +1634,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 Collection<FailureEnricher> failureEnricher,
                 long initializationTimestamp)
                 throws Exception {
-            assertEquals(expectedJobId, jobGraph.getJobID());
+            assertEquals(expectedJobId, graph.getJobID());
             final JobMasterGateway jobMasterGateway =
                     new TestingJobMasterGatewayBuilder()
                             .setRequestJobSupplier(
@@ -1667,8 +1668,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 onCompletionActions.jobReachedGloballyTerminalState(
                                                         new ExecutionGraphInfo(
                                                                 new ArchivedExecutionGraphBuilder()
-                                                                        .setJobID(
-                                                                                jobGraph.getJobID())
+                                                                        .setJobID(graph.getJobID())
                                                                         .setState(
                                                                                 JobStatus.CANCELED)
                                                                         .build())));
@@ -1677,17 +1677,17 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
             return new JobMasterServiceLeadershipRunner(
                     new DefaultJobMasterServiceProcessFactory(
-                            jobGraph.getJobID(),
-                            jobGraph.getName(),
-                            jobGraph.getJobType(),
-                            jobGraph.getCheckpointingSettings(),
+                            graph.getJobID(),
+                            graph.getName(),
+                            graph.getJobType(),
+                            graph.getCheckpointingSettings(),
                             initializationTimestamp,
                             jobMasterServiceFactory),
-                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
+                    highAvailabilityServices.getJobManagerLeaderElection(graph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
-                            .registerClassLoaderLease(jobGraph.getJobID()),
+                            .registerClassLoaderLease(graph.getJobID()),
                     fatalErrorHandler);
         }
 
@@ -1729,7 +1729,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1743,10 +1743,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
             return new JobMasterServiceLeadershipRunner(
                     new DefaultJobMasterServiceProcessFactory(
-                            jobGraph.getJobID(),
-                            jobGraph.getName(),
-                            jobGraph.getJobType(),
-                            jobGraph.getCheckpointingSettings(),
+                            executionPlan.getJobID(),
+                            executionPlan.getName(),
+                            executionPlan.getJobType(),
+                            executionPlan.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory(
                                     ignored -> {
@@ -1757,11 +1757,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 jobMasterServiceFutures.offer(result));
                                         return result;
                                     })),
-                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
+                    highAvailabilityServices.getJobManagerLeaderElection(executionPlan.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
-                            .registerClassLoaderLease(jobGraph.getJobID()),
+                            .registerClassLoaderLease(executionPlan.getJobID()),
                     fatalErrorHandler);
         }
 
@@ -1789,7 +1789,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1804,17 +1804,17 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     jobIdToBlock,
                     future,
                     new DefaultJobMasterServiceProcessFactory(
-                            jobGraph.getJobID(),
-                            jobGraph.getName(),
-                            jobGraph.getJobType(),
-                            jobGraph.getCheckpointingSettings(),
+                            executionPlan.getJobID(),
+                            executionPlan.getName(),
+                            executionPlan.getJobType(),
+                            executionPlan.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory()),
-                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
+                    highAvailabilityServices.getJobManagerLeaderElection(executionPlan.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
-                            .registerClassLoaderLease(jobGraph.getJobID()),
+                            .registerClassLoaderLease(executionPlan.getJobID()),
                     fatalErrorHandler);
         }
 
@@ -1867,7 +1867,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan graph,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1878,7 +1878,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp) {
             initializationTimestampQueue.offer(initializationTimestamp);
-            return TestingJobManagerRunner.newBuilder().setJobId(jobGraph.getJobID()).build();
+            return TestingJobManagerRunner.newBuilder().setJobId(graph.getJobID()).build();
         }
     }
 
@@ -1893,7 +1893,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public TestingJobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1906,7 +1906,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 throws Exception {
             TestingJobManagerRunner runner =
                     super.createJobManagerRunner(
-                            jobGraph,
+                            executionPlan,
                             configuration,
                             rpcService,
                             highAvailabilityServices,
@@ -1932,7 +1932,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan graph,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1943,10 +1943,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 Collection<FailureEnricher> failureEnrichers,
                 long initializationTimestamp)
                 throws Exception {
-            assertEquals(expectedJobId, jobGraph.getJobID());
+            assertEquals(expectedJobId, graph.getJobID());
 
             return JobMasterServiceLeadershipRunnerFactory.INSTANCE.createJobManagerRunner(
-                    jobGraph,
+                    graph,
                     configuration,
                     rpcService,
                     highAvailabilityServices,
@@ -1969,7 +1969,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan graph,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -1997,7 +1997,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan graph,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -2010,7 +2010,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 throws Exception {
             final TestingJobManagerRunner runner =
                     TestingJobManagerRunner.newBuilder()
-                            .setJobId(jobGraph.getJobID())
+                            .setJobId(graph.getJobID())
                             .setResultFuture(resultFuture)
                             .build();
             runner.getTerminationFuture().thenRun(onClose::run);

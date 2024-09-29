@@ -24,7 +24,6 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -252,7 +251,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         final DispatcherGateway dispatcherGateway = getDispatcherGatewayInternal();
 
         return dispatcherGateway
-                .submitJob((JobGraph) executionPlan, RpcUtils.INF_TIMEOUT)
+                .submitJob(executionPlan, RpcUtils.INF_TIMEOUT)
                 .thenApply(FunctionUtils.nullFn())
                 .exceptionally(this::filterOutDuplicateJobSubmissionException);
     }
