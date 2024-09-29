@@ -30,7 +30,7 @@ on:
         type: string
       jdk_version:
         description: "The Java version to use."
-        default: 8
+        default: 11
         type: number
     secrets:
       s3_bucket:
