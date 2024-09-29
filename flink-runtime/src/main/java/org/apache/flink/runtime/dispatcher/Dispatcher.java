@@ -396,12 +396,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void startRecoveredJobs() {
         for (ExecutionPlan recoveredJob : recoveredJobs) {
-            runRecoveredJob((JobGraph) recoveredJob);
+            runRecoveredJob(recoveredJob);
         }
         recoveredJobs.clear();
     }
 
-    private void runRecoveredJob(final JobGraph recoveredJob) {
+    private void runRecoveredJob(final ExecutionPlan recoveredJob) {
         checkNotNull(recoveredJob);
 
         initJobClientExpiredTime(recoveredJob);
@@ -418,9 +418,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         }
     }
 
-    private void initJobClientExpiredTime(JobGraph jobGraph) {
-        JobID jobID = jobGraph.getJobID();
-        long initialClientHeartbeatTimeout = jobGraph.getInitialClientHeartbeatTimeout();
+    private void initJobClientExpiredTime(ExecutionPlan executionPlan) {
+        JobID jobID = executionPlan.getJobID();
+        long initialClientHeartbeatTimeout = executionPlan.getInitialClientHeartbeatTimeout();
         if (initialClientHeartbeatTimeout > 0) {
             log.info(
                     "Begin to detect the client's aliveness for job {}. The heartbeat timeout is {}",
@@ -515,20 +515,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     // ------------------------------------------------------
 
     @Override
-    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Duration timeout) {
-        final JobID jobID = jobGraph.getJobID();
+    public CompletableFuture<Acknowledge> submitJob(ExecutionPlan executionPlan, Duration timeout) {
+        final JobID jobID = executionPlan.getJobID();
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
-            log.info("Received JobGraph submission '{}' ({}).", jobGraph.getName(), jobID);
+            log.info("Received job submission '{}' ({}).", executionPlan.getName(), jobID);
         }
         return isInGloballyTerminalState(jobID)
                 .thenComposeAsync(
                         isTerminated -> {
                             if (isTerminated) {
                                 log.warn(
-                                        "Ignoring JobGraph submission '{}' ({}) because the job already "
+                                        "Ignoring job submission '{}' ({}) because the job already "
                                                 + "reached a globally-terminal state (i.e. {}) in a "
                                                 + "previous execution.",
-                                        jobGraph.getName(),
+                                        executionPlan.getName(),
                                         jobID,
                                         Arrays.stream(JobStatus.values())
                                                 .filter(JobStatus::isGloballyTerminalState)
@@ -542,7 +542,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                 // job with the given jobID is not terminated, yet
                                 return FutureUtils.completedExceptionally(
                                         DuplicateJobSubmissionException.of(jobID));
-                            } else if (jobGraph.isPartialResourceConfigured()) {
+                            } else if (executionPlan.isPartialResourceConfigured()) {
                                 return FutureUtils.completedExceptionally(
                                         new JobSubmissionException(
                                                 jobID,
@@ -550,7 +550,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                         + "have resources configured. The limitation will be "
                                                         + "removed in future versions."));
                             } else {
-                                return internalSubmitJob(jobGraph);
+                                return internalSubmitJob(executionPlan);
                             }
                         },
                         getMainThreadExecutor(jobID));
@@ -584,20 +584,27 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return jobResultStore.hasJobResultEntryAsync(jobId);
     }
 
-    private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
-        applyParallelismOverrides(jobGraph);
-        log.info("Submitting job '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
+    private CompletableFuture<Acknowledge> internalSubmitJob(ExecutionPlan executionPlan) {
+        if (executionPlan instanceof JobGraph) {
+            applyParallelismOverrides((JobGraph) executionPlan);
+        }
+
+        log.info("Submitting job '{}' ({}).", executionPlan.getName(), executionPlan.getJobID());
 
         // track as an outstanding job
-        submittedAndWaitingTerminationJobIDs.add(jobGraph.getJobID());
+        submittedAndWaitingTerminationJobIDs.add(executionPlan.getJobID());
 
-        return waitForTerminatingJob(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)
-                .handle((ignored, throwable) -> handleTermination(jobGraph.getJobID(), throwable))
+        return waitForTerminatingJob(
+                        executionPlan.getJobID(), executionPlan, this::persistAndRunJob)
+                .handle(
+                        (ignored, throwable) ->
+                                handleTermination(executionPlan.getJobID(), throwable))
                 .thenCompose(Function.identity())
                 .whenComplete(
                         (ignored, throwable) ->
                                 // job is done processing, whether failed or finished
-                                submittedAndWaitingTerminationJobIDs.remove(jobGraph.getJobID()));
+                                submittedAndWaitingTerminationJobIDs.remove(
+                                        executionPlan.getJobID()));
     }
 
     private CompletableFuture<Acknowledge> handleTermination(
@@ -629,16 +636,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
-    private void persistAndRunJob(JobGraph jobGraph) throws Exception {
-        executionPlanWriter.putExecutionPlan(jobGraph);
-        initJobClientExpiredTime(jobGraph);
-        runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
+    private void persistAndRunJob(ExecutionPlan executionPlan) throws Exception {
+        executionPlanWriter.putExecutionPlan(executionPlan);
+        initJobClientExpiredTime(executionPlan);
+        runJob(createJobMasterRunner(executionPlan), ExecutionType.SUBMISSION);
     }
 
-    private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {
-        Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(jobGraph.getJobID()));
+    private JobManagerRunner createJobMasterRunner(ExecutionPlan executionPlan) throws Exception {
+        Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(executionPlan.getJobID()));
         return jobManagerRunnerFactory.createJobManagerRunner(
-                jobGraph,
+                executionPlan,
                 configuration,
                 getRpcService(),
                 highAvailabilityServices,
@@ -1544,7 +1551,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private CompletableFuture<Void> waitForTerminatingJob(
-            JobID jobId, JobGraph jobGraph, ThrowingConsumer<JobGraph, ?> action) {
+            JobID jobId, ExecutionPlan executionPlan, ThrowingConsumer<ExecutionPlan, ?> action) {
         final CompletableFuture<Void> jobManagerTerminationFuture =
                 getJobTerminationFuture(jobId)
                         .exceptionally(
@@ -1563,7 +1570,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 FunctionUtils.uncheckedConsumer(
                         (ignored) -> {
                             jobManagerRunnerTerminationFutures.remove(jobId);
-                            action.accept(jobGraph);
+                            action.accept(executionPlan);
                         }));
     }
 

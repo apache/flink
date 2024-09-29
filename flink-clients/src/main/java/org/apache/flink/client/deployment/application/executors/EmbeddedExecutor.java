@@ -33,6 +33,7 @@ import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.FunctionUtils;
@@ -189,11 +190,11 @@ public class EmbeddedExecutor implements PipelineExecutor {
     private static CompletableFuture<JobID> submitJob(
             final Configuration configuration,
             final DispatcherGateway dispatcherGateway,
-            final JobGraph jobGraph,
+            final ExecutionPlan executionPlan,
             final Duration rpcTimeout) {
-        checkNotNull(jobGraph);
+        checkNotNull(executionPlan);
 
-        LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());
+        LOG.info("Submitting Job with JobId={}.", executionPlan.getJobID());
 
         return dispatcherGateway
                 .getBlobServerPort(rpcTimeout)
@@ -204,15 +205,15 @@ public class EmbeddedExecutor implements PipelineExecutor {
                 .thenCompose(
                         blobServerAddress -> {
                             try {
-                                ClientUtils.extractAndUploadJobGraphFiles(
-                                        jobGraph,
+                                ClientUtils.extractAndUploadExecutionPlanFiles(
+                                        executionPlan,
                                         () -> new BlobClient(blobServerAddress, configuration));
                             } catch (FlinkException e) {
                                 throw new CompletionException(e);
                             }
 
-                            return dispatcherGateway.submitJob(jobGraph, rpcTimeout);
+                            return dispatcherGateway.submitJob(executionPlan, rpcTimeout);
                         })
-                .thenApply(ack -> jobGraph.getJobID());
+                .thenApply(ack -> executionPlan.getJobID());
     }
 }

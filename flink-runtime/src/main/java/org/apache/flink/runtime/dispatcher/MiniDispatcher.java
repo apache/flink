@@ -25,7 +25,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -101,9 +100,9 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Duration timeout) {
+    public CompletableFuture<Acknowledge> submitJob(ExecutionPlan executionPlan, Duration timeout) {
         final CompletableFuture<Acknowledge> acknowledgeCompletableFuture =
-                super.submitJob(jobGraph, timeout);
+                super.submitJob(executionPlan, timeout);
 
         acknowledgeCompletableFuture.whenComplete(
                 (Acknowledge ignored, Throwable throwable) -> {
@@ -111,7 +110,7 @@ public class MiniDispatcher extends Dispatcher {
                         onFatalError(
                                 new FlinkException(
                                         "Failed to submit job "
-                                                + jobGraph.getJobID()
+                                                + executionPlan.getJobID()
                                                 + " in job mode.",
                                         throwable));
                     }
