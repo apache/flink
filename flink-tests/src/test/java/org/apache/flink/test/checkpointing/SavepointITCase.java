@@ -1635,6 +1635,7 @@ public class SavepointITCase extends TestLogger {
             }
 
             jobGraph = streamGraph.getJobGraph();
+            jobGraph.setJobID(new JobID());
             jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
             client.submitJob(jobGraph).get();

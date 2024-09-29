@@ -30,7 +30,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
@@ -58,7 +58,7 @@ import java.util.function.Supplier;
 public final class TestingDispatcherGateway extends TestingRestfulGateway
         implements DispatcherGateway {
 
-    static final Function<JobGraph, CompletableFuture<Acknowledge>> DEFAULT_SUBMIT_FUNCTION =
+    static final Function<ExecutionPlan, CompletableFuture<Acknowledge>> DEFAULT_SUBMIT_FUNCTION =
             jobGraph -> CompletableFuture.completedFuture(Acknowledge.get());
     static final TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
             DEFAULT_SUBMIT_FAILED_FUNCTION =
@@ -88,7 +88,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     (JobID jobId, CheckpointType checkpointType) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
-    private final Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
+    private final Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction;
     private final TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
             submitFailedFunction;
     private final Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -165,7 +165,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     getSavepointStatusFunction,
             BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
                     triggerCheckpointAndGetCheckpointIdFunction,
-            Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
+            Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction,
             TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
                     submitFailedFunction,
             Supplier<CompletableFuture<Collection<JobID>>> listFunction,
@@ -216,8 +216,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Duration timeout) {
-        return submitFunction.apply(jobGraph);
+    public CompletableFuture<Acknowledge> submitJob(ExecutionPlan executionPlan, Duration timeout) {
+        return submitFunction.apply(executionPlan);
     }
 
     @Override
@@ -284,7 +284,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     /** Builder for the {@link TestingDispatcherGateway}. */
     public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
-        private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
+        private Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction;
         private TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
                 submitFailedFunction;
         private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -307,7 +307,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         }
 
         public Builder setSubmitFunction(
-                Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction) {
+                Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction) {
             this.submitFunction = submitFunction;
             return this;
         }

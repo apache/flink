@@ -28,7 +28,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -73,8 +73,8 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
-    public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
-        return miniCluster.submitJob(jobGraph).thenApply(JobSubmissionResult::getJobID);
+    public CompletableFuture<JobID> submitJob(ExecutionPlan executionPlan) {
+        return miniCluster.submitJob(executionPlan).thenApply(JobSubmissionResult::getJobID);
     }
 
     @Override

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
@@ -158,7 +158,7 @@ public interface HighAvailabilityServices
      * @return Submitted job graph store
      * @throws Exception if the submitted job graph store could not be created
      */
-    JobGraphStore getJobGraphStore() throws Exception;
+    ExecutionPlanStore getExecutionPlanStore() throws Exception;
 
     /**
      * Gets the store that holds information about the state of finished jobs.

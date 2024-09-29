@@ -61,13 +61,13 @@ import org.apache.flink.runtime.iterative.task.IterationIntermediateTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailTask;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.ExecutionPlanUtils;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
-import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -251,7 +251,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
         }
 
         final Map<String, DistributedCache.DistributedCacheEntry> userArtifacts =
-                JobGraphUtils.prepareUserArtifactEntries(
+                ExecutionPlanUtils.prepareUserArtifactEntries(
                         program.getOriginalPlan().getCachedFiles().stream()
                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
                         jobId);

@@ -49,56 +49,56 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Default implementation for {@link JobGraphStore}. Combined with different {@link
+ * Default implementation for {@link ExecutionPlanStore}. Combined with different {@link
  * StateHandleStore}, we could persist the job graphs to various distributed storage. Also combined
- * with different {@link JobGraphStoreWatcher}, we could get all the changes on the job graph store
- * and do the response.
+ * with different {@link ExecutionPlanStoreWatcher}, we could get all the changes on the job graph
+ * store and do the response.
  */
-public class DefaultJobGraphStore<R extends ResourceVersion<R>>
-        implements JobGraphStore, JobGraphStore.JobGraphListener {
+public class DefaultExecutionPlanStore<R extends ResourceVersion<R>>
+        implements ExecutionPlanStore, ExecutionPlanStore.ExecutionPlanListener {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultJobGraphStore.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionPlanStore.class);
 
-    /** Lock to synchronize with the {@link JobGraphListener}. */
+    /** Lock to synchronize with the {@link ExecutionPlanListener}. */
     private final Object lock = new Object();
 
     /** The set of IDs of all added job graphs. */
     @GuardedBy("lock")
-    private final Set<JobID> addedJobGraphs = new HashSet<>();
+    private final Set<JobID> addedExecutionPlans = new HashSet<>();
 
     /** Submitted job graphs handle store. */
-    private final StateHandleStore<JobGraph, R> jobGraphStateHandleStore;
+    private final StateHandleStore<ExecutionPlan, R> executionPlanStateHandleStore;
 
     @GuardedBy("lock")
-    private final JobGraphStoreWatcher jobGraphStoreWatcher;
+    private final ExecutionPlanStoreWatcher executionPlanStoreWatcher;
 
-    private final JobGraphStoreUtil jobGraphStoreUtil;
+    private final ExecutionPlanStoreUtil executionPlanStoreUtil;
 
     /** The external listener to be notified on races. */
     @GuardedBy("lock")
-    private JobGraphListener jobGraphListener;
+    private ExecutionPlanListener executionPlanListener;
 
     /** Flag indicating whether this instance is running. */
     @GuardedBy("lock")
     private volatile boolean running;
 
-    public DefaultJobGraphStore(
-            StateHandleStore<JobGraph, R> stateHandleStore,
-            JobGraphStoreWatcher jobGraphStoreWatcher,
-            JobGraphStoreUtil jobGraphStoreUtil) {
-        this.jobGraphStateHandleStore = checkNotNull(stateHandleStore);
-        this.jobGraphStoreWatcher = checkNotNull(jobGraphStoreWatcher);
-        this.jobGraphStoreUtil = checkNotNull(jobGraphStoreUtil);
+    public DefaultExecutionPlanStore(
+            StateHandleStore<ExecutionPlan, R> stateHandleStore,
+            ExecutionPlanStoreWatcher executionPlanStoreWatcher,
+            ExecutionPlanStoreUtil executionPlanStoreUtil) {
+        this.executionPlanStateHandleStore = checkNotNull(stateHandleStore);
+        this.executionPlanStoreWatcher = checkNotNull(executionPlanStoreWatcher);
+        this.executionPlanStoreUtil = checkNotNull(executionPlanStoreUtil);
 
         this.running = false;
     }
 
     @Override
-    public void start(JobGraphListener jobGraphListener) throws Exception {
+    public void start(ExecutionPlanListener executionPlanListener) throws Exception {
         synchronized (lock) {
             if (!running) {
-                this.jobGraphListener = checkNotNull(jobGraphListener);
-                jobGraphStoreWatcher.start(this);
+                this.executionPlanListener = checkNotNull(executionPlanListener);
+                executionPlanStoreWatcher.start(this);
                 running = true;
             }
         }
@@ -109,24 +109,24 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         synchronized (lock) {
             if (running) {
                 running = false;
-                LOG.info("Stopping DefaultJobGraphStore.");
+                LOG.info("Stopping DefaultExecutionPlanStore.");
                 Exception exception = null;
 
                 try {
-                    jobGraphStateHandleStore.releaseAll();
+                    executionPlanStateHandleStore.releaseAll();
                 } catch (Exception e) {
                     exception = e;
                 }
 
                 try {
-                    jobGraphStoreWatcher.stop();
+                    executionPlanStoreWatcher.stop();
                 } catch (Exception e) {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }
 
                 if (exception != null) {
                     throw new FlinkException(
-                            "Could not properly stop the DefaultJobGraphStore.", exception);
+                            "Could not properly stop the DefaultExecutionPlanStore.", exception);
                 }
             }
         }
@@ -134,23 +134,24 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
     @Nullable
     @Override
-    public JobGraph recoverJobGraph(JobID jobId) throws Exception {
+    public ExecutionPlan recoverExecutionPlan(JobID jobId) throws Exception {
         checkNotNull(jobId, "Job ID");
 
-        LOG.debug("Recovering job graph {} from {}.", jobId, jobGraphStateHandleStore);
+        LOG.debug("Recovering job graph {} from {}.", jobId, executionPlanStateHandleStore);
 
-        final String name = jobGraphStoreUtil.jobIDToName(jobId);
+        final String name = executionPlanStoreUtil.jobIDToName(jobId);
 
         synchronized (lock) {
             verifyIsRunning();
 
             boolean success = false;
 
-            RetrievableStateHandle<JobGraph> jobGraphRetrievableStateHandle;
+            RetrievableStateHandle<ExecutionPlan> executionPlanRetrievableStateHandle;
 
             try {
                 try {
-                    jobGraphRetrievableStateHandle = jobGraphStateHandleStore.getAndLock(name);
+                    executionPlanRetrievableStateHandle =
+                            executionPlanStateHandleStore.getAndLock(name);
                 } catch (StateHandleStore.NotExistException ignored) {
                     success = true;
                     return null;
@@ -163,47 +164,47 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                             e);
                 }
 
-                JobGraph jobGraph;
+                ExecutionPlan executionPlan;
                 try {
-                    jobGraph = jobGraphRetrievableStateHandle.retrieveState();
+                    executionPlan = executionPlanRetrievableStateHandle.retrieveState();
                 } catch (ClassNotFoundException cnfe) {
                     throw new FlinkException(
-                            "Could not retrieve submitted JobGraph from state handle under "
+                            "Could not retrieve submitted ExecutionPlan from state handle under "
                                     + name
                                     + ". This indicates that you are trying to recover from state written by an "
                                     + "older Flink version which is not compatible. Try cleaning the state handle store.",
                             cnfe);
                 } catch (IOException ioe) {
                     throw new FlinkException(
-                            "Could not retrieve submitted JobGraph from state handle under "
+                            "Could not retrieve submitted ExecutionPlan from state handle under "
                                     + name
                                     + ". This indicates that the retrieved state handle is broken. Try cleaning the state handle "
                                     + "store.",
                             ioe);
                 }
 
-                addedJobGraphs.add(jobGraph.getJobID());
+                addedExecutionPlans.add(executionPlan.getJobID());
 
-                LOG.info("Recovered {}.", jobGraph);
+                LOG.info("Recovered {}.", executionPlan);
 
                 success = true;
-                return jobGraph;
+                return executionPlan;
             } finally {
                 if (!success) {
-                    jobGraphStateHandleStore.release(name);
+                    executionPlanStateHandleStore.release(name);
                 }
             }
         }
     }
 
     @Override
-    public void putJobGraph(JobGraph jobGraph) throws Exception {
-        checkNotNull(jobGraph, "Job graph");
+    public void putExecutionPlan(ExecutionPlan executionPlan) throws Exception {
+        checkNotNull(executionPlan, "Job graph");
 
-        final JobID jobID = jobGraph.getJobID();
-        final String name = jobGraphStoreUtil.jobIDToName(jobID);
+        final JobID jobID = executionPlan.getJobID();
+        final String name = executionPlanStoreUtil.jobIDToName(jobID);
 
-        LOG.debug("Adding job graph {} to {}.", jobID, jobGraphStateHandleStore);
+        LOG.debug("Adding job graph {} to {}.", jobID, executionPlanStateHandleStore);
 
         boolean success = false;
 
@@ -211,51 +212,60 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
             synchronized (lock) {
                 verifyIsRunning();
 
-                final R currentVersion = jobGraphStateHandleStore.exists(name);
+                final R currentVersion = executionPlanStateHandleStore.exists(name);
 
                 if (!currentVersion.isExisting()) {
                     try {
-                        jobGraphStateHandleStore.addAndLock(name, jobGraph);
+                        executionPlanStateHandleStore.addAndLock(name, executionPlan);
 
-                        addedJobGraphs.add(jobID);
+                        addedExecutionPlans.add(jobID);
 
                         success = true;
                     } catch (StateHandleStore.AlreadyExistException ignored) {
-                        LOG.warn("{} already exists in {}.", jobGraph, jobGraphStateHandleStore);
+                        LOG.warn(
+                                "{} already exists in {}.",
+                                executionPlan,
+                                executionPlanStateHandleStore);
                     }
-                } else if (addedJobGraphs.contains(jobID)) {
+                } else if (addedExecutionPlans.contains(jobID)) {
                     try {
-                        jobGraphStateHandleStore.replace(name, currentVersion, jobGraph);
-                        LOG.info("Updated {} in {}.", jobGraph, getClass().getSimpleName());
+                        executionPlanStateHandleStore.replace(name, currentVersion, executionPlan);
+                        LOG.info("Updated {} in {}.", executionPlan, getClass().getSimpleName());
 
                         success = true;
                     } catch (StateHandleStore.NotExistException ignored) {
-                        LOG.warn("{} does not exists in {}.", jobGraph, jobGraphStateHandleStore);
+                        LOG.warn(
+                                "{} does not exists in {}.",
+                                executionPlan,
+                                executionPlanStateHandleStore);
                     }
                 } else {
                     throw new IllegalStateException(
                             "Trying to update a graph you didn't "
-                                    + "#getAllSubmittedJobGraphs() or #putJobGraph() yourself before.");
+                                    + "#getAllSubmittedExecutionPlans() or #putExecutionPlan() yourself before.");
                 }
             }
         }
 
-        LOG.info("Added {} to {}.", jobGraph, jobGraphStateHandleStore);
+        LOG.info("Added {} to {}.", executionPlan, executionPlanStateHandleStore);
     }
 
     @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         synchronized (lock) {
-            @Nullable final JobGraph jobGraph = recoverJobGraph(jobId);
-            if (jobGraph == null) {
+            @Nullable final ExecutionPlan executionPlan = recoverExecutionPlan(jobId);
+            if (executionPlan == null) {
                 throw new NoSuchElementException(
                         String.format(
-                                "JobGraph for job [%s] was not found in JobGraphStore and is needed for attaching JobResourceRequirements.",
+                                "ExecutionPlan for job [%s] was not found in ExecutionPlanStore and is needed for attaching JobResourceRequirements.",
                                 jobId));
             }
-            JobResourceRequirements.writeToJobGraph(jobGraph, jobResourceRequirements);
-            putJobGraph(jobGraph);
+
+            checkState(executionPlan instanceof JobGraph);
+            JobResourceRequirements.writeToJobGraph(
+                    (JobGraph) executionPlan, jobResourceRequirements);
+            putExecutionPlan(executionPlan);
         }
     }
 
@@ -265,14 +275,15 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
         return runAsyncWithLockAssertRunning(
                 () -> {
-                    LOG.debug("Removing job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                    LOG.debug(
+                            "Removing job graph {} from {}.", jobId, executionPlanStateHandleStore);
 
-                    final String name = jobGraphStoreUtil.jobIDToName(jobId);
+                    final String name = executionPlanStoreUtil.jobIDToName(jobId);
                     releaseAndRemoveOrThrowCompletionException(jobId, name);
 
-                    addedJobGraphs.remove(jobId);
+                    addedExecutionPlans.remove(jobId);
 
-                    LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                    LOG.info("Removed job graph {} from {}.", jobId, executionPlanStateHandleStore);
                 },
                 executor);
     }
@@ -281,7 +292,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     private void releaseAndRemoveOrThrowCompletionException(JobID jobId, String jobName) {
         boolean success;
         try {
-            success = jobGraphStateHandleStore.releaseAndTryRemove(jobName);
+            success = executionPlanStateHandleStore.releaseAndTryRemove(jobName);
         } catch (Exception e) {
             throw new CompletionException(e);
         }
@@ -291,15 +302,15 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                     new FlinkException(
                             String.format(
                                     "Could not remove job graph with job id %s from %s.",
-                                    jobId, jobGraphStateHandleStore)));
+                                    jobId, executionPlanStateHandleStore)));
         }
     }
 
     /**
-     * Releases the locks on the specified {@link JobGraph}.
+     * Releases the locks on the specified {@link ExecutionPlan}.
      *
      * <p>Releasing the locks allows that another instance can delete the job from the {@link
-     * JobGraphStore}.
+     * ExecutionPlanStore}.
      *
      * @param jobId specifying the job to release the locks for
      * @param executor the executor being used for the asynchronous execution of the local cleanup.
@@ -311,12 +322,17 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
         return runAsyncWithLockAssertRunning(
                 () -> {
-                    LOG.debug("Releasing job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                    LOG.debug(
+                            "Releasing job graph {} from {}.",
+                            jobId,
+                            executionPlanStateHandleStore);
 
-                    jobGraphStateHandleStore.release(jobGraphStoreUtil.jobIDToName(jobId));
-                    addedJobGraphs.remove(jobId);
+                    executionPlanStateHandleStore.release(
+                            executionPlanStoreUtil.jobIDToName(jobId));
+                    addedExecutionPlans.remove(jobId);
 
-                    LOG.info("Released job graph {} from {}.", jobId, jobGraphStateHandleStore);
+                    LOG.info(
+                            "Released job graph {} from {}.", jobId, executionPlanStateHandleStore);
                 },
                 executor);
     }
@@ -339,21 +355,22 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
     @Override
     public Collection<JobID> getJobIds() throws Exception {
-        LOG.debug("Retrieving all stored job ids from {}.", jobGraphStateHandleStore);
+        LOG.debug("Retrieving all stored job ids from {}.", executionPlanStateHandleStore);
 
         final Collection<String> names;
         try {
-            names = jobGraphStateHandleStore.getAllHandles();
+            names = executionPlanStateHandleStore.getAllHandles();
         } catch (Exception e) {
             throw new Exception(
-                    "Failed to retrieve all job ids from " + jobGraphStateHandleStore + ".", e);
+                    "Failed to retrieve all job ids from " + executionPlanStateHandleStore + ".",
+                    e);
         }
 
         final List<JobID> jobIds = new ArrayList<>(names.size());
 
         for (String name : names) {
             try {
-                jobIds.add(jobGraphStoreUtil.nameToJobID(name));
+                jobIds.add(executionPlanStoreUtil.nameToJobID(name));
             } catch (Exception exception) {
                 LOG.warn(
                         "Could not parse job id from {}. This indicates a malformed name.",
@@ -362,23 +379,23 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
             }
         }
 
-        LOG.info("Retrieved job ids {} from {}", jobIds, jobGraphStateHandleStore);
+        LOG.info("Retrieved job ids {} from {}", jobIds, executionPlanStateHandleStore);
 
         return jobIds;
     }
 
     @Override
-    public void onAddedJobGraph(JobID jobId) {
+    public void onAddedExecutionPlan(JobID jobId) {
         synchronized (lock) {
             if (running) {
-                if (!addedJobGraphs.contains(jobId)) {
+                if (!addedExecutionPlans.contains(jobId)) {
                     try {
                         // This has been added by someone else. Or we were fast to remove it (false
                         // positive).
-                        jobGraphListener.onAddedJobGraph(jobId);
+                        executionPlanListener.onAddedExecutionPlan(jobId);
                     } catch (Throwable t) {
                         LOG.error(
-                                "Failed to notify job graph listener onAddedJobGraph event for {}",
+                                "Failed to notify job graph listener onAddedExecutionPlan event for {}",
                                 jobId,
                                 t);
                     }
@@ -388,16 +405,16 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
     }
 
     @Override
-    public void onRemovedJobGraph(JobID jobId) {
+    public void onRemovedExecutionPlan(JobID jobId) {
         synchronized (lock) {
             if (running) {
-                if (addedJobGraphs.contains(jobId)) {
+                if (addedExecutionPlans.contains(jobId)) {
                     try {
                         // Someone else removed one of our job graphs. Mean!
-                        jobGraphListener.onRemovedJobGraph(jobId);
+                        executionPlanListener.onRemovedExecutionPlan(jobId);
                     } catch (Throwable t) {
                         LOG.error(
-                                "Failed to notify job graph listener onRemovedJobGraph event for {}",
+                                "Failed to notify job graph listener onRemovedExecutionPlan event for {}",
                                 jobId,
                                 t);
                     }

@@ -262,7 +262,7 @@ class JarRunHandlerParameterTest
                         getUnresolvedJarMessageParameters(),
                         getUnresolvedJarMessageParameters(),
                         jarWithEagerSink));
-        JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get();
+        JobGraph jobGraph = (JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.get();
         assertThat(jobGraph.getSavepointRestoreSettings())
                 .isEqualTo(SavepointRestoreSettings.none());
     }
@@ -276,7 +276,7 @@ class JarRunHandlerParameterTest
                         getUnresolvedJarMessageParameters(),
                         getUnresolvedJarMessageParameters(),
                         jarWithManifest));
-        JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get();
+        JobGraph jobGraph = (JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.get();
         assertThat(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES))
                 .containsOnlyKeys("v1")
                 .containsEntry("v1", "10");

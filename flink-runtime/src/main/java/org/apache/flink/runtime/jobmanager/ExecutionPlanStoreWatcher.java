@@ -19,25 +19,26 @@
 package org.apache.flink.runtime.jobmanager;
 
 /**
- * A watcher on {@link JobGraphStore}. It could monitor all the changes on the job graph store and
- * notify the {@link JobGraphStore} via {@link JobGraphStore.JobGraphListener}.
+ * A watcher on {@link ExecutionPlanStore}. It could monitor all the changes on the job graph store
+ * and notify the {@link ExecutionPlanStore} via {@link ExecutionPlanStore.ExecutionPlanListener}.
  *
- * <p><strong>Important</strong>: The {@link JobGraphStoreWatcher} could not guarantee that there is
- * no {@link JobGraphStore.JobGraphListener} callbacks happen after {@link #stop()}. So the
- * implementor is responsible for filtering out these spurious callbacks.
+ * <p><strong>Important</strong>: The {@link ExecutionPlanStoreWatcher} could not guarantee that
+ * there is no {@link ExecutionPlanStore.ExecutionPlanListener} callbacks happen after {@link
+ * #stop()}. So the implementor is responsible for filtering out these spurious callbacks.
  */
-public interface JobGraphStoreWatcher {
+public interface ExecutionPlanStoreWatcher {
 
     /**
-     * Start the watcher on {@link JobGraphStore}.
+     * Start the watcher on {@link ExecutionPlanStore}.
      *
-     * @param jobGraphListener use jobGraphListener to notify the {@link DefaultJobGraphStore}
+     * @param executionPlanListener use executionPlanListener to notify the {@link
+     *     DefaultExecutionPlanStore}
      * @throws Exception when start internal services
      */
-    void start(JobGraphStore.JobGraphListener jobGraphListener) throws Exception;
+    void start(ExecutionPlanStore.ExecutionPlanListener executionPlanListener) throws Exception;
 
     /**
-     * Stop the watcher on {@link JobGraphStore}.
+     * Stop the watcher on {@link ExecutionPlanStore}.
      *
      * @throws Exception when stop internal services
      */

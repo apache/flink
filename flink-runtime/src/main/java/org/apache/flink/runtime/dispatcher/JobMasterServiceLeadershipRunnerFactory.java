@@ -26,7 +26,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -52,7 +52,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
     @Override
     public JobManagerRunner createJobManagerRunner(
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             Configuration configuration,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
@@ -64,7 +64,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
             long initializationTimestamp)
             throws Exception {
 
-        checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
+        checkArgument(!executionPlan.isEmptyGraph(), "The given job is empty");
 
         final JobMasterConfiguration jobMasterConfiguration =
                 JobMasterConfiguration.fromConfiguration(configuration);
@@ -72,11 +72,11 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         final JobResultStore jobResultStore = highAvailabilityServices.getJobResultStore();
 
         final LeaderElection jobManagerLeaderElection =
-                highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID());
+                highAvailabilityServices.getJobManagerLeaderElection(executionPlan.getJobID());
 
         final SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
-                        configuration, jobGraph.getJobType(), jobGraph.isDynamic());
+                        configuration, executionPlan.getJobType(), executionPlan.isDynamic());
 
         if (jobMasterConfiguration.getConfiguration().get(JobManagerOptions.SCHEDULER_MODE)
                 == SchedulerExecutionMode.REACTIVE) {
@@ -89,21 +89,21 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 jobManagerServices
                         .getLibraryCacheManager()
-                        .registerClassLoaderLease(jobGraph.getJobID());
+                        .registerClassLoaderLease(executionPlan.getJobID());
 
         final ClassLoader userCodeClassLoader =
                 classLoaderLease
                         .getOrResolveClassLoader(
-                                jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths())
+                                executionPlan.getUserJarBlobKeys(), executionPlan.getClasspaths())
                         .asClassLoader();
 
         final DefaultJobMasterServiceFactory jobMasterServiceFactory =
                 new DefaultJobMasterServiceFactory(
                         MdcUtils.scopeToJob(
-                                jobGraph.getJobID(), jobManagerServices.getIoExecutor()),
+                                executionPlan.getJobID(), jobManagerServices.getIoExecutor()),
                         rpcService,
                         jobMasterConfiguration,
-                        jobGraph,
+                        executionPlan,
                         highAvailabilityServices,
                         slotPoolServiceSchedulerFactory,
                         jobManagerServices,
@@ -116,10 +116,10 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final DefaultJobMasterServiceProcessFactory jobMasterServiceProcessFactory =
                 new DefaultJobMasterServiceProcessFactory(
-                        jobGraph.getJobID(),
-                        jobGraph.getName(),
-                        jobGraph.getJobType(),
-                        jobGraph.getCheckpointingSettings(),
+                        executionPlan.getJobID(),
+                        executionPlan.getName(),
+                        executionPlan.getJobType(),
+                        executionPlan.getCheckpointingSettings(),
                         initializationTimestamp,
                         jobMasterServiceFactory);
 

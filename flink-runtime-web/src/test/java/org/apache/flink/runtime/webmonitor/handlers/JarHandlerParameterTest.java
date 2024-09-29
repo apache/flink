@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -62,7 +63,7 @@ abstract class JarHandlerParameterTest<
     private static final AllCallbackWrapper<BlobServerExtension> blobServerExtension =
             new AllCallbackWrapper<>(new BlobServerExtension());
 
-    static final AtomicReference<JobGraph> LAST_SUBMITTED_JOB_GRAPH_REFERENCE =
+    static final AtomicReference<ExecutionPlan> LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE =
             new AtomicReference<>();
 
     static TestingDispatcherGateway restfulGateway;
@@ -101,7 +102,7 @@ abstract class JarHandlerParameterTest<
                                 blobServerExtension.getCustomExtension().getBlobServerPort())
                         .setSubmitFunction(
                                 jobGraph -> {
-                                    LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
+                                    LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .build();
@@ -159,7 +160,7 @@ abstract class JarHandlerParameterTest<
                         getUnresolvedJarMessageParameters(),
                         getUnresolvedJarMessageParameters(),
                         jarWithManifest));
-        validateGraphWithFlinkConfig(LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get());
+        validateGraphWithFlinkConfig((JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.get());
     }
 
     @Test
@@ -175,10 +176,10 @@ abstract class JarHandlerParameterTest<
 
         handleRequest(request);
 
-        Optional<JobGraph> jobGraph = getLastSubmittedJobGraphAndReset();
+        Optional<ExecutionPlan> executionPlan = getLastSubmittedJobGraphAndReset();
 
-        assertThat(jobGraph.isPresent()).isTrue();
-        assertThat(jobGraph.get().getJobID()).isEqualTo(jobId);
+        assertThat(executionPlan.isPresent()).isTrue();
+        assertThat(executionPlan.get().getJobID()).isEqualTo(jobId);
     }
 
     private void testConfigurationViaJsonRequest() throws Exception {
@@ -250,7 +251,7 @@ abstract class JarHandlerParameterTest<
     abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
 
     JobGraph validateDefaultGraph() {
-        JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
+        JobGraph jobGraph = (JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
         assertThat(ParameterProgram.actualArguments).isEmpty();
         assertThat(getExecutionConfig(jobGraph).getParallelism())
                 .isEqualTo(CoreOptions.DEFAULT_PARALLELISM.defaultValue().intValue());
@@ -258,7 +259,7 @@ abstract class JarHandlerParameterTest<
     }
 
     JobGraph validateGraph() {
-        JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
+        JobGraph jobGraph = (JobGraph) LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null);
         assertThat(ParameterProgram.actualArguments).isEqualTo(PROG_ARGS);
         assertThat(getExecutionConfig(jobGraph).getParallelism()).isEqualTo(PARALLELISM);
         return jobGraph;
@@ -266,8 +267,8 @@ abstract class JarHandlerParameterTest<
 
     abstract void validateGraphWithFlinkConfig(JobGraph jobGraph);
 
-    private static Optional<JobGraph> getLastSubmittedJobGraphAndReset() {
-        return Optional.ofNullable(LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null));
+    private static Optional<ExecutionPlan> getLastSubmittedJobGraphAndReset() {
+        return Optional.ofNullable(LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.getAndSet(null));
     }
 
     static ExecutionConfig getExecutionConfig(JobGraph jobGraph) {

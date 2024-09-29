@@ -21,8 +21,8 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-/** Singleton {@link JobGraphStoreUtil} implementation for ZooKeeper. */
-public enum ZooKeeperJobGraphStoreUtil implements JobGraphStoreUtil {
+/** Singleton {@link ExecutionPlanStoreUtil} implementation for ZooKeeper. */
+public enum ZooKeeperExecutionPlanStoreUtil implements ExecutionPlanStoreUtil {
     INSTANCE;
 
     @Override

@@ -39,9 +39,9 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.ExecutionPlanUtils;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.AbstractID;
@@ -267,7 +267,7 @@ public class JobGraphGeneratorTest {
                 new DistributedCache.DistributedCacheEntry(directory2.toString(), false));
 
         final Map<String, DistributedCache.DistributedCacheEntry> submittedArtifacts =
-                JobGraphUtils.prepareUserArtifactEntries(originalArtifacts, new JobID());
+                ExecutionPlanUtils.prepareUserArtifactEntries(originalArtifacts, new JobID());
 
         DistributedCache.DistributedCacheEntry executableFileEntry =
                 submittedArtifacts.get(executableFileName);

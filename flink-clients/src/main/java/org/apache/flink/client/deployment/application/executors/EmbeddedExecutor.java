@@ -32,7 +32,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.FunctionUtils;
@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -108,7 +107,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
             final Pipeline pipeline,
             final Configuration configuration,
             ClassLoader userCodeClassloader)
-            throws MalformedURLException {
+            throws Exception {
         checkNotNull(pipeline);
         checkNotNull(configuration);
 
@@ -135,12 +134,13 @@ public class EmbeddedExecutor implements PipelineExecutor {
             final Pipeline pipeline,
             final Configuration configuration,
             final ClassLoader userCodeClassloader)
-            throws MalformedURLException {
+            throws Exception {
         final Duration timeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
 
-        final JobGraph jobGraph =
-                PipelineExecutorUtils.getJobGraph(pipeline, configuration, userCodeClassloader);
-        final JobID actualJobId = jobGraph.getJobID();
+        ExecutionPlan executionPlan =
+                PipelineExecutorUtils.getStreamGraphWrapper(pipeline, configuration);
+
+        final JobID actualJobId = executionPlan.getJobID();
 
         this.submittedJobIds.add(actualJobId);
         LOG.info("Job {} is submitted.", actualJobId);
@@ -150,7 +150,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
         }
 
         final CompletableFuture<JobID> jobSubmissionFuture =
-                submitJob(configuration, dispatcherGateway, jobGraph, timeout);
+                submitJob(configuration, dispatcherGateway, executionPlan, timeout);
 
         return jobSubmissionFuture
                 .thenApplyAsync(
@@ -177,7 +177,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
                         (jobClient, throwable) -> {
                             if (throwable == null) {
                                 PipelineExecutorUtils.notifyJobStatusListeners(
-                                        pipeline, jobGraph, jobStatusChangedListeners);
+                                        pipeline, executionPlan, jobStatusChangedListeners);
                             } else {
                                 LOG.error(
                                         "Failed to submit job graph to application cluster",
@@ -189,11 +189,11 @@ public class EmbeddedExecutor implements PipelineExecutor {
     private static CompletableFuture<JobID> submitJob(
             final Configuration configuration,
             final DispatcherGateway dispatcherGateway,
-            final JobGraph jobGraph,
+            final ExecutionPlan executionPlan,
             final Duration rpcTimeout) {
-        checkNotNull(jobGraph);
+        checkNotNull(executionPlan);
 
-        LOG.info("Submitting Job with JobId={}.", jobGraph.getJobID());
+        LOG.info("Submitting Job with JobId={}.", executionPlan.getJobID());
 
         return dispatcherGateway
                 .getBlobServerPort(rpcTimeout)
@@ -204,15 +204,15 @@ public class EmbeddedExecutor implements PipelineExecutor {
                 .thenCompose(
                         blobServerAddress -> {
                             try {
-                                ClientUtils.extractAndUploadJobGraphFiles(
-                                        jobGraph,
+                                ClientUtils.extractAndUploadExecutionPlanFiles(
+                                        executionPlan,
                                         () -> new BlobClient(blobServerAddress, configuration));
                             } catch (FlinkException e) {
                                 throw new CompletionException(e);
                             }
 
-                            return dispatcherGateway.submitJob(jobGraph, rpcTimeout);
+                            return dispatcherGateway.submitJob(executionPlan, rpcTimeout);
                         })
-                .thenApply(ack -> jobGraph.getJobID());
+                .thenApply(ack -> executionPlan.getJobID());
     }
 }

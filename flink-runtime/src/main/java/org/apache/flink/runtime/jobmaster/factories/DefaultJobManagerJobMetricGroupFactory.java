@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.factories;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 
@@ -38,7 +39,7 @@ public class DefaultJobManagerJobMetricGroupFactory implements JobManagerJobMetr
     }
 
     @Override
-    public JobManagerJobMetricGroup create(@Nonnull JobGraph jobGraph) {
-        return jobManagerMetricGroup.addJob(jobGraph.getJobID(), jobGraph.getName());
+    public JobManagerJobMetricGroup create(@Nonnull ExecutionPlan executionPlan) {
+        return jobManagerMetricGroup.addJob(executionPlan.getJobID(), executionPlan.getName());
     }
 }

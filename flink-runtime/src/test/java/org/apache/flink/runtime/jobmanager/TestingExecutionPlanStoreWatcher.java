@@ -22,14 +22,14 @@ import org.apache.flink.api.common.JobID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** {@link JobGraphStoreWatcher} implementation for testing purposes. */
-public class TestingJobGraphStoreWatcher implements JobGraphStoreWatcher {
+/** {@link ExecutionPlanStoreWatcher} implementation for testing purposes. */
+public class TestingExecutionPlanStoreWatcher implements ExecutionPlanStoreWatcher {
 
-    private JobGraphStore.JobGraphListener jobGraphListener;
+    private ExecutionPlanStore.ExecutionPlanListener executionPlanListener;
 
     @Override
-    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-        this.jobGraphListener = jobGraphListener;
+    public void start(ExecutionPlanStore.ExecutionPlanListener executionPlanListener) {
+        this.executionPlanListener = executionPlanListener;
     }
 
     @Override
@@ -38,12 +38,12 @@ public class TestingJobGraphStoreWatcher implements JobGraphStoreWatcher {
     }
 
     public void addJobGraph(JobID jobID) {
-        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-        jobGraphListener.onAddedJobGraph(jobID);
+        checkNotNull(executionPlanListener, "TestingExecutionPlanStoreWatcher is not started.");
+        executionPlanListener.onAddedExecutionPlan(jobID);
     }
 
     public void removeJobGraph(JobID jobID) {
-        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-        jobGraphListener.onRemovedJobGraph(jobID);
+        checkNotNull(executionPlanListener, "TestingExecutionPlanStoreWatcher is not started.");
+        executionPlanListener.onRemovedExecutionPlan(jobID);
     }
 }

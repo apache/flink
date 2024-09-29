@@ -28,23 +28,23 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-public class StandaloneJobGraphStoreTest {
+public class StandaloneExecutionPlanStoreTest {
 
     /** Tests that all operations work and don't change the state. */
     @Test
     public void testNoOps() throws Exception {
-        StandaloneJobGraphStore jobGraphs = new StandaloneJobGraphStore();
+        StandaloneExecutionPlanStore executionPlans = new StandaloneExecutionPlanStore();
 
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
-        assertEquals(0, jobGraphs.getJobIds().size());
+        assertEquals(0, executionPlans.getJobIds().size());
 
-        jobGraphs.putJobGraph(jobGraph);
-        assertEquals(0, jobGraphs.getJobIds().size());
+        executionPlans.putExecutionPlan(jobGraph);
+        assertEquals(0, executionPlans.getJobIds().size());
 
-        jobGraphs.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
-        assertEquals(0, jobGraphs.getJobIds().size());
+        executionPlans.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
+        assertEquals(0, executionPlans.getJobIds().size());
 
-        assertNull(jobGraphs.recoverJobGraph(new JobID()));
+        assertNull(executionPlans.recoverExecutionPlan(new JobID()));
     }
 }

@@ -152,6 +152,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
                 (oldOwner, newOwner, buffer) -> {};
 
         private Runnable releaseRunnable = () -> {};
+        private Supplier<Integer> getBufferPoolSizeSupplier;
 
         public Builder() {}
 

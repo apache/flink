@@ -71,7 +71,7 @@ class JarPlanHandlerParameterTest
                         new Configuration(),
                         EXECUTOR_EXTENSION.getExecutor(),
                         jobGraph -> {
-                            LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
+                            LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
                             return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
                         });
     }

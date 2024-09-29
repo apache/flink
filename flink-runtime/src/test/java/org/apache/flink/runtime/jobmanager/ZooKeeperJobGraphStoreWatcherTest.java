@@ -45,8 +45,8 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link ZooKeeperJobGraphStoreWatcher}. */
-class ZooKeeperJobGraphStoreWatcherTest {
+/** Tests for the {@link ZooKeeperExecutionPlanStoreWatcher}. */
+class ZooKeeperExecutionPlanStoreWatcherTest {
 
     @RegisterExtension
     public EachCallbackWrapper<ZooKeeperExtension> zooKeeperExtensionWrapper =
@@ -56,7 +56,7 @@ class ZooKeeperJobGraphStoreWatcherTest {
 
     private Configuration configuration;
 
-    private TestingJobGraphListener testingJobGraphListener;
+    private TestingExecutionPlanListener testingExecutionPlanListener;
 
     @BeforeEach
     void setup() throws Exception {
@@ -67,7 +67,7 @@ class ZooKeeperJobGraphStoreWatcherTest {
         configuration.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
-        testingJobGraphListener = new TestingJobGraphListener();
+        testingExecutionPlanListener = new TestingExecutionPlanListener();
     }
 
     @Test
@@ -76,8 +76,8 @@ class ZooKeeperJobGraphStoreWatcherTest {
                 ZooKeeperUtils.startCuratorFramework(
                         configuration, NoOpFatalErrorHandler.INSTANCE)) {
             final CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
-            final JobGraphStoreWatcher jobGraphStoreWatcher =
-                    createAndStartJobGraphStoreWatcher(client);
+            final ExecutionPlanStoreWatcher executionPlanStoreWatcher =
+                    createAndStartExecutionPlanStoreWatcher(client);
 
             final ZooKeeperStateHandleStore<JobGraph> stateHandleStore =
                     createStateHandleStore(client);
@@ -87,26 +87,28 @@ class ZooKeeperJobGraphStoreWatcherTest {
             stateHandleStore.addAndLock("/" + jobID, jobGraph);
 
             CommonTestUtils.waitUntilCondition(
-                    () -> testingJobGraphListener.getAddedJobGraphs().size() > 0);
+                    () -> testingExecutionPlanListener.getAddedExecutionPlans().size() > 0);
 
-            assertThat(testingJobGraphListener.getAddedJobGraphs()).containsExactly(jobID);
+            assertThat(testingExecutionPlanListener.getAddedExecutionPlans())
+                    .containsExactly(jobID);
 
             stateHandleStore.releaseAndTryRemove("/" + jobID);
 
             CommonTestUtils.waitUntilCondition(
-                    () -> testingJobGraphListener.getRemovedJobGraphs().size() > 0);
-            assertThat(testingJobGraphListener.getRemovedJobGraphs()).containsExactly(jobID);
+                    () -> testingExecutionPlanListener.getRemovedExecutionPlans().size() > 0);
+            assertThat(testingExecutionPlanListener.getRemovedExecutionPlans())
+                    .containsExactly(jobID);
 
-            jobGraphStoreWatcher.stop();
+            executionPlanStoreWatcher.stop();
         }
     }
 
-    private JobGraphStoreWatcher createAndStartJobGraphStoreWatcher(CuratorFramework client)
-            throws Exception {
-        final ZooKeeperJobGraphStoreWatcher jobGraphStoreWatcher =
-                new ZooKeeperJobGraphStoreWatcher(new PathChildrenCache(client, "/", false));
-        jobGraphStoreWatcher.start(testingJobGraphListener);
-        return jobGraphStoreWatcher;
+    private ExecutionPlanStoreWatcher createAndStartExecutionPlanStoreWatcher(
+            CuratorFramework client) throws Exception {
+        final ZooKeeperExecutionPlanStoreWatcher executionPlanStoreWatcher =
+                new ZooKeeperExecutionPlanStoreWatcher(new PathChildrenCache(client, "/", false));
+        executionPlanStoreWatcher.start(testingExecutionPlanListener);
+        return executionPlanStoreWatcher;
     }
 
     private ZooKeeperStateHandleStore<JobGraph> createStateHandleStore(CuratorFramework client)

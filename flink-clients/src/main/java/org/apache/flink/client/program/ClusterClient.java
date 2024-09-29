@@ -25,6 +25,7 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -90,10 +91,10 @@ public interface ClusterClient<T> extends AutoCloseable {
     /**
      * Submit the given {@link JobGraph} to the cluster.
      *
-     * @param jobGraph to submit
+     * @param executionPlan to submit
      * @return {@link JobID} of the submitted job
      */
-    CompletableFuture<JobID> submitJob(JobGraph jobGraph);
+    CompletableFuture<JobID> submitJob(ExecutionPlan executionPlan);
 
     /** Requests the {@link JobStatus} of the job with the given {@link JobID}. */
     CompletableFuture<JobStatus> getJobStatus(JobID jobId);

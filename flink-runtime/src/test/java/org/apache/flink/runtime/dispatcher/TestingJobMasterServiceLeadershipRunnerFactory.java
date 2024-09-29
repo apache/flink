@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.ExecutionPlan;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
@@ -49,7 +49,7 @@ public class TestingJobMasterServiceLeadershipRunnerFactory extends TestingJobMa
 
     @Override
     public TestingJobManagerRunner createJobManagerRunner(
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             Configuration configuration,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
@@ -60,6 +60,6 @@ public class TestingJobMasterServiceLeadershipRunnerFactory extends TestingJobMa
             Collection<FailureEnricher> failureEnrichers,
             long initializationTimestamp)
             throws Exception {
-        return offerTestingJobManagerRunner(jobGraph.getJobID());
+        return offerTestingJobManagerRunner(executionPlan.getJobID());
     }
 }

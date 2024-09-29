@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.fail;
  * exceptions.
  */
 @SuppressWarnings("serial")
-class ExecutionPlanAfterExecutionTest implements Serializable {
+class ExecutionPlanAfterPersistableExecutionTest implements Serializable {
 
     @Test
     void testExecuteAfterGetExecutionPlan() {
