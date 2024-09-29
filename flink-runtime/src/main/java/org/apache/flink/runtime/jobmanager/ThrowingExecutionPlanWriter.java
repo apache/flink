@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,26 +19,23 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 
 /**
- * JobGraphStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name in
- * Kubernetes ConfigMap) to {@link JobID}, or vice versa.
+ * {@link ExecutionPlanWriter} implementation which does not allow to store {@link ExecutionPlan}.
  */
-public interface JobGraphStoreUtil {
+public enum ThrowingExecutionPlanWriter implements ExecutionPlanWriter {
+    INSTANCE;
 
-    /**
-     * Get the name in external storage from job id.
-     *
-     * @param jobId job id
-     * @return Key name in ConfigMap or child path name in ZooKeeper
-     */
-    String jobIDToName(JobID jobId);
+    @Override
+    public void putExecutionPlan(ExecutionPlan jobGraph) {
+        throw new UnsupportedOperationException("Cannot store job graphs.");
+    }
 
-    /**
-     * Get the job id from name.
-     *
-     * @param name Key name in ConfigMap or child path name in ZooKeeper
-     * @return parsed job id.
-     */
-    JobID nameToJobID(String name);
+    @Override
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        throw new UnsupportedOperationException("Cannot persist job resource requirements.");
+    }
 }

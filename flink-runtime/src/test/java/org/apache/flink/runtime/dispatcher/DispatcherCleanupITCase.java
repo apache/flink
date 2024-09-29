@@ -37,7 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -49,7 +49,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -132,15 +132,15 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
 
-        // JobGraphStore
+        // ExecutionPlanStore
         final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
         final OneShotLatch successfulCleanupLatch = new OneShotLatch();
         final int numberOfErrors = 5;
         final RuntimeException temporaryError =
                 new RuntimeException("Expected RuntimeException: Unable to remove job graph.");
         final AtomicInteger failureCount = new AtomicInteger(numberOfErrors);
-        final JobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
+        final ExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (ignoredJobId, ignoredExecutor) -> {
                                     actualGlobalCleanupCallCount.incrementAndGet();
@@ -154,8 +154,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 })
                         .build();
 
-        jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
-        haServices.setJobGraphStore(jobGraphStore);
+        executionPlanStore.start(NoOpExecutionPlanListener.INSTANCE);
+        haServices.setExecutionPlanStore(executionPlanStore);
 
         // Construct leader election.
         final TestingLeaderElection leaderElection = new TestingLeaderElection();
@@ -172,7 +172,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         TestingRetryStrategies.createWithNumberOfRetries(
                                                 numberOfErrors),
                                         jobManagerRunnerRegistry,
-                                        haServices.getJobGraphStore(),
+                                        haServices.getExecutionPlanStore(),
                                         blobServer,
                                         haServices,
                                         UnregisteredMetricGroups
@@ -194,8 +194,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         assertThat(actualGlobalCleanupCallCount.get(), equalTo(numberOfErrors + 1));
 
         assertThat(
-                "The JobGraph should be removed from JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                "The JobGraph should be removed from ExecutionPlanStore.",
+                haServices.getExecutionPlanStore().getJobIds(),
                 IsEmptyCollection.empty());
 
         CommonTestUtils.waitUntilCondition(
@@ -262,8 +262,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
         final OneShotLatch firstCleanupTriggered = new OneShotLatch();
         final CompletableFuture<JobID> successfulJobGraphCleanup = new CompletableFuture<>();
-        final JobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
+        final ExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (actualJobId, ignoredExecutor) -> {
                                     final int callCount =
@@ -281,8 +281,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 })
                         .build();
 
-        jobGraphStore.start(NoOpJobGraphListener.INSTANCE);
-        haServices.setJobGraphStore(jobGraphStore);
+        executionPlanStore.start(NoOpExecutionPlanListener.INSTANCE);
+        haServices.setExecutionPlanStore(executionPlanStore);
 
         // Construct leader election.
         final TestingLeaderElection leaderElection = new TestingLeaderElection();
@@ -315,8 +315,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 equalTo(false));
 
         assertThat(
-                "The JobGraph is still stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                "The JobGraph is still stored in the ExecutionPlanStore.",
+                haServices.getExecutionPlanStore().getJobIds(),
                 equalTo(Collections.singleton(jobId)));
         assertThat(
                 "The JobResultStore should have this job marked as dirty.",
@@ -339,8 +339,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 () -> haServices.getJobResultStore().getDirtyResults().isEmpty());
 
         assertThat(
-                "The JobGraph is not stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                "The JobGraph is not stored in the ExecutionPlanStore.",
+                haServices.getExecutionPlanStore().getJobIds(),
                 IsEmptyCollection.empty());
         assertTrue(
                 "The JobResultStore has the job listed as clean.",

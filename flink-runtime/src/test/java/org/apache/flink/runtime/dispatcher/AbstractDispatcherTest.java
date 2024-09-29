@@ -28,7 +28,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.jobmanager.StandaloneExecutionPlanStore;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -95,7 +95,7 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices = new TestingHighAvailabilityServices();
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
         haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
-        haServices.setJobGraphStore(new StandaloneJobGraphStore());
+        haServices.setExecutionPlanStore(new StandaloneExecutionPlanStore());
         haServices.setJobResultStore(new EmbeddedJobResultStore());
 
         configuration = new Configuration();
@@ -108,7 +108,7 @@ public class AbstractDispatcherTest extends TestLogger {
                 .setConfiguration(configuration)
                 .setHeartbeatServices(heartbeatServices)
                 .setHighAvailabilityServices(haServices)
-                .setJobGraphWriter(haServices.getJobGraphStore())
+                .setExecutionPlanWriter(haServices.getExecutionPlanStore())
                 .setJobResultStore(haServices.getJobResultStore())
                 .setJobManagerRunnerFactory(JobMasterServiceLeadershipRunnerFactory.INSTANCE)
                 .setCleanupRunnerFactory(CheckpointResourcesCleanupRunnerFactory.INSTANCE)

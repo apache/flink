@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,25 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 
-/** Testing implementation of {@link JobGraphWriter} which does nothing. */
-public enum NoOpJobGraphWriter implements JobGraphWriter {
-    INSTANCE;
+/**
+ * ExecutionPlanStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name
+ * in Kubernetes ConfigMap) to {@link JobID}, or vice versa.
+ */
+public interface ExecutionPlanStoreUtil {
 
-    @Override
-    public void putJobGraph(JobGraph jobGraph) {
-        // No-op.
-    }
+    /**
+     * Get the name in external storage from job id.
+     *
+     * @param jobId job id
+     * @return Key name in ConfigMap or child path name in ZooKeeper
+     */
+    String jobIDToName(JobID jobId);
 
-    @Override
-    public void putJobResourceRequirements(
-            JobID jobId, JobResourceRequirements jobResourceRequirements) {
-        // No-op.
-    }
+    /**
+     * Get the job id from name.
+     *
+     * @param name Key name in ConfigMap or child path name in ZooKeeper
+     * @return parsed job id.
+     */
+    JobID nameToJobID(String name);
 }

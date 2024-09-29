@@ -25,8 +25,8 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
+import org.apache.flink.runtime.jobmanager.StandaloneExecutionPlanStore;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -70,11 +70,11 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
     }
 
     @Override
-    public JobGraphStore getJobGraphStore() throws Exception {
+    public ExecutionPlanStore getExecutionPlanStore() throws Exception {
         synchronized (lock) {
             checkNotShutdown();
 
-            return new StandaloneJobGraphStore();
+            return new StandaloneExecutionPlanStore();
         }
     }
 

@@ -19,19 +19,21 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 
-/** No operation {@link JobGraphStore.JobGraphListener} implemetation for testing purposes. */
-public enum NoOpJobGraphListener implements JobGraphStore.JobGraphListener {
+/**
+ * No operation {@link ExecutionPlanStore.ExecutionPlanListener} implemetation for testing purposes.
+ */
+public enum NoOpExecutionPlanListener implements ExecutionPlanStore.ExecutionPlanListener {
     INSTANCE;
 
     @Override
-    public void onAddedJobGraph(JobID jobId) {
+    public void onAddedExecutionPlan(JobID jobId) {
         // No op
     }
 
     @Override
-    public void onRemovedJobGraph(JobID jobId) {
+    public void onRemovedExecutionPlan(JobID jobId) {
         // No op
     }
 }

@@ -93,18 +93,16 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
-
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -113,7 +111,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -186,7 +183,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .setHighAvailabilityServices(haServices)
                         .setHeartbeatServices(heartbeatServices)
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setJobGraphWriter(haServices.getJobGraphStore())
+                        .setExecutionPlanWriter(haServices.getExecutionPlanStore())
                         .setJobResultStore(haServices.getJobResultStore())
                         .build(rpcService);
         dispatcher.start();
@@ -958,14 +955,14 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testPersistedJobGraphWhenDispatcherIsShutDown() throws Exception {
-        final TestingJobGraphStore submittedJobGraphStore =
-                TestingJobGraphStore.newBuilder().build();
-        submittedJobGraphStore.start(null);
-        haServices.setJobGraphStore(submittedJobGraphStore);
+        final TestingExecutionPlanStore submittedExecutionPlanStore =
+                TestingExecutionPlanStore.newBuilder().build();
+        submittedExecutionPlanStore.start(null);
+        haServices.setExecutionPlanStore(submittedExecutionPlanStore);
 
         dispatcher =
                 createTestingDispatcherBuilder()
-                        .setJobGraphWriter(submittedJobGraphStore)
+                        .setExecutionPlanWriter(submittedExecutionPlanStore)
                         .build(rpcService);
 
         dispatcher.start();
@@ -978,7 +975,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcher.close();
 
-        assertThat(submittedJobGraphStore.contains(jobGraph.getJobID()), Matchers.is(true));
+        assertThat(submittedExecutionPlanStore.contains(jobGraph.getJobID()), Matchers.is(true));
     }
 
     /** Tests that a submitted job is suspended if the Dispatcher is terminated. */
@@ -1065,8 +1062,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final CompletableFuture<JobID> removeJobGraphFuture = new CompletableFuture<>();
         final CompletableFuture<JobID> releaseJobGraphFuture = new CompletableFuture<>();
 
-        final TestingJobGraphStore testingJobGraphStore =
-                TestingJobGraphStore.newBuilder()
+        final TestingExecutionPlanStore testingExecutionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (jobId, executor) -> {
                                     removeJobGraphFuture.complete(jobId);
@@ -1078,17 +1075,17 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                     return FutureUtils.completedVoidFuture();
                                 })
                         .build();
-        testingJobGraphStore.start(null);
+        testingExecutionPlanStore.start(null);
 
         dispatcher =
                 createTestingDispatcherBuilder()
                         .setRecoveredJobs(Collections.singleton(jobGraph))
-                        .setJobGraphWriter(testingJobGraphStore)
+                        .setExecutionPlanWriter(testingExecutionPlanStore)
                         .build(rpcService);
         dispatcher.start();
 
         final CompletableFuture<Void> processFuture =
-                dispatcher.onRemovedJobGraph(jobGraph.getJobID());
+                dispatcher.onRemovedExecutionPlan(jobGraph.getJobID());
 
         processFuture.join();
 
@@ -1096,7 +1093,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         try {
             removeJobGraphFuture.get(10L, TimeUnit.MILLISECONDS);
-            fail("onRemovedJobGraph should not remove the job from the JobGraphStore.");
+            fail("onRemovedExecutionPlan should not remove the job from the ExecutionPlanStore.");
         } catch (TimeoutException expected) {
         }
     }
@@ -1346,15 +1343,15 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         final AtomicReference<CompletableFuture<Void>> jobGraphPersistedFutureRef =
                 new AtomicReference<>();
-        final TestingJobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
-                        .setPutJobGraphConsumer(
+        final TestingExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
+                        .setPutExecutionPlanConsumer(
                                 jobGraph ->
                                         Optional.ofNullable(jobGraphPersistedFutureRef.get())
                                                 .map(f -> f.complete(null)))
                         .build();
-        haServices.setJobGraphStore(jobGraphStore);
-        jobGraphStore.start(null);
+        haServices.setExecutionPlanStore(executionPlanStore);
+        executionPlanStore.start(null);
 
         dispatcher =
                 createAndStartDispatcher(
@@ -1390,15 +1387,15 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // the adaptive scheduler isn't strictly required, but it simplifies testing
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
 
-        final TestingJobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
+        final TestingExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setPutJobResourceRequirementsConsumer(
                                 (i1, i2) -> {
                                     throw new RuntimeException("artificial persist failure");
                                 })
                         .build();
-        haServices.setJobGraphStore(jobGraphStore);
-        jobGraphStore.start(null);
+        haServices.setExecutionPlanStore(executionPlanStore);
+        executionPlanStore.start(null);
 
         dispatcher =
                 createAndStartDispatcher(

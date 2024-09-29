@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -42,12 +42,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 
-/** In-Memory implementation of {@link JobGraphStore} for testing purposes. */
-public class TestingJobGraphStore implements JobGraphStore {
+/** In-Memory implementation of {@link ExecutionPlanStore} for testing purposes. */
+public class TestingExecutionPlanStore implements ExecutionPlanStore {
 
-    private final Map<JobID, JobGraph> storedJobs = new HashMap<>();
+    private final Map<JobID, ExecutionPlan> storedJobs = new HashMap<>();
 
-    private final ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer;
+    private final ThrowingConsumer<ExecutionPlanListener, ? extends Exception> startConsumer;
 
     private final ThrowingRunnable<? extends Exception> stopRunnable;
 
@@ -55,12 +55,13 @@ public class TestingJobGraphStore implements JobGraphStore {
             jobIdsFunction;
 
     private final BiFunctionWithException<
-                    JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
-            recoverJobGraphFunction;
+                    JobID, Map<JobID, ExecutionPlan>, ExecutionPlan, ? extends Exception>
+            recoverExecutionPlanFunction;
 
-    private final ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer;
+    private final ThrowingConsumer<ExecutionPlan, ? extends Exception> putExecutionPlanConsumer;
 
-    private final BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+    private final BiConsumerWithException<
+                    ExecutionPlan, JobResourceRequirements, ? extends Exception>
             putJobResourceRequirementsConsumer;
 
     private final BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction;
@@ -69,36 +70,38 @@ public class TestingJobGraphStore implements JobGraphStore {
 
     private boolean started;
 
-    private TestingJobGraphStore(
-            ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer,
+    private TestingExecutionPlanStore(
+            ThrowingConsumer<ExecutionPlanListener, ? extends Exception> startConsumer,
             ThrowingRunnable<? extends Exception> stopRunnable,
             FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception>
                     jobIdsFunction,
-            BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
-                    recoverJobGraphFunction,
-            ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
-            BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+            BiFunctionWithException<
+                            JobID, Map<JobID, ExecutionPlan>, ExecutionPlan, ? extends Exception>
+                    recoverExecutionPlanFunction,
+            ThrowingConsumer<ExecutionPlan, ? extends Exception> putExecutionPlanConsumer,
+            BiConsumerWithException<ExecutionPlan, JobResourceRequirements, ? extends Exception>
                     putJobResourceRequirementsConsumer,
             BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction,
             BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupFunction,
-            Collection<JobGraph> initialJobGraphs) {
+            Collection<ExecutionPlan> initialExecutionPlans) {
         this.startConsumer = startConsumer;
         this.stopRunnable = stopRunnable;
         this.jobIdsFunction = jobIdsFunction;
-        this.recoverJobGraphFunction = recoverJobGraphFunction;
-        this.putJobGraphConsumer = putJobGraphConsumer;
+        this.recoverExecutionPlanFunction = recoverExecutionPlanFunction;
+        this.putExecutionPlanConsumer = putExecutionPlanConsumer;
         this.putJobResourceRequirementsConsumer = putJobResourceRequirementsConsumer;
         this.globalCleanupFunction = globalCleanupFunction;
         this.localCleanupFunction = localCleanupFunction;
 
-        for (JobGraph initialJobGraph : initialJobGraphs) {
-            storedJobs.put(initialJobGraph.getJobID(), initialJobGraph);
+        for (ExecutionPlan initialExecutionPlan : initialExecutionPlans) {
+            storedJobs.put(initialExecutionPlan.getJobID(), initialExecutionPlan);
         }
     }
 
     @Override
-    public synchronized void start(@Nullable JobGraphListener jobGraphListener) throws Exception {
-        startConsumer.accept(jobGraphListener);
+    public synchronized void start(@Nullable ExecutionPlanListener executionPlanListener)
+            throws Exception {
+        startConsumer.accept(executionPlanListener);
         started = true;
     }
 
@@ -109,25 +112,25 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public synchronized JobGraph recoverJobGraph(JobID jobId) throws Exception {
+    public synchronized ExecutionPlan recoverExecutionPlan(JobID jobId) throws Exception {
         verifyIsStarted();
-        return recoverJobGraphFunction.apply(jobId, storedJobs);
+        return recoverExecutionPlanFunction.apply(jobId, storedJobs);
     }
 
     @Override
-    public synchronized void putJobGraph(JobGraph jobGraph) throws Exception {
+    public synchronized void putExecutionPlan(ExecutionPlan executionPlan) throws Exception {
         verifyIsStarted();
-        putJobGraphConsumer.accept(jobGraph);
-        storedJobs.put(jobGraph.getJobID(), jobGraph);
+        putExecutionPlanConsumer.accept(executionPlan);
+        storedJobs.put(executionPlan.getJobID(), executionPlan);
     }
 
     @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         verifyIsStarted();
-        final JobGraph jobGraph =
+        final ExecutionPlan executionPlan =
                 Preconditions.checkNotNull(storedJobs.get(jobId), "Job [%s] not found.", jobId);
-        putJobResourceRequirementsConsumer.accept(jobGraph, jobResourceRequirements);
+        putJobResourceRequirementsConsumer.accept(executionPlan, jobResourceRequirements);
     }
 
     @Override
@@ -161,9 +164,9 @@ public class TestingJobGraphStore implements JobGraphStore {
         return new Builder();
     }
 
-    /** {@code Builder} for creating {@code TestingJobGraphStore} instances. */
+    /** {@code Builder} for creating {@code TestingExecutionPlanStore} instances. */
     public static class Builder {
-        private ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer =
+        private ThrowingConsumer<ExecutionPlanListener, ? extends Exception> startConsumer =
                 ignored -> {};
 
         private ThrowingRunnable<? extends Exception> stopRunnable = () -> {};
@@ -171,12 +174,14 @@ public class TestingJobGraphStore implements JobGraphStore {
         private FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception>
                 jobIdsFunction = jobIds -> jobIds;
 
-        private BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
-                recoverJobGraphFunction = (jobId, jobs) -> jobs.get(jobId);
+        private BiFunctionWithException<
+                        JobID, Map<JobID, ExecutionPlan>, ExecutionPlan, ? extends Exception>
+                recoverExecutionPlanFunction = (jobId, jobs) -> jobs.get(jobId);
 
-        private ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer = ignored -> {};
+        private ThrowingConsumer<ExecutionPlan, ? extends Exception> putExecutionPlanConsumer =
+                ignored -> {};
 
-        private BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+        private BiConsumerWithException<ExecutionPlan, JobResourceRequirements, ? extends Exception>
                 putJobResourceRequirementsConsumer = (graph, requirements) -> {};
 
         private BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupFunction =
@@ -185,14 +190,14 @@ public class TestingJobGraphStore implements JobGraphStore {
         private BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupFunction =
                 (ignoredJobId, ignoredExecutor) -> FutureUtils.completedVoidFuture();
 
-        private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
+        private Collection<ExecutionPlan> initialExecutionPlans = Collections.emptyList();
 
-        private boolean startJobGraphStore = false;
+        private boolean startExecutionPlanStore = false;
 
         private Builder() {}
 
         public Builder setStartConsumer(
-                ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer) {
+                ThrowingConsumer<ExecutionPlanListener, ? extends Exception> startConsumer) {
             this.startConsumer = startConsumer;
             return this;
         }
@@ -209,21 +214,25 @@ public class TestingJobGraphStore implements JobGraphStore {
             return this;
         }
 
-        public Builder setRecoverJobGraphFunction(
-                BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception>
-                        recoverJobGraphFunction) {
-            this.recoverJobGraphFunction = recoverJobGraphFunction;
+        public Builder setRecoverExecutionPlanFunction(
+                BiFunctionWithException<
+                                JobID,
+                                Map<JobID, ExecutionPlan>,
+                                ExecutionPlan,
+                                ? extends Exception>
+                        recoverExecutionPlanFunction) {
+            this.recoverExecutionPlanFunction = recoverExecutionPlanFunction;
             return this;
         }
 
-        public Builder setPutJobGraphConsumer(
-                ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer) {
-            this.putJobGraphConsumer = putJobGraphConsumer;
+        public Builder setPutExecutionPlanConsumer(
+                ThrowingConsumer<ExecutionPlan, ? extends Exception> putExecutionPlanConsumer) {
+            this.putExecutionPlanConsumer = putExecutionPlanConsumer;
             return this;
         }
 
         public Builder setPutJobResourceRequirementsConsumer(
-                BiConsumerWithException<JobGraph, JobResourceRequirements, ? extends Exception>
+                BiConsumerWithException<ExecutionPlan, JobResourceRequirements, ? extends Exception>
                         putJobResourceRequirementsConsumer) {
             this.putJobResourceRequirementsConsumer = putJobResourceRequirementsConsumer;
             return this;
@@ -241,38 +250,38 @@ public class TestingJobGraphStore implements JobGraphStore {
             return this;
         }
 
-        public Builder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
-            this.initialJobGraphs = initialJobGraphs;
+        public Builder setInitialExecutionPlans(Collection<ExecutionPlan> initialExecutionPlans) {
+            this.initialExecutionPlans = initialExecutionPlans;
             return this;
         }
 
         public Builder withAutomaticStart() {
-            this.startJobGraphStore = true;
+            this.startExecutionPlanStore = true;
             return this;
         }
 
-        public TestingJobGraphStore build() {
-            final TestingJobGraphStore jobGraphStore =
-                    new TestingJobGraphStore(
+        public TestingExecutionPlanStore build() {
+            final TestingExecutionPlanStore executionPlanStore =
+                    new TestingExecutionPlanStore(
                             startConsumer,
                             stopRunnable,
                             jobIdsFunction,
-                            recoverJobGraphFunction,
-                            putJobGraphConsumer,
+                            recoverExecutionPlanFunction,
+                            putExecutionPlanConsumer,
                             putJobResourceRequirementsConsumer,
                             globalCleanupFunction,
                             localCleanupFunction,
-                            initialJobGraphs);
+                            initialExecutionPlans);
 
-            if (startJobGraphStore) {
+            if (startExecutionPlanStore) {
                 try {
-                    jobGraphStore.start(null);
+                    executionPlanStore.start(null);
                 } catch (Exception e) {
                     ExceptionUtils.rethrow(e);
                 }
             }
 
-            return jobGraphStore;
+            return executionPlanStore;
         }
     }
 }

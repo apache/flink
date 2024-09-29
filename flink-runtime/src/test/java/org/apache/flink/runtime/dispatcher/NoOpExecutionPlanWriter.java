@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,51 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 
-import java.util.Collection;
-import java.util.Collections;
-
-/**
- * {@link JobGraph} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
- *
- * <p>All operations are NoOps, because {@link JobGraph} instances cannot be recovered in this
- * recovery mode.
- */
-public class StandaloneJobGraphStore implements JobGraphStore {
+/** Testing implementation of {@link ExecutionPlanWriter} which does nothing. */
+public enum NoOpExecutionPlanWriter implements ExecutionPlanWriter {
+    INSTANCE;
 
     @Override
-    public void start(JobGraphListener jobGraphListener) throws Exception {
-        // Nothing to do
-    }
-
-    @Override
-    public void stop() {
-        // Nothing to do
-    }
-
-    @Override
-    public void putJobGraph(JobGraph jobGraph) {
-        // Nothing to do
+    public void putExecutionPlan(ExecutionPlan executionPlan) {
+        // No-op.
     }
 
     @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) {
-        // Nothing to do
-    }
-
-    @Override
-    public Collection<JobID> getJobIds() {
-        return Collections.emptyList();
-    }
-
-    @Override
-    public JobGraph recoverJobGraph(JobID jobId) {
-        return null;
+        // No-op.
     }
 }

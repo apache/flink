@@ -19,27 +19,26 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
 import javax.annotation.Nullable;
-
 import java.util.Collection;
 
-/** {@link JobGraph} instances for recovery. */
-public interface JobGraphStore extends JobGraphWriter {
+/** {@link ExecutionPlan} instances for recovery. */
+public interface ExecutionPlanStore extends ExecutionPlanWriter {
 
-    /** Starts the {@link JobGraphStore} service. */
-    void start(JobGraphListener jobGraphListener) throws Exception;
+    /** Starts the {@link ExecutionPlanStore} service. */
+    void start(ExecutionPlanListener executionPlanListener) throws Exception;
 
-    /** Stops the {@link JobGraphStore} service. */
+    /** Stops the {@link ExecutionPlanStore} service. */
     void stop() throws Exception;
 
     /**
-     * Returns the {@link JobGraph} with the given {@link JobID} or {@code null} if no job was
+     * Returns the {@link ExecutionPlan} with the given {@link JobID} or {@code null} if no job was
      * registered.
      */
     @Nullable
-    JobGraph recoverJobGraph(JobID jobId) throws Exception;
+    ExecutionPlan recoverExecutionPlan(JobID jobId) throws Exception;
 
     /**
      * Get all job ids of submitted job graphs to the submitted job graph store.
@@ -50,28 +49,28 @@ public interface JobGraphStore extends JobGraphWriter {
     Collection<JobID> getJobIds() throws Exception;
 
     /**
-     * A listener for {@link JobGraph} instances. This is used to react to races between multiple
-     * running {@link JobGraphStore} instances (on multiple job managers).
+     * A listener for {@link ExecutionPlan} instances. This is used to react to races between
+     * multiple running {@link ExecutionPlanStore} instances (on multiple job managers).
      */
-    interface JobGraphListener {
+    interface ExecutionPlanListener {
 
         /**
-         * Callback for {@link JobGraph} instances added by a different {@link JobGraphStore}
-         * instance.
+         * Callback for {@link ExecutionPlan} instances added by a different {@link
+         * ExecutionPlanStore} instance.
          *
          * <p><strong>Important:</strong> It is possible to get false positives and be notified
          * about a job graph, which was added by this instance.
          *
          * @param jobId The {@link JobID} of the added job graph
          */
-        void onAddedJobGraph(JobID jobId);
+        void onAddedExecutionPlan(JobID jobId);
 
         /**
-         * Callback for {@link JobGraph} instances removed by a different {@link JobGraphStore}
-         * instance.
+         * Callback for {@link ExecutionPlan} instances removed by a different {@link
+         * ExecutionPlanStore} instance.
          *
          * @param jobId The {@link JobID} of the removed job graph
          */
-        void onRemovedJobGraph(JobID jobId);
+        void onRemovedExecutionPlan(JobID jobId);
     }
 }
