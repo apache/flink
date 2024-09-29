@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.utils.RefreshModeUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -103,7 +104,7 @@ public class SqlCreateMaterializedTableConverter
         // only MATERIALIZED_TABLE_FRESHNESS_THRESHOLD configured in flink conf yaml work, so we get
         // it from rootConfiguration instead of table config
         CatalogMaterializedTable.RefreshMode refreshMode =
-                MaterializedTableUtils.deriveRefreshMode(
+                RefreshModeUtils.deriveRefreshMode(
                         context.getTableConfig()
                                 .getRootConfiguration()
                                 .get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD),

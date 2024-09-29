@@ -61,6 +61,7 @@ import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
+import org.quartz.impl.triggers.CronTriggerImpl;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -788,7 +789,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         getClass().getClassLoader())
                                 .getJobId()));
 
-        // suspend materialized table
+        // setup savepoint dir
         String savepointDir = temporaryPath.toString();
         String alterJobSavepointDDL =
                 String.format(
@@ -1572,6 +1573,470 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         dropMaterializedTable(
                 ObjectIdentifier.of(
                         fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+    }
+
+    @Test
+    void testAlterMaterializedTableFreshnessInContinuousMode(@TempDir Path temporaryPath)
+            throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM filesystemSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        ContinuousRefreshHandler continuousRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(continuousRefreshHandler.getJobId()));
+        assertThat(
+                        getCheckpointIntervalConfig(
+                                restClusterClient, continuousRefreshHandler.getJobId()))
+                .isEqualTo(30000);
+
+        // setup savepoint dir
+        String savepointDir = temporaryPath.toString();
+        String alterJobSavepointDDL =
+                String.format(
+                        "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'", savepointDir);
+        OperationHandle alterMaterializedTableSavepointHandle =
+                service.executeStatement(
+                        sessionHandle, alterJobSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSavepointHandle);
+
+        // alter materialized table freshness to 60 seconds (CONTINUOUS -> CONTINUOUS)
+        String alterMaterializedTableDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '60' SECOND";
+
+        OperationHandle alterMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableHandle);
+
+        ResolvedCatalogMaterializedTable alteredMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        ContinuousRefreshHandler alteredRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        alteredMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(alteredRefreshHandler.getJobId()));
+
+        assertThat(getCheckpointIntervalConfig(restClusterClient, alteredRefreshHandler.getJobId()))
+                .isEqualTo(60000L);
+
+        // setup savepoint dir
+        String setSavepointDirDDL =
+                String.format(
+                        "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'",
+                        temporaryPath.toString());
+        OperationHandle setSavepointDirHandle =
+                service.executeStatement(
+                        sessionHandle, setSavepointDirDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, setSavepointDirHandle);
+
+        // alter materialized table freshness to 1 hour (CONTINUOUS -> FULL)
+        String alterFreshnessDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '1' HOUR";
+        OperationHandle alterFreshnessHandle =
+                service.executeStatement(sessionHandle, alterFreshnessDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterFreshnessHandle);
+
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+
+        // verify materialized table is in continuous mode and checkpoint interval is 1h
+        actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(actualMaterializedTable.getRefreshMode()).isEqualTo(RefreshMode.FULL);
+
+        EmbeddedRefreshHandler embeddedRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+        JobKey jobKey =
+                JobKey.jobKey(
+                        embeddedRefreshHandler.getWorkflowName(),
+                        embeddedRefreshHandler.getWorkflowGroup());
+        Trigger trigger =
+                embeddedWorkflowScheduler.getQuartzScheduler().getTriggersOfJob(jobKey).get(0);
+        assertThat(((CronTriggerImpl) trigger).getCronExpression()).isEqualTo("0 0 0/1 * * ? *");
+
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testAlterMaterializedTableFreshnessInFullMode() throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' MINUTES\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM filesystemSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        EmbeddedRefreshHandler embeddedRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+        assertThat(embeddedRefreshHandler.getWorkflowName())
+                .isEqualTo(
+                        "quartz_job_"
+                                + ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(embeddedRefreshHandler.getWorkflowGroup()).isEqualTo("default_group");
+
+        JobKey jobKey =
+                JobKey.jobKey(
+                        embeddedRefreshHandler.getWorkflowName(),
+                        embeddedRefreshHandler.getWorkflowGroup());
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+
+        // verify refresh workflow is created
+        Trigger trigger =
+                embeddedWorkflowScheduler.getQuartzScheduler().getTriggersOfJob(jobKey).get(0);
+        assertThat(((CronTriggerImpl) trigger).getCronExpression()).isEqualTo("0 0/30 * * * ? *");
+
+        // alter materialized table freshness to 1 hour (FULL -> FULL)
+        String alterMaterializedTableDDL =
+                String.format(
+                        "ALTER MATERIALIZED TABLE %s SET FRESHNESS = INTERVAL '1' HOUR",
+                        "users_shops");
+        OperationHandle alterMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableHandle);
+
+        // verify refresh workflow is updated
+        trigger = embeddedWorkflowScheduler.getQuartzScheduler().getTriggersOfJob(jobKey).get(0);
+        assertThat(((CronTriggerImpl) trigger).getCronExpression()).isEqualTo("0 0 0/1 * * ? *");
+
+        // alter materialized table freshness to 1 minute (FULL -> CONTINUOUS)
+        String alterFreshnessDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '1' MINUTE";
+        OperationHandle alterFreshnessHandle =
+                service.executeStatement(sessionHandle, alterFreshnessDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterFreshnessHandle);
+
+        // verify materialized table is in continuous mode and checkpoint interval is 1 minute.
+        actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(actualMaterializedTable.getRefreshMode()).isEqualTo(RefreshMode.CONTINUOUS);
+
+        ContinuousRefreshHandler continuousRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+        assertThat(
+                        getCheckpointIntervalConfig(
+                                restClusterClient, continuousRefreshHandler.getJobId()))
+                .isEqualTo(60000);
+
+        // drop materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testAlterContinuousModeMaterializedFreshnessInSuspendedState(@TempDir Path temporayPath)
+            throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECONDS\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM filesystemSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        ContinuousRefreshHandler continuousRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(continuousRefreshHandler.getJobId()));
+
+        // setup savepoint dir
+        String alterJobSavepointDDL =
+                String.format(
+                        "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'",
+                        temporayPath.toString());
+        OperationHandle setSavepointHandle =
+                service.executeStatement(
+                        sessionHandle, alterJobSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, setSavepointHandle);
+
+        // suspend materialized table
+        String alterMaterializedTableDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableHandle);
+
+        // alter materialized table freshness to 1 min (CONTINUOUS -> CONTINUOUS)
+        String alterMaterializedTableFreshnessDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '1' MINUTE";
+        OperationHandle alterMaterializedTableFreshnessHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableFreshnessDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableFreshnessHandle);
+
+        actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(actualMaterializedTable.getDefinitionFreshness().toString())
+                .isEqualTo("INTERVAL '1' MINUTE");
+
+        // alter materialized table freshness to 1 hour (CONTINUOUS -> FULL)
+        alterMaterializedTableFreshnessDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '1' HOUR";
+        final OperationHandle alterMaterializedTableFreshnessHandle2 =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableFreshnessDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        alterMaterializedTableFreshnessHandle2))
+                .rootCause()
+                .isInstanceOf(SqlExecutionException.class)
+                .hasMessage(
+                        String.format(
+                                "Cannot alter freshness of materialized table %s: Creating workflow in SUSPENDED mode is not supported.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString()));
+
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testAlterFullModeMaterializedFreshnessInSuspendedState() throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '1' HOUR\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM filesystemSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        EmbeddedRefreshHandler embeddedRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+        JobKey jobKey =
+                JobKey.jobKey(
+                        embeddedRefreshHandler.getWorkflowName(),
+                        embeddedRefreshHandler.getWorkflowGroup());
+        Trigger trigger =
+                embeddedWorkflowScheduler.getQuartzScheduler().getTriggersOfJob(jobKey).get(0);
+        assertThat(((CronTriggerImpl) trigger).getCronExpression()).isEqualTo("0 0 0/1 * * ? *");
+
+        // suspend materialized table
+        String alterMaterializedTableDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableHandle);
+
+        Trigger.TriggerState suspendTriggerState =
+                embeddedWorkflowScheduler
+                        .getQuartzScheduler()
+                        .getTriggerState(
+                                TriggerKey.triggerKey(jobKey.getName(), jobKey.getGroup()));
+
+        assertThat(suspendTriggerState).isEqualTo(Trigger.TriggerState.PAUSED);
+
+        // alter materialized table freshness to 2 HOUR (FULL -> FULL)
+        String alterMaterializedTableFreshnessDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '2' HOUR";
+        OperationHandle alterMaterializedTableFreshnessHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableFreshnessDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableFreshnessHandle);
+
+        actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(actualMaterializedTable.getDefinitionFreshness().toString())
+                .isEqualTo("INTERVAL '2' HOUR");
+
+        trigger = embeddedWorkflowScheduler.getQuartzScheduler().getTriggersOfJob(jobKey).get(0);
+        assertThat(((CronTriggerImpl) trigger).getCronExpression()).isEqualTo("0 0 0/2 * * ? *");
+
+        suspendTriggerState =
+                embeddedWorkflowScheduler
+                        .getQuartzScheduler()
+                        .getTriggerState(
+                                TriggerKey.triggerKey(jobKey.getName(), jobKey.getGroup()));
+
+        assertThat(suspendTriggerState).isEqualTo(Trigger.TriggerState.PAUSED);
+
+        // alter materialized table freshness to 1 minute (FULL -> CONTINUOUS)
+        alterMaterializedTableFreshnessDDL =
+                "ALTER MATERIALIZED TABLE users_shops SET FRESHNESS = INTERVAL '1' MINUTE";
+        final OperationHandle alterMaterializedTableFreshnessHandle2 =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableFreshnessDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableFreshnessHandle2);
+
+        actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(actualMaterializedTable.getDefinitionFreshness().toString())
+                .isEqualTo("INTERVAL '1' MINUTE");
+        assertThat(actualMaterializedTable.getRefreshMode()).isEqualTo(RefreshMode.CONTINUOUS);
+        assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isFalse();
+
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     private int getPartitionSize(List<Row> data, String partition) {

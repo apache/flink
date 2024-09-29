@@ -209,6 +209,24 @@ public abstract class AbstractMaterializedTableStatementITCase {
                         + "  'rows-per-second' = '10'\n"
                         + ")";
         service.configureSession(sessionHandle, dataGenSource, -1);
+
+        String filesystemSource =
+                "CREATE TABLE filesystemSource (\n"
+                        + "  order_id BIGINT,\n"
+                        + "  order_number VARCHAR(20),\n"
+                        + "  user_id BIGINT,\n"
+                        + "  shop_id BIGINT,\n"
+                        + "  product_id BIGINT,\n"
+                        + "  status BIGINT,\n"
+                        + "  order_type BIGINT,\n"
+                        + "  order_created_at TIMESTAMP,\n"
+                        + "  payment_amount_cents BIGINT\n"
+                        + ") with (\n"
+                        + "  'format' = 'json',\n"
+                        + "  'source.monitor-interval' = '10s'"
+                        + ")";
+        service.configureSession(sessionHandle, filesystemSource, -1);
+
         return sessionHandle;
     }
 

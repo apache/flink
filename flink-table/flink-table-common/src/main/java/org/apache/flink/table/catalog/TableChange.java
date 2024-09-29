@@ -380,6 +380,26 @@ public interface TableChange {
         return new ModifyRefreshHandler(refreshHandlerDesc, refreshHandlerBytes);
     }
 
+    /**
+     * A table change to modify materialized table freshness.
+     *
+     * @param freshness the modified freshness.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyFreshness modifyFreshnessHandler(IntervalFreshness freshness) {
+        return new ModifyFreshness(freshness);
+    }
+
+    /**
+     * A table change to modify materialized table refresh mode.
+     *
+     * @param refreshMode the modified refresh mode.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyRefreshMode modifyRefreshMode(CatalogMaterializedTable.RefreshMode refreshMode) {
+        return new ModifyRefreshMode(refreshMode);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Add Change
     // --------------------------------------------------------------------------------------------
@@ -1372,6 +1392,68 @@ public interface TableChange {
                     + ", refreshHandlerBytes="
                     + Arrays.toString(refreshHandlerBytes)
                     + '}';
+        }
+    }
+
+    /** A table change to modify materialized table freshness. */
+    @PublicEvolving
+    class ModifyFreshness implements MaterializedTableChange {
+
+        private final IntervalFreshness freshness;
+
+        public ModifyFreshness(IntervalFreshness freshness) {
+            this.freshness = freshness;
+        }
+
+        public IntervalFreshness getFreshness() {
+            return freshness;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ModifyFreshness that = (ModifyFreshness) o;
+            return Objects.equals(freshness, that.freshness);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(freshness);
+        }
+    }
+
+    /** A table change to modify materialized table refresh mode. */
+    class ModifyRefreshMode implements MaterializedTableChange {
+        private final CatalogMaterializedTable.RefreshMode refreshMode;
+
+        public ModifyRefreshMode(CatalogMaterializedTable.RefreshMode refreshMode) {
+            this.refreshMode = refreshMode;
+        }
+
+        public CatalogMaterializedTable.RefreshMode getRefreshMode() {
+            return refreshMode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ModifyRefreshMode that = (ModifyRefreshMode) o;
+            return Objects.equals(refreshMode, that.refreshMode);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(refreshMode);
         }
     }
 }
