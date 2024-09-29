@@ -54,6 +54,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
@@ -109,12 +110,10 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
-
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
@@ -254,7 +253,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             JobMasterId jobMasterId,
             JobMasterConfiguration jobMasterConfiguration,
             ResourceID resourceId,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             HighAvailabilityServices highAvailabilityService,
             SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
             JobManagerSharedServices jobManagerSharedServices,
@@ -276,7 +275,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 rpcService,
                 RpcServiceUtils.createRandomName(JOB_MANAGER_NAME),
                 jobMasterId,
-                MdcUtils.asContextData(jobGraph.getJobID()));
+                MdcUtils.asContextData(executionPlan.getJobID()));
 
         final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler =
                 new ExecutionDeploymentReconciliationHandler() {
@@ -317,8 +316,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         }
                     }
                 };
-        final String jobName = jobGraph.getName();
-        final JobID jid = jobGraph.getJobID();
+        final String jobName = executionPlan.getName();
+        final JobID jid = executionPlan.getJobID();
+
+        this.jobGraph = (JobGraph) executionPlan;
 
         log.info("Initializing job '{}' ({}).", jobName, jid);
 
@@ -328,7 +329,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
         this.resourceId = checkNotNull(resourceId);
-        this.jobGraph = checkNotNull(jobGraph);
         this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
         this.highAvailabilityServices = checkNotNull(highAvailabilityService);
         this.blobWriter = jobManagerSharedServices.getBlobWriter();
