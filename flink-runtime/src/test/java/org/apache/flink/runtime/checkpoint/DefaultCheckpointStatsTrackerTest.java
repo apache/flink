@@ -534,9 +534,10 @@ class DefaultCheckpointStatsTrackerTest {
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
                                 DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC,
+                                DefaultCheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC,
                                 DefaultCheckpointStatsTracker
-                                        .LATEST_COMPLETED_CHECKPOINT_ID_METRIC));
-        assertThat(registeredGaugeNames).hasSize(12);
+                                        .LATEST_CHECKPOINT_COMPLETED_TIMESTAMP));
+        assertThat(registeredGaugeNames).hasSize(13);
     }
 
     /**
@@ -565,7 +566,7 @@ class DefaultCheckpointStatsTrackerTest {
         CheckpointStatsTracker stats = new DefaultCheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
-        assertThat(registeredGauges).hasSize(12);
+        assertThat(registeredGauges).hasSize(13);
 
         // Check initial values
         Gauge<Long> numCheckpoints =
@@ -626,6 +627,11 @@ class DefaultCheckpointStatsTrackerTest {
                         registeredGauges.get(
                                 DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_ID_METRIC);
+        Gauge<Long> latestCompletedTimestamp =
+                (Gauge<Long>)
+                        registeredGauges.get(
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_CHECKPOINT_COMPLETED_TIMESTAMP);
 
         assertThat(numCheckpoints.getValue()).isZero();
         assertThat(numInProgressCheckpoints.getValue()).isZero();
@@ -639,6 +645,7 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(latestPersistedData.getValue()).isEqualTo(-1);
         assertThat(latestCompletedExternalPath.getValue()).isEqualTo("n/a");
         assertThat(latestCompletedId.getValue()).isEqualTo(-1);
+        assertThat(latestCompletedTimestamp.getValue()).isEqualTo(-1);
 
         PendingCheckpointStats pending =
                 stats.reportPendingCheckpoint(
@@ -694,6 +701,7 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(latestCompletedDuration.getValue()).isEqualTo(ackTimestamp);
         assertThat(latestCompletedExternalPath.getValue()).isEqualTo(externalPath);
         assertThat(latestCompletedId.getValue()).isZero();
+        assertThat(latestCompletedTimestamp.getValue()).isEqualTo(ackTimestamp);
 
         // Check failed
         PendingCheckpointStats nextPending =

@@ -1303,6 +1303,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>lastCheckpointCompletedTimestamp</td>
+      <td>The timestamp of the last completed checkpoint (in milliseconds).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>lastCheckpointFullSize</td>
       <td>The full size of the last checkpoint (in bytes).</td>
       <td>Gauge</td>
