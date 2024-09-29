@@ -28,6 +28,7 @@ import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.RefreshMaterializedTableHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.DeleteEmbeddedSchedulerWorkflowHandler;
+import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.ModifyEmbeddedSchedulerWorkflowCronExpressionHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.SuspendEmbeddedSchedulerWorkflowHandler;
 import org.apache.flink.table.gateway.rest.handler.operation.CancelOperationHandler;
@@ -46,6 +47,7 @@ import org.apache.flink.table.gateway.rest.handler.util.GetInfoHandler;
 import org.apache.flink.table.gateway.rest.header.materializedtable.RefreshMaterializedTableHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.DeleteEmbeddedSchedulerWorkflowHeaders;
+import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.SuspendEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeaders;
@@ -243,6 +245,18 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                         DeleteEmbeddedSchedulerWorkflowHeaders.getInstance());
         handlers.add(
                 Tuple2.of(DeleteEmbeddedSchedulerWorkflowHeaders.getInstance(), deleteHandler));
+
+        // modify cron expression handler
+        ModifyEmbeddedSchedulerWorkflowCronExpressionHandler modifyCronExpressionHandler =
+                new ModifyEmbeddedSchedulerWorkflowCronExpressionHandler(
+                        service,
+                        quartzScheduler,
+                        responseHeaders,
+                        ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders.getInstance());
+        handlers.add(
+                Tuple2.of(
+                        ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders.getInstance(),
+                        modifyCronExpressionHandler));
     }
 
     private void addMaterializedTableRelatedHandlers(

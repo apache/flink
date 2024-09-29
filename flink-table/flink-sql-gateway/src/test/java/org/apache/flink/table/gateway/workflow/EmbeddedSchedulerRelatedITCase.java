@@ -28,16 +28,19 @@ import org.apache.flink.table.gateway.rest.RestAPIITCaseBase;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.DeleteEmbeddedSchedulerWorkflowHeaders;
+import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.SuspendEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowResponseBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.EmbeddedSchedulerWorkflowRequestBody;
+import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.workflow.CreatePeriodicRefreshWorkflow;
 import org.apache.flink.table.workflow.CreateRefreshWorkflow;
 import org.apache.flink.table.workflow.DeleteRefreshWorkflow;
 import org.apache.flink.table.workflow.ModifyRefreshWorkflow;
+import org.apache.flink.table.workflow.ModifyRefreshWorkflowCronExpression;
 import org.apache.flink.table.workflow.ResumeRefreshWorkflow;
 import org.apache.flink.table.workflow.SuspendRefreshWorkflow;
 import org.apache.flink.table.workflow.WorkflowException;
@@ -231,6 +234,34 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
     }
 
     @Test
+    void testModifyNonExistsWorkflow() throws Exception {
+        ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody
+                modifyRefreshWorkflowCronExpression =
+                        new ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody(
+                                nonExistsWorkflow.getWorkflowName(),
+                                nonExistsWorkflow.getWorkflowGroup(),
+                                "0/1 * * * * ?");
+        CompletableFuture<EmptyResponseBody> suspendFuture =
+                sendRequest(
+                        ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders.getInstance(),
+                        EmptyMessageParameters.getInstance(),
+                        modifyRefreshWorkflowCronExpression);
+
+        assertThatFuture(suspendFuture)
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RestClientException.class)
+                .withMessageContaining(
+                        "Failed to modify a non-existent quartz schedule job: default_group.non-exists.")
+                .satisfies(
+                        e ->
+                                assertThat(
+                                                ((RestClientException) e.getCause())
+                                                        .getHttpResponseStatus())
+                                        .isEqualTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
+    }
+
+    @Test
     void testCreateWorkflowByWorkflowSchedulerInterface() throws Exception {
         // create workflow
         EmbeddedRefreshHandler actual =
@@ -262,6 +293,11 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
         ResumeRefreshWorkflow<EmbeddedRefreshHandler> resumeRefreshWorkflow =
                 new ResumeRefreshWorkflow<>(actual, Collections.emptyMap());
         embeddedWorkflowScheduler.modifyRefreshWorkflow(resumeRefreshWorkflow);
+
+        // modify, just to verify suspend function can work
+        ModifyRefreshWorkflowCronExpression<EmbeddedRefreshHandler> modifyRefreshWorkflow =
+                new ModifyRefreshWorkflowCronExpression<>(actual, "0 0/30 * * * ?");
+        embeddedWorkflowScheduler.modifyRefreshWorkflow(modifyRefreshWorkflow);
 
         // delete, just to verify suspend function can work
         DeleteRefreshWorkflow<EmbeddedRefreshHandler> deleteRefreshWorkflow =

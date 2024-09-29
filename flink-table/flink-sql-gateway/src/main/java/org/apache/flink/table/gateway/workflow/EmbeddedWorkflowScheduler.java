@@ -26,17 +26,20 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.DeleteEmbeddedSchedulerWorkflowHeaders;
+import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.SuspendEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowResponseBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.EmbeddedSchedulerWorkflowRequestBody;
+import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.workflow.scheduler.EmbeddedQuartzScheduler;
 import org.apache.flink.table.workflow.CreatePeriodicRefreshWorkflow;
 import org.apache.flink.table.workflow.CreateRefreshWorkflow;
 import org.apache.flink.table.workflow.DeleteRefreshWorkflow;
 import org.apache.flink.table.workflow.ModifyRefreshWorkflow;
+import org.apache.flink.table.workflow.ModifyRefreshWorkflowCronExpression;
 import org.apache.flink.table.workflow.ResumeRefreshWorkflow;
 import org.apache.flink.table.workflow.SuspendRefreshWorkflow;
 import org.apache.flink.table.workflow.WorkflowException;
@@ -194,6 +197,37 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
                 throw new WorkflowException(
                         String.format(
                                 "Failed to resume refresh workflow %s.",
+                                embeddedRefreshHandler.asSummaryString()),
+                        e);
+            }
+        } else if (modifyRefreshWorkflow instanceof ModifyRefreshWorkflowCronExpression) {
+            ModifyRefreshWorkflowCronExpression<EmbeddedRefreshHandler>
+                    modifyRefreshWorkflowCronExpression =
+                            (ModifyRefreshWorkflowCronExpression<EmbeddedRefreshHandler>)
+                                    modifyRefreshWorkflow;
+            ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody requestBody =
+                    new ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody(
+                            embeddedRefreshHandler.getWorkflowName(),
+                            embeddedRefreshHandler.getWorkflowGroup(),
+                            modifyRefreshWorkflowCronExpression.getCronExpression());
+
+            try {
+                restClient
+                        .sendRequest(
+                                restAddress,
+                                port,
+                                ModifyEmbeddedSchedulerWorkflowCronExpressionHeaders.getInstance(),
+                                EmptyMessageParameters.getInstance(),
+                                requestBody)
+                        .get(30, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                LOG.error(
+                        "Failed to modify refresh workflow freshness for {}.",
+                        embeddedRefreshHandler.asSummaryString(),
+                        e);
+                throw new WorkflowException(
+                        String.format(
+                                "Failed to modify refresh workflow freshness for %s.",
                                 embeddedRefreshHandler.asSummaryString()),
                         e);
             }

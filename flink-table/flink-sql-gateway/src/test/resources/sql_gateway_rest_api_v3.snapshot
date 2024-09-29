@@ -516,6 +516,36 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
     }
   }, {
+    "url" : "/workflow/embedded-scheduler/modify-cron-expression",
+    "method" : "DELETE",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:table:gateway:rest:message:materializedtable:scheduler:ModifyEmbeddedSchedulerWorkflowCronExpressionRequestBody",
+      "properties" : {
+        "workflowName" : {
+          "type" : "string"
+        },
+        "workflowGroup" : {
+          "type" : "string"
+        },
+        "cronExpression" : {
+          "type" : "string"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+    }
+  }, {
     "url" : "/workflow/embedded-scheduler/resume",
     "method" : "POST",
     "status-code" : "200 OK",
