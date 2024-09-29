@@ -96,7 +96,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, false);
         ValueStateDescriptor<TaskInfo> descr = new ValueStateDescriptor<>("name", TaskInfo.class);
         context.getState(descr);
 
@@ -117,7 +117,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, false);
 
         @SuppressWarnings("unchecked")
         ReduceFunction<TaskInfo> reducer = (ReduceFunction<TaskInfo>) mock(ReduceFunction.class);
@@ -143,7 +143,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, false);
 
         @SuppressWarnings("unchecked")
         AggregateFunction<String, TaskInfo, String> aggregate =
@@ -172,7 +172,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, false);
 
         ListStateDescriptor<TaskInfo> descr = new ListStateDescriptor<>("name", TaskInfo.class);
         context.getListState(descr);
@@ -213,7 +213,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, false);
 
         MapStateDescriptor<String, TaskInfo> descr =
                 new MapStateDescriptor<>("name", String.class, TaskInfo.class);
@@ -257,7 +257,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
         org.apache.flink.runtime.state.v2.ValueStateDescriptor<TaskInfo> descr =
                 new org.apache.flink.runtime.state.v2.ValueStateDescriptor<>(
                         "name", TypeInformation.of(TaskInfo.class), serializerConfig);
@@ -281,7 +281,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
         org.apache.flink.runtime.state.v2.ListStateDescriptor<TaskInfo> descr =
                 new org.apache.flink.runtime.state.v2.ListStateDescriptor<>(
                         "name", TypeInformation.of(TaskInfo.class), serializerConfig);
@@ -305,7 +305,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
         org.apache.flink.runtime.state.v2.MapStateDescriptor<String, TaskInfo> descr =
                 new org.apache.flink.runtime.state.v2.MapStateDescriptor<>(
                         "name",
@@ -333,7 +333,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
 
         @SuppressWarnings("unchecked")
         ReduceFunction<TaskInfo> reducer = (ReduceFunction<TaskInfo>) mock(ReduceFunction.class);
@@ -363,7 +363,7 @@ class StreamingRuntimeContextTest {
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
-        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
 
         @SuppressWarnings("unchecked")
         AggregateFunction<String, TaskInfo, String> aggregate =
@@ -405,11 +405,13 @@ class StreamingRuntimeContextTest {
     }
 
     private StreamingRuntimeContext createRuntimeContext(
-            AtomicReference<Object> descriptorCapture, ExecutionConfig config) throws Exception {
+            AtomicReference<Object> descriptorCapture, ExecutionConfig config, boolean stateV2)
+            throws Exception {
         return createDescriptorCapturingMockOp(
                         descriptorCapture,
                         config,
-                        MockEnvironment.builder().setExecutionConfig(config).build())
+                        MockEnvironment.builder().setExecutionConfig(config).build(),
+                        stateV2)
                 .getRuntimeContext();
     }
 
@@ -428,7 +430,8 @@ class StreamingRuntimeContextTest {
     private static AbstractStreamOperator<?> createDescriptorCapturingMockOp(
             final AtomicReference<Object> ref,
             final ExecutionConfig config,
-            Environment environment)
+            Environment environment,
+            boolean stateV2)
             throws Exception {
 
         AbstractStreamOperator<?> operator =
@@ -490,9 +493,12 @@ class StreamingRuntimeContextTest {
                         any(org.apache.flink.runtime.state.v2.StateDescriptor.class));
 
         operator.initializeState(streamTaskStateManager);
-        operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
-        operator.getRuntimeContext()
-                .setKeyedStateStoreV2(new DefaultKeyedStateStoreV2(asyncKeyedStateBackend));
+        if (!stateV2) {
+            operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
+        } else {
+            operator.getRuntimeContext()
+                    .setKeyedStateStoreV2(new DefaultKeyedStateStoreV2(asyncKeyedStateBackend));
+        }
 
         return operator;
     }
