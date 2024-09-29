@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.connector.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -39,7 +39,7 @@ import java.util.Optional;
  *     {@link SinkV2Provider}.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface SinkProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
     /** Helper method for creating a static provider. */

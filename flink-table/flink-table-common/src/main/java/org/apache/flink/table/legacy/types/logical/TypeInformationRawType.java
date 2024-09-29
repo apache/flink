@@ -19,7 +19,6 @@
 package org.apache.flink.table.legacy.types.logical;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -53,8 +52,8 @@ import java.util.Set;
  *
  * @deprecated Use {@link RawType} instead.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public final class TypeInformationRawType<T> extends LogicalType {
     private static final long serialVersionUID = 1L;
 

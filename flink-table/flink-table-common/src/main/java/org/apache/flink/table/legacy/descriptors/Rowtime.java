@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.legacy.sources.tsextractors.TimestampExtractor;
@@ -31,8 +31,8 @@ import java.util.Map;
  *
  * @deprecated This class was used for legacy connectors using {@link Descriptor}.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public class Rowtime implements Descriptor {
 
     private final DescriptorProperties internalProperties = new DescriptorProperties(true);

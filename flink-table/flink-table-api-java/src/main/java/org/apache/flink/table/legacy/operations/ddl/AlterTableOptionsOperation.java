@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.legacy.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
  * @deprecated Please use {@link AlterTableChangeOperation} instead.
  */
 @Deprecated
+@Internal
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.api;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.DataTypes;
@@ -72,7 +72,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  *     validation.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public class TableSchema {
 
     private static final String ATOMIC_TYPE_FIELD_NAME = "f0";
@@ -627,7 +627,7 @@ public class TableSchema {
     // --------------------------------------------------------------------------------------------
 
     /** Builder for creating a {@link TableSchema}. */
-    @PublicEvolving
+    @Internal
     public static class Builder {
 
         private List<TableColumn> columns;

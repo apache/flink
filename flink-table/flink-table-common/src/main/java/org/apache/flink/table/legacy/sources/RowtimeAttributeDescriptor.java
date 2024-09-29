@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.legacy.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
@@ -32,6 +33,7 @@ import java.util.Objects;
  *     information.
  */
 @Deprecated
+@Internal
 public final class RowtimeAttributeDescriptor {
 
     private final String attributeName;

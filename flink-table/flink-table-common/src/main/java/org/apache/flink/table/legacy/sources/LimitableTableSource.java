@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 
@@ -34,7 +34,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
  *     information.
  */
 @Deprecated
-@Experimental
+@Internal
 public interface LimitableTableSource<T> {
 
     /**

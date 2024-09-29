@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.factories;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.factories.Factory;
 
 import java.util.List;
@@ -37,7 +37,7 @@ import java.util.Map;
  * @deprecated This interface has been replaced by {@link Factory}.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface TableFactory {
 
     /**

@@ -18,7 +18,7 @@
 
 package org.apache.flink.legacy.table.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -59,8 +59,8 @@ import static org.apache.flink.table.legacy.descriptors.Rowtime.ROWTIME_WATERMAR
  *
  * @deprecated See {@link Rowtime} for details.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public class RowtimeValidator implements DescriptorValidator {
 
     private final boolean supportsSourceTimestamps;

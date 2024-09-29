@@ -18,6 +18,7 @@
 
 package org.apache.flink.legacy.table.sources;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -31,6 +32,7 @@ import org.apache.flink.table.legacy.sources.TableSource;
  *     produces internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
+@Internal
 public interface StreamTableSource<T> extends TableSource<T> {
 
     /**

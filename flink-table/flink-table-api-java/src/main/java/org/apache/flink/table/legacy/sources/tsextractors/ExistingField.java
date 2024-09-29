@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources.tsextractors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
@@ -48,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public final class ExistingField extends TimestampExtractor {
 
     private static final long serialVersionUID = 1L;

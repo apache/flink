@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sinks;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 
@@ -67,7 +67,7 @@ import java.util.Map;
  *     information.
  */
 @Deprecated
-@Experimental
+@Internal
 public interface PartitionableTableSink {
 
     /**

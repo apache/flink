@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sinks;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 
@@ -31,7 +31,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
  *     DynamicTableSink}. Use {@link SupportsOverwrite} instead. See FLIP-95 for more information.
  */
 @Deprecated
-@Experimental
+@Internal
 public interface OverwritableTableSink {
 
     /** Configures whether the insert should overwrite existing data or not. */

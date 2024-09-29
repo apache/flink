@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.utils;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -48,7 +48,7 @@ import java.util.List;
  *     LogicalTypeParser} instead.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public class TypeStringUtils {
 
     private static final String VARCHAR = "VARCHAR";

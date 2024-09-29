@@ -18,7 +18,7 @@
 
 package org.apache.flink.legacy.table.sources;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -36,7 +36,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
  *     produces internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-@Experimental
+@Internal
 public abstract class InputFormatTableSource<T> implements StreamTableSource<T> {
 
     /** Returns an {@link InputFormat} for reading the data of the table. */

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.data.RowData;
@@ -42,8 +42,8 @@ import org.apache.flink.types.Row;
  * @deprecated Please use {@link AsyncLookupFunctionProvider} to implement asynchronous lookup
  *     table.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public interface AsyncTableFunctionProvider<T> extends LookupTableSource.LookupRuntimeProvider {
 
     /** Helper method for creating a static provider. */

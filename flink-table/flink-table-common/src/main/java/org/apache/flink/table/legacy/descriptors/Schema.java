@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -43,8 +43,8 @@ import java.util.Map;
  *
  * @deprecated This class was used for legacy connectors using {@link Descriptor}.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public class Schema implements Descriptor {
 
     public static final String SCHEMA = "schema";

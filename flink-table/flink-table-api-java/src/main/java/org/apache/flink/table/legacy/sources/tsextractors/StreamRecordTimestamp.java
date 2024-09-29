@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources.tsextractors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -40,7 +40,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STREAM
  *     information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public final class StreamRecordTimestamp extends TimestampExtractor {
 
     private static final long serialVersionUID = 1L;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.legacy.table.sinks;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
@@ -36,5 +36,5 @@ import org.apache.flink.table.legacy.sinks.TableSink;
  *     consumes internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface AppendStreamTableSink<T> extends StreamTableSink<T> {}

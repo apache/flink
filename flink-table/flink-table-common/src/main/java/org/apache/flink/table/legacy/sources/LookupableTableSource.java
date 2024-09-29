@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.AsyncTableFunction;
@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.TableFunction;
  *     DynamicTableSource}. Use {@link LookupTableSource} instead. See FLIP-95 for more information.
  */
 @Deprecated
-@Experimental
+@Internal
 public interface LookupableTableSource<T> extends TableSource<T> {
 
     /**
