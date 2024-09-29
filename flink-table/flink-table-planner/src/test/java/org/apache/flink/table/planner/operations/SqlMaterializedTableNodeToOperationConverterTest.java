@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableFreshnessOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
@@ -409,5 +410,21 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2.asSummaryString())
                 .isEqualTo(
                         "DROP MATERIALIZED TABLE: (identifier: [`builtin`.`default`.`mtbl1`], IfExists: [true])");
+    }
+
+    @Test
+    void testAlterMaterializedTableFreshness() {
+        final String sql = "ALTER MATERIALIZED TABLE mtbl1 SET FRESHNESS = INTERVAL '1' MINUTES";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableFreshnessOperation.class);
+        assertThat(
+                        ((AlterMaterializedTableFreshnessOperation) operation)
+                                .getDefinitionFreshness()
+                                .toString())
+                .isEqualTo("INTERVAL '1' MINUTE");
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER MATERIALIZED TABLE builtin.default.mtbl1 SET FRESHNESS = INTERVAL '1' MINUTE");
     }
 }
