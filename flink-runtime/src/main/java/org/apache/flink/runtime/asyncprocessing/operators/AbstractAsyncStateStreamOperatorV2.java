@@ -269,6 +269,12 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
+    public void finish() throws Exception {
+        super.finish();
+        asyncExecutionController.drainInflightRecords(0);
+    }
+
+    @Override
     public void close() throws Exception {
         super.close();
         asyncExecutionController.close();
