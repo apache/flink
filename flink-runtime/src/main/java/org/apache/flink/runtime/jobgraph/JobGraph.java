@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -31,14 +32,13 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -66,11 +66,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The JobGraph defines the job-wide configuration settings, while each vertex and intermediate
  * result define the characteristics of the concrete operation and intermediate data.
  */
-public class JobGraph implements Serializable {
+public class JobGraph implements ExecutionPlan {
 
-    private static final long serialVersionUID = 1L;
-
-    private static final ConfigOption<Long> INITIAL_CLIENT_HEARTBEAT_TIMEOUT =
+    public static final ConfigOption<Long> INITIAL_CLIENT_HEARTBEAT_TIMEOUT =
             ConfigOptions.key("initialClientHeartbeatTimeout")
                     .longType()
                     .defaultValue(Long.MIN_VALUE);
@@ -185,6 +183,7 @@ public class JobGraph implements Serializable {
      *
      * @return the ID of the job
      */
+    @Override
     public JobID getJobID() {
         return this.jobID;
     }
@@ -199,8 +198,34 @@ public class JobGraph implements Serializable {
      *
      * @return the name assigned to the job graph
      */
+    @Override
     public String getName() {
         return this.jobName;
+    }
+
+    @Override
+    public boolean isPartialResourceConfigured() {
+        boolean hasVerticesWithUnknownResource = false;
+        boolean hasVerticesWithConfiguredResource = false;
+
+        for (JobVertex jobVertex : getVertices()) {
+            if (jobVertex.getMinResources() == ResourceSpec.UNKNOWN) {
+                hasVerticesWithUnknownResource = true;
+            } else {
+                hasVerticesWithConfiguredResource = true;
+            }
+
+            if (hasVerticesWithUnknownResource && hasVerticesWithConfiguredResource) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean isEmptyGraph() {
+        return getNumberOfVertices() == 0;
     }
 
     public void setJobConfiguration(Configuration jobConfiguration) {
@@ -213,6 +238,7 @@ public class JobGraph implements Serializable {
      *
      * @return The configuration object for this job.
      */
+    @Override
     public Configuration getJobConfiguration() {
         return this.jobConfiguration;
     }
@@ -230,6 +256,7 @@ public class JobGraph implements Serializable {
         this.jobType = type;
     }
 
+    @Override
     public JobType getJobType() {
         return jobType;
     }
@@ -238,6 +265,7 @@ public class JobGraph implements Serializable {
         this.dynamic = dynamic;
     }
 
+    @Override
     public boolean isDynamic() {
         return dynamic;
     }
@@ -255,6 +283,7 @@ public class JobGraph implements Serializable {
      *
      * @param settings The savepoint restore settings.
      */
+    @Override
     public void setSavepointRestoreSettings(SavepointRestoreSettings settings) {
         this.savepointRestoreSettings = checkNotNull(settings, "Savepoint restore settings");
     }
@@ -264,6 +293,7 @@ public class JobGraph implements Serializable {
      *
      * @return The configured savepoint restore settings.
      */
+    @Override
     public SavepointRestoreSettings getSavepointRestoreSettings() {
         return savepointRestoreSettings;
     }
@@ -371,6 +401,7 @@ public class JobGraph implements Serializable {
      *
      * @return The snapshot settings
      */
+    @Override
     public JobCheckpointingSettings getCheckpointingSettings() {
         return snapshotSettings;
     }
@@ -409,6 +440,7 @@ public class JobGraph implements Serializable {
         classpaths = paths;
     }
 
+    @Override
     public List<URL> getClasspaths() {
         return classpaths;
     }
@@ -418,6 +450,7 @@ public class JobGraph implements Serializable {
      *
      * @return The maximum parallelism of this job graph
      */
+    @Override
     public int getMaximumParallelism() {
         int maxParallelism = -1;
         for (JobVertex vertex : taskVertices.values()) {
@@ -551,6 +584,7 @@ public class JobGraph implements Serializable {
      *
      * @return The list of assigned user jar paths
      */
+    @Override
     public List<Path> getUserJars() {
         return userJars;
     }
@@ -575,6 +609,7 @@ public class JobGraph implements Serializable {
      *
      * @return The list of assigned user jar paths
      */
+    @Override
     public Map<String, DistributedCache.DistributedCacheEntry> getUserArtifacts() {
         return userArtifacts;
     }
@@ -584,6 +619,7 @@ public class JobGraph implements Serializable {
      *
      * @param key path of the JAR file required to run the job on a task manager
      */
+    @Override
     public void addUserJarBlobKey(PermanentBlobKey key) {
         if (key == null) {
             throw new IllegalArgumentException();
@@ -608,6 +644,7 @@ public class JobGraph implements Serializable {
      *
      * @return set of BLOB keys referring to the JAR files required to run this job
      */
+    @Override
     public List<PermanentBlobKey> getUserJarBlobKeys() {
         return this.userJarBlobKeys;
     }
@@ -617,6 +654,7 @@ public class JobGraph implements Serializable {
         return "JobGraph(jobId: " + jobID + ")";
     }
 
+    @Override
     public void setUserArtifactBlobKey(String entryName, PermanentBlobKey blobKey)
             throws IOException {
         byte[] serializedBlobKey;
@@ -643,6 +681,7 @@ public class JobGraph implements Serializable {
                                 originalEntry.isZipped));
     }
 
+    @Override
     public void writeUserArtifactEntriesToConfiguration() {
         for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact :
                 userArtifacts.entrySet()) {
@@ -664,6 +703,7 @@ public class JobGraph implements Serializable {
         jobConfiguration.set(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, initialClientHeartbeatTimeout);
     }
 
+    @Override
     public long getInitialClientHeartbeatTimeout() {
         return jobConfiguration.get(INITIAL_CLIENT_HEARTBEAT_TIMEOUT);
     }
