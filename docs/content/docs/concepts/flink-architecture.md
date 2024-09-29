@@ -217,35 +217,4 @@ isolation guarantees.
 Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session mode`.
 {{< /hint >}}
 
-### Flink Job Cluster (deprecated)
-
-{{< hint danger >}}
-Per-job mode is only supported by YARN and has been deprecated in Flink 1.15.
-It will be dropped in [FLINK-26000](https://issues.apache.org/jira/browse/FLINK-26000).
-Please consider application mode to launch a dedicated cluster per-job on YARN.
-{{< /hint >}}
-
-* **Cluster Lifecycle**: in a Flink Job Cluster, the available cluster manager
-  (like YARN) is used to spin up a cluster for each submitted job
-  and this cluster is available to that job only. Here, the client first
-  requests resources from the cluster manager to start the JobManager and
-  submits the job to the Dispatcher running inside this process. TaskManagers
-  are then lazily allocated based on the resource requirements of the job. Once
-  the job is finished, the Flink Job Cluster is torn down.
-
-* **Resource Isolation**: a fatal error in the JobManager only affects the one job running in that Flink Job Cluster.
-
-* **Other considerations**: because the ResourceManager has to apply and wait
-  for external resource management components to start the TaskManager
-  processes and allocate resources, Flink Job Clusters are more suited to large
-  jobs that are long-running, have high-stability requirements and are not
-  sensitive to longer startup times.
-
-{{< hint info >}}
-Formerly, a Flink Job Cluster was also known as a Flink Cluster in `job (or per-job) mode`.
-{{< /hint >}}
-{{< hint info >}}
-Flink Job Clusters are only supported with YARN.
-{{< /hint >}}
-
 {{< top >}}
