@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources.tsextractors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -39,7 +39,7 @@ import java.util.Map;
  *     information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public abstract class TimestampExtractor implements FieldComputer<Long>, Serializable, Descriptor {
 
     @Override

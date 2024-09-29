@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
@@ -34,7 +34,7 @@ import org.apache.flink.table.expressions.ResolvedFieldReference;
  *     information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface FieldComputer<T> {
 
     /**

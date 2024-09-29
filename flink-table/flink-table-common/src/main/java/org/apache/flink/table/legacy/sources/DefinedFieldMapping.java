@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.types.DataType;
@@ -45,7 +45,7 @@ import java.util.Map;
  *     DynamicTableSource}. See FLIP-95 for more information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface DefinedFieldMapping {
 
     /**

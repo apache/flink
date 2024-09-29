@@ -18,7 +18,7 @@
 
 package org.apache.flink.legacy.table.factories;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.legacy.table.sinks.StreamTableSink;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -37,7 +37,7 @@ import java.util.Map;
  *     interface creates instances of {@link DynamicTableSink}. See FLIP-95 for more information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface StreamTableSinkFactory<T> extends TableSinkFactory<T> {
 
     /**

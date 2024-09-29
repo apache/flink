@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 import java.util.Map;
 
@@ -35,8 +35,8 @@ import java.util.Map;
  * @deprecated {@link Descriptor} was primarily used for the legacy connector stack and have been
  *     deprecated. Use {@code TableDescriptor} for creating sources and sinks from the Table API.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public interface Descriptor {
 
     /** Converts this descriptor into a set of properties. */

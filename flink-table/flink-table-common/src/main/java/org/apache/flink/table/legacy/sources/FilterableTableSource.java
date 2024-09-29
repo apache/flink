@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.expressions.Expression;
@@ -33,6 +34,7 @@ import java.util.List;
  *     information.
  */
 @Deprecated
+@Internal
 public interface FilterableTableSource<T> {
 
     /**

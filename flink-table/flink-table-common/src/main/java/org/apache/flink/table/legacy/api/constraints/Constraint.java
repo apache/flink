@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.api.constraints;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
 /**
@@ -28,7 +28,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
  * @deprecated See {@link ResolvedSchema} and {@link org.apache.flink.table.catalog.Constraint}.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface Constraint {
     String getName();
 
@@ -59,7 +59,7 @@ public interface Constraint {
      *       defined for a Table.
      * </ul>
      */
-    @PublicEvolving
+    @Internal
     enum ConstraintType {
         PRIMARY_KEY,
         UNIQUE_KEY

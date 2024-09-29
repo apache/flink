@@ -18,7 +18,7 @@
 
 package org.apache.flink.legacy.table.sinks;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -44,7 +44,7 @@ import org.apache.flink.table.legacy.sinks.TableSink;
  *     consumes internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface RetractStreamTableSink<T> extends StreamTableSink<Tuple2<Boolean, T>> {
 
     /** Returns the requested record type. */

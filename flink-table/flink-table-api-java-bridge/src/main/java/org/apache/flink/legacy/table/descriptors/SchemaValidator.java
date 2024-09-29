@@ -18,7 +18,7 @@
 
 package org.apache.flink.legacy.table.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -59,8 +59,8 @@ import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA_TYPE;
  *
  * @deprecated See {@link Schema} for details.
  */
-@PublicEvolving
 @Deprecated
+@Internal
 public class SchemaValidator implements DescriptorValidator {
 
     private final boolean isStreamEnvironment;

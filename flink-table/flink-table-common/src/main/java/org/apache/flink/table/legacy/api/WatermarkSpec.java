@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.legacy.api;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 
@@ -37,6 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @deprecated See {@link ResolvedSchema} and {@link org.apache.flink.table.catalog.WatermarkSpec}.
  */
 @Deprecated
+@Internal
 public class WatermarkSpec {
 
     private final String rowtimeAttribute;

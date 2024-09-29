@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.api.constraints;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.List;
@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     org.apache.flink.table.catalog.UniqueConstraint}.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public final class UniqueConstraint extends AbstractConstraint {
     private final List<String> columns;
     private final ConstraintType type;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sinks;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
@@ -38,7 +38,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  *     consumes internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface TableSink<T> {
 
     /**

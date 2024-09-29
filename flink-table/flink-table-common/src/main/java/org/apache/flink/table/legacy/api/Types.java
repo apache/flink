@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.legacy.api;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
@@ -42,6 +43,7 @@ import java.util.Map;
  *     information.
  */
 @Deprecated
+@Internal
 public final class Types {
 
     // we use SQL-like naming for types and avoid Java keyword clashes

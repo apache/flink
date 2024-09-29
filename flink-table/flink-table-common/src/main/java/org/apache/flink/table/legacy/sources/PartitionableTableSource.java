@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.sources;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 
@@ -41,7 +41,7 @@ import java.util.Map;
  *     information.
  */
 @Deprecated
-@Experimental
+@Internal
 public interface PartitionableTableSource {
 
     /** Returns all the partitions of this {@link PartitionableTableSource}. */

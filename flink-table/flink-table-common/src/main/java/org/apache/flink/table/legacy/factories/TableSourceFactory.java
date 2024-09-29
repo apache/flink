@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.legacy.factories;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -37,7 +37,7 @@ import java.util.Map;
  *     interface produces internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
-@PublicEvolving
+@Internal
 public interface TableSourceFactory<T> extends TableFactory {
 
     /**
@@ -79,7 +79,7 @@ public interface TableSourceFactory<T> extends TableFactory {
     }
 
     /** Context of table source creation. Contains table information and environment information. */
-    @PublicEvolving
+    @Internal
     interface Context {
 
         /** @return full identifier of the given {@link CatalogTable}. */
