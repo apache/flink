@@ -53,7 +53,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
     parseJmArgsAndExportLogs "${args[@]}"
 
-    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster" "${args[@]}")
+    args=("--configDir" "${FLINK_CONF_DIR}" "${args[@]}")
     if [ ! -z $HOST ]; then
         args+=("-D")
         args+=("jobmanager.rpc.address=${HOST}")

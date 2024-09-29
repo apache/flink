@@ -40,19 +40,5 @@ public class CommandLineOptions {
                     .desc("use value for given property")
                     .build();
 
-    /**
-     * @deprecated exists only for compatibility with legacy mode. Remove once legacy mode and
-     *     execution mode option has been removed.
-     */
-    @Deprecated
-    public static final Option EXECUTION_MODE_OPTION =
-            Option.builder("x")
-                    .longOpt("executionMode")
-                    .required(false)
-                    .hasArg(true)
-                    .argName("execution mode")
-                    .desc("Deprecated option")
-                    .build();
-
     private CommandLineOptions() {}
 }

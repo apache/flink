@@ -51,8 +51,6 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
         final String[] args = {
             "--configDir",
             configDir,
-            "--executionMode",
-            "cluster",
             "-D",
             "jobmanager.rpc.address=localhost",
             "-D",
