@@ -74,6 +74,7 @@ public class ForStStateExecutor implements StateExecutor {
     private final AtomicLong ongoing;
 
     public ForStStateExecutor(
+            boolean coordinatorInline,
             boolean isWriteInline,
             int readIoParallelism,
             int writeIoParallelism,
@@ -82,8 +83,11 @@ public class ForStStateExecutor implements StateExecutor {
         if (isWriteInline) {
             Preconditions.checkState(readIoParallelism > 0);
             this.coordinatorThread =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator-And-Write"));
+                    coordinatorInline
+                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            : Executors.newSingleThreadScheduledExecutor(
+                                    new ExecutorThreadFactory(
+                                            "ForSt-StateExecutor-Coordinator-And-Write"));
             this.readThreadCount = readIoParallelism;
             this.readThreads =
                     Executors.newFixedThreadPool(
@@ -95,8 +99,10 @@ public class ForStStateExecutor implements StateExecutor {
         } else {
             Preconditions.checkState(readIoParallelism > 0 || writeIoParallelism > 0);
             this.coordinatorThread =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
+                    coordinatorInline
+                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            : Executors.newSingleThreadScheduledExecutor(
+                                    new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
             if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
                 this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
                 this.readThreads =

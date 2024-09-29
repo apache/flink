@@ -393,7 +393,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
             synchronized (notifyLock) {
                 if (!callbackRunner.isHasMail()) {
                     waitingMail = true;
-                    notifyLock.wait(5);
+                    notifyLock.wait(1);
                     waitingMail = false;
                 }
             }

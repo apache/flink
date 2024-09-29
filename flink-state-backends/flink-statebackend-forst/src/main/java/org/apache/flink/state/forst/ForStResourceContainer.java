@@ -277,6 +277,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
+    public boolean isCoordinatorInline() {
+        return configuration.get(ForStOptions.EXECUTOR_COORDINATOR_INLINE);
+    }
+
     public boolean isWriteInline() {
         return configuration.get(ForStOptions.EXECUTOR_WRITE_IO_INLINE);
     }
