@@ -30,7 +30,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -704,24 +703,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         final Configuration configuration =
                 GlobalConfiguration.loadConfiguration(
                         entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
-
-        final int restPort = entrypointClusterConfiguration.getRestPort();
-
-        if (restPort >= 0) {
-            LOG.warn(
-                    "The 'webui-port' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<port> instead.",
-                    RestOptions.PORT);
-            configuration.set(RestOptions.PORT, restPort);
-        }
-
-        final String hostname = entrypointClusterConfiguration.getHostname();
-
-        if (hostname != null) {
-            LOG.warn(
-                    "The 'host' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<host> instead.",
-                    JobManagerOptions.ADDRESS);
-            configuration.set(JobManagerOptions.ADDRESS, hostname);
-        }
 
         return configuration;
     }

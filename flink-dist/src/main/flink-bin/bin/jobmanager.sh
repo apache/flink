@@ -55,13 +55,13 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster" "${args[@]}")
     if [ ! -z $HOST ]; then
-        args+=("--host")
-        args+=("${HOST}")
+        args+=("-D")
+        args+=("jobmanager.rpc.address=${HOST}")
     fi
 
     if [ ! -z $WEBUIPORT ]; then
-        args+=("--webui-port")
-        args+=("${WEBUIPORT}")
+        args+=("-D")
+        args+=("rest.port=${WEBUIPORT}")
     fi
 
     if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
