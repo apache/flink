@@ -102,7 +102,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -2189,8 +2189,8 @@ public class StreamTaskTest {
             return new TestSpyWrapperStateBackend(createInnerBackend(config));
         }
 
-        protected MemoryStateBackend createInnerBackend(ReadableConfig config) {
-            return new MemoryStateBackend();
+        protected HashMapStateBackend createInnerBackend(ReadableConfig config) {
+            return new HashMapStateBackend();
         }
     }
 

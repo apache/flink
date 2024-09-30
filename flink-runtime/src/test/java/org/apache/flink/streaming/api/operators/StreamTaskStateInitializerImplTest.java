@@ -49,7 +49,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -81,7 +81,7 @@ class StreamTaskStateInitializerImplTest {
     @Test
     void testNoRestore() throws Exception {
 
-        MemoryStateBackend stateBackend = spy(new MemoryStateBackend(1024));
+        HashMapStateBackend stateBackend = spy(new HashMapStateBackend());
 
         // No job manager provided state to restore
         StreamTaskStateInitializer streamTaskStateManager =

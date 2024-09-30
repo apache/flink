@@ -59,7 +59,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -452,7 +452,7 @@ class StreamingRuntimeContextTest {
                 new CollectorOutput<>(new ArrayList<>()));
 
         StreamTaskStateInitializer streamTaskStateManager =
-                new StreamTaskStateInitializerImpl(environment, new MemoryStateBackend());
+                new StreamTaskStateInitializerImpl(environment, new HashMapStateBackend());
 
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
@@ -536,7 +536,7 @@ class StreamingRuntimeContextTest {
                                                 invocationOnMock.getArguments()[2];
 
                                 AbstractStateBackend abstractStateBackend =
-                                        new MemoryStateBackend();
+                                        new HashMapStateBackend();
                                 Environment env = new DummyEnvironment("test_task", 1, 0);
                                 JobID jobID = new JobID();
                                 KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
@@ -607,7 +607,7 @@ class StreamingRuntimeContextTest {
                                                 invocationOnMock.getArguments()[2];
 
                                 AbstractStateBackend abstractStateBackend =
-                                        new MemoryStateBackend();
+                                        new HashMapStateBackend();
                                 Environment env = new DummyEnvironment("test_task", 1, 0);
                                 JobID jobID = new JobID();
                                 KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);

@@ -25,7 +25,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
@@ -233,7 +233,7 @@ class StreamSourceOperatorLatencyMetricsTest {
             throws Exception {
 
         StreamConfig cfg = new StreamConfig(new Configuration());
-        cfg.setStateBackend(new MemoryStateBackend());
+        cfg.setStateBackend(new HashMapStateBackend());
 
         cfg.setTimeCharacteristic(TimeCharacteristic.EventTime);
         cfg.setOperatorID(new OperatorID());

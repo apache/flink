@@ -58,6 +58,7 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -74,7 +75,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -298,13 +299,13 @@ class TaskCheckpointingBehaviourTest {
     //  state backends that trigger errors in checkpointing.
     // ------------------------------------------------------------------------
 
-    private static class SyncFailureInducingStateBackend extends MemoryStateBackend {
+    private static class SyncFailureInducingStateBackend extends HashMapStateBackend {
 
         private static final long serialVersionUID = -1915780414440060539L;
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                OperatorStateBackendParameters parameters) throws Exception {
+                OperatorStateBackendParameters parameters) throws BackendBuildingException {
             return new DefaultOperatorStateBackendBuilder(
                     parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                     parameters.getEnv().getExecutionConfig(),
@@ -346,12 +347,12 @@ class TaskCheckpointingBehaviourTest {
         }
     }
 
-    private static class AsyncFailureInducingStateBackend extends MemoryStateBackend {
+    private static class AsyncFailureInducingStateBackend extends HashMapStateBackend {
         private static final long serialVersionUID = -7613628662587098470L;
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                OperatorStateBackendParameters parameters) throws Exception {
+                OperatorStateBackendParameters parameters) throws BackendBuildingException {
             return new DefaultOperatorStateBackendBuilder(
                     parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
                     parameters.getEnv().getExecutionConfig(),
