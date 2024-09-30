@@ -114,7 +114,6 @@ import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
@@ -478,7 +477,6 @@ public class StreamTaskTest {
         final StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setOperatorID(new OperatorID(4711L, 42L));
         cfg.setStreamOperator(new SlowlyDeserializingOperator());
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         cfg.serializeAllConfigs();
 
         final TaskManagerActions taskManagerActions = spy(new NoOpTaskManagerActions());
@@ -520,7 +518,6 @@ public class StreamTaskTest {
         TestStreamSource<Long, MockSourceFunction> streamSource =
                 new TestStreamSource<>(new MockSourceFunction());
         cfg.setStreamOperator(streamSource);
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
@@ -561,7 +558,6 @@ public class StreamTaskTest {
         TestStreamSource<Long, MockSourceFunction> streamSource =
                 new TestStreamSource<>(new MockSourceFunction());
         cfg.setStreamOperator(streamSource);
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (NettyShuffleEnvironment shuffleEnvironment =
                 new NettyShuffleEnvironmentBuilder().build()) {
@@ -1532,7 +1528,6 @@ public class StreamTaskTest {
 
         FailedSource failedSource = new FailedSource();
         cfg.setStreamOperator(new TestStreamSource<String, FailedSource>(failedSource));
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (NettyShuffleEnvironment shuffleEnvironment =
                 new NettyShuffleEnvironmentBuilder().build()) {

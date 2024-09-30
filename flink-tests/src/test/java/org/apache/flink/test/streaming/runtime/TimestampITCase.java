@@ -42,7 +42,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -666,38 +665,11 @@ public class TimestampITCase extends TestLogger {
                 CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
     }
 
-    /**
-     * This verifies that an event time source works when setting stream time characteristic to
-     * processing time. In this case, the watermarks should just be swallowed apart from the last
-     * final watermark marking the end of time.
-     */
-    @Test
-    public void testEventTimeSourceWithProcessingTime() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        env.setParallelism(2);
-        env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-        DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
-
-        source1.map(new IdentityMap())
-                .transform(
-                        "Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false));
-
-        env.execute();
-
-        // verify that we don't get any watermarks, the source is used as watermark source in
-        // other tests, so it normally emits watermarks
-        Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
-        Assert.assertEquals(Watermark.MAX_WATERMARK, CustomOperator.finalWatermarks[0].get(0));
-    }
-
     @Test
     public void testErrorOnEventTimeOverProcessingTime() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(2);
-        env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source1 =
                 env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));

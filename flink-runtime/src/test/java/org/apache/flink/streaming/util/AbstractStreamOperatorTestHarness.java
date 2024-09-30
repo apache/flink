@@ -56,7 +56,6 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
@@ -791,14 +790,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
     public long getProcessingTime() {
         return processingTimeService.getCurrentProcessingTime();
-    }
-
-    public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
-        this.config.setTimeCharacteristic(timeCharacteristic);
-    }
-
-    public TimeCharacteristic getTimeCharacteristic() {
-        return this.config.getTimeCharacteristic();
     }
 
     public boolean wasFailedExternally() {

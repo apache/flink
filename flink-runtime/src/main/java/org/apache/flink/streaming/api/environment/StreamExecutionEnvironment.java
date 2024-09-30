@@ -72,7 +72,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -96,7 +95,6 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
-import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -150,10 +148,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         collectIterators.add(iterator);
     }
 
-    /** The time characteristic that is used if none other is set. */
-    private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
-            TimeCharacteristic.EventTime;
-
     /**
      * The environment of the context (local by default, cluster if invoked through command line).
      */
@@ -177,9 +171,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
-
-    /** The time characteristic used by the data streams. */
-    private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     /**
      * Now we could not migrate this field to configuration. Because this object field remains
@@ -702,50 +693,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     // --------------------------------------------------------------------------------------------
     //  Time characteristic
     // --------------------------------------------------------------------------------------------
-
-    /**
-     * Sets the time characteristic for all streams create from this environment, e.g., processing
-     * time, event time, or ingestion time.
-     *
-     * <p>If you set the characteristic to IngestionTime of EventTime this will set a default
-     * watermark update interval of 200 ms. If this is not applicable for your application you
-     * should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
-     *
-     * @param characteristic The time characteristic.
-     * @deprecated In Flink 1.12 the default stream time characteristic has been changed to {@link
-     *     TimeCharacteristic#EventTime}, thus you don't need to call this method for enabling
-     *     event-time support anymore. Explicitly using processing-time windows and timers works in
-     *     event-time mode. If you need to disable watermarks, please use {@link
-     *     ExecutionConfig#setAutoWatermarkInterval(long)}. If you are using {@link
-     *     TimeCharacteristic#IngestionTime}, please manually set an appropriate {@link
-     *     WatermarkStrategy}. If you are using generic "time window" operations (for example
-     *     through {@link
-     *     org.apache.flink.streaming.api.datastream.KeyedStream#window(WindowAssigner)} that change
-     *     behaviour based on the time characteristic, please use equivalent operations that
-     *     explicitly specify processing time or event time.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
-        this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
-        if (characteristic == TimeCharacteristic.ProcessingTime) {
-            getConfig().setAutoWatermarkInterval(0);
-        } else {
-            getConfig().setAutoWatermarkInterval(200);
-        }
-    }
-
-    /**
-     * Gets the time characteristic.
-     *
-     * @deprecated See {@link #setStreamTimeCharacteristic(TimeCharacteristic)} for deprecation
-     *     notice.
-     */
-    @PublicEvolving
-    @Deprecated
-    public TimeCharacteristic getStreamTimeCharacteristic() {
-        return timeCharacteristic;
-    }
 
     /**
      * Sets all relevant options contained in the {@link ReadableConfig}. It will reconfigure {@link
@@ -2143,7 +2090,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         // stream graph generation.
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
-                .setTimeCharacteristic(getStreamTimeCharacteristic())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 

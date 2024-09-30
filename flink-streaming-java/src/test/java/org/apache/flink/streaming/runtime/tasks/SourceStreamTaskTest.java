@@ -50,7 +50,6 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
@@ -236,7 +235,6 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
@@ -275,7 +273,6 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -340,7 +337,6 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         testHarness.invoke();
         CancelLockingSource.awaitRunning();
@@ -451,9 +447,6 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                         new TestBoundedOneInputStreamOperator("Operator1"),
                         STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
-
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         testHarness.invoke();
         try {

@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -41,7 +40,6 @@ class ContinuousFileReaderOperatorTest {
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
                 createHarness(failingFormat());
         harness.getExecutionConfig().setAutoWatermarkInterval(10);
-        harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         assertThatThrownBy(
                         () -> {
@@ -59,7 +57,6 @@ class ContinuousFileReaderOperatorTest {
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
                 createHarness(failingFormat());
         harness.getExecutionConfig().setAutoWatermarkInterval(10);
-        harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         assertThatThrownBy(
                         () -> {

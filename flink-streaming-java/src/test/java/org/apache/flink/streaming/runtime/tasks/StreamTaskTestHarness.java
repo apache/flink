@@ -51,7 +51,6 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -227,7 +226,6 @@ public class StreamTaskTestHarness<OUT> {
         Preconditions.checkState(!setupCalled, "This harness was already setup.");
         setupCalled = true;
         streamConfig.setChainStart();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
         streamConfig.setNumberOfOutputs(1);
         streamConfig.setTypeSerializerOut(outputSerializer);
         streamConfig.setVertexID(0);

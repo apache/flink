@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -38,18 +37,7 @@ import java.util.concurrent.ScheduledFuture;
 @Deprecated
 public class StreamSourceContexts {
 
-    /**
-     * Depending on the {@link TimeCharacteristic}, this method will return the adequate {@link
-     * SourceFunction.SourceContext}. That is:
-     *
-     * <ul>
-     *   <li>{@link TimeCharacteristic#IngestionTime} = {@code AutomaticWatermarkContext}
-     *   <li>{@link TimeCharacteristic#ProcessingTime} = {@code NonTimestampContext}
-     *   <li>{@link TimeCharacteristic#EventTime} = {@code ManualWatermarkContext}
-     * </ul>
-     */
     public static <OUT> SourceFunction.SourceContext<OUT> getSourceContext(
-            TimeCharacteristic timeCharacteristic,
             ProcessingTimeService processingTimeService,
             Object checkpointLock,
             Output<StreamRecord<OUT>> output,
@@ -57,37 +45,14 @@ public class StreamSourceContexts {
             long idleTimeout,
             boolean emitProgressiveWatermarks) {
 
-        final SourceFunction.SourceContext<OUT> ctx;
-        switch (timeCharacteristic) {
-            case EventTime:
-                ctx =
-                        new ManualWatermarkContext<>(
-                                output,
-                                processingTimeService,
-                                checkpointLock,
-                                idleTimeout,
-                                emitProgressiveWatermarks);
+        final SourceFunction.SourceContext<OUT> ctx =
+                new ManualWatermarkContext<>(
+                        output,
+                        processingTimeService,
+                        checkpointLock,
+                        idleTimeout,
+                        emitProgressiveWatermarks);
 
-                break;
-            case IngestionTime:
-                Preconditions.checkState(
-                        emitProgressiveWatermarks,
-                        "Ingestion time is not available when emitting progressive watermarks "
-                                + "is disabled.");
-                ctx =
-                        new AutomaticWatermarkContext<>(
-                                output,
-                                watermarkInterval,
-                                processingTimeService,
-                                checkpointLock,
-                                idleTimeout);
-                break;
-            case ProcessingTime:
-                ctx = new NonTimestampContext<>(checkpointLock, output);
-                break;
-            default:
-                throw new IllegalArgumentException(String.valueOf(timeCharacteristic));
-        }
         return new SwitchingOnClose<>(ctx);
     }
 

@@ -32,7 +32,6 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -161,7 +160,6 @@ class AbstractUdfStreamOperatorLifecycleTest {
 
         cfg.setStreamOperator(new LifecycleTrackingStreamSource<>(srcFun, true));
         cfg.setOperatorID(new OperatorID());
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
@@ -192,7 +190,6 @@ class AbstractUdfStreamOperatorLifecycleTest {
         MockSourceFunction srcFun = new MockSourceFunction();
         cfg.setStreamOperator(new LifecycleTrackingStreamSource<>(srcFun, false));
         cfg.setOperatorID(new OperatorID());
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =

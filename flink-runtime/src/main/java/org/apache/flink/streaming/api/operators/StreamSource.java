@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
@@ -75,8 +74,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
             final OperatorChain<?, ?> operatorChain)
             throws Exception {
 
-        final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
-
         final Configuration configuration =
                 this.getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
         final long latencyTrackingInterval =
@@ -99,7 +96,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
         this.ctx =
                 StreamSourceContexts.getSourceContext(
-                        timeCharacteristic,
                         getProcessingTimeService(),
                         lockingObject,
                         collector,

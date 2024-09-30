@@ -24,7 +24,6 @@ import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
@@ -375,7 +374,6 @@ class StreamingFileWriterTest {
                         conf);
         OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness =
                 new OneInputStreamOperatorTestHarness<>(writer, 1, 1, 0);
-        harness.getStreamConfig().setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         return harness;
     }
 

@@ -35,7 +35,6 @@ from pyflink.datastream.connectors import Source
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
-from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
@@ -374,40 +373,6 @@ class StreamExecutionEnvironment(object):
             return None
         else:
             return j_path.toString()
-
-    def set_stream_time_characteristic(self, characteristic: TimeCharacteristic):
-        """
-        Sets the time characteristic for all streams create from this environment, e.g., processing
-        time, event time, or ingestion time.
-
-        If you set the characteristic to IngestionTime of EventTime this will set a default
-        watermark update interval of 200 ms. If this is not applicable for your application
-        you should change it using
-        :func:`pyflink.common.ExecutionConfig.set_auto_watermark_interval`.
-
-        Example:
-        ::
-
-            >>> env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-
-        :param characteristic: The time characteristic, which could be
-                               :data:`TimeCharacteristic.ProcessingTime`,
-                               :data:`TimeCharacteristic.IngestionTime`,
-                               :data:`TimeCharacteristic.EventTime`.
-        """
-        j_characteristic = TimeCharacteristic._to_j_time_characteristic(characteristic)
-        self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
-
-    def get_stream_time_characteristic(self) -> 'TimeCharacteristic':
-        """
-        Gets the time characteristic.
-
-        .. seealso:: :func:`set_stream_time_characteristic`
-
-        :return: The :class:`TimeCharacteristic`.
-        """
-        j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
-        return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
 
     def configure(self, configuration: Configuration):
         """
