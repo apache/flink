@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -144,6 +145,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
         try (KeyedOneInputStreamOperatorTestHarness<String, String, Integer> harness =
                 getHarnessTest(keySelector, maxParallelism, 1, 0)) {
             harness.setStateBackend(getStateBackend());
+            harness.setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness.open();
 
             validHarnessResult(harness, 1, records);
@@ -178,6 +182,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
             harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
             harness2[0].setStateBackend(getStateBackend());
+            harness2[0].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness2[0].setup();
             harness2[0].initializeState(initState1);
             harness2[0].open();
@@ -187,6 +194,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
             harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
             harness2[1].setStateBackend(getStateBackend());
+            harness2[1].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness2[1].setup();
             harness2[1].initializeState(initState2);
             harness2[1].open();
@@ -235,6 +245,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
             harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
             harness3[0].setStateBackend(getStateBackend());
+            harness3[0].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness3[0].setup();
             harness3[0].initializeState(initState1);
             harness3[0].open();
@@ -244,6 +257,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
             harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
             harness3[1].setStateBackend(getStateBackend());
+            harness3[1].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness3[1].setup();
             harness3[1].initializeState(initState2);
             harness3[1].open();
@@ -253,6 +269,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
             harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
             harness3[2].setStateBackend(getStateBackend());
+            harness3[2].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness3[2].setup();
             harness3[2].initializeState(initState3);
             harness3[2].open();
@@ -285,6 +304,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
             harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
             harness3[0].setStateBackend(getStateBackend());
+            harness3[0].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness3[0].open();
 
             // task's key-group [4, 6]
@@ -292,6 +314,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
             harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
             harness3[1].setStateBackend(getStateBackend());
+            harness3[1].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness3[1].open();
 
             // task's key-group [7, 9]
@@ -299,6 +324,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
             harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
             harness3[2].setStateBackend(getStateBackend());
+            harness3[2].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness3[2].open();
 
             validHarnessResult(harness3[0], 1, records[0], records[1], records[2], records[3]);
@@ -344,6 +372,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
             harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
             harness2[0].setStateBackend(getStateBackend());
+            harness2[0].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness2[0].setup();
             harness2[0].initializeState(initState1);
             harness2[0].open();
@@ -354,6 +385,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             Assert.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
             harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
             harness2[1].setStateBackend(getStateBackend());
+            harness2[1].setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness2[1].setup();
             harness2[1].initializeState(initState2);
             harness2[1].open();
@@ -385,6 +419,9 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             // this will choose the state handle generated by harness2[0] to init the target db
             // without any clipping.
             harness.setStateBackend(getStateBackend());
+            harness.setCheckpointStorage(
+                    new FileSystemCheckpointStorage(
+                            "file://" + rootFolder.newFolder().getAbsolutePath()));
             harness.setup();
             harness.initializeState(initState1);
             harness.open();
@@ -432,8 +469,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
     }
 
     private StateBackend getStateBackend() throws Exception {
-        RocksDBStateBackend rocksDBStateBackend =
-                new RocksDBStateBackend("file://" + rootFolder.newFolder().getAbsolutePath(), true);
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
         Configuration configuration = new Configuration();
         configuration.set(
                 RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);

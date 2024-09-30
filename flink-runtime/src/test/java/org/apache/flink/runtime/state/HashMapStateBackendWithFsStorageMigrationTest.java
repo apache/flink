@@ -17,7 +17,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
@@ -27,14 +28,20 @@ import java.io.File;
 
 /**
  * Tests for the keyed state backend and operator state backend, as created by the {@link
- * FsStateBackend}.
+ * HashMapStateBackend}.
  */
 @ExtendWith(NoOpTestExtension.class)
-public class FileStateBackendMigrationTest extends StateBackendMigrationTestBase<FsStateBackend> {
+public class HashMapStateBackendWithFsStorageMigrationTest
+        extends StateBackendMigrationTestBase<HashMapStateBackend> {
 
     @Override
-    protected FsStateBackend getStateBackend() throws Exception {
+    protected HashMapStateBackend getStateBackend() throws Exception {
+        return new HashMapStateBackend();
+    }
+
+    @Override
+    protected CheckpointStorage getCheckpointStorage() throws Exception {
         File checkpointPath = TempDirUtils.newFolder(tempFolder);
-        return new FsStateBackend(checkpointPath.toURI(), false);
+        return new FileSystemCheckpointStorage(checkpointPath.toURI());
     }
 }

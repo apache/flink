@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.CheckpointStorage
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
@@ -54,7 +54,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
         new HashMapStateBackend().configure(conf, classLoader)
 
       case ROCKSDB_BACKEND =>
-        new RocksDBStateBackend("file://" + TempDirUtils.newFolder(tempFolder).getAbsoluteFile)
+        new EmbeddedRocksDBStateBackend()
     }
   }
 

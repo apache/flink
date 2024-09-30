@@ -48,7 +48,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -330,13 +329,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
         // to avoid serialization of the above factory instance, we need to pass it in
         // through a static variable
 
-        StateBackend stateBackend =
-                new BackendForTestStream(new StaticForwardFactory(blockerCheckpointStreamFactory));
-
-        RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
+        EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
         backend.setDbStoragePath(dbDir.getAbsolutePath());
 
         streamConfig.setStateBackend(backend);
+        streamConfig.setCheckpointStorage(
+                new BackendForTestStream(new StaticForwardFactory(blockerCheckpointStreamFactory)));
 
         streamConfig.setStreamOperator(new AsyncCheckpointOperator());
         streamConfig.setOperatorID(new OperatorID());
