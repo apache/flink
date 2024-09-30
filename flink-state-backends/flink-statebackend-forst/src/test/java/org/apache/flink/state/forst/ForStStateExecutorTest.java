@@ -29,8 +29,8 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.v2.AbstractKeyedState;
 
+import org.forstdb.WriteOptions;
 import org.junit.jupiter.api.Test;
-import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
 import java.util.HashMap;

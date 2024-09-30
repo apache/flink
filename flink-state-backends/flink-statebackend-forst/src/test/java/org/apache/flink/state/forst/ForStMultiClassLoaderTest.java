@@ -21,10 +21,10 @@ package org.apache.flink.state.forst;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.forstdb.RocksDB;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.RocksDB;
 
 import java.lang.reflect.Method;
 import java.net.URL;

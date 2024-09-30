@@ -48,8 +48,8 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.rocksdb.NativeLibraryLoader;
-import org.rocksdb.RocksDB;
+import org.forstdb.NativeLibraryLoader;
+import org.forstdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -620,7 +620,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     // ------------------------------------------------------------------------
 
     /**
-     * Sets {@link org.rocksdb.Options} for the ForSt instances. Because the options are not
+     * Sets {@link org.forstdb.Options} for the ForSt instances. Because the options are not
      * serializable and hold native code references, they must be specified through a factory.
      *
      * <p>The options created by the factory here are applied on top of user-configured options from
@@ -633,7 +633,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         this.forStOptionsFactory = optionsFactory;
     }
 
-    /** Gets {@link org.rocksdb.Options} for the ForSt instances. */
+    /** Gets {@link org.forstdb.Options} for the ForSt instances. */
     @Nullable
     public ForStOptionsFactory getForStOptions() {
         return forStOptionsFactory;

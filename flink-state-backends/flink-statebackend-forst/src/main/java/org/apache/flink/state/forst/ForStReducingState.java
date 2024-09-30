@@ -33,7 +33,7 @@ import org.apache.flink.runtime.state.v2.AbstractReducingState;
 import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
 
 import java.io.IOException;
 import java.util.function.Supplier;

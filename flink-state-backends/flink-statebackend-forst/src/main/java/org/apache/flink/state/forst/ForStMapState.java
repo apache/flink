@@ -35,8 +35,8 @@ import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksIterator;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksIterator;
 
 import java.io.IOException;
 import java.util.Map;

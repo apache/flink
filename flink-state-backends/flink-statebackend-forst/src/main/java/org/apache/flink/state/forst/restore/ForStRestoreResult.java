@@ -21,8 +21,8 @@ package org.apache.flink.state.forst.restore;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.state.forst.ForStNativeMetricMonitor;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
 
 import javax.annotation.Nullable;
 

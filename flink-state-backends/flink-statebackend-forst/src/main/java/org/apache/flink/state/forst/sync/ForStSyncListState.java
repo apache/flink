@@ -34,8 +34,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDBException;
 
 import javax.annotation.Nullable;
 
@@ -51,7 +51,7 @@ import static org.apache.flink.runtime.state.StateSnapshotTransformer.Collection
  * {@link ListState} implementation that stores state in RocksDB.
  *
  * <p>{@link org.apache.flink.state.forst.ForStStateBackend} must ensure that we set the {@link
- * org.rocksdb.StringAppendOperator} on the column family that we use for our state since we use the
+ * org.forstdb.StringAppendOperator} on the column family that we use for our state since we use the
  * {@code merge()} call.
  *
  * @param <K> The type of the key.
