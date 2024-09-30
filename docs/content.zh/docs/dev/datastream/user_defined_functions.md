@@ -206,9 +206,6 @@ myJobExecutionResult.getAccumulatorResult("num-lines");
 
 单个作业的所有累加器共享一个命名空间。因此你可以在不同的操作 function 里面使用同一个累加器。Flink 会在内部将所有具有相同名称的累加器合并起来。
 
-关于累加器和迭代的注意事项：当前累加器的结果只有在整个作业结束后才可用。我们还计划在下一次迭代中提供上一次的迭代结果。你可以使用
-{{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98" name="聚合器" >}}
-来计算每次迭代的统计信息，并基于此类统计信息来终止迭代。
 
 __定制累加器：__
 

@@ -16,29 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.summarize.aggregation;
+package org.apache.flink.python.legacy;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.Partitioner;
 
-/**
- * Generic interface for aggregation.
- *
- * @param <T> the type to be aggregated
- * @param <R> the result type of the aggregation
- */
+/** Partitioner that partitions by id. */
 @Internal
-public interface Aggregator<T, R> extends java.io.Serializable {
+public class IdPartitioner implements Partitioner<Integer> {
 
-    /** Add a value to the current aggregation. */
-    void aggregate(T value);
+    private static final long serialVersionUID = -1206233785103357568L;
 
-    /**
-     * Combine two aggregations of the same type.
-     *
-     * <p>(Implementations will need to do an unchecked cast).
-     */
-    void combine(Aggregator<T, R> otherSameType);
-
-    /** Provide the final result of the aggregation. */
-    R result();
+    @Override
+    public int partition(Integer key, int numPartitions) {
+        return key;
+    }
 }

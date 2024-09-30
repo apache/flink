@@ -67,7 +67,6 @@ under the License.
 		<module>flink-architecture-tests</module>
 		<module>flink-core-api</module>
 		<module>flink-core</module>
-		<module>flink-java</module>
 		<module>flink-filesystems</module>
 		<module>flink-rpc</module>
 		<module>flink-runtime</module>

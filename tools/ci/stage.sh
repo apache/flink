@@ -36,7 +36,6 @@ flink-state-backends/flink-statebackend-rocksdb,\
 flink-state-backends/flink-statebackend-forst,\
 flink-clients,\
 flink-core,\
-flink-java,\
 flink-rpc,\
 flink-rpc/flink-rpc-core,\
 flink-rpc/flink-rpc-akka,\
