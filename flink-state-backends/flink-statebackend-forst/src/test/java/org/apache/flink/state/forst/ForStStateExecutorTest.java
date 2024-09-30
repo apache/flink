@@ -234,7 +234,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
     @SuppressWarnings("unchecked")
     public void testExecuteAggregatingStateRequest() throws Exception {
         ForStStateExecutor forStStateExecutor =
-                new ForStStateExecutor(false, 4, 1, db, new WriteOptions());
+                new ForStStateExecutor(false, false, 4, 1, db, new WriteOptions());
         ForStAggregatingState<String, ?, Integer, Integer, Integer> state =
                 buildForStSumAggregateState("agg-state-1");
 
