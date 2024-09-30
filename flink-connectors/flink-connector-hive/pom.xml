@@ -702,7 +702,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!--flink-java and flink-clients test dependencies used for HiveInputFormatTest-->
+		<!--flink-clients test dependencies used for HiveInputFormatTest-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>

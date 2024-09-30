@@ -209,12 +209,6 @@ All accumulators share a single namespace per job. Thus you can use the same acc
 different operator functions of your job. Flink will internally merge all accumulators with the same
 name.
 
-A note on accumulators and iterations: Currently the result of accumulators is only available after
-the overall job has ended. We plan to also make the result of the previous iteration available in the
-next iteration. You can use
-{{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98" name="Aggregators" >}}
-to compute per-iteration statistics and base the termination of iterations on such statistics.
-
 __Custom accumulators:__
 
 To implement your own accumulator you simply have to write your implementation of the Accumulator
