@@ -40,7 +40,7 @@ import org.apache.flink.state.forst.ForStStateDataTransfer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
-import org.rocksdb.RocksDB;
+import org.forstdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

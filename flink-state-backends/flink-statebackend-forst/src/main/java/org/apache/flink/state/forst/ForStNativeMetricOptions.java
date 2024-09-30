@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 
-import org.rocksdb.TickerType;
+import org.forstdb.TickerType;
 
 import java.io.Serializable;
 import java.util.Collection;

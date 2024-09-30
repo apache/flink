@@ -21,8 +21,8 @@ package org.apache.flink.state.forst.sync;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDBException;
 
 import java.io.IOException;
 

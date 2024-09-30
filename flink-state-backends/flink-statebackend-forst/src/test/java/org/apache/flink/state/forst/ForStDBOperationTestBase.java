@@ -46,13 +46,13 @@ import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.RocksDB;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
-import org.rocksdb.ColumnFamilyDescriptor;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.RocksDB;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

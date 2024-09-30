@@ -22,8 +22,8 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
 
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
 
 import java.io.File;
 import java.util.Map;

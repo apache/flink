@@ -18,9 +18,9 @@
 
 package org.apache.flink.state.forst;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
 
 import java.io.IOException;
 import java.util.ArrayList;

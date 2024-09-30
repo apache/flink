@@ -33,12 +33,12 @@ import org.apache.flink.state.forst.ForStKeyedStateBackend;
 import org.apache.flink.state.forst.ForStStateDataTransfer;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
 
 import java.io.File;
 import java.io.IOException;

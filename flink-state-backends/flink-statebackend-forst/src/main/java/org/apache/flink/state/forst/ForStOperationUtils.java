@@ -30,14 +30,14 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyDescriptor;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.ExportImportFilesMetaData;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.ExportImportFilesMetaData;
+import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

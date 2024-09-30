@@ -18,10 +18,10 @@
 
 package org.apache.flink.state.forst;
 
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
 
 /** Validate ForSt properties. */
 class ForStPropertyTest {

@@ -40,10 +40,10 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
 
 import javax.annotation.Nonnull;
 

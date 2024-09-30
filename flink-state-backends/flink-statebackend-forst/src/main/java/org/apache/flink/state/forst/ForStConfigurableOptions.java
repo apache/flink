@@ -24,9 +24,9 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.CompactionStyle;
-import org.rocksdb.CompressionType;
-import org.rocksdb.InfoLogLevel;
+import org.forstdb.CompactionStyle;
+import org.forstdb.CompressionType;
+import org.forstdb.InfoLogLevel;
 
 import java.io.File;
 import java.io.Serializable;
@@ -43,14 +43,14 @@ import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_COORDINATOR_INL
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_READ_IO_PARALLELISM;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_INLINE;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_PARALLELISM;
-import static org.rocksdb.CompactionStyle.FIFO;
-import static org.rocksdb.CompactionStyle.LEVEL;
-import static org.rocksdb.CompactionStyle.NONE;
-import static org.rocksdb.CompactionStyle.UNIVERSAL;
-import static org.rocksdb.CompressionType.LZ4_COMPRESSION;
-import static org.rocksdb.CompressionType.NO_COMPRESSION;
-import static org.rocksdb.CompressionType.SNAPPY_COMPRESSION;
-import static org.rocksdb.InfoLogLevel.INFO_LEVEL;
+import static org.forstdb.CompactionStyle.FIFO;
+import static org.forstdb.CompactionStyle.LEVEL;
+import static org.forstdb.CompactionStyle.NONE;
+import static org.forstdb.CompactionStyle.UNIVERSAL;
+import static org.forstdb.CompressionType.LZ4_COMPRESSION;
+import static org.forstdb.CompressionType.NO_COMPRESSION;
+import static org.forstdb.CompressionType.SNAPPY_COMPRESSION;
+import static org.forstdb.InfoLogLevel.INFO_LEVEL;
 
 /**
  * This class contains the configuration options for the ForStStateBackend.

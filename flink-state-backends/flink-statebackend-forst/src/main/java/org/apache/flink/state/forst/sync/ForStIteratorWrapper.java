@@ -20,9 +20,9 @@ package org.apache.flink.state.forst.sync;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
-import org.rocksdb.RocksIteratorInterface;
+import org.forstdb.RocksDBException;
+import org.forstdb.RocksIterator;
+import org.forstdb.RocksIteratorInterface;
 
 import javax.annotation.Nonnull;
 
