@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
 import org.apache.flink.legacy.table.sources.StreamTableSource
@@ -32,6 +31,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
 import org.apache.flink.table.legacy.sources.{LimitableTableSource, TableSource}
+import org.apache.flink.table.planner.factories.utils.CollectionInputFormat
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 

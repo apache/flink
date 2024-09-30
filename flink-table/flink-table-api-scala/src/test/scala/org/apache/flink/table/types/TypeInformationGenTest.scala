@@ -20,7 +20,6 @@ package org.apache.flink.table.types
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.base.IntSerializer
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.java.typeutils.TypeExtractorTest.CustomTuple
 import org.apache.flink.table.api._
@@ -575,10 +574,9 @@ class TypeInformationGenTest {
     val ti = createTypeInformation[Unit]
     assertThat(ti).isInstanceOf(classOf[UnitTypeInfo])
 
-    // This checks the condition in checkCollection. If this fails with IllegalArgumentException,
-    // then things like "env.fromElements((),(),())" won't work.
-    import scala.collection.JavaConversions._
-    CollectionInputFormat.checkCollection(Seq((), (), ()), (new UnitTypeInfo).getTypeClass())
+    val element = ()
+    val viewType = (new UnitTypeInfo).getTypeClass()
+    assertThat(viewType.isAssignableFrom(element.getClass())).isTrue
   }
 
   @Test

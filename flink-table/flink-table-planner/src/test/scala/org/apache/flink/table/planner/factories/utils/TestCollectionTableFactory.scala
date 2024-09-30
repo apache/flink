@@ -21,7 +21,6 @@ import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, StreamTableSink}
 import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
