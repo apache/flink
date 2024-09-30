@@ -54,13 +54,6 @@ public class TaskManagerMetricsInfo {
 
     public static final String FIELD_NAME_MAPPED_MAX = "mappedMax";
 
-    @Deprecated
-    public static final String FIELD_NAME_NETWORK_MEMORY_SEGMENTS_AVAILABLE =
-            "memorySegmentsAvailable";
-
-    @Deprecated
-    public static final String FIELD_NAME_NETWORK_MEMORY_SEGMENTS_TOTAL = "memorySegmentsTotal";
-
     public static final String FIELD_NAME_SHUFFLE_MEMORY_SEGMENTS_AVAILABLE =
             "nettyShuffleMemorySegmentsAvailable";
 
@@ -147,50 +140,6 @@ public class TaskManagerMetricsInfo {
     @JsonProperty(FIELD_NAME_GARBAGE_COLLECTORS)
     private final List<GarbageCollectorInfo> garbageCollectorsInfo;
 
-    public TaskManagerMetricsInfo(
-            long heapUsed,
-            long heapCommitted,
-            long heapMax,
-            long nonHeapUsed,
-            long nonHeapCommitted,
-            long nonHeapMax,
-            long directCount,
-            long directUsed,
-            long directMax,
-            long mappedCount,
-            long mappedUsed,
-            long mappedMax,
-            long shuffleMemorySegmentsAvailable,
-            long shuffleMemorySegmentsUsed,
-            long shuffleMemorySegmentsTotal,
-            long shuffleMemoryAvailable,
-            long shuffleMemoryUsed,
-            long shuffleMemoryTotal,
-            List<GarbageCollectorInfo> garbageCollectorsInfo) {
-        this(
-                heapUsed,
-                heapCommitted,
-                heapMax,
-                nonHeapUsed,
-                nonHeapCommitted,
-                nonHeapMax,
-                directCount,
-                directUsed,
-                directMax,
-                mappedCount,
-                mappedUsed,
-                mappedMax,
-                -1,
-                -1,
-                shuffleMemorySegmentsAvailable,
-                shuffleMemorySegmentsUsed,
-                shuffleMemorySegmentsTotal,
-                shuffleMemoryAvailable,
-                shuffleMemoryUsed,
-                shuffleMemoryTotal,
-                garbageCollectorsInfo);
-    }
-
     @JsonCreator
     public TaskManagerMetricsInfo(
             @JsonProperty(FIELD_NAME_HEAP_USED) long heapUsed,
@@ -205,10 +154,6 @@ public class TaskManagerMetricsInfo {
             @JsonProperty(FIELD_NAME_MAPPED_COUNT) long mappedCount,
             @JsonProperty(FIELD_NAME_MAPPED_USED) long mappedUsed,
             @JsonProperty(FIELD_NAME_MAPPED_MAX) long mappedMax,
-            @JsonProperty(FIELD_NAME_NETWORK_MEMORY_SEGMENTS_AVAILABLE)
-                    long ignoredNetworkMemorySegmentsAvailable,
-            @JsonProperty(FIELD_NAME_NETWORK_MEMORY_SEGMENTS_TOTAL)
-                    long ignoredNetworkMemorySegmentsTotal,
             @JsonProperty(FIELD_NAME_SHUFFLE_MEMORY_SEGMENTS_AVAILABLE)
                     long shuffleMemorySegmentsAvailable,
             @JsonProperty(FIELD_NAME_SHUFFLE_MEMORY_SEGMENTS_USED) long shuffleMemorySegmentsUsed,
@@ -237,18 +182,6 @@ public class TaskManagerMetricsInfo {
         this.shuffleMemoryUsed = shuffleMemoryUsed;
         this.shuffleMemoryTotal = shuffleMemoryTotal;
         this.garbageCollectorsInfo = Preconditions.checkNotNull(garbageCollectorsInfo);
-    }
-
-    @Deprecated
-    @JsonProperty(FIELD_NAME_NETWORK_MEMORY_SEGMENTS_AVAILABLE)
-    private long getMemorySegmentsAvailable() {
-        return this.shuffleMemorySegmentsAvailable;
-    }
-
-    @Deprecated
-    @JsonProperty(FIELD_NAME_NETWORK_MEMORY_SEGMENTS_TOTAL)
-    private long getMemorySegmentsTotal() {
-        return this.shuffleMemorySegmentsTotal;
     }
 
     @Override
@@ -353,8 +286,6 @@ public class TaskManagerMetricsInfo {
 
     public static TaskManagerMetricsInfo empty() {
         return new TaskManagerMetricsInfo(
-                0L,
-                0L,
                 0L,
                 0L,
                 0L,
