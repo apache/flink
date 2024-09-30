@@ -285,12 +285,6 @@ public class MetricStore {
         return unmodifiableMap(taskManagers);
     }
 
-    /** @deprecated Use semantically equivalent {@link #getJobManagerMetricStore()}. */
-    @Deprecated
-    public synchronized ComponentMetricStore getJobManager() {
-        return ComponentMetricStore.unmodifiable(jobManager);
-    }
-
     @VisibleForTesting
     public void add(MetricDump metric) {
         try {
