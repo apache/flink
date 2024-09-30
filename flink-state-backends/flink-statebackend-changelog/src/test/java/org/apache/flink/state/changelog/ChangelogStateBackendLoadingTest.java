@@ -40,7 +40,6 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -152,25 +151,6 @@ public class ChangelogStateBackendLoadingTest {
 
         StateBackendLoader.fromApplicationOrConfigOrDefault(
                 appBackend, config("rocksdb", true), config(), cl, null);
-    }
-
-    // ----------------------------------------------------------
-    // The following tests are testing different combinations of
-    // state backend and checkpointStorage after FLINK-19463
-    // disentangles Checkpointing from state backends.
-    // After "jobmanager" and "filesystem" state backends are removed,
-    // These tests can be simplified.
-    //
-    @Test
-    public void testLoadingMemoryStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend(
-                "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, true);
-    }
-
-    @Test
-    public void testLoadingMemoryStateBackend() throws Exception {
-        testLoadingStateBackend(
-                "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, false);
     }
 
     @Test

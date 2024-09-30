@@ -41,7 +41,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -553,7 +553,7 @@ class OperatorCoordinatorHolderTest {
                         Collections.emptyList(),
                         new StandaloneCheckpointIDCounter(),
                         new StandaloneCompletedCheckpointStore(10),
-                        new MemoryStateBackend(),
+                        new JobManagerCheckpointStorage(),
                         mainThreadExecutor,
                         new CheckpointsCleaner(),
                         mainThreadExecutor,

@@ -35,7 +35,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
@@ -79,7 +79,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                 new SourceOperatorStreamTask<Integer>(env),
                 new MockStreamConfig(new Configuration(), 1),
                 new MockOutput<>(new ArrayList<>()));
-        operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
+        operator.initializeState(
+                new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
 
         operator.open();
         MockSourceSplit split1 = new MockSourceSplit(0, 0, 10);
@@ -278,7 +279,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                 new SourceOperatorStreamTask<Integer>(env),
                 new MockStreamConfig(new Configuration(), 1),
                 new MockOutput<>(new ArrayList<>()));
-        operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
+        operator.initializeState(
+                new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
         operator.open();
         return operator;
     }

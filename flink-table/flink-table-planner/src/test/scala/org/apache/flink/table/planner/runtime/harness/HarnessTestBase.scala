@@ -22,8 +22,11 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
+import org.apache.flink.runtime.state.CheckpointStorage
 import org.apache.flink.runtime.state.StateBackend
-import org.apache.flink.runtime.state.memory.MemoryStateBackend
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
@@ -48,10 +51,21 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
     mode match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
-        new MemoryStateBackend().configure(conf, classLoader)
+        new HashMapStateBackend().configure(conf, classLoader)
 
       case ROCKSDB_BACKEND =>
         new RocksDBStateBackend("file://" + TempDirUtils.newFolder(tempFolder).getAbsoluteFile)
+    }
+  }
+
+  protected def getCheckpointStorage: CheckpointStorage = {
+    mode match {
+      case HEAP_BACKEND =>
+        new JobManagerCheckpointStorage()
+
+      case ROCKSDB_BACKEND =>
+        new FileSystemCheckpointStorage(
+          "file://" + TempDirUtils.newFolder(tempFolder).getAbsoluteFile)
     }
   }
 
@@ -62,6 +76,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
     val harness =
       new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)
     harness.setStateBackend(getStateBackend)
+    harness.setCheckpointStorage(getCheckpointStorage)
     harness
   }
 

@@ -47,7 +47,7 @@ import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.TestingCheckpointStorageAccessCoordinatorView;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -192,7 +192,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         }
     }
 
-    private static class AsyncFailureStateBackend extends MemoryStateBackend {
+    private static class AsyncFailureStateBackend extends HashMapStateBackend {
         private static final long serialVersionUID = 1L;
         private static final SnapshotStrategy<OperatorStateHandle, SnapshotResources>
                 ASYNC_DECLINING_SNAPSHOT_STRATEGY =

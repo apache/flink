@@ -51,7 +51,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
@@ -135,10 +136,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     private final TaskMailbox taskMailbox;
 
     // use this as default for tests
-    protected StateBackend stateBackend = new MemoryStateBackend();
+    protected StateBackend stateBackend = new HashMapStateBackend();
 
     private CheckpointStorageAccess checkpointStorageAccess =
-            new MemoryStateBackend().createCheckpointStorage(new JobID());
+            new JobManagerCheckpointStorage().createCheckpointStorage(new JobID());
 
     private final Object checkpointLock;
 

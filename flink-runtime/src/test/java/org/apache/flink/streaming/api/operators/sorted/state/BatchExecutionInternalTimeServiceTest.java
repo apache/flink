@@ -32,7 +32,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -65,7 +65,7 @@ class BatchExecutionInternalTimeServiceTest {
     @Test
     void testBatchExecutionManagerCanBeInstantiatedWithBatchStateBackend() throws Exception {
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
-        AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
+        AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
         TaskKvStateRegistry kvStateRegistry = mockEnvironment.getTaskKvStateRegistry();

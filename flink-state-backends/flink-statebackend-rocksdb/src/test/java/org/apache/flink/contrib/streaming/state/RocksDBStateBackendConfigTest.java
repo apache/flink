@@ -41,10 +41,8 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
@@ -1030,17 +1028,6 @@ public class RocksDBStateBackendConfigTest {
         } catch (IllegalArgumentException expected) {
             // expected exception
         }
-    }
-
-    // ------------------------------------------------------------------------
-    //  Contained Non-partitioned State Backend
-    // ------------------------------------------------------------------------
-
-    @Test
-    public void testCallsForwardedToNonPartitionedBackend() throws Exception {
-        StateBackend storageBackend = new MemoryStateBackend();
-        RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(storageBackend);
-        assertEquals(storageBackend, rocksDbBackend.getCheckpointBackend());
     }
 
     // ------------------------------------------------------------------------
