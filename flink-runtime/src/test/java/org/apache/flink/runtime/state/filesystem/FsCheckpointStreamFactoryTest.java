@@ -93,8 +93,8 @@ class FsCheckpointStreamFactoryTest {
 
     @Test
     void testEntropyMakesExclusiveStateAbsolutePaths() throws IOException {
-        final FsStateBackendEntropyTest.TestEntropyAwareFs fs =
-                new FsStateBackendEntropyTest.TestEntropyAwareFs();
+        final FsStorageEntropyTest.TestEntropyAwareFs fs =
+                new FsStorageEntropyTest.TestEntropyAwareFs();
         final FsCheckpointStreamFactory factory = createFactory(fs, 0);
 
         final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
@@ -136,7 +136,7 @@ class FsCheckpointStreamFactoryTest {
     private void flushAndVerify(int minFileSize, int bytesToFlush, boolean expectEmpty)
             throws IOException {
         FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
-                createFactory(new FsStateBackendEntropyTest.TestEntropyAwareFs(), minFileSize)
+                createFactory(new FsStorageEntropyTest.TestEntropyAwareFs(), minFileSize)
                         .createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
         stream.write(new byte[bytesToFlush], 0, bytesToFlush);
@@ -160,7 +160,7 @@ class FsCheckpointStreamFactoryTest {
     }
 
     private FsCheckpointStreamFactory createFactory(
-            FsStateBackendEntropyTest.TestEntropyAwareFs fs, int fileSizeThreshold) {
+            FsStorageEntropyTest.TestEntropyAwareFs fs, int fileSizeThreshold) {
         final Path exclusiveStateDirWithEntropy =
                 exclusiveStateDir.resolve(Objects.requireNonNull(fs.getEntropyInjectionKey()));
         return new FsCheckpointStreamFactory(

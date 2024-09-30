@@ -34,10 +34,10 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests verifying that the FsStateBackend passes the entropy injection option to the FileSystem for
+ * Tests verifying that the FsStorage passes the entropy injection option to the FileSystem for
  * state payload files, but not for metadata files.
  */
-class FsStateBackendEntropyTest {
+class FsStorageEntropyTest {
 
     static final String ENTROPY_MARKER = "__ENTROPY__";
     static final String RESOLVED_MARKER = "+RESOLVED+";

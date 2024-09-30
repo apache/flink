@@ -171,20 +171,6 @@ public class JobManagerCheckpointStorage
     }
 
     /**
-     * Creates a new JobManagerCheckpointStorage, setting optionally the paths to persist checkpoint
-     * and savepoint
-     */
-    public JobManagerCheckpointStorage(Path checkpointPath, Path savepointPath, int maxStateSize) {
-        checkArgument(maxStateSize > 0, "maxStateSize must be > 0");
-        this.maxStateSize = maxStateSize;
-        this.location =
-                ExternalizedSnapshotLocation.newBuilder()
-                        .withCheckpointPath(checkpointPath)
-                        .withSavepointPath(savepointPath)
-                        .build();
-    }
-
-    /**
      * Private constructor that creates a re-configured copy of the checkpoint storage.
      *
      * @param original The checkpoint storage to re-configure.
