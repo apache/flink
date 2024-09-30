@@ -55,8 +55,6 @@ access).
     StreamExecutionEnvironment.is_changelog_state_backend_enabled
     StreamExecutionEnvironment.set_default_savepoint_directory
     StreamExecutionEnvironment.get_default_savepoint_directory
-    StreamExecutionEnvironment.set_stream_time_characteristic
-    StreamExecutionEnvironment.get_stream_time_characteristic
     StreamExecutionEnvironment.configure
     StreamExecutionEnvironment.add_python_file
     StreamExecutionEnvironment.set_python_requirements

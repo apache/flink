@@ -312,7 +312,6 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
         this.sourceContext =
                 StreamSourceContexts.getSourceContext(
-                        getOperatorConfig().getTimeCharacteristic(),
                         getProcessingTimeService(),
                         new Object(), // no actual locking needed
                         output,

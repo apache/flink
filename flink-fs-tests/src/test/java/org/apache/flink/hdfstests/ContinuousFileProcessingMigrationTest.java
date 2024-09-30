@@ -28,7 +28,6 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
@@ -117,7 +116,6 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
                 createHarness(format);
-        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
         testHarness.open();
         // create some state in the reader
         testHarness.processElement(new StreamRecord<>(split1));
@@ -152,7 +150,6 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
 
         OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
                 createHarness(format);
-        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
         testHarness.setup();
 

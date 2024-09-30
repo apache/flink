@@ -40,7 +40,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.lineage.LineageGraph;
 import org.apache.flink.streaming.api.lineage.LineageGraphUtils;
@@ -136,9 +135,6 @@ public class StreamGraphGenerator {
     public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM =
             KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
-    public static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
-            TimeCharacteristic.ProcessingTime;
-
     public static final String DEFAULT_STREAMING_JOB_NAME = "Flink Streaming Job";
 
     public static final String DEFAULT_BATCH_JOB_NAME = "Flink Batch Job";
@@ -155,8 +151,6 @@ public class StreamGraphGenerator {
 
     // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
-
-    private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     private SavepointRestoreSettings savepointRestoreSettings;
 
@@ -226,11 +220,6 @@ public class StreamGraphGenerator {
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
         this.configuration = checkNotNull(configuration);
         this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
-    }
-
-    public StreamGraphGenerator setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
-        this.timeCharacteristic = timeCharacteristic;
-        return this;
     }
 
     /**
@@ -307,7 +296,6 @@ public class StreamGraphGenerator {
     private void configureStreamGraph(final StreamGraph graph) {
         checkNotNull(graph);
 
-        graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
         graph.setVertexNameIncludeIndexPrefix(
                 configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));

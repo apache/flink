@@ -27,8 +27,8 @@ import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStream
 import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
-import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
@@ -1717,17 +1717,6 @@ object TableTestUtil {
       .map(
         (f: Array[Expression]) => {
           val fieldsInfo = FieldInfoUtils.getFieldsInfo(streamType, f)
-          // check if event-time is enabled
-          if (
-            fieldsInfo.isRowtimeDefined &&
-            (execEnv.getStreamTimeCharacteristic ne TimeCharacteristic.EventTime)
-          ) {
-            throw new ValidationException(
-              String.format(
-                "A rowtime attribute requires an EventTime time characteristic in stream " +
-                  "environment. But is: %s",
-                execEnv.getStreamTimeCharacteristic))
-          }
           fieldsInfo
         })
       .getOrElse(FieldInfoUtils.getFieldsInfo(streamType))

@@ -19,7 +19,6 @@ package org.apache.flink.table.api.bridge.scala.internal
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -263,22 +262,6 @@ class StreamTableEnvironmentImpl(
       typeInfo,
       accTypeInfo
     )
-  }
-
-  override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
-    super.validateTableSource(tableSource)
-    // check that event-time is enabled if table source includes rowtime attributes
-    if (
-      TableSourceValidation.hasRowtimeAttribute(tableSource) &&
-      executionEnvironment.getStreamTimeCharacteristic != TimeCharacteristic.EventTime
-    ) {
-      throw new TableException(
-        String.format(
-          "A rowtime attribute requires an EventTime time characteristic in stream " +
-            "environment. But is: %s}",
-          executionEnvironment.getStreamTimeCharacteristic
-        ))
-    }
   }
 
   override def createTemporaryView[T](

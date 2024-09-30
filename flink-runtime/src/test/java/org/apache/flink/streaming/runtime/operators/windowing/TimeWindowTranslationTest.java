@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -55,7 +54,6 @@ class TimeWindowTranslationTest {
     @Test
     void testAlignedWindowDeprecation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
@@ -105,7 +103,6 @@ class TimeWindowTranslationTest {
     @SuppressWarnings("rawtypes")
     void testReduceEventTimeWindows() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
@@ -133,7 +130,6 @@ class TimeWindowTranslationTest {
     @SuppressWarnings("rawtypes")
     void testApplyEventTimeWindows() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));

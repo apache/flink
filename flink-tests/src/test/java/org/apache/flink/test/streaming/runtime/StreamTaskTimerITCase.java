@@ -21,7 +21,6 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
@@ -36,11 +35,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
@@ -52,14 +47,7 @@ import static org.junit.Assert.assertTrue;
  * <p>These tests ensure that exceptions are properly forwarded from the timer thread to the task
  * thread and that operator methods are not invoked concurrently.
  */
-@RunWith(Parameterized.class)
 public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
-
-    private final TimeCharacteristic timeCharacteristic;
-
-    public StreamTaskTimerITCase(TimeCharacteristic characteristic) {
-        timeCharacteristic = characteristic;
-    }
 
     /**
      * Note: this test fails if we don't check for exceptions in the source contexts and do not
@@ -69,7 +57,6 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
     public void testOperatorChainedToSource() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(timeCharacteristic);
         env.setParallelism(1);
 
         DataStream<String> source = env.addSource(new InfiniteTestSource());
@@ -106,7 +93,6 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
     @Test
     public void testOneInputOperatorWithoutChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(timeCharacteristic);
         env.setParallelism(1);
 
         DataStream<String> source = env.addSource(new InfiniteTestSource());
@@ -123,7 +109,6 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
     @Test
     public void testTwoInputOperatorWithoutChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(timeCharacteristic);
         env.setParallelism(1);
 
         DataStream<String> source = env.addSource(new InfiniteTestSource());
@@ -289,17 +274,5 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         public void cancel() {
             running = false;
         }
-    }
-
-    // ------------------------------------------------------------------------
-    //  parametrization
-    // ------------------------------------------------------------------------
-
-    @Parameterized.Parameters(name = "Time Characteristic = {0}")
-    public static Collection<Object[]> executionModes() {
-        return Arrays.asList(
-                new Object[] {TimeCharacteristic.ProcessingTime},
-                new Object[] {TimeCharacteristic.IngestionTime},
-                new Object[] {TimeCharacteristic.EventTime});
     }
 }
