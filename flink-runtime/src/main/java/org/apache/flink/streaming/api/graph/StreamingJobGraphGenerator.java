@@ -336,6 +336,17 @@ public class StreamingJobGraphGenerator {
         return jobGraph;
     }
 
+    /**
+     * Creates an instance of {@link OperatorID} based on the provided operator unique identifier
+     * (UID).
+     *
+     * @param operatorUid the unique identifier of the operator, used to generate the hash
+     * @return a new {@link OperatorID} instance generated from the specified operator UID
+     */
+    public static OperatorID generateOperatorID(String operatorUid) {
+        return new OperatorID(StreamGraphHasherV2.generateUserSpecifiedHash(operatorUid));
+    }
+
     private void waitForSerializationFuturesAndUpdateJobVertices()
             throws ExecutionException, InterruptedException {
         for (Map.Entry<
