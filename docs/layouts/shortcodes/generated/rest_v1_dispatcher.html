@@ -5313,7 +5313,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Returns details for a task manager. "metrics.memorySegmentsAvailable" and "metrics.memorySegmentsTotal" are deprecated. Please use "metrics.nettyShuffleMemorySegmentsAvailable" and "metrics.nettyShuffleMemorySegmentsTotal" instead.</td>
+      <td colspan="2">Returns details for a task manager.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -5479,12 +5479,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "integer"
         },
         "mappedUsed" : {
-          "type" : "integer"
-        },
-        "memorySegmentsAvailable" : {
-          "type" : "integer"
-        },
-        "memorySegmentsTotal" : {
           "type" : "integer"
         },
         "nettyShuffleMemoryAvailable" : {

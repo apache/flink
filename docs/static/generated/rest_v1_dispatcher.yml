@@ -1580,9 +1580,7 @@ paths:
                 $ref: '#/components/schemas/AggregatedMetricsResponseBody'
   /taskmanagers/{taskmanagerid}:
     get:
-      description: Returns details for a task manager. "metrics.memorySegmentsAvailable"
-        and "metrics.memorySegmentsTotal" are deprecated. Please use "metrics.nettyShuffleMemorySegmentsAvailable"
-        and "metrics.nettyShuffleMemorySegmentsTotal" instead.
+      description: Returns details for a task manager.
       operationId: getTaskManagerDetails
       parameters:
       - name: taskmanagerid
@@ -3332,12 +3330,6 @@ components:
           type: integer
           format: int64
         mappedUsed:
-          type: integer
-          format: int64
-        memorySegmentsAvailable:
-          type: integer
-          format: int64
-        memorySegmentsTotal:
           type: integer
           format: int64
         nettyShuffleMemoryAvailable:

@@ -3963,12 +3963,6 @@
             "mappedMax" : {
               "type" : "integer"
             },
-            "memorySegmentsAvailable" : {
-              "type" : "integer"
-            },
-            "memorySegmentsTotal" : {
-              "type" : "integer"
-            },
             "nettyShuffleMemorySegmentsAvailable" : {
               "type" : "integer"
             },
