@@ -596,8 +596,9 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-            VARIANT =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT |
+             FLOAT | DOUBLE | BOOLEAN | VARCHAR |
+             DECIMAL | VARIANT | ROW =>
           new LastValueWithRetractAggFunction(valueType)
         case t =>
           throw new TableException(
@@ -606,8 +607,9 @@ class AggFunctionFactory(
       }
     } else {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-            VARIANT =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT |
+             FLOAT | DOUBLE | BOOLEAN | VARCHAR |
+             DECIMAL | VARIANT | ROW =>
           new LastValueAggFunction(valueType)
         case t =>
           throw new TableException(

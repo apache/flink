@@ -2119,6 +2119,111 @@ class AggregateITCase(
 
     tEnv.dropTemporarySystemFunction("PERCENTILE")
   }
+
+  @TestTemplate
+  def testLastValueInSeparatedRow(): Unit = {
+    val empsData = List(
+      (100L, "Fred", 10, null, null, 40L, 25, true, false, ("extra1", 1)),
+      (100L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, ("extra2", 2)),
+      (120L, "John", 40, "M", "Vancouver", 2L, null, false, true, ("extra3", 3)),
+      (120L, "Wilma", 20, "F", null, 1L, 5, null, true, ("extra4", 4)),
+      (120L, "Alice", 40, "F", "Vancouver", 2L, null, false, true, ("extra5", 5))
+    )
+
+    val t = failingDataSource(empsData)
+      .toTable(
+        tEnv,
+        'empno,
+        'name,
+        'deptno,
+        'gender,
+        'city,
+        'empid,
+        'age,
+        'slacker,
+        'manager,
+        'extra_info)
+
+    tEnv.createTemporaryView("emps", t)
+
+    val sql =
+      s"""
+         |SELECT
+         |  empno,
+         |  LAST_VALUE(name) AS last_name,
+         |  LAST_VALUE(gender) AS last_gender,
+         |  LAST_VALUE(city) AS last_city,
+         |  LAST_VALUE(manager) AS last_manager,
+         |  LAST_VALUE(extra_info) AS last_extra_info
+         |FROM emps
+         |GROUP BY empno
+         |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "100,Eric,M,San Francisco,false,+I[extra2, 2]",
+      "120,Alice,F,Vancouver,true,+I[extra5, 5]"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testLastValueInRow(): Unit = {
+    val empsData = List(
+      (100L, "Fred", 10, null, null, 40L, 25, true, false, ("extra1", 1)),
+      (100L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, ("extra2", 2)),
+      (120L, "John", 40, "M", "Vancouver", 2L, null, false, true, ("extra3", 3)),
+      (120L, "Wilma", 20, "F", null, 1L, 5, null, true, ("extra4", 4)),
+      (120L, "Alice", 40, "F", "Vancouver", 2L, null, false, true, ("extra5", 5))
+    )
+
+    val t = failingDataSource(empsData)
+      .toTable(
+        tEnv,
+        'empno,
+        'name,
+        'deptno,
+        'gender,
+        'city,
+        'empid,
+        'age,
+        'slacker,
+        'manager,
+        'extra_info)
+
+    tEnv.createTemporaryView("emps", t)
+
+    val sql =
+      s"""
+         |SELECT
+         |    empno,
+         |    LAST_VALUE(
+         |        ROW(
+         |            name,
+         |            deptno,
+         |            gender,
+         |            city,
+         |            empid,
+         |            age,
+         |            slacker,
+         |            manager,
+         |            extra_info
+         |        )
+         |    ) AS row_data
+         |FROM emps group by empno
+         |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "100,+I[Eric, 20, M, San Francisco, 3, 80, null, false, +I[extra2, 2]]",
+      "120,+I[Alice, 40, F, Vancouver, 2, null, false, true, +I[extra5, 5]]"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 }
 
 object AggregateITCase {
