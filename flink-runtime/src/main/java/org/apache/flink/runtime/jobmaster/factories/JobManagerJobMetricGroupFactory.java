@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
-import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
 import javax.annotation.Nonnull;
 

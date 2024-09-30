@@ -80,10 +80,12 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;

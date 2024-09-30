@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
 /**
  * {@link ExecutionPlanWriter} implementation which does not allow to store {@link ExecutionPlan}.
