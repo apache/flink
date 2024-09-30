@@ -265,7 +265,6 @@ public class JobVertexTaskManagersHandler
             }
             taskManagersInfoList.add(
                     new JobVertexTaskManagersInfo.TaskManagersInfo(
-                            host,
                             endpoint,
                             jobVertexState,
                             startTime,

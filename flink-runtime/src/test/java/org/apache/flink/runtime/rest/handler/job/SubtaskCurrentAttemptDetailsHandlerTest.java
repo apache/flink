@@ -185,7 +185,6 @@ class SubtaskCurrentAttemptDetailsHandlerTest {
                         subtaskIndex,
                         expectedState,
                         attempt,
-                        assignedResourceLocation.getHostname(),
                         assignedResourceLocation.getEndpoint(),
                         deployingTs,
                         finishedTs,

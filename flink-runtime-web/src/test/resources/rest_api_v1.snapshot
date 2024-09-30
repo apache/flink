@@ -2555,9 +2555,6 @@
               "attempt" : {
                 "type" : "integer"
               },
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -2926,9 +2923,6 @@
               "attempt" : {
                 "type" : "integer"
               },
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -3020,9 +3014,6 @@
         },
         "attempt" : {
           "type" : "integer"
-        },
-        "host" : {
-          "type" : "string"
         },
         "endpoint" : {
           "type" : "string"
@@ -3132,9 +3123,6 @@
         },
         "attempt" : {
           "type" : "integer"
-        },
-        "host" : {
-          "type" : "string"
         },
         "endpoint" : {
           "type" : "string"
@@ -3332,9 +3320,6 @@
               "subtask" : {
                 "type" : "integer"
               },
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -3390,9 +3375,6 @@
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
