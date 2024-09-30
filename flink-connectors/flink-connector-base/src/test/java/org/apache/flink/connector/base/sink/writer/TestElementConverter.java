@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 
 /** A test implementation of {@link ElementConverter} used to verify the open() method. */
 public class TestElementConverter implements ElementConverter<String, Integer> {
@@ -28,7 +28,7 @@ public class TestElementConverter implements ElementConverter<String, Integer> {
     private int openCallCount;
 
     @Override
-    public void open(Sink.InitContext context) {
+    public void open(WriterInitContext context) {
         openCallCount++;
     }
 

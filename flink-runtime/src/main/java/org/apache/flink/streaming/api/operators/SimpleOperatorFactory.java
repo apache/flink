@@ -22,8 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

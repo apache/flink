@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.eventtime._
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory

@@ -59,10 +59,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SocketClientSink;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
@@ -881,10 +881,9 @@ public class DataStream<T> {
      * @param path The path pointing to the location the text file is written to.
      * @return The closed DataStream.
      * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
+     *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink}
+     *     explicitly using the {@link #addSink(SinkFunction)} method.
      */
-    @Deprecated
     @PublicEvolving
     public DataStreamSink<T> writeAsText(String path) {
         return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
@@ -900,11 +899,10 @@ public class DataStream<T> {
      *     OVERWRITE.
      * @return The closed DataStream.
      * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
+     *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink}
+     *     explicitly using the {@link #addSink(SinkFunction)} method.
      */
-    @Deprecated
-    @PublicEvolving
+    @Internal
     public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
         TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
         tof.setWriteMode(writeMode);
@@ -920,10 +918,9 @@ public class DataStream<T> {
      * @param path the path pointing to the location the text file is written to
      * @return the closed DataStream
      * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
+     *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink}
+     *     explicitly using the {@link #addSink(SinkFunction)} method.
      */
-    @Deprecated
     @PublicEvolving
     public DataStreamSink<T> writeAsCsv(String path) {
         return writeAsCsv(
@@ -944,11 +941,10 @@ public class DataStream<T> {
      *     OVERWRITE.
      * @return the closed DataStream
      * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
+     *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink}
+     *     explicitly using the {@link #addSink(SinkFunction)} method.
      */
-    @Deprecated
-    @PublicEvolving
+    @Internal
     public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
         return writeAsCsv(
                 path,
@@ -971,12 +967,11 @@ public class DataStream<T> {
      * @param fieldDelimiter the delimiter for two fields
      * @return the closed DataStream
      * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
+     *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink}
+     *     explicitly using the {@link #addSink(SinkFunction)} method.
      */
     @SuppressWarnings("unchecked")
-    @Deprecated
-    @PublicEvolving
+    @Internal
     public <X extends Tuple> DataStreamSink<T> writeAsCsv(
             String path, WriteMode writeMode, String rowDelimiter, String fieldDelimiter) {
         Preconditions.checkArgument(
@@ -1016,13 +1011,14 @@ public class DataStream<T> {
      * <p>The output is not participating in Flink's checkpointing!
      *
      * <p>For writing to a file system periodically, the use of the {@link
-     * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} is recommended.
+     * org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink} is
+     * recommended.
      *
      * @param format The output format
      * @return The closed DataStream
      * @deprecated Please use the {@link
-     *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly
-     *     using the {@link #addSink(SinkFunction)} method.
+     *     org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink}
+     *     explicitly using the {@link #addSink(SinkFunction)} method.
      */
     @Deprecated
     @PublicEvolving
@@ -1128,38 +1124,6 @@ public class DataStream<T> {
         }
 
         return DataStreamSink.forSinkFunction(this, clean(sinkFunction));
-    }
-
-    /**
-     * Adds the given {@link Sink} to this DataStream. Only streams with sinks added will be
-     * executed once the {@link StreamExecutionEnvironment#execute()} method is called.
-     *
-     * @param sink The user defined sink.
-     * @return The closed DataStream.
-     */
-    @PublicEvolving
-    public DataStreamSink<T> sinkTo(org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink) {
-        return this.sinkTo(sink, CustomSinkOperatorUidHashes.DEFAULT);
-    }
-
-    /**
-     * Adds the given {@link Sink} to this DataStream. Only streams with sinks added will be
-     * executed once the {@link StreamExecutionEnvironment#execute()} method is called.
-     *
-     * <p>This method is intended to be used only to recover a snapshot where no uids have been set
-     * before taking the snapshot.
-     *
-     * @param sink The user defined sink.
-     * @return The closed DataStream.
-     */
-    @PublicEvolving
-    public DataStreamSink<T> sinkTo(
-            org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink,
-            CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
-        // read the output type of the input Transform to coax out errors about MissingTypeInfo
-        transformation.getOutputType();
-
-        return DataStreamSink.forSinkV1(this, sink, customSinkOperatorUidHashes);
     }
 
     /**

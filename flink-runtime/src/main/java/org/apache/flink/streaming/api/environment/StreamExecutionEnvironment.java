@@ -79,20 +79,21 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
-import org.apache.flink.streaming.api.functions.source.FileReadFunction;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
-import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+import org.apache.flink.streaming.api.functions.source.legacy.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FileReadFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromIteratorFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromSplittableIteratorFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SocketTextStreamFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -1483,12 +1484,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *     "hdfs://host:port/file/path/")
      * @param intervalMillis The interval of file watching in milliseconds
      * @param watchType The watch type of file stream. When watchType is {@link
-     *     org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#ONLY_NEW_FILES},
-     *     the system processes only new files. {@link
-     *     org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#REPROCESS_WITH_APPENDED}
-     *     means that the system re-processes all contents of appended file. {@link
-     *     org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#PROCESS_ONLY_APPENDED}
-     *     means that the system processes only appended contents of files.
+     *     FileMonitoringFunction.WatchType#ONLY_NEW_FILES}, the system processes only new files.
+     *     {@link FileMonitoringFunction.WatchType#REPROCESS_WITH_APPENDED} means that the system
+     *     re-processes all contents of appended file. {@link
+     *     FileMonitoringFunction.WatchType#PROCESS_ONLY_APPENDED} means that the system processes
+     *     only appended contents of files.
      * @return The DataStream containing the given directory.
      * @deprecated Use {@link #readFile(FileInputFormat, String, FileProcessingMode, long)} instead.
      */
@@ -1783,19 +1783,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * Adds a Data Source to the streaming topology.
      *
      * <p>By default sources have a parallelism of 1. To enable parallel execution, the user defined
-     * source should implement {@link
-     * org.apache.flink.streaming.api.functions.source.ParallelSourceFunction} or extend {@link
-     * org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction}. In these cases
-     * the resulting source will have the parallelism of the environment. To change this afterwards
-     * call {@link org.apache.flink.streaming.api.datastream.DataStreamSource#setParallelism(int)}
+     * source should implement {@link ParallelSourceFunction} or extend {@link
+     * RichParallelSourceFunction}. In these cases the resulting source will have the parallelism of
+     * the environment. To change this afterwards call {@link
+     * org.apache.flink.streaming.api.datastream.DataStreamSource#setParallelism(int)}
      *
      * @param function the user defined function
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
-     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on the new
+     *     {@link org.apache.flink.api.connector.source.Source} API instead.
      */
     @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
@@ -1805,18 +1803,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Adds a data source with a custom type information thus opening a {@link DataStream}. Only in
      * very special cases does the user need to support type information. Otherwise use {@link
-     * #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+     * #addSource(SourceFunction)}
      *
      * @param function the user defined function
      * @param sourceName Name of the data source
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
-     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on the new
+     *     {@link org.apache.flink.api.connector.source.Source} API instead.
      */
-    @Deprecated
+    @Internal
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
         return addSource(function, sourceName, null);
     }
@@ -1824,18 +1821,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Ads a data source with a custom type information thus opening a {@link DataStream}. Only in
      * very special cases does the user need to support type information. Otherwise use {@link
-     * #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+     * #addSource(SourceFunction)}
      *
      * @param function the user defined function
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
-     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)} method
+     *     based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
-    @Deprecated
+    @Internal
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
         return addSource(function, "Custom Source", typeInfo);
@@ -1844,19 +1840,18 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Ads a data source with a custom type information thus opening a {@link DataStream}. Only in
      * very special cases does the user need to support type information. Otherwise use {@link
-     * #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+     * #addSource(SourceFunction)}
      *
      * @param function the user defined function
      * @param sourceName Name of the data source
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
-     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)} method
+     *     based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
-    @Deprecated
+    @Internal
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
         return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);

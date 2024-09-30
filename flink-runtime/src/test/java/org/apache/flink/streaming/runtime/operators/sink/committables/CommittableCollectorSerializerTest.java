@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -173,8 +173,8 @@ class CommittableCollectorSerializerTest {
     void testAlignSubtaskCommittableManagerCheckpointWithCheckpointCommittableManagerCheckpointId()
             throws IOException {
         // Create CommittableCollector holding a higher checkpointId than
-        // Sink.InitContext#INITIAL_CHECKPOINT_ID
-        long checkpointId = Sink.InitContext.INITIAL_CHECKPOINT_ID + 1;
+        // WriterInitContext#INITIAL_CHECKPOINT_ID
+        long checkpointId = WriterInitContext.INITIAL_CHECKPOINT_ID + 1;
         final CommittableCollector<Integer> committableCollector =
                 new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
         committableCollector.addMessage(

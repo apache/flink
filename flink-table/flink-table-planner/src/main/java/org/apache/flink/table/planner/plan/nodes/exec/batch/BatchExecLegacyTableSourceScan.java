@@ -25,7 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;

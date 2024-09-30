@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider
-import org.apache.flink.streaming.api.functions.source.{ParallelSourceFunction, SourceFunction}
+import org.apache.flink.streaming.api.functions.source.legacy.{ParallelSourceFunction, SourceFunction}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.connector.ChangelogMode

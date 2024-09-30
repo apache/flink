@@ -20,6 +20,7 @@ package org.apache.flink.schema.registry.test;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
@@ -95,7 +96,7 @@ public class TestAvroConsumerConfluent {
                                         .build())
                         .setKafkaProducerConfig(config)
                         .build();
-        mapToString.sinkTo(stringSink);
+        mapToString.sinkTo((Sink) stringSink);
 
         KafkaSink<User> avroSink =
                 KafkaSink.<User>builder()
@@ -112,7 +113,7 @@ public class TestAvroConsumerConfluent {
                                         .setTopic(parameterTool.getRequired("output-avro-topic"))
                                         .build())
                         .build();
-        input.sinkTo(avroSink);
+        input.sinkTo((Sink) avroSink);
 
         env.execute("Kafka Confluent Schema Registry AVRO Example");
     }

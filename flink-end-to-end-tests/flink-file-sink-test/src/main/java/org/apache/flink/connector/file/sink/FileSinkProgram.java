@@ -34,10 +34,10 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 
 import java.io.PrintStream;
 import java.time.Duration;
@@ -129,15 +129,8 @@ public enum FileSinkProgram {
         }
     }
 
-    /**
-     * Data-generating source function.
-     *
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
-    public static final class Generator
+    /** Data-generating source function. */
+    static final class Generator
             implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
 
         private static final long serialVersionUID = -2819385275681175792L;

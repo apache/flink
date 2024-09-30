@@ -2398,6 +2398,10 @@ under the License.
 								<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
 								<!-- FLINK-36327 Remove dependency about flink-scala and flink-streaming-scala in table module in flink-2.0 -->
 								<exclude>org.apache.flink.table.api.typeutils.*</exclude>
+								<!-- FLINK-36245 Remove Sink.InitContext in flink-2.0. -->
+								<exclude>org.apache.flink.api.connector.sink2.Sink</exclude>
+								<!-- FLINK-36245 move SourceFunction to legacy package in flink-2.0. -->
+								<exclude>org.apache.flink.walkthrough.common.source.TransactionSource</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

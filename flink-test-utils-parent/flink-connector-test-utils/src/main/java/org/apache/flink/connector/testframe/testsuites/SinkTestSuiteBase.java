@@ -31,7 +31,6 @@ import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkExternalContext;
-import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV1ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV2ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.TestingSinkSettings;
 import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension;
@@ -573,11 +572,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             DataStreamSinkExternalContext<T> context,
             TestingSinkSettings sinkSettings) {
         try {
-            if (context instanceof DataStreamSinkV1ExternalContext) {
-                org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sinkV1 =
-                        ((DataStreamSinkV1ExternalContext<T>) context).createSink(sinkSettings);
-                return dataStream.sinkTo(sinkV1);
-            } else if (context instanceof DataStreamSinkV2ExternalContext) {
+            if (context instanceof DataStreamSinkV2ExternalContext) {
                 Sink<T> sinkV2 =
                         ((DataStreamSinkV2ExternalContext<T>) context).createSink(sinkSettings);
                 return dataStream.sinkTo(sinkV2);
@@ -602,9 +597,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
      * </ul>
      */
     private String getSinkMetricFilter(DataStreamSinkExternalContext<T> context) {
-        if (context instanceof DataStreamSinkV1ExternalContext) {
-            return null;
-        } else if (context instanceof DataStreamSinkV2ExternalContext) {
+        if (context instanceof DataStreamSinkV2ExternalContext) {
             // See class `SinkTransformationTranslator`
             return "Writer";
         } else {

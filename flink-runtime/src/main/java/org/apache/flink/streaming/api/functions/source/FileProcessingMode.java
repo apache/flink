@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.functions.source.legacy.ContinuousFileMonitoringFunction;
 
 /**
  * The mode in which the {@link ContinuousFileMonitoringFunction} operates. This can be either

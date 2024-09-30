@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.streaming.api.functions.source.legacy.ContinuousFileMonitoringFunction;
 
 import java.io.Serializable;
 

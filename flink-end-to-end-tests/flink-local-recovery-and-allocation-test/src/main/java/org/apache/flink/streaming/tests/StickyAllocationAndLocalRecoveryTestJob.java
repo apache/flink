@@ -36,8 +36,8 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -145,14 +145,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         env.execute("Sticky Allocation And Local Recovery Test");
     }
 
-    /**
-     * Source function that produces a long sequence.
-     *
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
+    /** Source function that produces a long sequence. */
     private static final class RandomLongSource extends RichParallelSourceFunction<Long>
             implements CheckpointedFunction {
 

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.examples.statemachine;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -67,15 +68,16 @@ public class KafkaEventsGeneratorJob {
                         WatermarkStrategy.noWatermarks(),
                         "Events Generator Source")
                 .sinkTo(
-                        KafkaSink.<Event>builder()
-                                .setBootstrapServers(brokers)
-                                .setRecordSerializer(
-                                        KafkaRecordSerializationSchema.builder()
-                                                .setValueSerializationSchema(
-                                                        new EventDeSerializationSchema())
-                                                .setTopic(kafkaTopic)
-                                                .build())
-                                .build());
+                        (Sink)
+                                KafkaSink.<Event>builder()
+                                        .setBootstrapServers(brokers)
+                                        .setRecordSerializer(
+                                                KafkaRecordSerializationSchema.builder()
+                                                        .setValueSerializationSchema(
+                                                                new EventDeSerializationSchema())
+                                                        .setTopic(kafkaTopic)
+                                                        .build())
+                                        .build());
 
         // trigger program execution
         env.execute("State machine example Kafka events generator job");

@@ -19,7 +19,7 @@
 package org.apache.flink.legacy.table.connector.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -33,10 +33,9 @@ import java.util.Optional;
  * ScanTableSource}.
  *
  * @deprecated This interface is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use {@link org.apache.flink.table.connector.source.SourceProvider} instead.
+ *     org.apache.flink.streaming.api.functions.source.legacy.SourceFunction} API, which is due to
+ *     be removed. Use {@link org.apache.flink.table.connector.source.SourceProvider} instead.
  */
-@Deprecated
 @Internal
 public interface SourceFunctionProvider
         extends ScanTableSource.ScanRuntimeProvider, ParallelismProvider {

@@ -18,24 +18,27 @@
 
 package org.apache.flink.table.connector.sink;
 
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 
 /** Managed {@link Sink} for testing compaction. */
 public class TestManagedSink
-        implements Sink<RowData, TestManagedCommittable, Void, TestManagedCommittable> {
+        implements Sink<RowData>,
+                SupportsCommitter<TestManagedCommittable>,
+                SupportsPreCommitTopology<TestManagedCommittable, TestManagedCommittable> {
 
     private static final long serialVersionUID = 1L;
 
@@ -48,40 +51,29 @@ public class TestManagedSink
     }
 
     @Override
-    public SinkWriter<RowData, TestManagedCommittable, Void> createWriter(
-            InitContext context, List<Void> states) throws IOException {
+    public SinkWriter<RowData> createWriter(WriterInitContext context) throws IOException {
         return new TestManagedSinkWriter();
     }
 
     @Override
-    public Optional<Committer<TestManagedCommittable>> createCommitter() {
-        return Optional.empty();
+    public Committer<TestManagedCommittable> createCommitter(CommitterInitContext context)
+            throws IOException {
+        return new TestManagedSinkCommitter(tableIdentifier, basePath);
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<TestManagedCommittable>> getCommittableSerializer() {
-        return Optional.of(new TestManagedSinkCommittableSerializer());
+    public SimpleVersionedSerializer<TestManagedCommittable> getCommittableSerializer() {
+        return new TestManagedSinkCommittableSerializer();
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Void>> getWriterStateSerializer() {
-        return Optional.empty();
+    public DataStream<CommittableMessage<TestManagedCommittable>> addPreCommitTopology(
+            DataStream<CommittableMessage<TestManagedCommittable>> committables) {
+        return committables.global();
     }
 
     @Override
-    public Optional<GlobalCommitter<TestManagedCommittable, TestManagedCommittable>>
-            createGlobalCommitter() {
-        return Optional.of(new TestManagedSinkCommitter(tableIdentifier, basePath));
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<TestManagedCommittable>>
-            getGlobalCommittableSerializer() {
-        return Optional.of(new TestManagedSinkCommittableSerializer());
-    }
-
-    @Override
-    public Collection<String> getCompatibleStateNames() {
-        return Collections.emptyList();
+    public SimpleVersionedSerializer<TestManagedCommittable> getWriteResultSerializer() {
+        return new TestManagedSinkCommittableSerializer();
     }
 }

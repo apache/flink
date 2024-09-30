@@ -23,6 +23,7 @@ import shutil
 import tempfile
 import time
 import uuid
+import unittest
 
 from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
@@ -484,6 +485,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_jars(self):
         # find kafka connector jars
         flink_source_root = _find_flink_source_root()
@@ -505,6 +507,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.add_source(kafka_consumer).print()
         self.env.get_execution_plan()
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_classpaths(self):
         # find kafka connector jars
         flink_source_root = _find_flink_source_root()

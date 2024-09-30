@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.streaming.api.functions.sink.legacy.SocketClientSink;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -43,7 +44,7 @@ import java.util.concurrent.Future;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for the {@link org.apache.flink.streaming.api.functions.sink.SocketClientSink}. */
+/** Tests for the {@link SocketClientSink}. */
 class SocketClientSinkTest {
 
     private static final String TEST_MESSAGE = "testSocketSinkInvoke";

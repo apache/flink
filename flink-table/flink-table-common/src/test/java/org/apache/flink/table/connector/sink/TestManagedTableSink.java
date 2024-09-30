@@ -23,7 +23,6 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.legacy.connector.sink.SinkProvider;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,7 +50,7 @@ public class TestManagedTableSink
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-        return SinkProvider.of(new TestManagedSink(this.context.getObjectIdentifier(), basePath));
+        return SinkV2Provider.of(new TestManagedSink(this.context.getObjectIdentifier(), basePath));
     }
 
     @Override

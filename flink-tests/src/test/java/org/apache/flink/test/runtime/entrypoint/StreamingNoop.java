@@ -22,7 +22,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FileMonitoringFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 import java.io.File;

@@ -34,7 +34,7 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.types.Either;
 
 import java.io.IOException;
@@ -48,14 +48,7 @@ public class StatefulStreamingJob {
 
     private static final String EXPECTED_DEFAULT_VALUE = "123";
 
-    /**
-     * Stub source that emits one record per second.
-     *
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
+    /** Stub source that emits one record per second. */
     public static class MySource extends RichParallelSourceFunction<Integer> {
 
         private static final long serialVersionUID = 1L;

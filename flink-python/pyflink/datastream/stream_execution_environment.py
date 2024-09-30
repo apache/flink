@@ -869,7 +869,7 @@ class StreamExecutionEnvironment(object):
             )
 
             JInputFormatSourceFunction = gateway.jvm.org.apache.flink.streaming.api.functions.\
-                source.InputFormatSourceFunction
+                source.legacy.InputFormatSourceFunction
             JBoundedness = gateway.jvm.org.apache.flink.api.connector.source.Boundedness
 
             j_data_stream_source = invoke_method(
@@ -880,7 +880,7 @@ class StreamExecutionEnvironment(object):
                  "Collection Source",
                  out_put_type_info.get_java_type_info(),
                  JBoundedness.BOUNDED],
-                ["org.apache.flink.streaming.api.functions.source.SourceFunction",
+                ["org.apache.flink.streaming.api.functions.source.legacy.SourceFunction",
                  "java.lang.String",
                  "org.apache.flink.api.common.typeinfo.TypeInformation",
                  "org.apache.flink.api.connector.source.Boundedness"])

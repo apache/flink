@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.legacy.table.factories.StreamTableSinkFactory
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, StreamTableSink}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 
 import javax.annotation.Nullable;
 
@@ -35,13 +35,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * another two checkpoints and 5) exiting.
  *
  * <p>This class was written to test the Bulk Writers used by the StreamingFileSink.
- *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
-@Deprecated
 public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListener {
 
     private static final long serialVersionUID = 1L;

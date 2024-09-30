@@ -24,7 +24,7 @@ import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
