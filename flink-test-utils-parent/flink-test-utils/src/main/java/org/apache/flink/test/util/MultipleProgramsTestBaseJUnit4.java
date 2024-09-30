@@ -18,12 +18,14 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Base class for unit tests that run multiple tests and want to reuse the same Flink cluster. This
@@ -36,14 +38,14 @@ import java.util.Collection;
  * <pre>{@code
  * {@literal @}Test
  * public void someTest() {
- *     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ *     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  *     // test code
  *     env.execute();
  * }
  *
  * {@literal @}Test
  * public void anotherTest() {
- *     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ *     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  *     // test code
  *     env.execute();
  * }
@@ -61,8 +63,7 @@ public class MultipleProgramsTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
      */
     public enum TestExecutionMode {
         CLUSTER,
-        CLUSTER_OBJECT_REUSE,
-        COLLECTION,
+        CLUSTER_OBJECT_REUSE
     }
 
     // ------------------------------------------------------------------------
@@ -79,24 +80,21 @@ public class MultipleProgramsTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
 
     @Before
     public void setupEnvironment() {
-        TestEnvironment testEnvironment;
+        TestStreamEnvironment testStreamEnvironment;
         switch (mode) {
             case CLUSTER:
-                // This only works because of the quirks we built in the TestEnvironment.
+                // This only works because of the quirks we built in the TestStreamEnvironment.
                 // We should refactor this in the future!!!
-                testEnvironment = MINI_CLUSTER_RESOURCE.getTestEnvironment();
-                testEnvironment.getConfig().disableObjectReuse();
-                testEnvironment.setAsContext();
+                testStreamEnvironment = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
+                testStreamEnvironment.getConfig().disableObjectReuse();
+                testStreamEnvironment.setAsContext();
                 break;
             case CLUSTER_OBJECT_REUSE:
-                // This only works because of the quirks we built in the TestEnvironment.
+                // This only works because of the quirks we built in the TestStreamEnvironment.
                 // We should refactor this in the future!!!
-                testEnvironment = MINI_CLUSTER_RESOURCE.getTestEnvironment();
-                testEnvironment.getConfig().enableObjectReuse();
-                testEnvironment.setAsContext();
-                break;
-            case COLLECTION:
-                new CollectionTestEnvironment().setAsContext();
+                testStreamEnvironment = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
+                testStreamEnvironment.getConfig().enableObjectReuse();
+                testStreamEnvironment.setAsContext();
                 break;
         }
     }
@@ -106,10 +104,7 @@ public class MultipleProgramsTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
         switch (mode) {
             case CLUSTER:
             case CLUSTER_OBJECT_REUSE:
-                TestEnvironment.unsetAsContext();
-                break;
-            case COLLECTION:
-                CollectionTestEnvironment.unsetAsContext();
+                TestStreamEnvironment.unsetAsContext();
                 break;
         }
     }
@@ -120,8 +115,6 @@ public class MultipleProgramsTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
 
     @Parameterized.Parameters(name = "Execution mode = {0}")
     public static Collection<Object[]> executionModes() {
-        return Arrays.asList(
-                new Object[] {TestExecutionMode.CLUSTER},
-                new Object[] {TestExecutionMode.COLLECTION});
+        return Collections.singletonList(new Object[] {TestExecutionMode.CLUSTER});
     }
 }

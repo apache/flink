@@ -66,6 +66,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
+import org.apache.flink.util.Utils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;

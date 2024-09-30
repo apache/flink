@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -297,8 +296,8 @@ class JobTaskVertexTest {
         }
     }
 
-    private static final class TestingOutputFormat extends DiscardingOutputFormat<Object>
-            implements InitializeOnMaster, FinalizeOnMaster {
+    private static final class TestingOutputFormat
+            implements InitializeOnMaster, FinalizeOnMaster, OutputFormat<Object> {
 
         private boolean isConfigured = false;
 
@@ -348,6 +347,15 @@ class JobTaskVertexTest {
             }
             isConfigured = true;
         }
+
+        @Override
+        public void open(InitializationContext context) throws IOException {}
+
+        @Override
+        public void writeRecord(Object record) throws IOException {}
+
+        @Override
+        public void close() throws IOException {}
     }
 
     private static class TestClassLoader extends URLClassLoader {

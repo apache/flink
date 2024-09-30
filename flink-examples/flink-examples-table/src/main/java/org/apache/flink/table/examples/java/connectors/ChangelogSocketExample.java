@@ -19,13 +19,13 @@
 package org.apache.flink.table.examples.java.connectors;
 
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.util.ParameterTool;
 
 /**
  * Example for implementing a custom {@link DynamicTableSource} and a {@link DecodingFormat}.

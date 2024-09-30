@@ -509,15 +509,6 @@ class ExecutionConfig(object):
         j_clz_set = self._j_execution_config.getRegisteredPojoTypes()
         return [value.getName() for value in j_clz_set]
 
-    def is_auto_type_registration_disabled(self) -> bool:
-        """
-        Returns whether Flink is automatically registering all types in the user programs with
-        Kryo.
-
-        :return: ``True`` means auto type registration is disabled and ``False`` means enabled.
-        """
-        return self._j_execution_config.isAutoTypeRegistrationDisabled()
-
     def is_use_snapshot_compression(self) -> bool:
         """
         Returns whether he compression (snappy) for keyed state in full checkpoints and savepoints

@@ -25,8 +25,11 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
@@ -37,6 +40,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 
 import java.io.File;
+import java.nio.file.Files;
 
 import static org.apache.flink.test.util.TestBaseUtils.checkLinesAgainstRegexp;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
@@ -47,7 +51,7 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
     @Test
     public void testWindowJoin() throws Exception {
 
-        final String resultPath = File.createTempFile("result-path", "dir").toURI().toString();
+        final String resultPath = Files.createTempDirectory("result-path").toUri().toString();
 
         final class Parser implements MapFunction<String, Tuple2<String, Integer>> {
 
@@ -73,7 +77,12 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
                             .map(new Parser());
 
             org.apache.flink.streaming.examples.join.WindowJoin.runWindowJoin(grades, salaries, 100)
-                    .writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+                    .sinkTo(
+                            FileSink.forRowFormat(
+                                            new Path(resultPath),
+                                            new SimpleStringEncoder<
+                                                    Tuple3<String, Integer, Integer>>())
+                                    .build());
 
             env.execute();
 

@@ -195,25 +195,6 @@ public class ReactiveModeITCase extends TestLogger {
                 NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_SLOTS_PER_TASK_MANAGER);
     }
 
-    /** Test for FLINK-28274. */
-    @Test
-    public void testContinuousFileMonitoringFunctionWithReactiveMode() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final DataStream<String> input = env.readTextFile(tempFolder.getRoot().getPath());
-        input.sinkTo(new DiscardingSink<>());
-
-        final JobClient jobClient = env.executeAsync();
-
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
-
-        // scale up to 2 TaskManagers:
-        miniClusterResource.getMiniCluster().startTaskManager();
-
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
-    }
-
     private int getNumberOfConnectedTaskManagers() throws ExecutionException, InterruptedException {
         return miniClusterResource
                 .getMiniCluster()

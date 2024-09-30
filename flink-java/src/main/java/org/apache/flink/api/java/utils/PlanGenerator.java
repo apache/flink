@@ -102,33 +102,33 @@ public class PlanGenerator {
      * @param plan the generated plan.
      */
     private void registerGenericTypeInfoIfConfigured(Plan plan) {
-        if (!config.isAutoTypeRegistrationDisabled()) {
-            plan.accept(
-                    new Visitor<Operator<?>>() {
+        // TODO: The flink-java module will totally removed, temporary hack this function for code
+        // clean
+        plan.accept(
+                new Visitor<Operator<?>>() {
 
-                        private final Set<Class<?>> registeredTypes = new HashSet<>();
-                        private final Set<org.apache.flink.api.common.operators.Operator<?>>
-                                visitedOperators = new HashSet<>();
+                    private final Set<Class<?>> registeredTypes = new HashSet<>();
+                    private final Set<org.apache.flink.api.common.operators.Operator<?>>
+                            visitedOperators = new HashSet<>();
 
-                        @Override
-                        public boolean preVisit(
-                                org.apache.flink.api.common.operators.Operator<?> visitable) {
-                            if (!visitedOperators.add(visitable)) {
-                                return false;
-                            }
-                            OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-                            Serializers.recursivelyRegisterType(
-                                    opInfo.getOutputType(),
-                                    config.getSerializerConfig(),
-                                    registeredTypes);
-                            return true;
+                    @Override
+                    public boolean preVisit(
+                            org.apache.flink.api.common.operators.Operator<?> visitable) {
+                        if (!visitedOperators.add(visitable)) {
+                            return false;
                         }
+                        OperatorInformation<?> opInfo = visitable.getOperatorInfo();
+                        Serializers.recursivelyRegisterType(
+                                opInfo.getOutputType(),
+                                config.getSerializerConfig(),
+                                registeredTypes);
+                        return true;
+                    }
 
-                        @Override
-                        public void postVisit(
-                                org.apache.flink.api.common.operators.Operator<?> visitable) {}
-                    });
-        }
+                    @Override
+                    public void postVisit(
+                            org.apache.flink.api.common.operators.Operator<?> visitable) {}
+                });
     }
 
     private void registerCachedFiles(Plan plan) {

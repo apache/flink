@@ -42,8 +42,6 @@ under the License.
 		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test-program</module>
 		<module>flink-parent-child-classloading-test-lib-package</module>
-		<module>flink-dataset-allround-test</module>
-		<module>flink-dataset-fine-grained-recovery-test</module>
 		<module>flink-datastream-allround-test</module>
 		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>

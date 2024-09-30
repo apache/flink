@@ -29,10 +29,10 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Utils;
 
 import java.util.Arrays;
 

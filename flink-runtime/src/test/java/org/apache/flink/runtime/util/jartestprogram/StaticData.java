@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 public class StaticData {
-    public static DataSet<String> getDefaultTextLineDataSet(ExecutionEnvironment env) {
+    public static DataStreamSource<String> getDefaultTextLineDataSet(
+            StreamExecutionEnvironment env) {
 
-        return env.fromElements(
+        return env.fromData(
                 "To be, or not to be,--that is the question:--",
                 "Whether 'tis nobler in the mind to suffer",
                 "The slings and arrows of outrageous fortune",

@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.test.hadoopcompatibility.mapred.example.HadoopMapredCompatWordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -57,7 +58,7 @@ public class HadoopMapredITCase extends JavaProgramTestBase {
     }
 
     @Override
-    protected void testProgram() throws Exception {
-        HadoopMapredCompatWordCount.main(new String[] {textPath, resultPath});
+    protected JobExecutionResult testProgram() throws Exception {
+        return HadoopMapredCompatWordCount.run(new String[] {textPath, resultPath});
     }
 }

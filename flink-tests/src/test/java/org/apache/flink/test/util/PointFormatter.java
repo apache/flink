@@ -18,8 +18,8 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat.TextFormatter;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
