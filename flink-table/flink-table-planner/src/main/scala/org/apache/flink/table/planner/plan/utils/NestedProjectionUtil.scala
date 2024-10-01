@@ -256,6 +256,7 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
     }
   }
 
+  // Extra CASTs should be avoided since only need to copy FieldAccess
   private def copyFieldAccess(
       newExpr: RexNode,
       fieldName: String,
