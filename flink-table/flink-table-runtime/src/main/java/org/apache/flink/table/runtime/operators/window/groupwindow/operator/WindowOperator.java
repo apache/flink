@@ -208,6 +208,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         this.recordCounter = RecordCounter.of(inputCountIndex);
     }
 
+    @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
     WindowOperator(
             GroupWindowAssigner<W> windowAssigner,
             Trigger<W> trigger,
