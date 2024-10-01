@@ -18,7 +18,6 @@
 
 from typing import Dict, List
 
-from pyflink.common.execution_mode import ExecutionMode
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['ExecutionConfig']
@@ -35,9 +34,6 @@ class ExecutionConfig(object):
     - The number of retries in the case of failed executions.
 
     - The delay between execution retries.
-
-    - The :class:`ExecutionMode` of the program: Batch or Pipelined.
-      The default execution mode is :data:`ExecutionMode.PIPELINED`
 
     - Enabling or disabling the "closure cleaner". The closure cleaner pre-processes
       the implementations of functions. In case they are (anonymous) inner classes,
@@ -245,41 +241,6 @@ class ExecutionConfig(object):
         """
         self._j_execution_config = self._j_execution_config.setTaskCancellationTimeout(timeout)
         return self
-
-    def set_execution_mode(self, execution_mode: ExecutionMode) -> 'ExecutionConfig':
-        """
-        Sets the execution mode to execute the program. The execution mode defines whether
-        data exchanges are performed in a batch or on a pipelined manner.
-
-        The default execution mode is :data:`ExecutionMode.PIPELINED`.
-
-        Example:
-        ::
-
-            >>> config.set_execution_mode(ExecutionMode.BATCH)
-
-        :param execution_mode: The execution mode to use. The execution mode could be
-                               :data:`ExecutionMode.PIPELINED`,
-                               :data:`ExecutionMode.PIPELINED_FORCED`,
-                               :data:`ExecutionMode.BATCH` or
-                               :data:`ExecutionMode.BATCH_FORCED`.
-        """
-        self._j_execution_config.setExecutionMode(execution_mode._to_j_execution_mode())
-        return self
-
-    def get_execution_mode(self) -> 'ExecutionMode':
-        """
-        Gets the execution mode used to execute the program. The execution mode defines whether
-        data exchanges are performed in a batch or on a pipelined manner.
-
-        The default execution mode is :data:`ExecutionMode.PIPELINED`.
-
-        .. seealso:: :func:`set_execution_mode`
-
-        :return: The execution mode for the program.
-        """
-        j_execution_mode = self._j_execution_config.getExecutionMode()
-        return ExecutionMode._from_j_execution_mode(j_execution_mode)
 
     def enable_force_kryo(self) -> 'ExecutionConfig':
         """
