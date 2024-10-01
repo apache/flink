@@ -213,8 +213,7 @@ They can be used separately, or they can be mixed, depending on your use cases:
 
 | APIs you want to use                                                              | Dependency you need to add                          |
 |-----------------------------------------------------------------------------------|-----------------------------------------------------|
-| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |  
-| [DataStream with Scala]({{< ref "docs/dev/datastream/scala_api_extensions" >}})   | `flink-streaming-scala{{< scala_version >}}`        |   
+| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |   
 | [Table API]({{< ref "docs/dev/table/common" >}})                                  | `flink-table-api-java`                              |   
 | [Table API with Scala]({{< ref "docs/dev/table/common" >}})                       | `flink-table-api-scala{{< scala_version >}}`        |
 | [Table API + DataStream]({{< ref "docs/dev/table/data_stream_api" >}})            | `flink-table-api-java-bridge`                       |
