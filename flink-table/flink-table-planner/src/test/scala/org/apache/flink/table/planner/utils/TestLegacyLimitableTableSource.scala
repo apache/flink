@@ -24,6 +24,7 @@ import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
 import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
@@ -31,7 +32,6 @@ import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
 import org.apache.flink.table.legacy.sources.{LimitableTableSource, TableSource}
-import org.apache.flink.table.planner.factories.utils.CollectionInputFormat
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 

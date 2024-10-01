@@ -28,6 +28,7 @@ import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api.{DataTypes, TableEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
@@ -44,7 +45,6 @@ import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.legacy.sources._
 import org.apache.flink.table.legacy.sources.tsextractors.ExistingField
 import org.apache.flink.table.planner._
-import org.apache.flink.table.planner.factories.utils.CollectionInputFormat
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction

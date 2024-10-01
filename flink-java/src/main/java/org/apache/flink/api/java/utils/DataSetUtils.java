@@ -30,7 +30,6 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SampleInCoordinator;
 import org.apache.flink.api.java.functions.SampleInPartition;
@@ -46,6 +45,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Utils;
 
 import java.util.ArrayList;
 import java.util.Collections;

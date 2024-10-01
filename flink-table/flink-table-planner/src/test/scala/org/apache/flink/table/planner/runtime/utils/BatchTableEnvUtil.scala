@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.factories.utils.CollectionInputFormat
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestUtil

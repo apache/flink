@@ -45,14 +45,13 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -91,6 +90,8 @@ import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -124,6 +125,7 @@ import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -591,20 +593,23 @@ class StreamingJobGraphGeneratorTest {
     }
 
     @Test
-    void testInputOutputFormat() {
+    void testInputOutputFormat(@TempDir java.nio.file.Path outputPath) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Long> source =
+        DataStream<String> source =
                 env.addSource(
                                 new InputFormatSourceFunction<>(
-                                        new TypeSerializerInputFormat<>(
-                                                TypeInformation.of(Long.class)),
-                                        TypeInformation.of(Long.class)),
-                                TypeInformation.of(Long.class))
+                                        new TextInputFormat(new Path("FakePath")),
+                                        TypeInformation.of(String.class)))
+                        .returns(TypeInformation.of(String.class))
                         .name("source");
 
-        source.writeUsingOutputFormat(new DiscardingOutputFormat<>()).name("sink1");
-        source.writeUsingOutputFormat(new DiscardingOutputFormat<>()).name("sink2");
+        java.nio.file.Path outputFile1 = outputPath.resolve("outputFile1");
+        java.nio.file.Path outputFile2 = outputPath.resolve("outputFile2");
+        source.writeUsingOutputFormat(new TextOutputFormat<>(new Path(outputFile1.toUri())))
+                .name("sink1");
+        source.writeUsingOutputFormat(new TextOutputFormat<>(new Path(outputFile2.toUri())))
+                .name("sink2");
 
         StreamGraph streamGraph = env.getStreamGraph();
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -637,15 +642,15 @@ class StreamingJobGraphGeneratorTest {
 
         InputFormat<?, ?> sourceFormat =
                 inputFormats.get(nameToOperatorIds.get("Source: source")).getUserCodeObject();
-        assertThat(sourceFormat).isInstanceOf(TypeSerializerInputFormat.class);
+        assertThat(sourceFormat).isInstanceOf(TextInputFormat.class);
 
         OutputFormat<?> sinkFormat1 =
                 outputFormats.get(nameToOperatorIds.get("Sink: sink1")).getUserCodeObject();
-        assertThat(sinkFormat1).isInstanceOf(DiscardingOutputFormat.class);
+        assertThat(sinkFormat1).isInstanceOf(TextOutputFormat.class);
 
         OutputFormat<?> sinkFormat2 =
                 outputFormats.get(nameToOperatorIds.get("Sink: sink2")).getUserCodeObject();
-        assertThat(sinkFormat2).isInstanceOf(DiscardingOutputFormat.class);
+        assertThat(sinkFormat2).isInstanceOf(TextOutputFormat.class);
     }
 
     @Test

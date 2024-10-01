@@ -18,14 +18,16 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapreduce.example;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.util.Collector;
 
 import org.apache.hadoop.fs.Path;
@@ -46,16 +48,16 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 @SuppressWarnings("serial")
 public class WordCount {
 
-    public static void main(String[] args) throws Exception {
+    public static JobExecutionResult run(String[] args) throws Exception {
         if (args.length < 2) {
             System.err.println("Usage: WordCount <input path> <result path>");
-            return;
+            return null;
         }
 
         final String inputPath = args[0];
         final String outputPath = args[1];
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Set up the Hadoop Input Format
         Job job = Job.getInstance();
@@ -65,16 +67,17 @@ public class WordCount {
         TextInputFormat.addInputPath(job, new Path(inputPath));
 
         // Create a Flink job with it
-        DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
+        DataStream<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 
         // Tokenize the line and convert from Writable "Text" to String for better handling
-        DataSet<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());
+        DataStream<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());
 
         // Sum up the words
-        DataSet<Tuple2<String, Integer>> result = words.groupBy(0).aggregate(Aggregations.SUM, 1);
+        DataStream<Tuple2<String, Integer>> result =
+                words.keyBy(x -> x.f0).window(GlobalWindows.createWithEndOfStreamTrigger()).sum(1);
 
         // Convert String back to Writable "Text" for use with Hadoop Output Format
-        DataSet<Tuple2<Text, IntWritable>> hadoopResult = result.map(new HadoopDatatypeMapper());
+        DataStream<Tuple2<Text, IntWritable>> hadoopResult = result.map(new HadoopDatatypeMapper());
 
         // Set up Hadoop Output Format
         HadoopOutputFormat<Text, IntWritable> hadoopOutputFormat =
@@ -91,8 +94,8 @@ public class WordCount {
         TextOutputFormat.setOutputPath(job, new Path(outputPath));
 
         // Output & Execute
-        hadoopResult.output(hadoopOutputFormat);
-        env.execute("Word Count");
+        hadoopResult.addSink(new OutputFormatSinkFunction<>(hadoopOutputFormat));
+        return env.execute("Word Count");
     }
 
     /** Splits a line into words and converts Hadoop Writables into normal Java data types. */

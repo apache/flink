@@ -18,8 +18,8 @@
 
 package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
+import org.apache.flink.api.common.operators.util.TupleUnwrappingIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.operators.translation.TupleUnwrappingIterator;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.Iterator;

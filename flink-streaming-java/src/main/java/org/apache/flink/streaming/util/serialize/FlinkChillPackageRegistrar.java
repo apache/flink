@@ -65,7 +65,7 @@ public class FlinkChillPackageRegistrar implements ChillSerializerRegistrar {
     @Override
     public void registerSerializers(Kryo kryo) {
         //noinspection ArraysAsListWithZeroOrOneArgument
-        new FlinkChillPackageRegistrar.RegistrationHelper(FIRST_REGISTRATION_ID, kryo)
+        new RegistrationHelper(FIRST_REGISTRATION_ID, kryo)
                 .register(Arrays.asList("").getClass(), new ArraysAsListSerializer())
                 .register(BitSet.class, new BitSetSerializer())
                 .register(PriorityQueue.class, new PriorityQueueSerializer())
@@ -89,8 +89,7 @@ public class FlinkChillPackageRegistrar implements ChillSerializerRegistrar {
             this.kryo = kryo;
         }
 
-        public FlinkChillPackageRegistrar.RegistrationHelper register(
-                Class<?> type, Serializer<?> serializer) {
+        public RegistrationHelper register(Class<?> type, Serializer<?> serializer) {
             kryo.register(type, serializer, nextRegistrationId++);
             return this;
         }

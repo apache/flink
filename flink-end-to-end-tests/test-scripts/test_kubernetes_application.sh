@@ -50,7 +50,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.rest-service.exposed.type=NodePort \
-    local:///opt/flink/examples/batch/WordCount.jar
+    local:///opt/flink/examples/streaming/WordCount.jar
 
 kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')

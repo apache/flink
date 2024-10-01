@@ -20,17 +20,12 @@ package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -92,11 +87,10 @@ public abstract class CancelingTestBase extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    protected void runAndCancelJob(Plan plan, final int msecsTillCanceling, int maxTimeTillCanceled)
+    protected void runAndCancelJob(
+            JobGraph jobGraph, final int msecsTillCanceling, int maxTimeTillCanceled)
             throws Exception {
         // submit job
-        final JobGraph jobGraph = getJobGraph(plan);
-
         final long rpcTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
 
         ClusterClient<?> client = CLUSTER.getClusterClient();
@@ -128,12 +122,5 @@ public abstract class CancelingTestBase extends TestLogger {
                     client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
         }
         assertEquals(JobStatus.CANCELED, jobStatusAfterCancel);
-    }
-
-    private JobGraph getJobGraph(final Plan plan) {
-        final Optimizer pc = new Optimizer(new DataStatistics(), getConfiguration());
-        final OptimizedPlan op = pc.compile(plan);
-        final JobGraphGenerator jgg = new JobGraphGenerator();
-        return jgg.compileJobGraph(op);
     }
 }

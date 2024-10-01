@@ -74,7 +74,6 @@ access).
     StreamExecutionEnvironment.create_input
     StreamExecutionEnvironment.add_source
     StreamExecutionEnvironment.from_source
-    StreamExecutionEnvironment.read_text_file
     StreamExecutionEnvironment.from_collection
     StreamExecutionEnvironment.is_unaligned_checkpoints_enabled
     StreamExecutionEnvironment.is_force_unaligned_checkpoints
