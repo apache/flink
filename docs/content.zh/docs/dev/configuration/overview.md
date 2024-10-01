@@ -216,8 +216,7 @@ Flink提供了两大 API：[Datastream API]({{< ref "docs/dev/datastream/overvie
 
 | 你要使用的 API                                                                      | 你需要添加的依赖项                                     |
 |-----------------------------------------------------------------------------------|-----------------------------------------------------|
-| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |  
-| [DataStream Scala 版]({{< ref "docs/dev/datastream/scala_api_extensions" >}})     | `flink-streaming-scala{{< scala_version >}}`        |   
+| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |   
 | [Table API]({{< ref "docs/dev/table/common" >}})                                  | `flink-table-api-java`                              |   
 | [Table API Scala 版]({{< ref "docs/dev/table/common" >}})                         | `flink-table-api-scala{{< scala_version >}}`        |
 | [Table API + DataStream]({{< ref "docs/dev/table/data_stream_api" >}})            | `flink-table-api-java-bridge`                       |
