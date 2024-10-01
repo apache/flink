@@ -17,28 +17,27 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
-/**
- * Stream operators can implement this interface if they need access to the context and the output.
- *
- * @param <OUT> The output type of the operator
- * @deprecated This class is deprecated in favour of using {@link StreamOperatorFactory} and it's
- *     {@link StreamOperatorFactory#createStreamOperator} and passing the required parameters to the
- *     Operator's constructor in create method.
- */
-@Deprecated
-@PublicEvolving
-public interface SetupableStreamOperator<OUT> {
+@Internal
+public class StreamOperatorUtils {
+    @VisibleForTesting
+    public static <OUT> void setupStreamOperator(
+            AbstractStreamOperator<OUT> operator,
+            StreamTask<?, ?> containingTask,
+            StreamConfig config,
+            Output<StreamRecord<OUT>> output) {
+        operator.setup(containingTask, config, output);
+    }
 
-    /** Initializes the operator. Sets access to the context and the output. */
-    void setup(
-            StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
-
-    ChainingStrategy getChainingStrategy();
-
-    void setChainingStrategy(ChainingStrategy strategy);
+    @VisibleForTesting
+    public static void setProcessingTimeService(
+            AbstractStreamOperator<?> operator, ProcessingTimeService processingTimeService) {
+        operator.setProcessingTimeService(processingTimeService);
+    }
 }

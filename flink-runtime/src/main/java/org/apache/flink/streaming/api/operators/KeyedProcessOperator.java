@@ -46,8 +46,6 @@ public class KeyedProcessOperator<K, IN, OUT>
 
     public KeyedProcessOperator(KeyedProcessFunction<K, IN, OUT> function) {
         super(function);
-
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

@@ -31,7 +31,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableException;
@@ -75,7 +74,6 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
         this.formatFactory = formatFactory;
         this.computer = computer;
         this.outputFileConfig = outputFileConfig;
-        setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
     @Override

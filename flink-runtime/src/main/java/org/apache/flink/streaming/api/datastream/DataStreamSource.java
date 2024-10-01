@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -64,18 +65,32 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
             Boundedness boundedness) {
         super(
                 environment,
+                createSourceTransformation(
+                        environment, outTypeInfo, operator, isParallel, sourceName, boundedness));
+
+        this.isParallel = isParallel;
+        if (!isParallel) {
+            setParallelism(1);
+        }
+    }
+
+    private static <T> LegacySourceTransformation<T> createSourceTransformation(
+            StreamExecutionEnvironment environment,
+            TypeInformation<T> outTypeInfo,
+            StreamSource<T, ?> operator,
+            boolean isParallel,
+            String sourceName,
+            Boundedness boundedness) {
+        LegacySourceTransformation<T> transformation =
                 new LegacySourceTransformation<>(
                         sourceName,
                         operator,
                         outTypeInfo,
                         environment.getParallelism(),
                         boundedness,
-                        false));
-
-        this.isParallel = isParallel;
-        if (!isParallel) {
-            setParallelism(1);
-        }
+                        false);
+        transformation.setChainingStrategy(ChainingStrategy.HEAD);
+        return transformation;
     }
 
     /**

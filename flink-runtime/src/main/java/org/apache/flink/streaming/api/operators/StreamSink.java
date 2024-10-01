@@ -38,7 +38,6 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
 
     public StreamSink(SinkFunction<IN> sinkFunction) {
         super(sinkFunction);
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

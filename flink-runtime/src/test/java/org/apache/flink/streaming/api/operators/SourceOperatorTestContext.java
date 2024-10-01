@@ -93,8 +93,16 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
+        Environment env = getTestingEnvironment();
         operator =
                 new TestingSourceOperator<>(
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(env),
+                                new MockStreamConfig(new Configuration(), 1),
+                                output,
+                                () -> timeService,
+                                null,
+                                null),
                         mockSourceReader,
                         watermarkStrategy,
                         timeService,
@@ -102,11 +110,6 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         SUBTASK_INDEX,
                         5,
                         true);
-        Environment env = getTestingEnvironment();
-        operator.setup(
-                new SourceOperatorStreamTask<Integer>(env),
-                new MockStreamConfig(new Configuration(), 1),
-                output);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
     }

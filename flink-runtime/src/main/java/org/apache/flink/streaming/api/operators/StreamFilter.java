@@ -30,7 +30,6 @@ public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFuncti
 
     public StreamFilter(FilterFunction<IN> filterFunction) {
         super(filterFunction);
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

@@ -95,7 +95,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @PublicEvolving
 public abstract class AbstractStreamOperator<OUT>
         implements StreamOperator<OUT>,
-                SetupableStreamOperator<OUT>,
                 YieldingOperator<OUT>,
                 CheckpointedStreamOperator,
                 KeyContextHandler,
@@ -104,11 +103,6 @@ public abstract class AbstractStreamOperator<OUT>
 
     /** The logger used by the operator class and its subclasses. */
     protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperator.class);
-
-    // ----------- configuration properties -------------
-
-    // A sane default for most operators
-    protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
 
     // ---------------- runtime fields ------------------
 
@@ -164,12 +158,24 @@ public abstract class AbstractStreamOperator<OUT>
     protected transient RecordAttributes lastRecordAttributes1;
     protected transient RecordAttributes lastRecordAttributes2;
 
+    public AbstractStreamOperator() {}
+
+    public AbstractStreamOperator(StreamOperatorParameters<OUT> parameters) {
+        if (parameters != null) {
+            setup(
+                    parameters.getContainingTask(),
+                    parameters.getStreamConfig(),
+                    parameters.getOutput());
+            this.processingTimeService =
+                    Preconditions.checkNotNull(parameters.getProcessingTimeService());
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Life Cycle
     // ------------------------------------------------------------------------
 
-    @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {
@@ -246,12 +252,7 @@ public abstract class AbstractStreamOperator<OUT>
         lastRecordAttributes2 = RecordAttributes.EMPTY_RECORD_ATTRIBUTES;
     }
 
-    /**
-     * @deprecated The {@link ProcessingTimeService} instance should be passed by the operator
-     *     constructor and this method will be removed along with {@link SetupableStreamOperator}.
-     */
-    @Deprecated
-    public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
+    protected void setProcessingTimeService(ProcessingTimeService processingTimeService) {
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
     }
 
@@ -590,16 +591,6 @@ public abstract class AbstractStreamOperator<OUT>
     // ------------------------------------------------------------------------
     //  Context and chaining properties
     // ------------------------------------------------------------------------
-
-    @Override
-    public final void setChainingStrategy(ChainingStrategy strategy) {
-        this.chainingStrategy = strategy;
-    }
-
-    @Override
-    public final ChainingStrategy getChainingStrategy() {
-        return chainingStrategy;
-    }
 
     // ------------------------------------------------------------------------
     //  Metrics

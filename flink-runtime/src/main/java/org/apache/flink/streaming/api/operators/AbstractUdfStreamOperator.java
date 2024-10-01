@@ -57,6 +57,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     protected final F userFunction;
 
     public AbstractUdfStreamOperator(F userFunction) {
+        this(null, userFunction);
+    }
+
+    protected AbstractUdfStreamOperator(StreamOperatorParameters<OUT> parameters, F userFunction) {
+        super(parameters);
         this.userFunction = requireNonNull(userFunction);
         checkUdfCheckpointingPreconditions();
     }
@@ -75,7 +80,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     // ------------------------------------------------------------------------
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {

@@ -59,7 +59,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -528,12 +527,10 @@ class JMFailoverITCase {
 
         public SourceTail() {
             super();
-            // chain with source.
-            setChainingStrategy(ChainingStrategy.ALWAYS);
         }
 
         @Override
-        public void setup(
+        protected void setup(
                 StreamTask<?, ?> containingTask,
                 StreamConfig config,
                 Output<StreamRecord<Long>> output) {
@@ -595,7 +592,7 @@ class JMFailoverITCase {
         public static Map<Integer, Integer> attemptIds = new ConcurrentHashMap<>();
 
         @Override
-        public void setup(
+        protected void setup(
                 StreamTask<?, ?> containingTask,
                 StreamConfig config,
                 Output<StreamRecord<Tuple2<Integer, Integer>>> output) {
@@ -648,7 +645,7 @@ class JMFailoverITCase {
         public static Map<Integer, Integer> attemptIds = new ConcurrentHashMap<>();
 
         @Override
-        public void setup(
+        protected void setup(
                 StreamTask<?, ?> containingTask,
                 StreamConfig config,
                 Output<StreamRecord<Tuple2<Integer, Integer>>> output) {
@@ -704,7 +701,7 @@ class JMFailoverITCase {
         public static Map<Integer, Integer> countResults = new ConcurrentHashMap<>();
 
         @Override
-        public void setup(
+        protected void setup(
                 StreamTask<?, ?> containingTask,
                 StreamConfig config,
                 Output<StreamRecord<Void>> output) {

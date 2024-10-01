@@ -108,17 +108,20 @@ class ContinuousProcessingTimeTriggerTest {
                         "window-contents",
                         BasicTypeInfo.INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
 
-        WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
-                new WindowOperator<>(
-                        TumblingProcessingTimeWindows.of(Duration.ofMillis(10)),
-                        new TimeWindow.Serializer(),
-                        new NullByteKeySelector<>(),
-                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
-                        stateDesc,
-                        new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
-                        trigger,
-                        0,
-                        null);
+        WindowOperatorFactory<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow>
+                operator =
+                        new WindowOperatorFactory<>(
+                                TumblingProcessingTimeWindows.of(Duration.ofMillis(10)),
+                                new TimeWindow.Serializer(),
+                                new NullByteKeySelector<>(),
+                                BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()),
+                                stateDesc,
+                                new InternalIterableWindowFunction<>(
+                                        new IntegerSumWindowFunction()),
+                                trigger,
+                                0,
+                                null);
 
         KeyedOneInputStreamOperatorTestHarness<Byte, Integer, WindowedInteger> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
@@ -183,17 +186,20 @@ class ContinuousProcessingTimeTriggerTest {
                         "window-contents",
                         BasicTypeInfo.INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
 
-        WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
-                new WindowOperator<>(
-                        TumblingEventTimeWindows.of(Duration.ofMillis(10)),
-                        new TimeWindow.Serializer(),
-                        new NullByteKeySelector<>(),
-                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
-                        stateDesc,
-                        new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
-                        trigger,
-                        0,
-                        null);
+        WindowOperatorFactory<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow>
+                operator =
+                        new WindowOperatorFactory<>(
+                                TumblingEventTimeWindows.of(Duration.ofMillis(10)),
+                                new TimeWindow.Serializer(),
+                                new NullByteKeySelector<>(),
+                                BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()),
+                                stateDesc,
+                                new InternalIterableWindowFunction<>(
+                                        new IntegerSumWindowFunction()),
+                                trigger,
+                                0,
+                                null);
 
         KeyedOneInputStreamOperatorTestHarness<Byte, Integer, WindowedInteger> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
@@ -243,17 +249,20 @@ class ContinuousProcessingTimeTriggerTest {
                         "window-contents",
                         BasicTypeInfo.INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
 
-        WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
-                new WindowOperator<>(
-                        ProcessingTimeSessionWindows.withGap(Duration.ofMillis(10)),
-                        new TimeWindow.Serializer(),
-                        new NullByteKeySelector<>(),
-                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
-                        stateDesc,
-                        new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
-                        trigger,
-                        0,
-                        null);
+        WindowOperatorFactory<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow>
+                operator =
+                        new WindowOperatorFactory<>(
+                                ProcessingTimeSessionWindows.withGap(Duration.ofMillis(10)),
+                                new TimeWindow.Serializer(),
+                                new NullByteKeySelector<>(),
+                                BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(
+                                        new SerializerConfigImpl()),
+                                stateDesc,
+                                new InternalIterableWindowFunction<>(
+                                        new IntegerSumWindowFunction()),
+                                trigger,
+                                0,
+                                null);
 
         KeyedOneInputStreamOperatorTestHarness<Byte, Integer, WindowedInteger> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(

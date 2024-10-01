@@ -50,6 +50,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setupStreamOperator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -246,9 +248,10 @@ class StreamSourceOperatorLatencyMetricsTest {
                         .setTimerService(timerService)
                         .build();
 
-        operator.setProcessingTimeService(
+        setProcessingTimeService(
+                operator,
                 mockTask.getProcessingTimeServiceFactory().createProcessingTimeService(null));
-        operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
+        setupStreamOperator(operator, mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
     }
 
     // ------------------------------------------------------------------------

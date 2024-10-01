@@ -41,14 +41,14 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughAllWindowFu
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessAllWindowFunction;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalAggregateProcessAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessAllWindowFunction;
@@ -264,7 +264,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opDescription;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -294,7 +294,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -335,7 +335,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -410,7 +410,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opName;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -440,7 +440,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -482,7 +482,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -670,7 +670,7 @@ public class AllWindowedStream<T, W extends Window> {
         final String opName;
         final KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -700,7 +700,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -739,7 +739,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -846,7 +846,7 @@ public class AllWindowedStream<T, W extends Window> {
         final String opDescription;
         final KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -876,7 +876,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -914,7 +914,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1027,7 +1027,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opName;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        WindowOperator<Byte, T, Iterable<T>, R, W> operator;
+        WindowOperatorFactory<Byte, T, Iterable<T>, R, W> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1057,7 +1057,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1096,7 +1096,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1170,7 +1170,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opName;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1200,7 +1200,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1241,7 +1241,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),

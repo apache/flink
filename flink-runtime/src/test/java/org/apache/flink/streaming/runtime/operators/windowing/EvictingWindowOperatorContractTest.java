@@ -69,8 +69,8 @@ class EvictingWindowOperatorContractTest extends WindowOperatorContractTest {
                                 new StreamElementSerializer(IntSerializer.INSTANCE));
 
         @SuppressWarnings("unchecked")
-        EvictingWindowOperator<Integer, Integer, OUT, W> operator =
-                new EvictingWindowOperator<>(
+        EvictingWindowOperatorFactory<Integer, Integer, OUT, W> operator =
+                new EvictingWindowOperatorFactory<>(
                         assigner,
                         assigner.getWindowSerializer(new ExecutionConfig()),
                         keySelector,

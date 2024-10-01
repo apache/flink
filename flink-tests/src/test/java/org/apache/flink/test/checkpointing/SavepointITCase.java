@@ -204,8 +204,7 @@ public class SavepointITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        BoundedPassThroughOperator<Long> operator =
-                new BoundedPassThroughOperator<>(ChainingStrategy.ALWAYS);
+        BoundedPassThroughOperator<Long> operator = new BoundedPassThroughOperator<>();
         DataStream<Long> stream =
                 env.fromSequence(0, Long.MAX_VALUE)
                         .transform("pass-through", BasicTypeInfo.LONG_TYPE_INFO, operator);
@@ -851,9 +850,7 @@ public class SavepointITCase extends TestLogger {
 
         private transient boolean processed;
 
-        BoundedPassThroughOperator(ChainingStrategy chainingStrategy) {
-            this.chainingStrategy = chainingStrategy;
-        }
+        BoundedPassThroughOperator() {}
 
         private static void allowSnapshots() {
             snapshotAllowedLatch.countDown();
@@ -913,8 +910,7 @@ public class SavepointITCase extends TestLogger {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(1);
 
-            BoundedPassThroughOperator<Integer> operator =
-                    new BoundedPassThroughOperator<>(chainingStrategy);
+            BoundedPassThroughOperator<Integer> operator = new BoundedPassThroughOperator<>();
             DataStream<Integer> stream =
                     env.addSource(new InfiniteTestSource())
                             .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);

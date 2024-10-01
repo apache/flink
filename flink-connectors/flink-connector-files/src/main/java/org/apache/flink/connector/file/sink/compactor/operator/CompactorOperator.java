@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -107,10 +108,12 @@ public class CompactorOperator
     private ListState<Map<Long, List<CompactorRequest>>> remainingRequestsState;
 
     public CompactorOperator(
+            StreamOperatorParameters<CommittableMessage<FileSinkCommittable>> parameters,
             FileCompactStrategy strategy,
             SimpleVersionedSerializer<FileSinkCommittable> committableSerializer,
             FileCompactor fileCompactor,
             BucketWriter<?, String> bucketWriter) {
+        super(parameters);
         this.strategy = strategy;
         this.committableSerializer = committableSerializer;
         this.fileCompactor = fileCompactor;

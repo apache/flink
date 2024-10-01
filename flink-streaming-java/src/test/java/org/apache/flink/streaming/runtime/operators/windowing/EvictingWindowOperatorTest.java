@@ -83,10 +83,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -175,10 +175,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -257,9 +257,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>
+        EvictingWindowOperatorFactory<
+                        String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -341,10 +342,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -422,10 +423,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -516,10 +517,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -609,10 +610,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -700,10 +701,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<
+        EvictingWindowOperatorFactory<
                         String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 GlobalWindows.create(),
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
@@ -785,9 +786,10 @@ class EvictingWindowOperatorTest {
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-        EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>
+        EvictingWindowOperatorFactory<
+                        String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>
                 operator =
-                        new EvictingWindowOperator<>(
+                        new EvictingWindowOperatorFactory<>(
                                 TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),

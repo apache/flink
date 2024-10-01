@@ -32,7 +32,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -132,7 +131,6 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
     public WindowAggOperator(WindowProcessor<W> windowProcessor, boolean isEventTime) {
         this.windowProcessor = windowProcessor;
         this.isEventTime = isEventTime;
-        setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
     @Override

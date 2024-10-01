@@ -70,6 +70,7 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
             StreamOperatorParameters<OUT> parameters) {
         AsyncWaitOperator asyncWaitOperator =
                 new AsyncWaitOperator(
+                        parameters,
                         asyncFunction,
                         timeout,
                         capacity,
@@ -77,10 +78,6 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
                         asyncRetryStrategy,
                         processingTimeService,
                         getMailboxExecutor());
-        asyncWaitOperator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
         return (T) asyncWaitOperator;
     }
 

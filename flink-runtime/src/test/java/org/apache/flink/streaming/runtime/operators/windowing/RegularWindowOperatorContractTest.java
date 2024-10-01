@@ -182,8 +182,8 @@ class RegularWindowOperatorContractTest extends WindowOperatorContractTest {
                 };
 
         @SuppressWarnings("unchecked")
-        WindowOperator<Integer, Integer, ACC, OUT, W> operator =
-                new WindowOperator<>(
+        WindowOperatorFactory<Integer, Integer, ACC, OUT, W> operator =
+                new WindowOperatorFactory<>(
                         assigner,
                         assigner.getWindowSerializer(new ExecutionConfig()),
                         keySelector,
@@ -222,8 +222,8 @@ class RegularWindowOperatorContractTest extends WindowOperatorContractTest {
                 new ListStateDescriptor<>("int-list", IntSerializer.INSTANCE);
 
         @SuppressWarnings("unchecked")
-        WindowOperator<Integer, Integer, Iterable<Integer>, OUT, W> operator =
-                new WindowOperator<>(
+        WindowOperatorFactory<Integer, Integer, Iterable<Integer>, OUT, W> operator =
+                new WindowOperatorFactory<>(
                         assigner,
                         assigner.getWindowSerializer(new ExecutionConfig()),
                         keySelector,

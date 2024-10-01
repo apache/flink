@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -247,10 +248,11 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
             };
 
     ContinuousFileReaderOperator(
+            StreamOperatorParameters<OUT> parameters,
             InputFormat<OUT, ? super T> format,
             ProcessingTimeService processingTimeService,
             MailboxExecutor mailboxExecutor) {
-
+        super(parameters);
         this.format = checkNotNull(format);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.executor = (MailboxExecutorImpl) checkNotNull(mailboxExecutor);

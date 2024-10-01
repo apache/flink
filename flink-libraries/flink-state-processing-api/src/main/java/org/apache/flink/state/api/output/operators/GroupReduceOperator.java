@@ -21,7 +21,6 @@ package org.apache.flink.state.api.output.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -44,7 +43,6 @@ public class GroupReduceOperator<IN, OUT>
 
     public GroupReduceOperator(GroupReduceFunction<IN, OUT> userFunction) {
         super(userFunction);
-        super.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

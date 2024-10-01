@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunc
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -354,13 +355,16 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
 
         final StreamSource<RowData, ?> sourceOperator = new StreamSource<>(function, !isBounded);
-        return new LegacySourceTransformation<>(
-                operatorName,
-                sourceOperator,
-                outputTypeInfo,
-                parallelism,
-                boundedness,
-                sourceParallelismConfigured);
+        LegacySourceTransformation<RowData> transformation =
+                new LegacySourceTransformation<>(
+                        operatorName,
+                        sourceOperator,
+                        outputTypeInfo,
+                        parallelism,
+                        boundedness,
+                        sourceParallelismConfigured);
+        transformation.setChainingStrategy(ChainingStrategy.HEAD);
+        return transformation;
     }
 
     /**
