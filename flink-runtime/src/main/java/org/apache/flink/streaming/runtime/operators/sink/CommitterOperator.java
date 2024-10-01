@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
@@ -89,6 +90,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     private ListState<CommittableCollector<CommT>> committableCollectorState;
 
     public CommitterOperator(
+            StreamOperatorParameters<CommittableMessage<CommT>> parameters,
             ProcessingTimeService processingTimeService,
             SimpleVersionedSerializer<CommT> committableSerializer,
             FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
@@ -96,6 +98,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
             boolean emitDownstream,
             boolean isBatchMode,
             boolean isCheckpointingEnabled) {
+        super(parameters);
         this.emitDownstream = emitDownstream;
         this.isBatchMode = isBatchMode;
         this.isCheckpointingEnabled = isCheckpointingEnabled;
@@ -105,7 +108,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<CommittableMessage<CommT>>> output) {

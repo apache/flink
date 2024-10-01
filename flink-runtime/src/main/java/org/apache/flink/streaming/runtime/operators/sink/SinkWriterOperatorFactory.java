@@ -54,11 +54,8 @@ public final class SinkWriterOperatorFactory<InputT, CommT>
             StreamOperatorParameters<CommittableMessage<CommT>> parameters) {
         try {
             final SinkWriterOperator<InputT, CommT> writerOperator =
-                    new SinkWriterOperator<>(sink, processingTimeService, getMailboxExecutor());
-            writerOperator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+                    new SinkWriterOperator<>(
+                            parameters, sink, processingTimeService, getMailboxExecutor());
             return (T) writerOperator;
         } catch (Exception e) {
             throw new IllegalStateException(

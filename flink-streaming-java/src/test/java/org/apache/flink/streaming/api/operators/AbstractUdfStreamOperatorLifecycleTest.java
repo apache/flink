@@ -280,7 +280,7 @@ class AbstractUdfStreamOperatorLifecycleTest {
         }
 
         @Override
-        public void setup(
+        protected void setup(
                 StreamTask<?, ?> containingTask,
                 StreamConfig config,
                 Output<StreamRecord<OUT>> output) {

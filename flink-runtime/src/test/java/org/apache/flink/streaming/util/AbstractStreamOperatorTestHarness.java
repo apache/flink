@@ -66,7 +66,6 @@ import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -102,6 +101,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setupStreamOperator;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class for {@code AbstractStreamOperator} test harnesses. */
@@ -432,12 +433,20 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         return outputValues;
     }
 
-    /** Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}. */
+    /**
+     * Calls {@link
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} ()}.
+     */
     public void setup() {
         setup(null);
     }
 
-    /** Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}. */
+    /**
+     * Calls {@link
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} ()}.
+     */
     public void setup(TypeSerializer<OUT> outputSerializer) {
         if (!setupCalled) {
             streamTaskStateInitializer =
@@ -458,12 +467,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                                 .f0;
             } else {
                 if (operator instanceof AbstractStreamOperator) {
-                    ((AbstractStreamOperator) operator)
-                            .setProcessingTimeService(processingTimeService);
-                }
-                if (operator instanceof SetupableStreamOperator) {
-                    ((SetupableStreamOperator) operator)
-                            .setup(mockTask, config, new MockOutput(outputSerializer));
+                    setProcessingTimeService(
+                            (AbstractStreamOperator) operator, processingTimeService);
+                    setupStreamOperator(
+                            (AbstractStreamOperator) operator,
+                            mockTask,
+                            config,
+                            new MockOutput(outputSerializer));
                 }
             }
             setupCalled = true;
@@ -475,8 +485,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
      * Calls {@link
      * org.apache.flink.streaming.api.operators.StreamOperator#initializeState(StreamTaskStateInitializer)}.
      * Calls {@link
-     * org.apache.flink.streaming.api.operators.SetupableStreamOperator#setup(StreamTask,
-     * StreamConfig, Output)} if it was not called before.
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} if it was not called before.
      */
     public void initializeState(OperatorSubtaskState operatorStateHandles) throws Exception {
         initializeState(operatorStateHandles, null);
@@ -574,8 +584,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     /**
      * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState()}.
      * Calls {@link
-     * org.apache.flink.streaming.api.operators.SetupableStreamOperator#setup(StreamTask,
-     * StreamConfig, Output)} if it was not called before.
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} if it was not called before.
      *
      * @param jmOperatorStateHandles the primary state (owned by JM)
      * @param tmOperatorStateHandles the (optional) local state (owned by TM) or null.
@@ -684,7 +694,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
     /**
      * Calls {@link StreamOperator#open()}. This also calls {@link
-     * SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} if it was not called before.
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} if it was not called before.
      */
     public void open() throws Exception {
         if (!initializeCalled) {

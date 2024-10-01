@@ -87,6 +87,7 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.shaded.guava32.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -282,7 +283,7 @@ class SubtaskCheckpointCoordinatorTest {
 
             StreamMap<String, String> streamMap =
                     new StreamMap<>((MapFunction<String, String>) value -> value);
-            streamMap.setProcessingTimeService(new TestProcessingTimeService());
+            setProcessingTimeService(streamMap, new TestProcessingTimeService());
             final OperatorChain<String, AbstractStreamOperator<String>> operatorChain =
                     operatorChain(streamMap);
             StreamTaskStateInitializerImpl stateInitializer =

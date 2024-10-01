@@ -30,7 +30,6 @@ import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -54,7 +53,6 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
     public TwoInputBroadcastProcessOperator(
             TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> userFunction) {
         super(userFunction);
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

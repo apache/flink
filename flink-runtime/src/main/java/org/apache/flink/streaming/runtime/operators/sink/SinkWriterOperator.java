@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -122,9 +123,11 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Nullable private ListState<Boolean> endOfInputState;
 
     SinkWriterOperator(
+            StreamOperatorParameters<CommittableMessage<CommT>> parameters,
             Sink<InputT> sink,
             ProcessingTimeService processingTimeService,
             MailboxExecutor mailboxExecutor) {
+        super(parameters);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.context = new Context<>();
@@ -145,7 +148,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<CommittableMessage<CommT>>> output) {

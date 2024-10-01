@@ -263,7 +263,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
 
         CompactorOperatorStateHandler handler =
                 new CompactorOperatorStateHandler(
-                        getTestCommittableSerializer(), createTestBucketWriter());
+                        null, getTestCommittableSerializer(), createTestBucketWriter());
         try (OneInputStreamOperatorTestHarness<
                         Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>,
                         CommittableMessage<FileSinkCommittable>>
@@ -363,6 +363,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
                 harness =
                         new OneInputStreamOperatorTestHarness<>(
                                 new CompactorOperatorStateHandler(
+                                        null,
                                         getTestCommittableSerializer(),
                                         createTestBucketWriter()))) {
             harness.setup();
@@ -402,6 +403,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
                 harness =
                         new OneInputStreamOperatorTestHarness<>(
                                 new CompactorOperatorStateHandler(
+                                        null,
                                         getTestCommittableSerializer(),
                                         createTestBucketWriter()))) {
             harness.setup();
@@ -436,6 +438,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
                 harness =
                         new OneInputStreamOperatorTestHarness<>(
                                 new CompactorOperatorStateHandler(
+                                        null,
                                         getTestCommittableSerializer(),
                                         createTestBucketWriter()))) {
             harness.setup();
@@ -497,6 +500,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
 
     private CompactorOperator createTestOperator(FileCompactor compactor) {
         return new CompactorOperator(
+                null,
                 FileCompactStrategy.Builder.newBuilder()
                         .setNumCompactThreads(2)
                         .enableCompactionOnCheckpoint(1)

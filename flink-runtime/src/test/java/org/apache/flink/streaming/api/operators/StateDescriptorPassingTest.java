@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorFactory;
 import org.apache.flink.util.Collector;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -271,8 +272,15 @@ class StateDescriptorPassingTest {
     private void validateStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
         OneInputTransformation<?, ?> transform =
                 (OneInputTransformation<?, ?>) result.getTransformation();
-        WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-        StateDescriptor<?, ?> descr = op.getStateDescriptor();
+        StreamOperatorFactory<?> factory = transform.getOperatorFactory();
+        StateDescriptor<?, ?> descr;
+        if (factory instanceof WindowOperatorFactory) {
+            descr = ((WindowOperatorFactory<?, ?, ?, ?, ?>) factory).getStateDescriptor();
+        } else {
+            WindowOperator<?, ?, ?, ?, ?> op =
+                    (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+            descr = op.getStateDescriptor();
+        }
 
         // this would be the first statement to fail if state descriptors were not properly
         // initialized
@@ -289,8 +297,15 @@ class StateDescriptorPassingTest {
     private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
         OneInputTransformation<?, ?> transform =
                 (OneInputTransformation<?, ?>) result.getTransformation();
-        WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-        StateDescriptor<?, ?> descr = op.getStateDescriptor();
+        StreamOperatorFactory<?> factory = transform.getOperatorFactory();
+        StateDescriptor<?, ?> descr;
+        if (factory instanceof WindowOperatorFactory) {
+            descr = ((WindowOperatorFactory<?, ?, ?, ?, ?>) factory).getStateDescriptor();
+        } else {
+            WindowOperator<?, ?, ?, ?, ?> op =
+                    (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+            descr = op.getStateDescriptor();
+        }
 
         assertThat(descr).isInstanceOf(ListStateDescriptor.class);
 

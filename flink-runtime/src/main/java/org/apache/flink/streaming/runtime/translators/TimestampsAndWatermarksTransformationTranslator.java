@@ -20,9 +20,8 @@ package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperatorFactory;
 
 import java.util.Collection;
 
@@ -59,10 +58,9 @@ public class TimestampsAndWatermarksTransformationTranslator<IN>
         checkNotNull(transformation);
         checkNotNull(context);
 
-        TimestampsAndWatermarksOperator<IN> operator =
-                new TimestampsAndWatermarksOperator<>(
+        TimestampsAndWatermarksOperatorFactory<IN> operatorFactory =
+                new TimestampsAndWatermarksOperatorFactory<>(
                         transformation.getWatermarkStrategy(), emitProgressiveWatermarks);
-        SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(operator);
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
         return translateInternal(
                 transformation,

@@ -63,8 +63,16 @@ class SourceOperatorSplitWatermarkAlignmentTest {
 
         MockSourceReader sourceReader =
                 new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        Environment env = getTestingEnvironment();
         SourceOperator<Integer, MockSourceSplit> operator =
                 new TestingSourceOperator<>(
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(env),
+                                new MockStreamConfig(new Configuration(), 1),
+                                new MockOutput<>(new ArrayList<>()),
+                                TestProcessingTimeService::new,
+                                null,
+                                null),
                         sourceReader,
                         WatermarkStrategy.forGenerator(ctx -> new TestWatermarkGenerator())
                                 .withTimestampAssigner((r, l) -> r)
@@ -74,11 +82,6 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         1,
                         5,
                         true);
-        Environment env = getTestingEnvironment();
-        operator.setup(
-                new SourceOperatorStreamTask<Integer>(env),
-                new MockStreamConfig(new Configuration(), 1),
-                new MockOutput<>(new ArrayList<>()));
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
 
@@ -262,8 +265,16 @@ class SourceOperatorSplitWatermarkAlignmentTest {
             long idleTimeout)
             throws Exception {
 
+        Environment env = getTestingEnvironment();
         SourceOperator<Integer, MockSourceSplit> operator =
                 new TestingSourceOperator<>(
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(env),
+                                new MockStreamConfig(new Configuration(), 1),
+                                new MockOutput<>(new ArrayList<>()),
+                                () -> processingTimeService,
+                                null,
+                                null),
                         sourceReader,
                         WatermarkStrategy.forGenerator(ctx -> new TestWatermarkGenerator())
                                 .withTimestampAssigner((r, l) -> r)
@@ -274,11 +285,6 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         1,
                         5,
                         true);
-        Environment env = getTestingEnvironment();
-        operator.setup(
-                new SourceOperatorStreamTask<Integer>(env),
-                new MockStreamConfig(new Configuration(), 1),
-                new MockOutput<>(new ArrayList<>()));
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
         operator.open();

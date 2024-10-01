@@ -49,7 +49,6 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -767,7 +766,6 @@ public class TimestampITCase extends TestLogger {
         private final boolean timestampsEnabled;
 
         public CustomOperator(boolean timestampsEnabled) {
-            setChainingStrategy(ChainingStrategy.ALWAYS);
             this.timestampsEnabled = timestampsEnabled;
         }
 
@@ -809,9 +807,7 @@ public class TimestampITCase extends TestLogger {
     private static class TimestampCheckingOperator extends AbstractStreamOperator<Integer>
             implements OneInputStreamOperator<Integer, Integer> {
 
-        public TimestampCheckingOperator() {
-            setChainingStrategy(ChainingStrategy.ALWAYS);
-        }
+        public TimestampCheckingOperator() {}
 
         @Override
         public void processElement(StreamRecord<Integer> element) throws Exception {

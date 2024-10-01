@@ -22,6 +22,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -74,11 +75,15 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
         LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
 
-        RecordPusher<IN> headOperator = new RecordPusher<>();
-        headOperator.setup(
-                this,
-                getConfiguration(),
-                new IterationTailOutput<>(dataChannel, iterationWaitTime));
+        RecordPusher<IN> headOperator =
+                new RecordPusher<>(
+                        new StreamOperatorParameters<>(
+                                this,
+                                getConfiguration(),
+                                new IterationTailOutput<>(dataChannel, iterationWaitTime),
+                                () -> new SystemProcessingTimeService(ex -> {}),
+                                null,
+                                null));
         this.mainOperator = headOperator;
 
         // call super.init() last because that needs this.headOperator to be set up
@@ -89,6 +94,10 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
             implements OneInputStreamOperator<IN, IN> {
 
         private static final long serialVersionUID = 1L;
+
+        private RecordPusher(StreamOperatorParameters<IN> parameters) {
+            super(parameters);
+        }
 
         @Override
         public void processElement(StreamRecord<IN> record) throws Exception {

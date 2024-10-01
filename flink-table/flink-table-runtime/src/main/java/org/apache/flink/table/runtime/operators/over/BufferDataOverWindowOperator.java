@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.over;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -61,6 +62,19 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<RowData>
             OverWindowFrame[] overWindowFrames,
             GeneratedRecordComparator genComparator,
             boolean isRowAllInFixedPart) {
+        this(null, overWindowFrames, genComparator, isRowAllInFixedPart);
+    }
+
+    /**
+     * @param overWindowFrames the window frames belong to this operator.
+     * @param genComparator the generated sort which is used for generating the comparator among
+     */
+    public BufferDataOverWindowOperator(
+            StreamOperatorParameters<RowData> parameters,
+            OverWindowFrame[] overWindowFrames,
+            GeneratedRecordComparator genComparator,
+            boolean isRowAllInFixedPart) {
+        super(parameters);
         this.overWindowFrames = overWindowFrames;
         this.genComparator = genComparator;
         this.isRowAllInFixedPart = isRowAllInFixedPart;

@@ -35,7 +35,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -208,11 +209,11 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(EventTimeSessionWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ListStateDescriptor.class);
@@ -245,11 +246,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
@@ -278,11 +278,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
                 .isInstanceOf(SlidingProcessingTimeWindows.class);
@@ -330,17 +329,17 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -379,18 +378,18 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
                 .isInstanceOf(TumblingProcessingTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -431,17 +430,17 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -480,18 +479,18 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
                 .isInstanceOf(TumblingProcessingTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -533,11 +532,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(EvictingWindowOperator.class);
-        EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
-                (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(EvictingWindowOperatorFactory.class);
+        EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?> winOperator =
+                (EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getEvictor()).isInstanceOf(CountEvictor.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
@@ -586,17 +584,17 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -623,12 +621,11 @@ class AllWindowTranslationTest {
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
 
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
 
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
@@ -658,12 +655,11 @@ class AllWindowTranslationTest {
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
 
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
 
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
@@ -692,19 +688,19 @@ class AllWindowTranslationTest {
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
 
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
 
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(AggregatingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -725,12 +721,12 @@ class AllWindowTranslationTest {
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>)
                         window.getTransformation();
 
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
-                transform.getOperator();
+        StreamOperatorFactory<Tuple3<String, String, Integer>> operator =
+                transform.getOperatorFactory();
 
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
@@ -738,7 +734,7 @@ class AllWindowTranslationTest {
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(AggregatingStateDescriptor.class);
 
         processElementAndEnsureOutput(
-                operator,
+                winOperator,
                 winOperator.getKeySelector(),
                 BasicTypeInfo.STRING_TYPE_INFO,
                 new Tuple2<>("hello", 1));
@@ -762,12 +758,11 @@ class AllWindowTranslationTest {
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
 
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
 
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
@@ -814,12 +809,11 @@ class AllWindowTranslationTest {
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
 
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
 
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
@@ -868,11 +862,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ListStateDescriptor.class);
@@ -916,11 +909,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
                 .isInstanceOf(TumblingProcessingTimeWindows.class);
@@ -967,11 +959,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(EvictingWindowOperator.class);
-        EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
-                (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(EvictingWindowOperatorFactory.class);
+        EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?> winOperator =
+                (EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(CountTrigger.class);
         assertThat(winOperator.getEvictor()).isInstanceOf(TimeEvictor.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
@@ -1017,11 +1008,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(CountTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ListStateDescriptor.class);
@@ -1069,11 +1059,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ListStateDescriptor.class);
@@ -1117,11 +1106,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner())
                 .isInstanceOf(TumblingProcessingTimeWindows.class);
@@ -1154,11 +1142,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(CountTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
@@ -1203,11 +1190,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(WindowOperator.class);
-        WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
-                (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(WindowOperatorFactory.class);
+        WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
+                (WindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(CountTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getStateDescriptor()).isInstanceOf(ListStateDescriptor.class);
@@ -1239,11 +1225,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(EvictingWindowOperator.class);
-        EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
-                (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(EvictingWindowOperatorFactory.class);
+        EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?> winOperator =
+                (EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(EventTimeTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
         assertThat(winOperator.getEvictor()).isInstanceOf(CountEvictor.class);
@@ -1290,11 +1275,10 @@ class AllWindowTranslationTest {
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
                 (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>)
                         window1.getTransformation();
-        OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
-                transform.getOperator();
-        assertThat(operator).isInstanceOf(EvictingWindowOperator.class);
-        EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
-                (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
+        StreamOperatorFactory<Tuple2<String, Integer>> operator = transform.getOperatorFactory();
+        assertThat(operator).isInstanceOf(EvictingWindowOperatorFactory.class);
+        EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?> winOperator =
+                (EvictingWindowOperatorFactory<String, Tuple2<String, Integer>, ?, ?>) operator;
         assertThat(winOperator.getTrigger()).isInstanceOf(CountTrigger.class);
         assertThat(winOperator.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
         assertThat(winOperator.getEvictor()).isInstanceOf(TimeEvictor.class);
@@ -1312,7 +1296,7 @@ class AllWindowTranslationTest {
      * watermark and processing time to {@code Long.MAX_VALUE}.
      */
     private static <K, IN, OUT> void processElementAndEnsureOutput(
-            OneInputStreamOperator<IN, OUT> operator,
+            OneInputStreamOperatorFactory<IN, OUT> operator,
             KeySelector<IN, K> keySelector,
             TypeInformation<K> keyType,
             IN element)

@@ -51,7 +51,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     public StreamSource(SRC sourceFunction, boolean emitProgressiveWatermarks) {
         super(sourceFunction);
 
-        this.chainingStrategy = ChainingStrategy.HEAD;
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
     }
 

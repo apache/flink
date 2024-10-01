@@ -24,7 +24,6 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
@@ -74,7 +73,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     public AbstractPythonFunctionOperator(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
-        this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

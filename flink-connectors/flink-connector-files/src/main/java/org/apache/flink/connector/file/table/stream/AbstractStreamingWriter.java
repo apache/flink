@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -84,7 +83,6 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
                     bucketsBuilder) {
         this.bucketCheckInterval = bucketCheckInterval;
         this.bucketsBuilder = bucketsBuilder;
-        setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
     /** Notifies a partition created. */

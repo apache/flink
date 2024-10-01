@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -58,7 +57,6 @@ public class RowTimeMiniBatchAssginerOperator extends AbstractStreamOperator<Row
 
     public RowTimeMiniBatchAssginerOperator(long minibatchInterval) {
         this.minibatchInterval = minibatchInterval;
-        this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

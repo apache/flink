@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 /** Creates a savepoint writing operator from a savepoint path. */
 @PublicEvolving
@@ -35,6 +36,6 @@ public interface SavepointWriterOperatorFactory {
      * @param savepointPath the path to write the savepoint to.
      * @return a stream operator for writing the savepoint.
      */
-    StreamOperator<TaggedOperatorSubtaskState> createOperator(
+    StreamOperatorFactory<TaggedOperatorSubtaskState> createOperator(
             long savepointTimestamp, Path savepointPath);
 }

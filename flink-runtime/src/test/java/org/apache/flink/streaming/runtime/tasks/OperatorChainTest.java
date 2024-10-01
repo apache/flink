@@ -26,7 +26,6 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -39,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setupStreamOperator;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -95,8 +95,9 @@ class OperatorChainTest {
             for (int i = 0; i < operators.length; i++) {
                 int operatorIndex = operators.length - i - 1;
                 OneInputStreamOperator<T, T> op = operators[operatorIndex];
-                if (op instanceof SetupableStreamOperator) {
-                    ((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
+                if (op instanceof AbstractStreamOperator) {
+                    setupStreamOperator(
+                            (AbstractStreamOperator<T>) op, containingTask, cfg, lastWriter);
                 }
                 lastWriter = new ChainingOutput<>(op, null, op.getMetricGroup(), null);
 

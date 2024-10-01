@@ -64,15 +64,11 @@ public class DynamicFilteringDataCollectorOperatorFactory
 
         DynamicFilteringDataCollectorOperator operator =
                 new DynamicFilteringDataCollectorOperator(
+                        parameters,
                         dynamicFilteringFieldType,
                         dynamicFilteringFieldIndices,
                         threshold,
                         operatorEventGateway);
-
-        operator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
 
         // today's lunch is generics spaghetti
         @SuppressWarnings("unchecked")

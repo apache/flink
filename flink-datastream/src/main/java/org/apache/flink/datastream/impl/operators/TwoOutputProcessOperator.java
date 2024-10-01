@@ -31,7 +31,6 @@ import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedCo
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -65,7 +64,6 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
         super(userFunction);
 
         this.outputTag = outputTag;
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

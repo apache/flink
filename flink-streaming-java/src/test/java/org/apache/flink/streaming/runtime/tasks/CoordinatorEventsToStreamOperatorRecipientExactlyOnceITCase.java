@@ -236,11 +236,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         @Override
         public <T extends StreamOperator<OUT>> T createStreamOperator(
                 StreamOperatorParameters<OUT> parameters) {
-            EventReceivingOperator<OUT> operator = new EventReceivingOperator<>();
-            operator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+            EventReceivingOperator<OUT> operator = new EventReceivingOperator<>(parameters);
             parameters
                     .getOperatorEventDispatcher()
                     .registerEventHandler(parameters.getStreamConfig().getOperatorID(), operator);
@@ -380,6 +376,18 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
         protected ListState<Integer> state;
 
+        private EventReceivingOperator(StreamOperatorParameters<T> parameters) {
+            super(parameters);
+        }
+
+        @Override
+        public void setup(
+                StreamTask<?, ?> containingTask,
+                StreamConfig config,
+                Output<StreamRecord<T>> output) {
+            super.setup(containingTask, config, output);
+        }
+
         @Override
         public void open() throws Exception {
             super.open();
@@ -465,7 +473,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         public <T extends StreamOperator<OUT>> T createStreamOperator(
                 StreamOperatorParameters<OUT> parameters) {
             EventReceivingOperator<OUT> operator =
-                    new EventReceivingOperatorWithFailure<>(name, numEvents);
+                    new EventReceivingOperatorWithFailure<>(parameters, name, numEvents);
             operator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),
@@ -490,7 +498,9 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
         private TestScript testScript;
 
-        private EventReceivingOperatorWithFailure(String name, int numEvents) {
+        private EventReceivingOperatorWithFailure(
+                StreamOperatorParameters<T> parameters, String name, int numEvents) {
+            super(parameters);
             this.name = name;
             this.maxNumberBeforeFailure = numEvents / 3 + new Random().nextInt(numEvents / 6);
         }

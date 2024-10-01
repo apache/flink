@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -75,10 +74,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
 
         DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-        source.transform(
-                "Custom Operator",
-                BasicTypeInfo.STRING_TYPE_INFO,
-                new TimerOperator(ChainingStrategy.ALWAYS));
+        source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator());
 
         try {
             env.execute("Timer test");
@@ -115,10 +111,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
 
         DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-        source.transform(
-                "Custom Operator",
-                BasicTypeInfo.STRING_TYPE_INFO,
-                new TimerOperator(ChainingStrategy.NEVER));
+        source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator());
 
         try {
             env.execute("Timer test");
@@ -139,7 +132,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
                 .transform(
                         "Custom Operator",
                         BasicTypeInfo.STRING_TYPE_INFO,
-                        new TwoInputTimerOperator(ChainingStrategy.NEVER));
+                        new TwoInputTimerOperator());
 
         try {
             env.execute("Timer test");
@@ -159,9 +152,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
 
         private Semaphore semaphore = new Semaphore(1);
 
-        public TimerOperator(ChainingStrategy chainingStrategy) {
-            setChainingStrategy(chainingStrategy);
-        }
+        public TimerOperator() {}
 
         @Override
         public void processElement(StreamRecord<String> element) throws Exception {
@@ -219,9 +210,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
 
         private Semaphore semaphore = new Semaphore(1);
 
-        public TwoInputTimerOperator(ChainingStrategy chainingStrategy) {
-            setChainingStrategy(chainingStrategy);
-        }
+        public TwoInputTimerOperator() {}
 
         @Override
         public void processElement1(StreamRecord<String> element) throws Exception {

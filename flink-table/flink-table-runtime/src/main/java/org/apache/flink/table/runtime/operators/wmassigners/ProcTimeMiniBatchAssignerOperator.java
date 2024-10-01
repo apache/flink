@@ -22,7 +22,6 @@ import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -52,7 +51,6 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
 
     public ProcTimeMiniBatchAssignerOperator(long intervalMs) {
         this.intervalMs = intervalMs;
-        this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

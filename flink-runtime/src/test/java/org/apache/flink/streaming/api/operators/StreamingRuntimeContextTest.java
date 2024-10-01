@@ -434,22 +434,27 @@ class StreamingRuntimeContextTest {
             boolean stateV2)
             throws Exception {
 
+        StreamConfig streamConfig = new StreamConfig(new Configuration());
+        streamConfig.setOperatorID(new OperatorID());
         AbstractStreamOperator<?> operator =
-                new AbstractStreamOperator<Object>() {
+                new AbstractStreamOperator<Object>(
+                        new StreamOperatorParameters<>(
+                                new MockStreamTaskBuilder(environment)
+                                        .setExecutionConfig(config)
+                                        .build(),
+                                streamConfig,
+                                new CollectorOutput<>(new ArrayList<>()),
+                                TestProcessingTimeService::new,
+                                null,
+                                null)) {
                     @Override
-                    public void setup(
+                    protected void setup(
                             StreamTask<?, ?> containingTask,
                             StreamConfig config,
                             Output<StreamRecord<Object>> output) {
                         super.setup(containingTask, config, output);
                     }
                 };
-        StreamConfig streamConfig = new StreamConfig(new Configuration());
-        streamConfig.setOperatorID(new OperatorID());
-        operator.setup(
-                new MockStreamTaskBuilder(environment).setExecutionConfig(config).build(),
-                streamConfig,
-                new CollectorOutput<>(new ArrayList<>()));
 
         StreamTaskStateInitializer streamTaskStateManager =
                 new StreamTaskStateInitializerImpl(environment, new HashMapStateBackend());
