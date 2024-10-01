@@ -186,6 +186,23 @@ LogicalProject(EXPR$0=[ITEM($0, $2).value], EXPR$1=[ITEM($1, _UTF-16LE'item').va
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testNestedProjectFieldAccessWithNestedArrayAndRows">
+		<Resource name="sql">
+			<![CDATA[SELECT `chart`.`result`[1].`meta`.`symbol` FROM ItemTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[CAST(CAST(ITEM($5.result, 1).meta):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol).symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(EXPR$0=[CAST(CAST(ITEM($0.result, 1).meta):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol).symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[chart], metadata=[]]])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testNestedProjectFieldAccessWithITEMContainsTopLevelAccess">
     <Resource name="sql">
       <![CDATA[SELECT `Result`.`Mid`.data_arr[2].`value`, `Result`.`Mid`.data_arr[ID].`value`, `Result`.`Mid`.data_map['item'].`value`, `Result`.`Mid` FROM NestedItemTable]]>

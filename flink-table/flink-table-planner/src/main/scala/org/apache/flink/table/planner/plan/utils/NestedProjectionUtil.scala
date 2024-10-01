@@ -22,6 +22,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
 
 import java.util.{LinkedHashMap => JLinkedHashMap, LinkedList => JLinkedList, List => JList}
 
@@ -222,10 +223,10 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
         if (parent.isLeaf) {
           (
             Some(
-              builder.makeFieldAccess(
+              copyFieldAccess(
                 new RexInputRef(parent.indexOfLeafInNewSchema, parent.originFieldType),
                 fieldAccess.getField.getName,
-                true)),
+                builder)),
             parent)
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
@@ -238,7 +239,7 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
       case acc: RexFieldAccess =>
         val (field, parent) = traverse(acc)
         if (field.isDefined) {
-          (Some(builder.makeFieldAccess(field.get, fieldAccess.getField.getName, true)), parent)
+          (Some(copyFieldAccess(field.get, fieldAccess.getField.getName, builder)), parent)
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
@@ -251,7 +252,21 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
         // rewrite operands of the expression
         val newExpr = expr.accept(this)
         // rebuild FieldAccess
-        (Some(builder.makeFieldAccess(newExpr, fieldAccess.getField.getName, true)), null)
+        (Some(copyFieldAccess(newExpr, fieldAccess.getField.getName, builder)), null)
+    }
+  }
+
+  private def copyFieldAccess(
+      newExpr: RexNode,
+      fieldName: String,
+      rexBuilder: RexBuilder): RexNode = {
+    // rebuild fieldAccess
+    val fieldAccess = rexBuilder.makeFieldAccess(newExpr, fieldName, true)
+    fieldAccess match {
+      case call: RexCall =>
+        call.getOperands.get(0)
+      case _ =>
+        fieldAccess
     }
   }
 }

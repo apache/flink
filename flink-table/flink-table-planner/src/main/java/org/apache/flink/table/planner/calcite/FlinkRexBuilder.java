@@ -28,6 +28,8 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.runtime.FlatLists;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.tools.RelBuilder;
@@ -56,8 +58,15 @@ public final class FlinkRexBuilder extends RexBuilder {
     public RexNode makeFieldAccess(RexNode expr, String fieldName, boolean caseSensitive) {
         RexNode field = super.makeFieldAccess(expr, fieldName, caseSensitive);
         if (expr.getType().isNullable() && !field.getType().isNullable()) {
-            return makeCast(
-                    typeFactory.createTypeWithNullability(field.getType(), true), field, true);
+            SqlOperator sqlOperator = ((RexCall) expr).getOperator();
+            if (sqlOperator.getKind() == SqlKind.CAST) {
+                //       return field;
+            }
+            field =
+                    makeCast(
+                            typeFactory.createTypeWithNullability(field.getType(), true),
+                            field,
+                            true);
         }
 
         return field;
