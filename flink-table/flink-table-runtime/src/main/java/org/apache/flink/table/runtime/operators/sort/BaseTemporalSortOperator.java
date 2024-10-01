@@ -39,6 +39,11 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
     BaseTemporalSortOperator() {}
 
     @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
+    @Override
     public void open() throws Exception {
         InternalTimerService<VoidNamespace> internalTimerService =
                 getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
