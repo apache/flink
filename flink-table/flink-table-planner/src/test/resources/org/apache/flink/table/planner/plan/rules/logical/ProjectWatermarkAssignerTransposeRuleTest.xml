@@ -183,6 +183,40 @@ LogicalProject(a=[$0])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="transposeWithHints">
+		<Resource name="sql">
+			<![CDATA[SELECT /*+ STATE_TTL('st'='1d', 'vt' = '3d') */ st.* FROM SimpleTable st LEFT JOIN(SELECT DISTINCT b FROM VirtualTable) vt ON st.b = vt.b WHERE vt.b IS NOT NULL]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[IS NOT NULL($4)])
+   +- LogicalJoin(condition=[=($1, $4)], joinType=[left], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{st=1d, vt=3d}]]])
+      :- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+      +- LogicalAggregate(group=[{0}])
+         +- LogicalProject(b=[$1])
+            +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[IS NOT NULL($4)])
+   +- LogicalJoin(condition=[=($1, $4)], joinType=[left], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=3d}]]])
+      :- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+      +- LogicalAggregate(group=[{0}])
+         +- LogicalProject(b=[$0])
+            +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($1, 5000:INTERVAL SECOND)])
+               +- LogicalProject(b=[$1], d=[$3])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="transposeWithIncludeComputedRowTime">
     <Resource name="sql">
       <![CDATA[SELECT a, b, d FROM VirtualTable]]>

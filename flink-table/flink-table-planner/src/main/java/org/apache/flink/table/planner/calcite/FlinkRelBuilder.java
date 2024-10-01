@@ -253,7 +253,8 @@ public final class FlinkRelBuilder extends RelBuilder {
     public RelBuilder watermark(int rowtimeFieldIndex, RexNode watermarkExpr) {
         final RelNode input = build();
         final RelNode relNode =
-                LogicalWatermarkAssigner.create(cluster, input, rowtimeFieldIndex, watermarkExpr);
+                LogicalWatermarkAssigner.create(
+                        cluster, input, Collections.emptyList(), rowtimeFieldIndex, watermarkExpr);
         return push(relNode);
     }
 
