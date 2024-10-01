@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -274,9 +273,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
         StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, 1);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(
                 env, MAX_JOB_RESTART_ATTEMPTS, Duration.ofMillis(10));
-        env.getConfig()
-                .setExecutionMode(
-                        ExecutionMode.BATCH_FORCED); // forces all partitions to be blocking
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         return env;
     }
 

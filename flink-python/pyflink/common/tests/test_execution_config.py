@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.common import (ExecutionConfig, ExecutionMode, Configuration)
+from pyflink.common import (ExecutionConfig, Configuration)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.java_utils import get_j_env_configuration
@@ -90,24 +90,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.execution_config.set_task_cancellation_timeout(3000)
 
         self.assertEqual(self.execution_config.get_task_cancellation_timeout(), 3000)
-
-    def test_get_set_execution_mode(self):
-
-        self.execution_config.set_execution_mode(ExecutionMode.BATCH)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.BATCH)
-
-        self.execution_config.set_execution_mode(ExecutionMode.PIPELINED)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.PIPELINED)
-
-        self.execution_config.set_execution_mode(ExecutionMode.BATCH_FORCED)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.BATCH_FORCED)
-
-        self.execution_config.set_execution_mode(ExecutionMode.PIPELINED_FORCED)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.PIPELINED_FORCED)
 
     def test_disable_enable_auto_generated_uids(self):
 
