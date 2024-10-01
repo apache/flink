@@ -233,7 +233,7 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
         'format' = 'json',
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
-    FRESHNESS = INTERVAL '10' MINUTE
+    FRESHNESS = INTERVAL '1' HOUR
     REFRESH_MODE = 'FULL'
     AS 
     SELECT 
