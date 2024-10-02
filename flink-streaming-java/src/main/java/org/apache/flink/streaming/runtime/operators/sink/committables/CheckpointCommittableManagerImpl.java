@@ -143,9 +143,17 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                         .sum());
     }
 
-    boolean isFinished() {
+    @Override
+    public boolean isFinished() {
         return subtasksCommittableManagers.values().stream()
                 .allMatch(SubtaskCommittableManager::isFinished);
+    }
+
+    @Override
+    public boolean hasGloballyReceivedAll() {
+        return subtasksCommittableManagers.size() == numberOfSubtasks
+                && subtasksCommittableManagers.values().stream()
+                        .allMatch(SubtaskCommittableManager::hasReceivedAll);
     }
 
     @Override
