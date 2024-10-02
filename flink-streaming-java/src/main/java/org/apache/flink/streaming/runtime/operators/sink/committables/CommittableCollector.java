@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.connector.sink2.InitContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
@@ -34,14 +33,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class is responsible to book-keep the committing progress across checkpoints and subtasks.
- * It handles the emission of committables and the {@link CommittableSummary}.
+ * This class is responsible to book-keep the committing progress across checkpoints and upstream
+ * subtasks.
+ *
+ * <p>Each checkpoint in turn is handled by a {@link CheckpointCommittableManager}.
  *
  * @param <CommT> type of committable
  */
@@ -51,29 +53,18 @@ public class CommittableCollector<CommT> {
     /** Mapping of checkpoint id to {@link CheckpointCommittableManagerImpl}. */
     private final NavigableMap<Long, CheckpointCommittableManagerImpl<CommT>>
             checkpointCommittables;
-    /** Denotes the subtask id the collector is running. */
-    private final int subtaskId;
 
-    private final int numberOfSubtasks;
     private final SinkCommitterMetricGroup metricGroup;
 
-    public CommittableCollector(
-            int subtaskId, int numberOfSubtasks, SinkCommitterMetricGroup metricGroup) {
-        this.subtaskId = subtaskId;
-        this.numberOfSubtasks = numberOfSubtasks;
-        this.checkpointCommittables = new TreeMap<>();
-        this.metricGroup = metricGroup;
+    public CommittableCollector(SinkCommitterMetricGroup metricGroup) {
+        this(new TreeMap<>(), metricGroup);
     }
 
     /** For deep-copy. */
     CommittableCollector(
             Map<Long, CheckpointCommittableManagerImpl<CommT>> checkpointCommittables,
-            int subtaskId,
-            int numberOfSubtasks,
             SinkCommitterMetricGroup metricGroup) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
-        this.subtaskId = subtaskId;
-        this.numberOfSubtasks = numberOfSubtasks;
         this.metricGroup = metricGroup;
     }
 
@@ -81,17 +72,12 @@ public class CommittableCollector<CommT> {
      * Creates a {@link CommittableCollector} based on the current runtime information. This method
      * should be used for to instantiate a collector for all Sink V2.
      *
-     * @param context holding runtime of information
      * @param metricGroup storing the committable metrics
      * @param <CommT> type of the committable
      * @return {@link CommittableCollector}
      */
-    public static <CommT> CommittableCollector<CommT> of(
-            RuntimeContext context, SinkCommitterMetricGroup metricGroup) {
-        return new CommittableCollector<>(
-                context.getTaskInfo().getIndexOfThisSubtask(),
-                context.getTaskInfo().getNumberOfParallelSubtasks(),
-                metricGroup);
+    public static <CommT> CommittableCollector<CommT> of(SinkCommitterMetricGroup metricGroup) {
+        return new CommittableCollector<>(metricGroup);
     }
 
     /**
@@ -105,8 +91,7 @@ public class CommittableCollector<CommT> {
      */
     static <CommT> CommittableCollector<CommT> ofLegacy(
             List<CommT> committables, SinkCommitterMetricGroup metricGroup) {
-        CommittableCollector<CommT> committableCollector =
-                new CommittableCollector<>(0, 1, metricGroup);
+        CommittableCollector<CommT> committableCollector = new CommittableCollector<>(metricGroup);
         // add a checkpoint with the lowest checkpoint id, this will be merged into the next
         // checkpoint data, subtask id is arbitrary
         CommittableSummary<CommT> summary =
@@ -148,21 +133,16 @@ public class CommittableCollector<CommT> {
      */
     public Collection<? extends CheckpointCommittableManager<CommT>> getCheckpointCommittablesUpTo(
             long checkpointId) {
-        // clean up fully committed previous checkpoints
-        // this wouldn't work with concurrent unaligned checkpoints
-        Collection<CheckpointCommittableManagerImpl<CommT>> checkpoints =
-                checkpointCommittables.headMap(checkpointId, true).values();
-        checkpoints.removeIf(CheckpointCommittableManagerImpl::isFinished);
-        return checkpoints;
+        return checkpointCommittables.headMap(checkpointId, true).values();
     }
 
     /**
-     * Returns {@link CommittableManager} belonging to the last input.
+     * Returns {@link CheckpointCommittableManager} belonging to the last input.
      *
      * @return {@link CheckpointCommittableManager}
      */
     @Nullable
-    public CommittableManager<CommT> getEndOfInputCommittable() {
+    public CheckpointCommittableManager<CommT> getEndOfInputCommittable() {
         return checkpointCommittables.get(EOI);
     }
 
@@ -195,24 +175,6 @@ public class CommittableCollector<CommT> {
     }
 
     /**
-     * Returns number of subtasks.
-     *
-     * @return number of subtasks
-     */
-    public int getNumberOfSubtasks() {
-        return numberOfSubtasks;
-    }
-
-    /**
-     * Returns subtask id.
-     *
-     * @return subtask id.
-     */
-    public int getSubtaskId() {
-        return subtaskId;
-    }
-
-    /**
      * Returns a new committable collector that deep copies all internals.
      *
      * @return {@link CommittableCollector}
@@ -222,8 +184,6 @@ public class CommittableCollector<CommT> {
                 checkpointCommittables.entrySet().stream()
                         .map(e -> Tuple2.of(e.getKey(), e.getValue().copy()))
                         .collect(Collectors.toMap((t) -> t.f0, (t) -> t.f1)),
-                subtaskId,
-                numberOfSubtasks,
                 metricGroup);
     }
 
@@ -235,12 +195,7 @@ public class CommittableCollector<CommT> {
         checkpointCommittables
                 .computeIfAbsent(
                         summary.getCheckpointIdOrEOI(),
-                        key ->
-                                new CheckpointCommittableManagerImpl<>(
-                                        subtaskId,
-                                        numberOfSubtasks,
-                                        summary.getCheckpointIdOrEOI(),
-                                        metricGroup))
+                        key -> CheckpointCommittableManagerImpl.forSummary(summary, metricGroup))
                 .addSummary(summary);
     }
 
@@ -253,5 +208,32 @@ public class CommittableCollector<CommT> {
         CheckpointCommittableManagerImpl<CommT> committables =
                 this.checkpointCommittables.get(committable.getCheckpointIdOrEOI());
         return checkNotNull(committables, "Unknown checkpoint for %s", committable);
+    }
+
+    /** Removes all metadata about checkpoints of which all committables are fully committed. */
+    public void compact() {
+        checkpointCommittables.values().removeIf(CheckpointCommittableManagerImpl::isFinished);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CommittableCollector<?> that = (CommittableCollector<?>) o;
+        return Objects.equals(checkpointCommittables, that.checkpointCommittables);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(checkpointCommittables);
+    }
+
+    @Override
+    public String toString() {
+        return "CommittableCollector{" + "checkpointCommittables=" + checkpointCommittables + '}';
     }
 }
