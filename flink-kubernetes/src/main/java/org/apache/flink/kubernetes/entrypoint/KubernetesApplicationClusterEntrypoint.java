@@ -123,9 +123,11 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
 
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
 
-        // No need to do pipelineJars validation if it is a PyFlink job.
+        // No need to do pipelineJars validation if it is a PyFlink job or PipelineOptions.JARS is
+        // null
         if (!(PackagedProgramUtils.isPython(jobClassName)
-                || PackagedProgramUtils.isPython(programArguments))) {
+                        || PackagedProgramUtils.isPython(programArguments))
+                && configuration.get(PipelineOptions.JARS) != null) {
             final ArtifactFetchManager.Result fetchRes = fetchArtifacts(configuration);
 
             return DefaultPackagedProgramRetriever.create(
