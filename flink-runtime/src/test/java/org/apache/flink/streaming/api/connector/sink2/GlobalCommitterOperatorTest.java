@@ -24,6 +24,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,66 +37,112 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GlobalCommitterOperatorTest {
 
-    @Test
-    void testWaitForCommittablesOfLatestCheckpointBeforeCommitting() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWaitForCommittablesOfLatestCheckpointBeforeCommitting(boolean commitOnInput)
+            throws Exception {
         final MockCommitter committer = new MockCommitter();
-        final OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> testHarness =
-                createTestHarness(committer);
-        testHarness.open();
+        try (OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> testHarness =
+                createTestHarness(committer, commitOnInput)) {
+            testHarness.open();
 
-        testHarness.processElement(new StreamRecord<>(new CommittableSummary<>(1, 1, 1L, 2, 0, 0)));
+            long cid = 1L;
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableSummary<>(1, 1, cid, 2, 0, 0)));
 
-        testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(1, 1L, 1)));
+            testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(1, cid, 1)));
 
-        testHarness.notifyOfCompletedCheckpoint(1);
+            testHarness.notifyOfCompletedCheckpoint(cid);
 
-        assertThat(testHarness.getOutput()).isEmpty();
-        // Not committed because incomplete
-        assertThat(committer.committed).isEmpty();
+            assertThat(testHarness.getOutput()).isEmpty();
+            // Not committed because incomplete
+            assertThat(committer.committed).isEmpty();
 
-        testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(2, 1L, 1)));
+            // immediately commit on receiving the second committable iff commitOnInput is true
+            testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(2, cid, 1)));
+            if (commitOnInput) {
+                assertThat(committer.committed).containsExactly(1, 2);
+            } else {
+                assertThat(committer.committed).isEmpty();
+                testHarness.notifyOfCompletedCheckpoint(cid + 1);
+                assertThat(committer.committed).containsExactly(1, 2);
+            }
 
-        testHarness.notifyOfCompletedCheckpoint(2);
+            assertThat(testHarness.getOutput()).isEmpty();
+        }
+    }
 
-        assertThat(testHarness.getOutput()).isEmpty();
-        assertThat(committer.committed).containsExactly(1, 2);
-        testHarness.close();
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWaitForNotifyCheckpointCompleted(boolean commitOnInput) throws Exception {
+        final MockCommitter committer = new MockCommitter();
+        try (OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> testHarness =
+                createTestHarness(committer, commitOnInput)) {
+            testHarness.open();
+
+            long cid = 1L;
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableSummary<>(1, 1, cid, 2, 0, 0)));
+
+            testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(1, cid, 1)));
+
+            assertThat(testHarness.getOutput()).isEmpty();
+            // Not committed because incomplete
+            assertThat(committer.committed).isEmpty();
+
+            // immediately commit on receiving the second committable iff commitOnInput is true
+            testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(2, cid, 1)));
+            if (commitOnInput) {
+                assertThat(committer.committed).containsExactly(1, 2);
+            } else {
+                assertThat(committer.committed).isEmpty();
+            }
+
+            // for commitOnInput = false, the committer waits for notifyCheckpointComplete
+            testHarness.notifyOfCompletedCheckpoint(cid);
+
+            assertThat(committer.committed).containsExactly(1, 2);
+
+            assertThat(testHarness.getOutput()).isEmpty();
+        }
     }
 
     @Test
     void testStateRestore() throws Exception {
         final MockCommitter committer = new MockCommitter();
-        final OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> testHarness =
-                createTestHarness(committer);
-        testHarness.open();
+        try (OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> testHarness =
+                createTestHarness(committer, false)) {
+            testHarness.open();
 
-        final CommittableSummary<Integer> committableSummary =
-                new CommittableSummary<>(1, 1, 0L, 1, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary));
-        final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, 0L, 1);
-        testHarness.processElement(new StreamRecord<>(first));
+            final CommittableSummary<Integer> committableSummary =
+                    new CommittableSummary<>(1, 1, 0L, 1, 1, 0);
+            testHarness.processElement(new StreamRecord<>(committableSummary));
+            final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, 0L, 1);
+            testHarness.processElement(new StreamRecord<>(first));
 
-        final OperatorSubtaskState snapshot = testHarness.snapshot(0L, 2L);
-        assertThat(testHarness.getOutput()).isEmpty();
-        testHarness.close();
-        assertThat(committer.committed).isEmpty();
+            final OperatorSubtaskState snapshot = testHarness.snapshot(0L, 2L);
+            assertThat(testHarness.getOutput()).isEmpty();
+            testHarness.close();
+            assertThat(committer.committed).isEmpty();
 
-        final OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> restored =
-                createTestHarness(committer);
+            try (OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> restored =
+                    createTestHarness(committer, true)) {
 
-        restored.initializeState(snapshot);
-        restored.open();
+                restored.initializeState(snapshot);
+                restored.open();
 
-        assertThat(testHarness.getOutput()).isEmpty();
-        assertThat(committer.committed).containsExactly(1);
-        restored.close();
+                assertThat(testHarness.getOutput()).isEmpty();
+                assertThat(committer.committed).containsExactly(1);
+            }
+        }
     }
 
-    @Test
-    void testCommitAllCommittablesOnEndOfInput() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCommitAllCommittablesOnFinalCheckpoint(boolean commitOnInput) throws Exception {
         final MockCommitter committer = new MockCommitter();
         final OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> testHarness =
-                createTestHarness(committer);
+                createTestHarness(committer, commitOnInput);
         testHarness.open();
 
         final CommittableSummary<Integer> committableSummary =
@@ -109,16 +157,23 @@ class GlobalCommitterOperatorTest {
         final CommittableWithLineage<Integer> second = new CommittableWithLineage<>(2, EOI, 2);
         testHarness.processElement(new StreamRecord<>(second));
 
-        testHarness.endInput();
+        // commitOnInput implies that the global committer is not using notifyCheckpointComplete
+        if (commitOnInput) {
+            assertThat(committer.committed).containsExactly(1, 2);
+        } else {
+            assertThat(committer.committed).isEmpty();
+            testHarness.notifyOfCompletedCheckpoint(EOI);
+            assertThat(committer.committed).containsExactly(1, 2);
+        }
 
         assertThat(testHarness.getOutput()).isEmpty();
-        assertThat(committer.committed).containsExactly(1, 2);
     }
 
     private OneInputStreamOperatorTestHarness<CommittableMessage<Integer>, Void> createTestHarness(
-            Committer<Integer> committer) throws Exception {
+            Committer<Integer> committer, boolean commitOnInput) throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
-                new GlobalCommitterOperator<>(() -> committer, IntegerSerializer::new));
+                new GlobalCommitterOperator<>(
+                        () -> committer, IntegerSerializer::new, commitOnInput));
     }
 
     private static class MockCommitter implements Committer<Integer> {
