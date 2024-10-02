@@ -49,20 +49,20 @@ public final class CommittableCollectorSerializer<CommT>
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     /** Default values are used to deserialize from Flink 1 that didn't store the information. */
-    private final int defaultSubtaskId;
+    private final int owningSubtaskId;
     /** Default values are used to deserialize from Flink 1 that didn't store the information. */
-    private final int defaultNumberOfSubtasks;
+    private final int owningNumberOfSubtasks;
 
     private final SinkCommitterMetricGroup metricGroup;
 
     public CommittableCollectorSerializer(
             SimpleVersionedSerializer<CommT> committableSerializer,
-            int defaultSubtaskId,
-            int defaultNumberOfSubtasks,
+            int owningSubtaskId,
+            int owningNumberOfSubtasks,
             SinkCommitterMetricGroup metricGroup) {
         this.committableSerializer = checkNotNull(committableSerializer);
-        this.defaultSubtaskId = defaultSubtaskId;
-        this.defaultNumberOfSubtasks = defaultNumberOfSubtasks;
+        this.owningSubtaskId = owningSubtaskId;
+        this.owningNumberOfSubtasks = owningNumberOfSubtasks;
         this.metricGroup = metricGroup;
     }
 
@@ -157,7 +157,7 @@ public final class CommittableCollectorSerializer<CommT>
 
             DataInputDeserializer in = new DataInputDeserializer(serialized);
             long checkpointId = in.readLong();
-            int numberOfSubtasks = version == 0 ? defaultNumberOfSubtasks : in.readInt();
+            int numberOfSubtasks = version == 0 ? owningNumberOfSubtasks : in.readInt();
 
             List<SubtaskCommittableManager<CommT>> subtaskCommittableManagers =
                     SimpleVersionedSerialization.readVersionAndDeserializeList(
@@ -229,7 +229,7 @@ public final class CommittableCollectorSerializer<CommT>
                 throws IOException {
             DataInputDeserializer in = new DataInputDeserializer(serialized);
             // Version 0 didn't store the subtaskId, so use default value.
-            int subtaskId = version == 0 ? defaultSubtaskId : in.readInt();
+            int subtaskId = version == 0 ? owningSubtaskId : in.readInt();
             List<CommitRequestImpl<CommT>> requests =
                     SimpleVersionedSerialization.readVersionAndDeserializeList(
                             new RequestSimpleVersionedSerializer(), in);

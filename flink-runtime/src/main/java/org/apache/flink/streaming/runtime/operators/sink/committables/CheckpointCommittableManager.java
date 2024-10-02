@@ -51,10 +51,10 @@ public interface CheckpointCommittableManager<CommT> {
     int getNumberOfSubtasks();
 
     /**
-     * Returns a summary of the current commit progress for the owning subtask identified by the
+     * Returns a summary of the current commit progress for the emitting subtask identified by the
      * parameters.
      */
-    CommittableSummary<CommT> getSummary(int subtaskId, int numberOfSubtasks);
+    CommittableSummary<CommT> getSummary(int emittingSubtaskId, int emittingNumberOfSubtasks);
 
     /**
      * Commits all due committables if all respective committables of the specific subtask and

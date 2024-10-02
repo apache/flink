@@ -126,10 +126,11 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     @Override
-    public CommittableSummary<CommT> getSummary(int subtaskId, int numberOfSubtasks) {
+    public CommittableSummary<CommT> getSummary(
+            int emittingSubtaskId, int emittingNumberOfSubtasks) {
         return new CommittableSummary<>(
-                subtaskId,
-                numberOfSubtasks,
+                emittingSubtaskId,
+                emittingNumberOfSubtasks,
                 checkpointId,
                 subtasksCommittableManagers.values().stream()
                         .mapToInt(SubtaskCommittableManager::getNumCommittables)
