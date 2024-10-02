@@ -17,77 +17,13 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.core.io.SimpleVersionedSerialization;
-import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SinkTestUtil {
-    static StreamRecord<byte[]> committableRecord(String element) {
-        return new StreamRecord<>(toBytes(element));
-    }
-
-    static List<StreamRecord<byte[]>> committableRecords(Collection<String> elements) {
-        return elements.stream().map(SinkTestUtil::committableRecord).collect(Collectors.toList());
-    }
-
-    static List<byte[]> toBytes(String... elements) {
-        return Arrays.stream(elements).map(SinkTestUtil::toBytes).collect(Collectors.toList());
-    }
-
-    static List<byte[]> toBytes(Collection<String> elements) {
-        return elements.stream().map(SinkTestUtil::toBytes).collect(Collectors.toList());
-    }
-
-    static byte[] toBytes(String obj) {
-        try {
-            return SimpleVersionedSerialization.writeVersionAndSerialize(
-                    TestSinkV2.COMMITTABLE_SERIALIZER, obj);
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    static List<String> fromRecords(Collection<StreamRecord<byte[]>> elements) {
-        return elements.stream().map(SinkTestUtil::fromRecord).collect(Collectors.toList());
-    }
-
-    @SuppressWarnings("unchecked")
-    static List<StreamElement> fromOutput(Collection<Object> elements) {
-        return elements.stream()
-                .map(
-                        element -> {
-                            if (element instanceof StreamRecord) {
-                                return new StreamRecord<>(
-                                        ((StreamRecord<CommittableMessage<?>>) element).getValue());
-                            }
-                            return (StreamElement) element;
-                        })
-                .collect(Collectors.toList());
-    }
-
-    static String fromRecord(StreamRecord<byte[]> obj) {
-        return fromBytes(obj.getValue());
-    }
-
-    static String fromBytes(byte[] obj) {
-        try {
-            return SimpleVersionedSerialization.readVersionAndDeSerialize(
-                    TestSinkV2.COMMITTABLE_SERIALIZER, obj);
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-    }
 
     public static CommittableSummary<?> toCommittableSummary(StreamElement element) {
         final Object value = element.asRecord().getValue();

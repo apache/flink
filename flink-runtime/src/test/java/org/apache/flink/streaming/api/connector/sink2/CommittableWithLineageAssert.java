@@ -24,22 +24,23 @@ import org.assertj.core.api.AbstractObjectAssert;
  * Custom assertions for {@link
  * org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage}.
  */
-public class CommittableWithLinageAssert
-        extends AbstractObjectAssert<CommittableWithLinageAssert, CommittableWithLineage<?>> {
+public class CommittableWithLineageAssert<CommT>
+        extends AbstractObjectAssert<
+                CommittableWithLineageAssert<CommT>, CommittableWithLineage<?>> {
 
-    public CommittableWithLinageAssert(CommittableWithLineage<?> summary) {
-        super(summary, CommittableWithLinageAssert.class);
+    public CommittableWithLineageAssert(CommittableWithLineage<?> summary) {
+        super(summary, CommittableWithLineageAssert.class);
     }
 
-    public CommittableWithLinageAssert hasCommittable(Object committable) {
+    public CommittableWithLineageAssert<CommT> hasCommittable(CommT committable) {
         return returns(committable, CommittableWithLineage::getCommittable);
     }
 
-    public CommittableWithLinageAssert hasCheckpointId(long checkpointId) {
+    public CommittableWithLineageAssert<CommT> hasCheckpointId(long checkpointId) {
         return returns(checkpointId, CommittableWithLineage::getCheckpointIdOrEOI);
     }
 
-    public CommittableWithLinageAssert hasSubtaskId(int subtaskId) {
+    public CommittableWithLineageAssert<CommT> hasSubtaskId(int subtaskId) {
         return returns(subtaskId, CommittableWithLineage::getSubtaskId);
     }
 }
