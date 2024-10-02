@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
-import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.function.SerializableSupplier;
@@ -47,7 +46,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -92,7 +90,7 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
         super.setup(containingTask, config, output);
         committer = committerFactory.get();
         metricGroup = InternalSinkCommitterMetricGroup.wrap(metrics);
-        committableCollector = CommittableCollector.of(getRuntimeContext(), metricGroup);
+        committableCollector = CommittableCollector.of(metricGroup);
         committableSerializer = committableSerializerFactory.get();
         if (committer instanceof SinkV1Adapter.GlobalCommitterAdapter) {
             final SinkV1Adapter<?, CommT, ?, GlobalCommT>.GlobalCommitterAdapter gc =
@@ -123,11 +121,7 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
                         metricGroup);
         final SimpleVersionedSerializer<GlobalCommittableWrapper<CommT, GlobalCommT>> serializer =
                 new GlobalCommitterSerializer<>(
-                        committableCollectorSerializer,
-                        globalCommittableSerializer,
-                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                        getRuntimeContext().getTaskInfo().getMaxNumberOfParallelSubtasks(),
-                        metricGroup);
+                        committableCollectorSerializer, globalCommittableSerializer, metricGroup);
         globalCommitterState =
                 new SimpleVersionedListState<>(
                         context.getOperatorStateStore()
@@ -160,28 +154,20 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
         commit(lastCompletedCheckpointId);
     }
 
-    private Collection<? extends CheckpointCommittableManager<CommT>> getCommittables(
-            long checkpointId) {
-        final Collection<? extends CheckpointCommittableManager<CommT>> committables =
-                committableCollector.getCheckpointCommittablesUpTo(checkpointId);
-        if (committables == null) {
-            return Collections.emptyList();
-        }
-        return committables;
-    }
-
     private void commit(long checkpointId) throws IOException, InterruptedException {
         if (globalCommitter != null && !sinkV1State.isEmpty()) {
             sinkV1State = globalCommitter.commit(sinkV1State);
         }
-        for (CheckpointCommittableManager<CommT> committable : getCommittables(checkpointId)) {
-            committable.commit(committer);
+        for (CheckpointCommittableManager<CommT> checkpoint :
+                committableCollector.getCheckpointCommittablesUpTo(checkpointId)) {
+            checkpoint.commit(committer);
         }
+        committableCollector.compact();
     }
 
     @Override
     public void endInput() throws Exception {
-        final CommittableManager<CommT> endOfInputCommittable =
+        final CheckpointCommittableManager<CommT> endOfInputCommittable =
                 committableCollector.getEndOfInputCommittable();
         if (endOfInputCommittable != null) {
             do {
