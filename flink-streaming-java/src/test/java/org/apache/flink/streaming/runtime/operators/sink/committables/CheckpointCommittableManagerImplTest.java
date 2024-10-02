@@ -31,6 +31,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,20 +44,17 @@ class CheckpointCommittableManagerImplTest {
     @Test
     void testAddSummary() {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
-                new CheckpointCommittableManagerImpl<>(2, 1, 1L, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
         assertThat(checkpointCommittables.getSubtaskCommittableManagers()).isEmpty();
 
         final CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0, 0);
         checkpointCommittables.addSummary(first);
         assertThat(checkpointCommittables.getSubtaskCommittableManagers())
-                .hasSize(1)
-                .satisfiesExactly(
-                        (s) -> {
-                            assertThat(s.getSubtaskId()).isEqualTo(2);
-                            assertThat(s.getCheckpointId()).isEqualTo(1L);
-                            assertThat(s.getNumPending()).isEqualTo(1);
-                            assertThat(s.getNumFailed()).isEqualTo(0);
-                        });
+                .singleElement()
+                .returns(1, SubtaskCommittableManager::getSubtaskId)
+                .returns(1L, SubtaskCommittableManager::getCheckpointId)
+                .returns(1, SubtaskCommittableManager::getNumPending)
+                .returns(0, SubtaskCommittableManager::getNumFailed);
 
         // Add different subtask id
         final CommittableSummary<Integer> third = new CommittableSummary<>(2, 1, 2L, 2, 1, 1);
@@ -67,7 +65,7 @@ class CheckpointCommittableManagerImplTest {
     @Test
     void testCommit() throws IOException, InterruptedException {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
-                new CheckpointCommittableManagerImpl<>(1, 1, 1L, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
         checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0, 0));
         checkpointCommittables.addSummary(new CommittableSummary<>(2, 1, 1L, 2, 0, 0));
         checkpointCommittables.addCommittable(new CommittableWithLineage<>(3, 1L, 1));
@@ -87,15 +85,14 @@ class CheckpointCommittableManagerImplTest {
         // Commit all committables
         assertThat(checkpointCommittables.commit(committer))
                 .hasSize(2)
-                .satisfiesExactly(
-                        c -> assertThat(c.getCommittable()).isEqualTo(4),
-                        c -> assertThat(c.getCommittable()).isEqualTo(5));
+                .extracting(CommittableWithLineage::getCommittable)
+                .containsExactlyInAnyOrder(4, 5);
     }
 
     @Test
     void testUpdateCommittableSummary() {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
-                new CheckpointCommittableManagerImpl<>(1, 1, 1L, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
         checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0, 0));
         assertThatThrownBy(
                         () ->
@@ -113,14 +110,14 @@ class CheckpointCommittableManagerImplTest {
 
         final CheckpointCommittableManagerImpl<Integer> original =
                 new CheckpointCommittableManagerImpl<>(
-                        subtaskId, numberOfSubtasks, checkpointId, METRIC_GROUP);
+                        new HashMap<>(), numberOfSubtasks, checkpointId, METRIC_GROUP);
         original.addSummary(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, checkpointId, 1, 0, 0));
 
         CheckpointCommittableManagerImpl<Integer> copy = original.copy();
 
         assertThat(copy.getCheckpointId()).isEqualTo(checkpointId);
-        SinkV2Assertions.assertThat(copy.getSummary())
+        SinkV2Assertions.assertThat(copy.getSummary(subtaskId, numberOfSubtasks))
                 .hasNumberOfSubtasks(numberOfSubtasks)
                 .hasSubtaskId(subtaskId)
                 .hasCheckpointId(checkpointId);
