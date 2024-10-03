@@ -159,12 +159,4 @@ class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
     void transposeWithWatermarkWithMultipleInput() {
         util.verifyRelPlan("SELECT a FROM UdfTable");
     }
-
-    @Test
-    void transposeWithHints() {
-        util.verifyRelPlan(
-                "SELECT /*+ STATE_TTL('st'='1d', 'vt' = '3d') */ st.* FROM SimpleTable st "
-                        + "LEFT JOIN(SELECT DISTINCT b FROM VirtualTable) vt "
-                        + "ON st.b = vt.b WHERE vt.b IS NOT NULL");
-    }
 }

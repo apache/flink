@@ -82,7 +82,6 @@ class StreamPhysicalWatermarkAssigner(
   }
 
   override def withHints(hintList: util.List[RelHint]): RelNode = {
-
     new StreamPhysicalWatermarkAssigner(
       cluster,
       traitSet,

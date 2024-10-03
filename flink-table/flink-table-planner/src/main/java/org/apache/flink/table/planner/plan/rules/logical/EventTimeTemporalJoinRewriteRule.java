@@ -41,8 +41,6 @@ import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 import org.immutables.value.Value;
 
-import java.util.Collections;
-
 /**
  * Traverses an event time temporal table join {@link RelNode} tree and update the right child to
  * set {@link FlinkLogicalTableSourceScan}'s eventTimeSnapshot property to true which will prevent
@@ -144,7 +142,7 @@ public class EventTimeTemporalJoinRewriteRule
                 return wma.copy(
                         wma.getTraitSet(),
                         newChild,
-                        Collections.emptyList(),
+                        wma.getHints(),
                         wma.rowtimeFieldIndex(),
                         wma.watermarkExpr());
             }
