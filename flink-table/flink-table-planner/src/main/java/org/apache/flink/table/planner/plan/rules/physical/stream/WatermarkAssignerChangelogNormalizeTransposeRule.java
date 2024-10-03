@@ -288,6 +288,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
                 watermark.copy(
                         watermark.getTraitSet().plus(FlinkRelDistribution.DEFAULT()),
                         exchange.getInput(),
+                        Collections.emptyList(),
                         newRowTimeFieldIndex,
                         newWatermarkExpr);
         final RelNode newChangelogNormalize =
