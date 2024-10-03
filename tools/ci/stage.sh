@@ -118,6 +118,7 @@ flink-metrics/flink-metrics-prometheus,\
 flink-metrics/flink-metrics-statsd,\
 flink-metrics/flink-metrics-datadog,\
 flink-metrics/flink-metrics-slf4j,\
+flink-metrics/flink-metrics-otel,\
 flink-connectors/flink-connector-base,\
 "
 
