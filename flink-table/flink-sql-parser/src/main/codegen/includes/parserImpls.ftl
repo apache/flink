@@ -1532,6 +1532,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlParserPos pos = startPos;
+    boolean isColumnsIdentifiersOnly = false;
 }
 {
     <TABLE>
@@ -1541,12 +1542,10 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     tableName = CompoundIdentifier()
     [
         <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
-        TableColumn(ctx)
-        (
-            <COMMA> TableColumn(ctx)
-        )*
+        TableColumnsOrIdentifiers(pos, ctx)
         {
             pos = pos.plus(getPos());
+            isColumnsIdentifiersOnly = ctx.isColumnsIdentifiersOnly();
             columnList = new SqlNodeList(ctx.columnList, pos);
             constraints = ctx.constraints;
             watermark = ctx.watermark;
@@ -1574,6 +1573,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         <LIKE>
         tableLike = SqlTableLike(getPos())
         {
+            if (isColumnsIdentifiersOnly) {
+                throw SqlUtil.newContextException(
+                    pos,
+                    ParserResource.RESOURCE.columnsIdentifiersUnsupported());
+            }
+
             return new SqlCreateTableLike(startPos.plus(getPos()),
                 tableName,
                 columnList,
@@ -1622,6 +1627,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         }
     ]
     {
+        if (isColumnsIdentifiersOnly) {
+            throw SqlUtil.newContextException(
+                pos,
+                ParserResource.RESOURCE.columnsIdentifiersUnsupported());
+        }
+
         return new SqlCreateTable(startPos.plus(getPos()),
             tableName,
             columnList,
@@ -1716,6 +1727,36 @@ SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
     }
 }
 
+void TableColumnsOrIdentifiers(SqlParserPos pos, TableCreationContext ctx) :
+{
+    final TableCreationContext tempCtx = new TableCreationContext();
+    final List<SqlNode> identifiers = new ArrayList<SqlNode>();
+}
+{
+    LOOKAHEAD(2)
+    (
+        TableColumn(tempCtx)
+        (<COMMA> TableColumn(tempCtx))*
+    ) {
+        ctx.columnList = tempCtx.columnList;
+        ctx.constraints = tempCtx.constraints;
+        ctx.watermark = tempCtx.watermark;
+    }
+    |
+    (
+        AddCompoundColumnIdentifier(identifiers)
+            (<COMMA> AddCompoundColumnIdentifier(identifiers))*
+    ) { ctx.columnList = identifiers; }
+}
+
+void AddCompoundColumnIdentifier(List<SqlNode> list) :
+{
+    final SqlIdentifier name;
+}
+{
+    name = CompoundIdentifier() { list.add(name); }
+}
+
 /**
 * Parser a REPLACE TABLE AS statement
 */
@@ -1746,10 +1787,7 @@ SqlNode SqlReplaceTable() :
     tableName = CompoundIdentifier()
     [
         <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
-        TableColumn(ctx)
-        (
-            <COMMA> TableColumn(ctx)
-        )*
+        TableColumnsOrIdentifiers(pos, ctx)
         {
             pos = getPos();
             columnList = new SqlNodeList(ctx.columnList, pos);

@@ -2952,6 +2952,43 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateTableAsSelectWithColumnIdentifiers() {
+        // test with only column identifiers
+        sql("CREATE TABLE t (col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
+        // test mix of column identifiers and column with types is not allowed
+        sql("CREATE TABLE t (col1, col2 ^int^) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"int\" at line 1, column 28.*");
+    }
+
+    @Test
+    void testUnsupportedCreateTableStatementsWithColumnIdentifiers() {
+        String expectedErrorMsg =
+                "Columns identifiers without types in the schema are "
+                        + "supported on CTAS/RTAS statements only.";
+
+        sql("CREATE TABLE t ^(a, h^) WITH " + "('connector' = 'kafka', 'kafka.topic' = 'log.test')")
+                .fails(expectedErrorMsg);
+
+        sql("CREATE TABLE t ^(a, h^) WITH "
+                        + "('connector' = 'kafka', 'kafka.topic' = 'log.test') "
+                        + "LIKE parent_table")
+                .fails(expectedErrorMsg);
+    }
+
+    @Test
+    void testReplaceTableAsSelectWithColumnIdentifiers() {
+        // test with only column identifiers
+        sql("REPLACE TABLE t (col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
+        // test mix of column identifiers and column with types is not allowed
+        sql("REPLACE TABLE t (col1, col2 ^int^) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"int\" at line 1, column 29.*");
+    }
+
+    @Test
     void testReplaceTableAsSelect() {
         // test replace table as select without options
         sql("REPLACE TABLE t AS SELECT * FROM b").ok("REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");

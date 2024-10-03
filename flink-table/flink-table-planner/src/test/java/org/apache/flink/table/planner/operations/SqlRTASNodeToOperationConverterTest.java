@@ -62,6 +62,50 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
+    public void testReplaceTableAsWithOrderingColumns() {
+        String tableName = "replace_table";
+        String sql =
+                "REPLACE TABLE "
+                        + tableName
+                        + " (a, b) WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT b, a FROM t1";
+        Schema tableSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.BIGINT().notNull())
+                        .column("b", DataTypes.STRING())
+                        .build();
+
+        testCommonReplaceTableAs(sql, tableName, null, tableSchema, null, Collections.emptyList());
+    }
+
+    @Test
+    public void testReplaceTableAsWithNotFoundColumnIdentifiers() {
+        String tableName = "replace_table";
+        String sql =
+                "REPLACE TABLE "
+                        + tableName
+                        + " (a, d) WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT b, a FROM t1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column 'd' not found in the source schema.");
+    }
+
+    @Test
+    public void testReplaceTableAsWithMismatchIdentifiersLength() {
+        String tableName = "replace_table";
+        String sql =
+                "REPLACE TABLE "
+                        + tableName
+                        + " (a) WITH ('k1' = 'v1', 'k2' = 'v2') as SELECT b, a FROM t1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The number of columns in the column list "
+                                + "must match the number of columns in the source schema.");
+    }
+
+    @Test
     public void testCreateOrReplaceTableAs() {
         String tableName = "create_or_replace_table";
         String sql =
