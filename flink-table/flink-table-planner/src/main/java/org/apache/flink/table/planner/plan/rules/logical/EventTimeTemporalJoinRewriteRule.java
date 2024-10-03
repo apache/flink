@@ -140,7 +140,11 @@ public class EventTimeTemporalJoinRewriteRule
             final RelNode newChild = transmitSnapshotRequirement(child);
             if (newChild != child) {
                 return wma.copy(
-                        wma.getTraitSet(), newChild, wma.rowtimeFieldIndex(), wma.watermarkExpr());
+                        wma.getTraitSet(),
+                        newChild,
+                        wma.getHints(),
+                        wma.rowtimeFieldIndex(),
+                        wma.watermarkExpr());
             }
             return wma;
         }
