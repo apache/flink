@@ -147,7 +147,7 @@ under the License.
 		<!-- Project `flink-benchmarks` uses zk testing server in `curator-test` for performance
 		benchmark, please confirm it will not affect the benchmarks when the version is bumped. -->
 		<curator.version>5.4.0</curator.version>
-		<avro.version>1.11.3</avro.version>
+		<avro.version>1.11.4</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
 		<jackson-bom.version>2.15.3</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
