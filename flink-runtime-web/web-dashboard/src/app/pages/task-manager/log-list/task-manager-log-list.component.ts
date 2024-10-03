@@ -16,7 +16,7 @@
 
 import { DecimalPipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLinkWithHref } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
 
@@ -37,7 +37,7 @@ import { typeDefinition } from '../../../utils/strong-type';
   templateUrl: './task-manager-log-list.component.html',
   styleUrls: ['./task-manager-log-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
+  imports: [NzTableModule, NgIf, RouterLink, HumanizeDatePipe, DecimalPipe],
   standalone: true
 })
 export class TaskManagerLogListComponent implements OnInit, OnDestroy {

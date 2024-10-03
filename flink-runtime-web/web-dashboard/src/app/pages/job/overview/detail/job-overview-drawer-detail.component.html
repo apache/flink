@@ -44,11 +44,11 @@
         </dt>
         <dd>Start Time</dd>
         <dt>
-          {{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+          {{ node.detail['start-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}
         </dt>
         <dd>End Time</dd>
         <dt>
-          {{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+          {{ node.detail['end-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}
         </dt>
         <dd>Duration</dd>
         <dt>
@@ -68,13 +68,13 @@
         <dd>Records Sent</dd>
         <dt>
           <span *ngIf="node.detail.metrics['write-records-complete']; else loadingTemplate">
-            {{ node.detail.metrics['write-records'] | number: '1.0-0' }}
+            {{ node.detail.metrics['write-records'] | number : '1.0-0' }}
           </span>
         </dt>
         <dd>Records Received</dd>
         <dt>
           <span *ngIf="node.detail.metrics['read-records-complete']; else loadingTemplate">
-            {{ node.detail.metrics['read-records'] | number: '1.0-0' }}
+            {{ node.detail.metrics['read-records'] | number : '1.0-0' }}
           </span>
         </dt>
         <dd>Bytes Sent</dd>

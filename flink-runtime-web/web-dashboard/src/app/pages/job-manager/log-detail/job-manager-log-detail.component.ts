@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLinkWithHref } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject } from 'rxjs';
 import { finalize, takeUntil } from 'rxjs/operators';
 
@@ -45,7 +45,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   styleUrls: ['./job-manager-log-detail.component.less'],
   imports: [
     NzBreadCrumbModule,
-    RouterLinkWithHref,
+    RouterLink,
     NzIconModule,
     AddonInlineComponent,
     NzCodeEditorModule,

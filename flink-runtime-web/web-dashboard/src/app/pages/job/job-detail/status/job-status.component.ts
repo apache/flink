@@ -18,7 +18,7 @@
 
 import { DatePipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, Input, OnDestroy, OnInit } from '@angular/core';
-import { RouterLinkWithHref } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { merge, Subject } from 'rxjs';
 import { distinctUntilKeyChanged, mergeMap, take, takeUntil, tap } from 'rxjs/operators';
 
@@ -48,7 +48,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
     NzDividerModule,
     JobBadgeComponent,
     TaskBadgeComponent,
-    RouterLinkWithHref,
+    RouterLink,
     DatePipe,
     NavigationComponent,
     NzSkeletonModule,

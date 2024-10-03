@@ -40,7 +40,7 @@
   <div class="content">
     <div [hidden]="displayMode === 'numeric'" #chart></div>
     <div class="numeric" [hidden]="displayMode === 'chart'">
-      {{ latestValue | humanizeChartNumeric: title }}
+      {{ latestValue | humanizeChartNumeric : title }}
     </div>
     <div class="type-switch">
       <nz-button-group [nzSize]="'small'">
