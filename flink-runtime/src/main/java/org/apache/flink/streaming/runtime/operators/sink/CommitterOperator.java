@@ -184,7 +184,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     private void commitAndEmit(CheckpointCommittableManager<CommT> committableManager)
             throws IOException, InterruptedException {
         Collection<CommittableWithLineage<CommT>> committed = committableManager.commit(committer);
-        if (emitDownstream && !committed.isEmpty()) {
+        if (emitDownstream && committableManager.isFinished()) {
             int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             int numberOfSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
             output.collect(
@@ -204,13 +204,6 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     @Override
     public void processElement(StreamRecord<CommittableMessage<CommT>> element) throws Exception {
         committableCollector.addMessage(element.getValue());
-
-        // in case of unaligned checkpoint, we may receive notifyCheckpointComplete before the
-        // committables
-        long checkpointId = element.getValue().getCheckpointIdOrEOI();
-        if (checkpointId <= lastCompletedCheckpointId) {
-            commitAndEmitCheckpoints();
-        }
     }
 
     @Override
