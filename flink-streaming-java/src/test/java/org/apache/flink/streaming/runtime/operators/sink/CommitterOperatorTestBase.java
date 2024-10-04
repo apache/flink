@@ -101,7 +101,8 @@ abstract class CommitterOperatorTestBase {
         final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", 1L, 1);
         testHarness.processElement(new StreamRecord<>(first));
 
-        testHarness.notifyOfCompletedCheckpoint(1);
+        assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(1))
+                .hasMessageContaining("Trying to commit incomplete batch of committables");
 
         assertThat(testHarness.getOutput()).isEmpty();
         assertThat(sinkAndCounters.commitCounter.getAsInt()).isZero();
