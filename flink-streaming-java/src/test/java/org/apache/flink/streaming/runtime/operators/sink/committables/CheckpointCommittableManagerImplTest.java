@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CheckpointCommittableManagerImplTest {
@@ -73,20 +74,20 @@ class CheckpointCommittableManagerImplTest {
 
         final Committer<Integer> committer = new NoOpCommitter();
         // Only commit fully received committables
-        assertThat(checkpointCommittables.commit(committer))
-                .hasSize(1)
-                .satisfiesExactly(c -> assertThat(c.getCommittable()).isEqualTo(3));
+        assertThatCode(() -> checkpointCommittables.commit(committer))
+                .hasMessageContaining("Trying to commit incomplete batch of committables");
 
         // Even on retry
-        assertThat(checkpointCommittables.commit(committer)).isEmpty();
+        assertThatCode(() -> checkpointCommittables.commit(committer))
+                .hasMessageContaining("Trying to commit incomplete batch of committables");
 
         // Add missing committable
         checkpointCommittables.addCommittable(new CommittableWithLineage<>(5, 1L, 2));
         // Commit all committables
         assertThat(checkpointCommittables.commit(committer))
-                .hasSize(2)
+                .hasSize(3)
                 .extracting(CommittableWithLineage::getCommittable)
-                .containsExactlyInAnyOrder(4, 5);
+                .containsExactlyInAnyOrder(3, 4, 5);
     }
 
     @Test
