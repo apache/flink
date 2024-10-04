@@ -146,7 +146,7 @@ class DefaultJobManagerRunnerRegistryTest {
                         testInstance.localCleanupAsync(
                                 jobManagerRunner.getJobID(),
                                 Executors.directExecutor(),
-                                Executors.directExecutor()))
+                                new TestComponentMainThreadExecutor(Thread.currentThread())))
                 .isCompletedExceptionally()
                 .eventuallyFailsWith(ExecutionException.class)
                 .extracting(FlinkAssertions::chainOfCauses, FlinkAssertions.STREAM_THROWABLE)
@@ -166,7 +166,7 @@ class DefaultJobManagerRunnerRegistryTest {
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(),
                         Executors.directExecutor(),
-                        Executors.directExecutor());
+                        new TestComponentMainThreadExecutor(Thread.currentThread()));
 
         // Wait for the unregister future to complete
         cleanupResult.get();
@@ -189,7 +189,7 @@ class DefaultJobManagerRunnerRegistryTest {
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(),
                         Executors.directExecutor(),
-                        Executors.directExecutor());
+                        new TestComponentMainThreadExecutor(Thread.currentThread()));
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
                 .as(
                         "Since the cleanup failed, the JobManagerRunner is expected to not have been unregistered.")
@@ -214,7 +214,7 @@ class DefaultJobManagerRunnerRegistryTest {
                 testInstance.localCleanupAsync(
                         jobManagerRunner.getJobID(),
                         Executors.directExecutor(),
-                        Executors.directExecutor());
+                        new TestComponentMainThreadExecutor(Thread.currentThread()));
 
         assertThat(testInstance.isRegistered(jobManagerRunner.getJobID()))
                 .as(
@@ -250,7 +250,7 @@ class DefaultJobManagerRunnerRegistryTest {
                         testInstance.localCleanupAsync(
                                 new JobID(),
                                 Executors.directExecutor(),
-                                Executors.directExecutor()))
+                                new TestComponentMainThreadExecutor(Thread.currentThread())))
                 .isCompleted();
     }
 }

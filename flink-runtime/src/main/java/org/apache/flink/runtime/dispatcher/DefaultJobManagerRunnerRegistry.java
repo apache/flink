@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
@@ -84,7 +85,7 @@ public class DefaultJobManagerRunnerRegistry implements JobManagerRunnerRegistry
 
     @Override
     public CompletableFuture<Void> localCleanupAsync(
-            JobID jobId, Executor ignoredExecutor, Executor mainThreadExecutor) {
+            JobID jobId, Executor ignoredExecutor, ComponentMainThreadExecutor mainThreadExecutor) {
         if (isRegistered(jobId)) {
             return get(jobId)
                     .closeAsync()

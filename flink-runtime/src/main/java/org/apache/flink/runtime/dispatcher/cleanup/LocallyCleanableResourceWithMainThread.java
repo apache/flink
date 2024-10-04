@@ -47,7 +47,7 @@ public interface LocallyCleanableResourceWithMainThread {
      * @return The cleanup result future.
      */
     CompletableFuture<Void> localCleanupAsync(
-            JobID jobId, Executor cleanupExecutor, Executor mainThreadExecutor);
+            JobID jobId, Executor cleanupExecutor, ComponentMainThreadExecutor mainThreadExecutor);
 
     default LocallyCleanableResource toLocallyCleanableResource(
             ComponentMainThreadExecutor mainThreadExecutor) {

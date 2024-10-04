@@ -242,11 +242,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
      * An implementation of {@link ComponentMainThreadExecutor} that executes Runnables with a
      * wrapped {@link ScheduledExecutor} and disables {@link #assertRunningInMainThread()} checks.
      */
-    private static class NoMainThreadCheckComponentMainThreadExecutor
+    public static class NoMainThreadCheckComponentMainThreadExecutor
             implements ComponentMainThreadExecutor {
         private final ScheduledExecutor scheduledExecutor;
 
-        private NoMainThreadCheckComponentMainThreadExecutor() {
+        public NoMainThreadCheckComponentMainThreadExecutor() {
             this.scheduledExecutor =
                     new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService());
         }
