@@ -96,6 +96,7 @@ import java.time.Duration
 import java.util.Collections
 
 import scala.collection.JavaConverters._
+import scala.util.matching.Regex
 
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
@@ -1172,19 +1173,44 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
     val expected = s"$${$tag}"
+    val normalizedActual = normalizeStateTtlOptions(actual)
+    val normalizedExpected = normalizeStateTtlOptions(expected)
     if (!expand) {
-      diffRepository.assertEquals(test.methodName, tag, expected, actual)
+      diffRepository.assertEquals(test.methodName, tag, normalizedExpected, normalizedActual)
       return
     }
     val expanded = diffRepository.expand(test.methodName, tag, expected)
     if (expanded != null && !expanded.equals(expected)) {
       // expected does exist, check result
-      diffRepository.assertEquals(test.methodName, tag, expected, actual)
+      diffRepository.assertEquals(test.methodName, tag, normalizedExpected, normalizedActual)
     } else {
       // expected does not exist, update
       diffRepository.expand(test.methodName, tag, actual)
     }
   }
+
+  def normalizeStateTtlOptions(plan: String): String = {
+    val stateTtlOptionsPattern: Regex = """(STATE_TTL[^\{]*\{)([^\}]*)(\})""".r
+
+    def normalizeOptions(options: String): String = {
+      options
+        .split(", ")
+        .map(_.trim)
+        .sortBy(_.split("=")(0))
+        .mkString(", ")
+    }
+
+    def normalizeStateTtlOptionsMatch(m: Regex.Match): String = {
+      val prefix = m.group(1)
+      val options = m.group(2)
+      val suffix = m.group(3)
+      val normalizedOptions = normalizeOptions(options)
+      s"$prefix$normalizedOptions$suffix"
+    }
+
+    stateTtlOptionsPattern.replaceAllIn(plan, normalizeStateTtlOptionsMatch _)
+  }
+
 }
 
 abstract class TableTestUtil(
