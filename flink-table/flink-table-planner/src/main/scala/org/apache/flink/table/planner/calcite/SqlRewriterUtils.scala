@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlValidatorException
@@ -130,8 +130,11 @@ object SqlRewriterUtils {
     call.getKind match {
       case SqlKind.SELECT =>
         val sqlSelect = call.asInstanceOf[SqlSelect]
-
-        if (targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()) {
+        val identifiersSize = sqlSelect.getSelectList.count(s => s.isInstanceOf[SqlIdentifier])
+        if (
+          identifiersSize == 0
+          && targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()
+        ) {
           throw newValidationError(call, RESOURCE.columnCountMismatch())
         }
         rewriterUtils.rewriteSelect(sqlSelect, targetRowType, assignedFields, targetPosition)
@@ -175,6 +178,9 @@ object SqlRewriterUtils {
     validator.validate(select)
     val sourceList = validator.expandStar(select.getSelectList, select, false).getList
 
+    if (targetPosition.nonEmpty && sourceList.size() != targetPosition.size()) {
+      throw newValidationError(select, RESOURCE.columnCountMismatch())
+    }
     val fixedNodes = new util.ArrayList[SqlNode]
     val currentNodes =
       if (targetPosition.isEmpty) {
