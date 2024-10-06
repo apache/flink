@@ -78,7 +78,9 @@ class FlinkCalciteSqlValidatorTest {
                 "INSERT INTO t2 (a, b) SELECT * FROM t1",
                 "INSERT INTO t2 (a, b) SELECT *, 42 FROM t2_copy",
                 "INSERT INTO t2 (a, b) SELECT 42, * FROM t2_copy",
-                "INSERT INTO t2 (a, b) SELECT * FROM t_nested"
+                "INSERT INTO t2 (a, b) SELECT * FROM t_nested",
+                "INSERT INTO t2 (a, b) TABLE t_nested",
+                "INSERT INTO t2 (a, b) SELECT * FROM (TABLE t_nested)"
             })
     void testInvalidNumberOfColumnsWhileInsertInto(String sql) {
         assertThatThrownBy(() -> plannerMocks.getParser().parse(sql))
@@ -95,7 +97,8 @@ class FlinkCalciteSqlValidatorTest {
                 "INSERT INTO t2 (a, b) SELECT * FROM t2_copy",
                 "INSERT INTO t2 (a, b) SELECT *, 42 FROM t1",
                 "INSERT INTO t2 (a, b) SELECT 42, * FROM t1",
-                "INSERT INTO t2 (a, b) SELECT f.* FROM t_nested"
+                "INSERT INTO t2 (a, b) SELECT f.* FROM t_nested",
+                "INSERT INTO t2 (a, b) TABLE t2_copy"
             })
     void validInsertIntoTest(final String sql) {
         assertDoesNotThrow(

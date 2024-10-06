@@ -419,7 +419,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
      * A special {@link SqlSelect} to capture the origin of a {@link SqlKind#EXPLICIT_TABLE} within
      * TVF operands.
      */
-    private static class ExplicitTableSqlSelect extends SqlSelect {
+    static class ExplicitTableSqlSelect extends SqlSelect {
 
         private final List<SqlIdentifier> descriptors;
 
