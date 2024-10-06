@@ -1,7 +1,7 @@
 ---
 title: "Fraud Detection with the DataStream API"
 type: docs
-weight: 2
+weight: 3
 aliases:
   - /try-flink/datastream_api.html
   - /getting-started/walkthroughs/datastream_api.html
