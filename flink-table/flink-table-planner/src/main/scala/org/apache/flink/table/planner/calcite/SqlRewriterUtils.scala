@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator.ExplicitTableSqlSelect
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.{newValidationError, notSupported}
 import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlCall, rewriteSqlSelect, rewriteSqlValues}
 import org.apache.flink.util.Preconditions.checkArgument
@@ -160,9 +161,14 @@ object SqlRewriterUtils {
           operands.get(1).asInstanceOf[SqlNodeList],
           operands.get(2),
           operands.get(3))
+      case SqlKind.EXPLICIT_TABLE =>
+        val operands = call.getOperandList
+        val expTable = new ExplicitTableSqlSelect(
+          operands.get(0).asInstanceOf[SqlIdentifier],
+          Collections.emptyList())
+        rewriterUtils.rewriteSelect(expTable, targetRowType, assignedFields, targetPosition)
       // Not support:
       // case SqlKind.WITH =>
-      // case SqlKind.EXPLICIT_TABLE =>
       case _ => throw new ValidationException(unsupportedErrorMessage())
     }
   }
