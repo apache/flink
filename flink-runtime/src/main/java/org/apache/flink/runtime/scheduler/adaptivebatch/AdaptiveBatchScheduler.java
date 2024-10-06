@@ -760,13 +760,18 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
             for (IntermediateResult intermediateResult : intermediateResults) {
                 ExecutionVertexInputInfo inputInfo =
                         ev.getExecutionVertexInputInfo(intermediateResult.getId());
-                IndexRange partitionIndexRange = inputInfo.getPartitionIndexRange();
-                IndexRange subpartitionIndexRange = inputInfo.getSubpartitionIndexRange();
                 BlockingResultInfo blockingResultInfo =
                         checkNotNull(getBlockingResultInfo(intermediateResult.getId()));
-                inputBytes +=
-                        blockingResultInfo.getNumBytesProduced(
-                                partitionIndexRange, subpartitionIndexRange);
+                Map<IndexRange, IndexRange> consumedSubpartitionGroups =
+                        inputInfo.getConsumedSubpartitionGroups();
+                for (Map.Entry<IndexRange, IndexRange> entry :
+                        consumedSubpartitionGroups.entrySet()) {
+                    IndexRange partitionIndexRange = entry.getKey();
+                    IndexRange subpartitionIndexRange = entry.getValue();
+                    inputBytes +=
+                            blockingResultInfo.getNumBytesProduced(
+                                    partitionIndexRange, subpartitionIndexRange);
+                }
             }
             ev.setInputBytes(inputBytes);
         }
