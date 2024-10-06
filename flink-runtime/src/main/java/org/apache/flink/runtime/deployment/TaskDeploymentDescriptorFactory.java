@@ -151,16 +151,19 @@ public class TaskDeploymentDescriptorFactory {
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
-            IndexRange subpartitionRange =
-                    executionVertex
-                            .getExecutionVertexInputInfo(resultId)
-                            .getSubpartitionIndexRange();
+
+            Map<IndexRange, IndexRange> consumedSubpartitionGroupByChannelRange =
+                    constructConsumedSubpartitionGroupByChannelRange(
+                            executionVertex
+                                    .getExecutionVertexInputInfo(resultId)
+                                    .getConsumedSubpartitionGroupsInOrder(),
+                            consumedPartitionGroup.size());
 
             inputGates.add(
                     new InputGateDeploymentDescriptor(
                             resultId,
                             partitionType,
-                            subpartitionRange,
+                            consumedSubpartitionGroupByChannelRange,
                             consumedPartitionGroup.size(),
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult,
@@ -196,6 +199,24 @@ public class TaskDeploymentDescriptorFactory {
         }
 
         return inputGates;
+    }
+
+    private Map<IndexRange, IndexRange> constructConsumedSubpartitionGroupByChannelRange(
+            Map<IndexRange, IndexRange> consumedSubpartitionGroupsInOrder,
+            int numberOfInputChannels) {
+        Map<IndexRange, IndexRange> subPartitionRangeByChannel = new HashMap<>();
+        int counter = 0;
+        for (Map.Entry<IndexRange, IndexRange> entry :
+                consumedSubpartitionGroupsInOrder.entrySet()) {
+            IndexRange partitionIndexRange = entry.getKey();
+            IndexRange subPartitionIndexRange = entry.getValue();
+            subPartitionRangeByChannel.put(
+                    new IndexRange(counter, counter + partitionIndexRange.size() - 1),
+                    subPartitionIndexRange);
+            counter = counter + partitionIndexRange.size();
+        }
+        checkState(counter == numberOfInputChannels);
+        return subPartitionRangeByChannel;
     }
 
     private List<MaybeOffloaded<ShuffleDescriptorGroup>> getConsumedPartitionShuffleDescriptors(
