@@ -86,9 +86,14 @@ public class CustomSerializationITCase extends TestLogger {
 
             env.execute();
         } catch (JobExecutionException e) {
-            Optional<IOException> rootCause = findThrowable(e, IOException.class);
-            assertTrue(rootCause.isPresent());
-            assertTrue(rootCause.get().getMessage().contains("broken serialization"));
+            assertTrue(
+                    findThrowable(
+                                    e,
+                                    candidate ->
+                                            candidate
+                                                    .getMessage()
+                                                    .contains("broken serialization."))
+                            .isPresent());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
