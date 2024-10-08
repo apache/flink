@@ -93,7 +93,9 @@ public class TaskManagerDisconnectOnShutdownITCase {
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30L));
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofSeconds(30L));
 
         // check that we run this test only if the java command
         // is available on this machine

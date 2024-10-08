@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
@@ -39,6 +40,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -341,6 +343,12 @@ public final class DataTypeExtractor {
             return resultDataType;
         }
 
+        // AVRO
+        resultDataType = extractAvroType(type);
+        if (resultDataType != null) {
+            return resultDataType;
+        }
+
         // try interpret the type as a STRUCTURED type
         try {
             return extractStructuredType(template, typeHierarchy, type);
@@ -524,6 +532,16 @@ public final class DataTypeExtractor {
                 extractDataTypeOrRaw(
                         template, typeHierarchy, parameterizedType.getActualTypeArguments()[1]);
         return DataTypes.MAP(key, value);
+    }
+
+    private @Nullable DataType extractAvroType(Type type) {
+        final Class<?> clazz = toClass(type);
+        if (AvroUtils.isAvroSpecificRecord(clazz)) {
+            // refer to TypeExtractor#privateGetForClass to get the AvroTypeInfo
+            return TypeInfoDataTypeConverter.toDataType(
+                    typeFactory, AvroUtils.getAvroUtils().createAvroTypeInfo(clazz));
+        }
+        return null;
     }
 
     private DataType extractStructuredType(

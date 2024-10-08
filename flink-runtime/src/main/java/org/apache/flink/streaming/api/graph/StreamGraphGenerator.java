@@ -40,8 +40,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.lineage.LineageGraph;
 import org.apache.flink.streaming.api.lineage.LineageGraphUtils;
@@ -69,7 +67,6 @@ import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTra
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
-import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.KeyedBroadcastStateTransformationTranslator;
@@ -138,9 +135,6 @@ public class StreamGraphGenerator {
     public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM =
             KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
-    public static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
-            TimeCharacteristic.ProcessingTime;
-
     public static final String DEFAULT_STREAMING_JOB_NAME = "Flink Streaming Job";
 
     public static final String DEFAULT_BATCH_JOB_NAME = "Flink Batch Job";
@@ -157,10 +151,6 @@ public class StreamGraphGenerator {
 
     // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
-
-    private StateBackend stateBackend;
-
-    private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     private SavepointRestoreSettings savepointRestoreSettings;
 
@@ -232,16 +222,6 @@ public class StreamGraphGenerator {
         this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
 
-    public StreamGraphGenerator setStateBackend(StateBackend stateBackend) {
-        this.stateBackend = stateBackend;
-        return this;
-    }
-
-    public StreamGraphGenerator setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
-        this.timeCharacteristic = timeCharacteristic;
-        return this;
-    }
-
     /**
      * Specify fine-grained resource requirements for slot sharing groups.
      *
@@ -285,7 +265,8 @@ public class StreamGraphGenerator {
         streamGraph.setLineageGraph(lineageGraph);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
-            if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
+            if (node.getInEdges().stream()
+                    .anyMatch(e -> !e.getPartitioner().isSupportsUnalignedCheckpoint())) {
                 for (StreamEdge edge : node.getInEdges()) {
                     edge.setSupportsUnalignedCheckpoints(false);
                 }
@@ -299,11 +280,6 @@ public class StreamGraphGenerator {
         streamGraph = null;
 
         return builtStreamGraph;
-    }
-
-    private boolean shouldDisableUnalignedCheckpointing(StreamEdge edge) {
-        StreamPartitioner<?> partitioner = edge.getPartitioner();
-        return partitioner.isPointwise() || partitioner.isBroadcast();
     }
 
     private void setDynamic(final StreamGraph graph) {
@@ -320,7 +296,6 @@ public class StreamGraphGenerator {
     private void configureStreamGraph(final StreamGraph graph) {
         checkNotNull(graph);
 
-        graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
         graph.setVertexNameIncludeIndexPrefix(
                 configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));
@@ -357,7 +332,6 @@ public class StreamGraphGenerator {
         graph.setJobType(JobType.STREAMING);
         graph.setJobName(deriveJobName(DEFAULT_STREAMING_JOB_NAME));
 
-        graph.setStateBackend(stateBackend);
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
     }
 
@@ -411,8 +385,6 @@ public class StreamGraphGenerator {
             graph.getJobConfiguration().set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
             graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
-        } else {
-            graph.setStateBackend(stateBackend);
         }
     }
 

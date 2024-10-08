@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
@@ -60,12 +61,14 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
     private final int parallelism;
 
     public TestingSourceOperator(
+            StreamOperatorParameters<T> parameters,
             SourceReader<T, MockSourceSplit> reader,
             WatermarkStrategy<T> watermarkStrategy,
             ProcessingTimeService timeService,
             boolean emitProgressiveWatermarks) {
 
         this(
+                parameters,
                 reader,
                 watermarkStrategy,
                 timeService,
@@ -76,6 +79,7 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
     }
 
     public TestingSourceOperator(
+            StreamOperatorParameters<T> parameters,
             SourceReader<T, MockSourceSplit> reader,
             WatermarkStrategy<T> watermarkStrategy,
             ProcessingTimeService timeService,
@@ -85,6 +89,7 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             boolean emitProgressiveWatermarks) {
 
         super(
+                parameters,
                 (context) -> reader,
                 eventGateway,
                 new MockSourceSplitSerializer(),
@@ -146,20 +151,25 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
 
         final SourceOperator<T, MockSourceSplit> sourceOperator =
                 new TestingSourceOperator<>(
-                        reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
-
-        sourceOperator.setup(
-                new SourceOperatorStreamTask<Integer>(
-                        new StreamMockEnvironment(
-                                new Configuration(),
-                                new Configuration(),
-                                new ExecutionConfig(),
-                                1L,
-                                new MockInputSplitProvider(),
-                                1,
-                                new TestTaskStateManager())),
-                new MockStreamConfig(new Configuration(), 1),
-                new MockOutput<>(new ArrayList<>()));
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(
+                                        new StreamMockEnvironment(
+                                                new Configuration(),
+                                                new Configuration(),
+                                                new ExecutionConfig(),
+                                                1L,
+                                                new MockInputSplitProvider(),
+                                                1,
+                                                new TestTaskStateManager())),
+                                new MockStreamConfig(new Configuration(), 1),
+                                new MockOutput<>(new ArrayList<>()),
+                                () -> timeService,
+                                null,
+                                null),
+                        reader,
+                        watermarkStrategy,
+                        timeService,
+                        emitProgressiveWatermarks);
         sourceOperator.initializeState(stateContext);
         sourceOperator.open();
 

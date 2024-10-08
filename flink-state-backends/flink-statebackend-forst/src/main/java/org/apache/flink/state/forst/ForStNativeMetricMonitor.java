@@ -23,10 +23,10 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
-import org.rocksdb.Statistics;
-import org.rocksdb.TickerType;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
+import org.forstdb.Statistics;
+import org.forstdb.TickerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

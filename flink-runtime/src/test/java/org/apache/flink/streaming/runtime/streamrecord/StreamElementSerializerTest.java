@@ -116,12 +116,12 @@ class StreamElementSerializerTest {
 
         // additional binary copy step
         DataInputDeserializer copyInput =
-                new DataInputDeserializer(output.getByteArray(), 0, output.length());
+                new DataInputDeserializer(output.getSharedBuffer(), 0, output.length());
         DataOutputSerializer copyOutput = new DataOutputSerializer(32);
         serializer.copy(copyInput, copyOutput);
 
         DataInputDeserializer input =
-                new DataInputDeserializer(copyOutput.getByteArray(), 0, copyOutput.length());
+                new DataInputDeserializer(copyOutput.getSharedBuffer(), 0, copyOutput.length());
         return (X) serializer.deserialize(input);
     }
 }

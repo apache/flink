@@ -91,17 +91,6 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::setMinPauseBetweenCheckpoints)
                         .getterVia(CheckpointConfig::getMinPauseBetweenCheckpoints)
                         .nonDefaultValue(100L),
-                TestSpec.testValue(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .RETAIN_ON_CANCELLATION)
-                        .whenSetFromFile(
-                                "execution.checkpointing.externalized-checkpoint-retention",
-                                "RETAIN_ON_CANCELLATION")
-                        .viaSetter(CheckpointConfig::setExternalizedCheckpointCleanup)
-                        .getterVia(CheckpointConfig::getExternalizedCheckpointCleanup)
-                        .nonDefaultValue(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .DELETE_ON_CANCELLATION),
                 TestSpec.testValue(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
                         .whenSetFromFile(
                                 "execution.checkpointing.externalized-checkpoint-retention",
@@ -109,33 +98,6 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::setExternalizedCheckpointRetention)
                         .getterVia(CheckpointConfig::getExternalizedCheckpointRetention)
                         .nonDefaultValue(ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION),
-                TestSpec.testValue(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
-                        .whenSetFromFile(
-                                "execution.checkpointing.externalized-checkpoint-retention",
-                                "RETAIN_ON_CANCELLATION")
-                        .viaSetter(
-                                (config, v) -> {
-                                    config.setExternalizedCheckpointCleanup(
-                                            CheckpointConfig.ExternalizedCheckpointCleanup.valueOf(
-                                                    v.name()));
-                                })
-                        .getterVia(CheckpointConfig::getExternalizedCheckpointRetention)
-                        .nonDefaultValue(ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION),
-                TestSpec.testValue(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .RETAIN_ON_CANCELLATION)
-                        .whenSetFromFile(
-                                "execution.checkpointing.externalized-checkpoint-retention",
-                                "RETAIN_ON_CANCELLATION")
-                        .viaSetter(
-                                (config, v) -> {
-                                    config.setExternalizedCheckpointRetention(
-                                            ExternalizedCheckpointRetention.valueOf(v.name()));
-                                })
-                        .getterVia(CheckpointConfig::getExternalizedCheckpointCleanup)
-                        .nonDefaultValue(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .DELETE_ON_CANCELLATION),
                 TestSpec.testValue(12)
                         .whenSetFromFile(
                                 "execution.checkpointing.tolerable-failed-checkpoints", "12")

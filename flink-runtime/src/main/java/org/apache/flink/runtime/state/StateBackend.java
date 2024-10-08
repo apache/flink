@@ -117,7 +117,7 @@ public interface StateBackend extends java.io.Serializable {
      *     backend.
      */
     @Experimental
-    default <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+    default <K> AsyncKeyedStateBackend<K> createAsyncKeyedStateBackend(
             KeyedStateBackendParameters<K> parameters) throws Exception {
         throw new UnsupportedOperationException(
                 "Don't support createAsyncKeyedStateBackend by default");

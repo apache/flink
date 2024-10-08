@@ -17,27 +17,29 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.util
+
 import scala.collection.{mutable, Seq}
+import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
+class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncState: Boolean)
   extends StreamingWithMiniBatchTestBase(miniBatch, state) {
 
   val smallTuple5Data = List(
@@ -65,6 +67,9 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
   @BeforeEach
   override def before(): Unit = {
     super.before()
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
     val tableA = failingDataSource(TestData.smallTupleData3)
       .toTable(tEnv, 'a1, 'a2, 'a3)
     val tableB = failingDataSource(TestData.tupleData5)
@@ -1372,10 +1377,6 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
 
   @TestTemplate
   def testJoinWithoutWatermark(): Unit = {
-    // NOTE: Different from AggregateITCase, we do not set stream time characteristic
-    // of environment to event time, so that emitWatermark() actually does nothing.
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
     val data1 = new mutable.MutableList[(Int, Long)]
     data1.+=((1, 1L))
     data1.+=((2, 2L))
@@ -1665,5 +1666,19 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode)
         })
       .sorted
     assertThat(sink.getRetractResults.sorted).isEqualTo(expectedResult)
+  }
+}
+
+object JoinITCase {
+
+  @Parameters(name = "{0}, StateBackend={1}, EnableAsyncState={2}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true))
+    )
   }
 }

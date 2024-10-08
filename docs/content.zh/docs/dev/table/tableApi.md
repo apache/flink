@@ -2615,8 +2615,8 @@ Table result = orders
 
 ```scala
 import java.lang.{Integer => JInteger}
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.TableAggregateFunction
+import org.apache.flink.table.legacy.api.Types
 
 /**
  * Top2 Accumulator。

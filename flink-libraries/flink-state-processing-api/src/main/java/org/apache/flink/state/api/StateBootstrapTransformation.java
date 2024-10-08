@@ -39,7 +39,9 @@ import org.apache.flink.state.api.runtime.MutableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -164,7 +166,7 @@ public class StateBootstrapTransformation<T> {
             Configuration additionalConfig,
             Path savepointPath,
             int localMaxParallelism) {
-        StreamOperator<TaggedOperatorSubtaskState> operator =
+        StreamOperatorFactory<TaggedOperatorSubtaskState> operator =
                 factory.createOperator(System.currentTimeMillis(), savepointPath);
 
         operator = stream.getExecutionEnvironment().clean(operator);
@@ -187,7 +189,9 @@ public class StateBootstrapTransformation<T> {
                                 operatorRunner)
                         .setMaxParallelism(localMaxParallelism);
 
-        if (operator instanceof BroadcastStateBootstrapOperator) {
+        if (operator instanceof SimpleUdfStreamOperatorFactory
+                && ((SimpleUdfStreamOperatorFactory<?>) operator).getOperator()
+                        instanceof BroadcastStateBootstrapOperator) {
             subtaskStates = subtaskStates.setParallelism(1);
         } else {
             int currentParallelism = getParallelism(subtaskStates);
@@ -203,7 +207,7 @@ public class StateBootstrapTransformation<T> {
             OperatorIdentifier operatorIdentifier,
             StateBackend stateBackend,
             Configuration additionalConfig,
-            StreamOperator<TaggedOperatorSubtaskState> operator) {
+            StreamOperatorFactory<TaggedOperatorSubtaskState> operator) {
         // Eagerly perform a deep copy of the configuration, otherwise it will result in undefined
         // behavior when deploying with multiple bootstrap transformations.
         Configuration deepCopy =
@@ -225,7 +229,7 @@ public class StateBootstrapTransformation<T> {
             config.setStatePartitioner(0, keySelector);
         }
 
-        config.setStreamOperator(operator);
+        config.setStreamOperatorFactory(operator);
         config.setOperatorName(operatorIdentifier.getOperatorId().toHexString());
         config.setOperatorID(operatorIdentifier.getOperatorId());
         config.setStateBackend(stateBackend);

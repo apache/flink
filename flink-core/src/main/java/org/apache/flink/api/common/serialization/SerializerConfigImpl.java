@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.SerializableSerializer;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -49,27 +49,20 @@ public final class SerializerConfigImpl implements SerializerConfig {
 
     private final Configuration configuration;
 
-    /**
-     * Note: This field is used only for compatibility while {@link
-     * org.apache.flink.api.common.typeinfo.TypeInformation#createSerializer(ExecutionConfig)} is
-     * deprecated; If it is removed, this field will also be removed.
-     */
-    private final ExecutionConfig executionConfig;
-
     // ------------------------------- User code values --------------------------------------------
 
     // Serializers and types registered with Kryo and the PojoSerializer
     // we store them in linked maps/sets to ensure they are registered in order in all kryo
     // instances.
 
-    private LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
-            registeredTypesWithKryoSerializers = new LinkedHashMap<>();
+    private LinkedHashMap<Class<?>, SerializableSerializer<?>> registeredTypesWithKryoSerializers =
+            new LinkedHashMap<>();
 
     private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
             registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
 
-    private LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
-            defaultKryoSerializers = new LinkedHashMap<>();
+    private LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers =
+            new LinkedHashMap<>();
 
     private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses =
             new LinkedHashMap<>();
@@ -88,13 +81,11 @@ public final class SerializerConfigImpl implements SerializerConfig {
     public SerializerConfigImpl() {
         Configuration conf = new Configuration();
         this.configuration = conf;
-        this.executionConfig = new ExecutionConfig(conf);
     }
 
     @Internal
-    public SerializerConfigImpl(Configuration configuration, ExecutionConfig executionConfig) {
+    public SerializerConfigImpl(Configuration configuration) {
         this.configuration = configuration;
-        this.executionConfig = executionConfig;
     }
 
     /**
@@ -113,7 +104,7 @@ public final class SerializerConfigImpl implements SerializerConfig {
             throw new NullPointerException("Cannot register null class or serializer.");
         }
 
-        defaultKryoSerializers.put(type, new ExecutionConfig.SerializableSerializer<>(serializer));
+        defaultKryoSerializers.put(type, new SerializableSerializer<>(serializer));
     }
 
     /**
@@ -146,8 +137,7 @@ public final class SerializerConfigImpl implements SerializerConfig {
             throw new NullPointerException("Cannot register null class or serializer.");
         }
 
-        registeredTypesWithKryoSerializers.put(
-                type, new ExecutionConfig.SerializableSerializer<>(serializer));
+        registeredTypesWithKryoSerializers.put(type, new SerializableSerializer<>(serializer));
     }
 
     /**
@@ -201,7 +191,7 @@ public final class SerializerConfigImpl implements SerializerConfig {
     }
 
     /** Returns the registered types with Kryo Serializers. */
-    public LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
+    public LinkedHashMap<Class<?>, SerializableSerializer<?>>
             getRegisteredTypesWithKryoSerializers() {
         return registeredTypesWithKryoSerializers;
     }
@@ -213,8 +203,7 @@ public final class SerializerConfigImpl implements SerializerConfig {
     }
 
     /** Returns the registered default Kryo Serializers. */
-    public LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
-            getDefaultKryoSerializers() {
+    public LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
         return defaultKryoSerializers;
     }
 
@@ -367,21 +356,6 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration
                 .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
                 .ifPresent(this::setForceKryoAvro);
-
-        configuration
-                .getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
-                .map(s -> parseKryoSerializersWithExceptionHandling(classLoader, s))
-                .ifPresent(s -> this.defaultKryoSerializerClasses = s);
-
-        configuration
-                .getOptional(PipelineOptions.POJO_REGISTERED_CLASSES)
-                .map(c -> loadClasses(c, classLoader, "Could not load pojo type to be registered."))
-                .ifPresent(c -> this.registeredPojoTypes = c);
-
-        configuration
-                .getOptional(PipelineOptions.KRYO_REGISTERED_CLASSES)
-                .map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
-                .ifPresent(c -> this.registeredKryoTypes = c);
 
         try {
             configuration
@@ -557,15 +531,6 @@ public final class SerializerConfigImpl implements SerializerConfig {
                     "A TypeInfoFactory for type '" + t + "' is already registered.");
         }
         registeredTypeInfoFactories.put(t, factory);
-    }
-
-    /**
-     * Note: This method is used only for compatibility while {@link
-     * org.apache.flink.api.common.typeinfo.TypeInformation#createSerializer(ExecutionConfig)} is
-     * deprecated; If it is removed, this method will also be removed.
-     */
-    public ExecutionConfig getExecutionConfig() {
-        return executionConfig;
     }
 
     @Override

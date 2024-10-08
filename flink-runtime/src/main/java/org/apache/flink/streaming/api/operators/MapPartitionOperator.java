@@ -39,9 +39,6 @@ public class MapPartitionOperator<IN, OUT>
     public MapPartitionOperator(MapPartitionFunction<IN, OUT> function) {
         super(function);
         this.function = function;
-        // This operator is set to be non-chained as it doesn't use task main thread to write
-        // records to output, which may introduce risks to downstream chained operators.
-        this.chainingStrategy = ChainingStrategy.NEVER;
     }
 
     @Override

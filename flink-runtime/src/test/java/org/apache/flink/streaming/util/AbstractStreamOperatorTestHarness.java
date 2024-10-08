@@ -50,14 +50,12 @@ import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
@@ -67,7 +65,6 @@ import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -75,7 +72,6 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -104,6 +100,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setupStreamOperator;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class for {@code AbstractStreamOperator} test harnesses. */
@@ -138,10 +136,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     private final TaskMailbox taskMailbox;
 
     // use this as default for tests
-    protected StateBackend stateBackend = new MemoryStateBackend();
+    protected StateBackend stateBackend = new HashMapStateBackend();
 
     private CheckpointStorageAccess checkpointStorageAccess =
-            new MemoryStateBackend().createCheckpointStorage(new JobID());
+            new JobManagerCheckpointStorage().createCheckpointStorage(new JobID());
 
     private final Object checkpointLock;
 
@@ -306,14 +304,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         ttlTimeProvider = new MockTtlTimeProvider();
         ttlTimeProvider.setCurrentTimestamp(0);
 
-        if (operator instanceof AsyncStateProcessing
-                || (factory instanceof SimpleOperatorFactory
-                        && ((SimpleOperatorFactory<OUT>) factory).getOperator()
-                                instanceof AsyncStateProcessing)) {
-            setStateBackend(
-                    StateBackendTestUtils.buildAsyncStateBackend(new HashMapStateBackend()));
-        }
-
         this.streamTaskStateInitializer =
                 createStreamTaskStateManager(
                         environment, stateBackend, ttlTimeProvider, timeServiceManagerProvider);
@@ -442,12 +432,20 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         return outputValues;
     }
 
-    /** Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}. */
+    /**
+     * Calls {@link
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} ()}.
+     */
     public void setup() {
         setup(null);
     }
 
-    /** Calls {@link SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} ()}. */
+    /**
+     * Calls {@link
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} ()}.
+     */
     public void setup(TypeSerializer<OUT> outputSerializer) {
         if (!setupCalled) {
             streamTaskStateInitializer =
@@ -468,12 +466,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                                 .f0;
             } else {
                 if (operator instanceof AbstractStreamOperator) {
-                    ((AbstractStreamOperator) operator)
-                            .setProcessingTimeService(processingTimeService);
-                }
-                if (operator instanceof SetupableStreamOperator) {
-                    ((SetupableStreamOperator) operator)
-                            .setup(mockTask, config, new MockOutput(outputSerializer));
+                    setProcessingTimeService(
+                            (AbstractStreamOperator) operator, processingTimeService);
+                    setupStreamOperator(
+                            (AbstractStreamOperator) operator,
+                            mockTask,
+                            config,
+                            new MockOutput(outputSerializer));
                 }
             }
             setupCalled = true;
@@ -485,8 +484,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
      * Calls {@link
      * org.apache.flink.streaming.api.operators.StreamOperator#initializeState(StreamTaskStateInitializer)}.
      * Calls {@link
-     * org.apache.flink.streaming.api.operators.SetupableStreamOperator#setup(StreamTask,
-     * StreamConfig, Output)} if it was not called before.
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} if it was not called before.
      */
     public void initializeState(OperatorSubtaskState operatorStateHandles) throws Exception {
         initializeState(operatorStateHandles, null);
@@ -584,8 +583,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     /**
      * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState()}.
      * Calls {@link
-     * org.apache.flink.streaming.api.operators.SetupableStreamOperator#setup(StreamTask,
-     * StreamConfig, Output)} if it was not called before.
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} if it was not called before.
      *
      * @param jmOperatorStateHandles the primary state (owned by JM)
      * @param tmOperatorStateHandles the (optional) local state (owned by TM) or null.
@@ -694,7 +693,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
     /**
      * Calls {@link StreamOperator#open()}. This also calls {@link
-     * SetupableStreamOperator#setup(StreamTask, StreamConfig, Output)} if it was not called before.
+     * org.apache.flink.streaming.api.operators.StreamOperatorUtils#setupStreamOperator(AbstractStreamOperator,
+     * StreamTask, StreamConfig, Output)} if it was not called before.
      */
     public void open() throws Exception {
         if (!initializeCalled) {
@@ -790,14 +790,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
     public long getProcessingTime() {
         return processingTimeService.getCurrentProcessingTime();
-    }
-
-    public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
-        this.config.setTimeCharacteristic(timeCharacteristic);
-    }
-
-    public TimeCharacteristic getTimeCharacteristic() {
-        return this.config.getTimeCharacteristic();
     }
 
     public boolean wasFailedExternally() {

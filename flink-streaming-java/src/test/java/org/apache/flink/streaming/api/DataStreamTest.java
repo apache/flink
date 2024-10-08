@@ -34,7 +34,6 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -50,30 +49,28 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -362,8 +359,9 @@ class DataStreamTest {
     }
 
     /**
-     * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionCustom(Partitioner, int)}
-     * result in different and correct topologies. Does the some for the {@link ConnectedStreams}.
+     * Tests that {@link DataStream#keyBy(KeySelector)} and {@link
+     * DataStream#partitionCustom(Partitioner, KeySelector)} result in different and correct
+     * topologies. Does the some for the {@link ConnectedStreams}.
      */
     @Test
     void testPartitioning() {
@@ -374,15 +372,14 @@ class DataStreamTest {
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connected = src1.connect(src2);
 
         // Testing DataStream grouping
-        DataStream<Tuple2<Long, Long>> group1 = src1.keyBy(0);
-        DataStream<Tuple2<Long, Long>> group2 = src1.keyBy(1, 0);
-        DataStream<Tuple2<Long, Long>> group3 = src1.keyBy("f0");
-        DataStream<Tuple2<Long, Long>> group4 = src1.keyBy(new FirstSelector());
+        DataStream<Tuple2<Long, Long>> group1 = src1.keyBy(x -> x.f0);
+        DataStream<Tuple2<Long, Long>> group2 =
+                src1.keyBy(x -> Tuple2.of(x.f1, x.f0), Types.TUPLE(Types.LONG, Types.LONG));
+        DataStream<Tuple2<Long, Long>> group3 = src1.keyBy(new FirstSelector());
 
         int id1 = createDownStreamId(group1);
         int id2 = createDownStreamId(group2);
         int id3 = createDownStreamId(group3);
-        int id4 = createDownStreamId(group4);
 
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id1)))
                 .isTrue();
@@ -390,24 +387,20 @@ class DataStreamTest {
                 .isTrue();
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id3)))
                 .isTrue();
-        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id4)))
-                .isTrue();
 
         assertThat(isKeyed(group1)).isTrue();
         assertThat(isKeyed(group2)).isTrue();
         assertThat(isKeyed(group3)).isTrue();
-        assertThat(isKeyed(group4)).isTrue();
 
         // Testing DataStream partitioning
-        DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(0);
-        DataStream<Tuple2<Long, Long>> partition2 = src1.keyBy(1, 0);
-        DataStream<Tuple2<Long, Long>> partition3 = src1.keyBy("f0");
-        DataStream<Tuple2<Long, Long>> partition4 = src1.keyBy(new FirstSelector());
+        DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(x -> x.f0);
+        DataStream<Tuple2<Long, Long>> partition2 =
+                src1.keyBy(x -> Tuple2.of(x.f1, x.f0), Types.TUPLE(Types.LONG, Types.LONG));
+        DataStream<Tuple2<Long, Long>> partition3 = src1.keyBy(new FirstSelector());
 
         int pid1 = createDownStreamId(partition1);
         int pid2 = createDownStreamId(partition2);
         int pid3 = createDownStreamId(partition3);
-        int pid4 = createDownStreamId(partition4);
 
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid1)))
                 .isTrue();
@@ -415,13 +408,10 @@ class DataStreamTest {
                 .isTrue();
         assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid3)))
                 .isTrue();
-        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid4)))
-                .isTrue();
 
         assertThat(isKeyed(partition1)).isTrue();
-        assertThat(isKeyed(partition3)).isTrue();
         assertThat(isKeyed(partition2)).isTrue();
-        assertThat(isKeyed(partition4)).isTrue();
+        assertThat(isKeyed(partition3)).isTrue();
 
         // Testing DataStream custom partitioning
         Partitioner<Long> longPartitioner =
@@ -432,9 +422,10 @@ class DataStreamTest {
                     }
                 };
 
-        DataStream<Tuple2<Long, Long>> customPartition1 = src1.partitionCustom(longPartitioner, 0);
+        DataStream<Tuple2<Long, Long>> customPartition1 =
+                src1.partitionCustom(longPartitioner, x -> x.f0);
         DataStream<Tuple2<Long, Long>> customPartition3 =
-                src1.partitionCustom(longPartitioner, "f0");
+                src1.partitionCustom(longPartitioner, x -> x.f0);
         DataStream<Tuple2<Long, Long>> customPartition4 =
                 src1.partitionCustom(longPartitioner, new FirstSelector());
 
@@ -909,43 +900,6 @@ class DataStreamTest {
     }
 
     /**
-     * Verify that a {@link KeyedStream#process(ProcessFunction)} call is correctly translated to an
-     * operator.
-     */
-    @Test
-    @Deprecated
-    void testKeyedStreamProcessTranslation() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.fromSequence(0, 0);
-
-        ProcessFunction<Long, Integer> processFunction =
-                new ProcessFunction<Long, Integer>() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public void processElement(Long value, Context ctx, Collector<Integer> out)
-                            throws Exception {
-                        // Do nothing
-                    }
-
-                    @Override
-                    public void onTimer(long timestamp, OnTimerContext ctx, Collector<Integer> out)
-                            throws Exception {
-                        // Do nothing
-                    }
-                };
-
-        DataStream<Integer> processed =
-                src.keyBy(new IdentityKeySelector<Long>()).process(processFunction);
-
-        processed.sinkTo(new DiscardingSink<Integer>());
-
-        assertThat(getFunctionForDataStream(processed)).isEqualTo(processFunction);
-        assertThat(getOperatorForDataStream(processed))
-                .isInstanceOf(LegacyKeyedProcessOperator.class);
-    }
-
-    /**
      * Verify that a {@link KeyedStream#process(KeyedProcessFunction)} call is correctly translated
      * to an operator.
      */
@@ -1166,7 +1120,7 @@ class DataStreamTest {
         DataStream<Long> dataStream2 =
                 env.fromSequence(0, 0)
                         .keyBy(value -> value)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .trigger(PurgingTrigger.of(CountTrigger.of(10)))
                         .reduce(
                                 new ReduceFunction<Long>() {
@@ -1265,7 +1219,7 @@ class DataStreamTest {
     }
 
     private abstract static class CustomWmEmitter<T>
-            implements AssignerWithPunctuatedWatermarks<T> {
+            implements WatermarkStrategyWithPunctuatedWatermarks<T> {
 
         @Nullable
         @Override
@@ -1604,12 +1558,10 @@ class DataStreamTest {
 
         DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
-        TypeInformation<?> expectedTypeInfo =
-                new TupleTypeInfo<Tuple1<int[]>>(
-                        PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+        TypeInformation<?> expectedTypeInfo = PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
 
         // adjust the rule
-        assertThatThrownBy(() -> input.keyBy("id"))
+        assertThatThrownBy(() -> input.keyBy(POJOWithoutHashCode::getId))
                 .isInstanceOf(InvalidProgramException.class)
                 .hasMessageStartingWith("Type " + expectedTypeInfo + " cannot be used as key.");
     }

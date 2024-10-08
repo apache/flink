@@ -94,12 +94,10 @@ class StreamTaskOperatorTimerTest {
         public <Operator extends StreamOperator<String>> Operator createStreamOperator(
                 StreamOperatorParameters<String> parameters) {
             TestOperator operator =
-                    new TestOperator(parameters.getStreamConfig().getChainIndex(), mailboxExecutor);
-            operator.setProcessingTimeService(processingTimeService);
-            operator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+                    new TestOperator(
+                            parameters,
+                            parameters.getStreamConfig().getChainIndex(),
+                            mailboxExecutor);
             return (Operator) operator;
         }
 
@@ -119,7 +117,11 @@ class StreamTaskOperatorTimerTest {
         private final int chainIndex;
         private transient int count;
 
-        TestOperator(int chainIndex, MailboxExecutor mailboxExecutor) {
+        TestOperator(
+                StreamOperatorParameters<String> parameters,
+                int chainIndex,
+                MailboxExecutor mailboxExecutor) {
+            super(parameters);
             this.chainIndex = chainIndex;
             this.mailboxExecutor = mailboxExecutor;
         }

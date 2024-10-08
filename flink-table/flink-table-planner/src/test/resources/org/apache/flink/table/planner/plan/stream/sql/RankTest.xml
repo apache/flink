@@ -1174,13 +1174,13 @@ LogicalProject(c=[$0], b=[$1], d=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="optimized rel plan">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[c, b], orderBy=[d DESC], select=[c, b, d])
 +- Exchange(distribution=[hash[c, b]])
-   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM(a) FILTER $f3 AS d])
+   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM_RETRACT(a) FILTER $f3 AS d])
       +- Exchange(distribution=[hash[c, b]])
-         +- Calc(select=[c, b, a, IS TRUE(>(a, 0)) AS $f3])
+         +- Calc(select=[c, b, a, (a > 0) IS TRUE AS $f3])
             +- Deduplicate(keep=[FirstRow], key=[c], order=[PROCTIME])
                +- Exchange(distribution=[hash[c]])
                   +- Calc(select=[a, b, c, PROCTIME() AS $5])

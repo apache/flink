@@ -137,13 +137,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
         this.previousSchema = checkNotNull(previousSchema);
     }
 
-    /** @deprecated Use {@link AvroSerializer#AvroSerializer(Class)} instead. */
-    @Deprecated
-    @SuppressWarnings("unused")
-    public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
-        this(type);
-    }
-
     // ------------------------------------------------------------------------
 
     @Nonnull
@@ -366,17 +359,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
     // ------------------------------------------------------------------------
     //  Serializer Snapshots
     // ------------------------------------------------------------------------
-
-    /**
-     * A config snapshot for the Avro Serializer that stores the Avro Schema to check compatibility.
-     * This class is now deprecated and only kept for backward comparability.
-     */
-    @Deprecated
-    public static final class AvroSchemaSerializerConfigSnapshot<T>
-            extends AvroSerializerSnapshot<T> {
-
-        public AvroSchemaSerializerConfigSnapshot() {}
-    }
 
     // -------- backwards compatibility with 1.5, 1.6 -----------
 

@@ -180,7 +180,7 @@ class Schema(Descriptor):
                         event-time attribute.
         """
         gateway = get_gateway()
-        self._j_schema = gateway.jvm.org.apache.flink.table.descriptors.Schema()
+        self._j_schema = gateway.jvm.org.apache.flink.table.legacy.descriptors.Schema()
         super(Schema, self).__init__(self._j_schema)
 
         if schema is not None:

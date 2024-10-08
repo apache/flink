@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.rocksdb.RocksDB;
+import org.forstdb.RocksDB;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -39,11 +39,22 @@ public class ForStIterateOperation implements ForStDBOperation {
 
     private final Executor executor;
 
+    private final Runnable subProcessFinished;
+
     ForStIterateOperation(
             RocksDB db, List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest, Executor executor) {
+        this(db, batchRequest, executor, null);
+    }
+
+    ForStIterateOperation(
+            RocksDB db,
+            List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchRequest,
+            Executor executor,
+            Runnable subProcessFinished) {
         this.db = db;
         this.batchRequest = batchRequest;
         this.executor = executor;
+        this.subProcessFinished = subProcessFinished;
     }
 
     @Override
@@ -75,9 +86,17 @@ public class ForStIterateOperation implements ForStDBOperation {
                                     && !future.isCompletedExceptionally()) {
                                 future.complete(null);
                             }
+                            if (subProcessFinished != null) {
+                                subProcessFinished.run();
+                            }
                         }
                     });
         }
         return future;
+    }
+
+    @Override
+    public int subProcessCount() {
+        return batchRequest.size();
     }
 }

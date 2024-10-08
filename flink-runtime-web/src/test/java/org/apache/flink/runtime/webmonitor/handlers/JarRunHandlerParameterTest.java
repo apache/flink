@@ -150,7 +150,7 @@ class JarRunHandlerParameterTest
     }
 
     @Override
-    JarRunMessageParameters getJarMessageParameters(ProgramArgsParType programArgsParType) {
+    JarRunMessageParameters getJarMessageParameters() {
         final JarRunMessageParameters parameters = getUnresolvedJarMessageParameters();
         parameters.allowNonRestoredStateQueryParameter.resolve(
                 Collections.singletonList(ALLOW_NON_RESTORED_STATE_QUERY));
@@ -158,20 +158,12 @@ class JarRunHandlerParameterTest
         parameters.entryClassQueryParameter.resolve(
                 Collections.singletonList(ParameterProgram.class.getCanonicalName()));
         parameters.parallelismQueryParameter.resolve(Collections.singletonList(PARALLELISM));
-        if (programArgsParType == ProgramArgsParType.String
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgsQueryParameter.resolve(
-                    Collections.singletonList(String.join(" ", PROG_ARGS)));
-        }
-        if (programArgsParType == ProgramArgsParType.List
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
-        }
+        parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
         return parameters;
     }
 
     @Override
-    JarRunMessageParameters getWrongJarMessageParameters(ProgramArgsParType programArgsParType) {
+    JarRunMessageParameters getWrongJarMessageParameters() {
         List<String> wrongArgs =
                 Arrays.stream(PROG_ARGS).map(a -> a + "wrong").collect(Collectors.toList());
         String argsWrongStr = String.join(" ", wrongArgs);
@@ -181,14 +173,7 @@ class JarRunHandlerParameterTest
         parameters.entryClassQueryParameter.resolve(
                 Collections.singletonList("please.dont.run.me"));
         parameters.parallelismQueryParameter.resolve(Collections.singletonList(64));
-        if (programArgsParType == ProgramArgsParType.String
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgsQueryParameter.resolve(Collections.singletonList(argsWrongStr));
-        }
-        if (programArgsParType == ProgramArgsParType.List
-                || programArgsParType == ProgramArgsParType.Both) {
-            parameters.programArgQueryParameter.resolve(wrongArgs);
-        }
+        parameters.programArgQueryParameter.resolve(wrongArgs);
         return parameters;
     }
 
@@ -198,11 +183,10 @@ class JarRunHandlerParameterTest
     }
 
     @Override
-    JarRunRequestBody getJarRequestBody(ProgramArgsParType programArgsParType) {
+    JarRunRequestBody getJarRequestBody() {
         return new JarRunRequestBody(
                 ParameterProgram.class.getCanonicalName(),
-                getProgramArgsString(programArgsParType),
-                getProgramArgsList(programArgsParType),
+                Arrays.asList(PROG_ARGS),
                 PARALLELISM,
                 null,
                 ALLOW_NON_RESTORED_STATE_QUERY,
@@ -211,12 +195,10 @@ class JarRunHandlerParameterTest
                 FLINK_CONFIGURATION.toMap());
     }
 
-    private JarRunRequestBody getJarRequestBodyWithSavepointPath(
-            ProgramArgsParType programArgsParType, String savepointPath) {
+    private JarRunRequestBody getJarRequestBodyWithSavepointPath(String savepointPath) {
         return new JarRunRequestBody(
                 ParameterProgram.class.getCanonicalName(),
-                getProgramArgsString(programArgsParType),
-                getProgramArgsList(programArgsParType),
+                Arrays.asList(PROG_ARGS),
                 PARALLELISM,
                 null,
                 ALLOW_NON_RESTORED_STATE_QUERY,
@@ -227,13 +209,13 @@ class JarRunHandlerParameterTest
 
     @Override
     JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null, null);
+        return new JarRunRequestBody(null, null, null, jobId, null, null, null, null);
     }
 
     @Override
     JarRunRequestBody getJarRequestWithConfiguration() {
         return new JarRunRequestBody(
-                null, null, null, null, null, null, null, null, FLINK_CONFIGURATION.toMap());
+                null, null, null, null, null, null, null, FLINK_CONFIGURATION.toMap());
     }
 
     @Test
@@ -265,7 +247,7 @@ class JarRunHandlerParameterTest
 
                             final String exceptionMsg = invocationException.get().getMessage();
                             assertThat(exceptionMsg)
-                                    .contains("Job was submitted in detached mode.");
+                                    .contains("Job client must be a CoordinationRequestGateway.");
 
                             return true;
                         });
@@ -273,8 +255,7 @@ class JarRunHandlerParameterTest
 
     @Test
     void testConfigurationWithEmptySavepointPath() throws Exception {
-        final JarRunRequestBody requestBody =
-                getJarRequestBodyWithSavepointPath(ProgramArgsParType.String, "");
+        final JarRunRequestBody requestBody = getJarRequestBodyWithSavepointPath("");
         handleRequest(
                 createRequest(
                         requestBody,

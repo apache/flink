@@ -41,8 +41,8 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.ExceptionUtils;
@@ -99,7 +99,7 @@ class StreamOperatorStateHandlerTest {
 
             StreamTaskStateInitializerImpl stateInitializer =
                     new StreamTaskStateInitializerImpl(
-                            new MockEnvironmentBuilder().build(), new MemoryStateBackend());
+                            new MockEnvironmentBuilder().build(), new HashMapStateBackend());
             StreamOperatorStateContext stateContext =
                     stateInitializer.streamOperatorStateContext(
                             new OperatorID(),
@@ -162,6 +162,7 @@ class StreamOperatorStateHandlerTest {
                                             new MemCheckpointStreamFactory(1024),
                                             operatorSnapshotResult,
                                             context,
+                                            false,
                                             false))
                     .isInstanceOfSatisfying(
                             CheckpointException.class,

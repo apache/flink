@@ -50,15 +50,15 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.AbstractID;
@@ -151,7 +151,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     }
 
     protected StreamExecutionEnvironment getEnv(
-            StateBackend stateBackend,
             long checkpointInterval,
             int restartAttempts,
             long materializationInterval,
@@ -162,7 +161,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableCheckpointing(checkpointInterval).enableChangelogStateBackend(true);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        env.setStateBackend(stateBackend);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, restartAttempts, 0);
         if (materializationInterval >= 0) {
             env.configure(
@@ -183,7 +181,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     }
 
     protected StreamExecutionEnvironment getEnv(
-            StateBackend stateBackend,
             File checkpointFile,
             long checkpointInterval,
             int restartAttempts,
@@ -191,7 +188,6 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
             int materializationMaxFailure) {
         StreamExecutionEnvironment env =
                 getEnv(
-                        stateBackend,
                         checkpointInterval,
                         restartAttempts,
                         materializationInterval,
@@ -201,14 +197,17 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     }
 
     protected JobGraph buildJobGraph(
-            StreamExecutionEnvironment env, ControlledSource controlledSource, JobID jobId) {
+            StateBackend stateBackend,
+            StreamExecutionEnvironment env,
+            ControlledSource controlledSource,
+            JobID jobId) {
         KeyedStream<Integer, Integer> keyedStream =
                 env.addSource(controlledSource)
                         .assignTimestampsAndWatermarks(WatermarkStrategy.forMonotonousTimestamps())
                         .keyBy(element -> element);
         keyedStream.process(new CountFunction()).addSink(new CollectionSink()).setParallelism(1);
         keyedStream
-                .window(TumblingProcessingTimeWindows.of(Time.milliseconds(10)))
+                .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(10)))
                 .process(
                         new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
                             @Override
@@ -219,7 +218,9 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                                     Collector<Integer> out) {}
                         })
                 .sinkTo(new DiscardingSink<>());
-        return env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), jobId);
+
+        return StateBackendUtils.configureStateBackendAndGetJobGraph(
+                env, stateBackend, env.getClass().getClassLoader(), jobId);
     }
 
     protected void waitAndAssert(JobGraph jobGraph) throws Exception {

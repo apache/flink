@@ -986,6 +986,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2000-02-02 00:59:59.123")
 
     testSqlApi("TO_TIMESTAMP('1234567', 'SSSSSSS')", "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS')",
+      "2017-09-15 00:00:00.123")
+    testSqlApi(
+      "CAST(TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS') AS STRING)",
+      "2017-09-15 00:00:00.123")
   }
 
   @Test

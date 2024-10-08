@@ -19,9 +19,9 @@ package org.apache.flink.streaming.examples.wordcount.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.MultipleParameterTool;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;

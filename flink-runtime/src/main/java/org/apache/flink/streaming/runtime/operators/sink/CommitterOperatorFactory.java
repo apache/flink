@@ -60,16 +60,13 @@ public final class CommitterOperatorFactory<CommT>
         try {
             final CommitterOperator<CommT> committerOperator =
                     new CommitterOperator<>(
+                            parameters,
                             processingTimeService,
                             sink.getCommittableSerializer(),
                             context -> sink.createCommitter(context),
                             sink instanceof SupportsPostCommitTopology,
                             isBatchMode,
                             isCheckpointingEnabled);
-            committerOperator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
             return (T) committerOperator;
         } catch (Exception e) {
             throw new IllegalStateException(

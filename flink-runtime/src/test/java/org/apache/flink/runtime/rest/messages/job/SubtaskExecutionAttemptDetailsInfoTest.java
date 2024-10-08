@@ -68,7 +68,6 @@ class SubtaskExecutionAttemptDetailsInfoTest
                 Math.abs(random.nextInt()),
                 ExecutionState.values()[random.nextInt(ExecutionState.values().length)],
                 Math.abs(random.nextInt()),
-                "localhost",
                 "localhost:" + random.nextInt(65536),
                 Math.abs(random.nextLong()),
                 Math.abs(random.nextLong()),

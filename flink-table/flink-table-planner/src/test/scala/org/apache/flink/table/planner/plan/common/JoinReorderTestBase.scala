@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -455,13 +455,13 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG)
     val builderA = ColumnStats.Builder
       .builder()
-      .setNdv(200000L)
-      .setNullCount(50000L)
+      .setNdv(2000000L)
+      .setNullCount(JoinDeriveNullFilterRule.JOIN_NULL_FILTER_THRESHOLD + 1)
       .setAvgLen(4.0)
       .setMaxLen(4)
     val builderB = ColumnStats.Builder
       .builder()
-      .setNdv(100000L)
+      .setNdv(1000000L)
       .setNullCount(0L)
       .setAvgLen(8.0)
       .setMaxLen(8)
@@ -474,7 +474,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
         .builder()
         .tableStats(
           new TableStats(
-            500000L,
+            5000000L,
             Map(
               "a6" -> builderA.build(),
               "b6" -> builderB.build()
@@ -489,7 +489,7 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
         .builder()
         .tableStats(
           new TableStats(
-            500000L,
+            5000000L,
             Map(
               "a7" -> builderA.build(),
               "b7" -> builderB.build()
@@ -504,15 +504,13 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
         .builder()
         .tableStats(
           new TableStats(
-            500000L,
+            5000000L,
             Map(
               "a8" -> builderA.build(),
               "b8" -> builderB.build()
             )))
         .build())
 
-    util.getTableEnv.getConfig
-      .set(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(10000))
     val sql =
       s"""
          |SELECT * FROM T6

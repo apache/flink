@@ -19,8 +19,8 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.expressions.Expression

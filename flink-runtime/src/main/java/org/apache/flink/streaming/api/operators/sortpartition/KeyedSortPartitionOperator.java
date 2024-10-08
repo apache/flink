@@ -135,7 +135,7 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<INPUT>> output) {
@@ -152,7 +152,8 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
                             inputType);
             KeyAndValueSerializer<Tuple2<?, INPUT>> valueSerializer =
                     new KeyAndValueSerializer<>(
-                            valueType.createSerializer(getExecutionConfig()), keyLength);
+                            valueType.createSerializer(getExecutionConfig().getSerializerConfig()),
+                            keyLength);
             TypeComparator<Tuple2<byte[], Tuple2<?, INPUT>>> sortTypeComparator;
             if (keyLength > 0) {
                 sortTypeComparator =
@@ -179,7 +180,8 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
         } else {
             KeyAndValueSerializer<INPUT> valueSerializer =
                     new KeyAndValueSerializer<>(
-                            inputType.createSerializer(getExecutionConfig()), keyLength);
+                            inputType.createSerializer(getExecutionConfig().getSerializerConfig()),
+                            keyLength);
             TypeComparator<Tuple2<byte[], INPUT>> sortTypeComparator;
             if (keyLength > 0) {
                 sortTypeComparator =

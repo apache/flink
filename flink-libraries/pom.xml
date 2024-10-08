@@ -34,7 +34,6 @@ under the License.
 
 	<modules>
 		<module>flink-cep</module>
-		<module>flink-cep-scala</module>
 		<module>flink-state-processing-api</module>
 	</modules>
 

@@ -29,8 +29,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
@@ -112,7 +112,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
                     .startNewChain()
 
                     // -------------- fourth vertex - reducer and the sink ----------------
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .reduce(new OnceFailingReducer(numElements))
                     .sinkTo(new DiscardingSink<>());
 

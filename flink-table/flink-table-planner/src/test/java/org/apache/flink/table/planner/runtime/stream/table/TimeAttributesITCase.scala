@@ -19,25 +19,26 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
-import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction
 import org.apache.flink.table.api._
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
+
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
-import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZoneOffset}
+import java.time.{Duration, Instant, LocalDateTime, ZoneId}
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @TestTemplate
   def testMissingTimeAttributeInLegacySourceThrowsCorrectException(): Unit = {
-    //TODO: this test can be removed when SourceFunction gets removed (FLIP-27 sources set TimestampAssigner.NO_TIMESTAMP value as event time when no timestamp is provided. See SourceOutputWithWatermarks#collect())
+    // TODO: this test can be removed when SourceFunction gets removed
+    //  (FLIP-27 sources set TimestampAssigner.NO_TIMESTAMP value as event
+    //  time when no timestamp is provided. See SourceOutputWithWatermarks#collect())
     val stream = env
       .addSource(new SourceFunction[(Long, String)]() {
         def run(ctx: SourceFunction.SourceContext[(Long, String)]) {
@@ -47,37 +48,48 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
 
         def cancel() {}
       })
-    tEnv.createTemporaryView("test", stream, Schema.newBuilder()
-      .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
-      .build())
+    tEnv.createTemporaryView(
+      "test",
+      stream,
+      Schema
+        .newBuilder()
+        .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
+        .build())
     val result = tEnv.sqlQuery("SELECT * FROM test")
 
     val sink = new TestingAppendSink()
     tEnv.toDataStream(result).addSink(sink)
 
     assertThatThrownBy(() => env.execute())
-      .hasMessageNotContaining("Rowtime timestamp is not defined. Please make sure that a " +
-        "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-        "time characteristic.")
+      .hasMessageNotContaining(
+        "Rowtime timestamp is not defined. Please make sure that a " +
+          "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
+          "time characteristic.")
   }
 
   @TestTemplate
   def testTimestampAttributesWithWatermarkStrategy(): Unit = {
     val data = List(Instant.now().toEpochMilli -> "hello", Instant.now().toEpochMilli -> "world")
-    val stream = env.fromCollection[(Long, String)](data).assignTimestampsAndWatermarks(
-      WatermarkStrategy
-        .forBoundedOutOfOrderness[(Long, String)](Duration.ofMinutes(5))
-        .withTimestampAssigner {
-          new SerializableTimestampAssigner[(Long, String)] {
-            override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long =
-              element._1
+    val stream = StreamingEnvUtil
+      .fromCollection(env, data)
+      .assignTimestampsAndWatermarks(
+        WatermarkStrategy
+          .forBoundedOutOfOrderness[(Long, String)](Duration.ofMinutes(5))
+          .withTimestampAssigner {
+            new SerializableTimestampAssigner[(Long, String)] {
+              override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long =
+                element._1
+            }
           }
-        }
-    )
+      )
 
-    tEnv.createTemporaryView("test", stream, Schema.newBuilder()
-      .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
-      .build())
+    tEnv.createTemporaryView(
+      "test",
+      stream,
+      Schema
+        .newBuilder()
+        .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
+        .build())
     val result = tEnv.sqlQuery("SELECT * FROM test")
 
     val sink = new TestingAppendSink()

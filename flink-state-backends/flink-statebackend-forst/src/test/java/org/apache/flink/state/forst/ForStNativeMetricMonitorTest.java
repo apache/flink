@@ -28,10 +28,10 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.traces.SpanBuilder;
 
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDBException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

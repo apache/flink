@@ -28,7 +28,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
+import org.apache.flink.table.legacy.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;

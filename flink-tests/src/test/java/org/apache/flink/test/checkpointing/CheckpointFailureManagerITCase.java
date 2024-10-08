@@ -45,18 +45,20 @@ import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.TestingCheckpointStorageAccessCoordinatorView;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -118,7 +120,9 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);
         RestartStrategyUtils.configureNoRestartStrategy(env);
-        env.setStateBackend(new AsyncFailureStateBackend());
+        StateBackendUtils.configureStateBackendWithFactory(
+                env,
+                "org.apache.flink.test.checkpointing.CheckpointFailureManagerITCase$AsyncFailureStateBackendFactory");
         env.addSource(new StringGeneratingSourceFunction()).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         try {
@@ -178,7 +182,17 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         }
     }
 
-    private static class AsyncFailureStateBackend extends MemoryStateBackend {
+    public static class AsyncFailureStateBackendFactory
+            implements StateBackendFactory<AsyncFailureStateBackend> {
+        @Override
+        public AsyncFailureStateBackend createFromConfig(
+                ReadableConfig config, ClassLoader classLoader)
+                throws IllegalConfigurationException {
+            return new AsyncFailureStateBackend();
+        }
+    }
+
+    private static class AsyncFailureStateBackend extends HashMapStateBackend {
         private static final long serialVersionUID = 1L;
         private static final SnapshotStrategy<OperatorStateHandle, SnapshotResources>
                 ASYNC_DECLINING_SNAPSHOT_STRATEGY =

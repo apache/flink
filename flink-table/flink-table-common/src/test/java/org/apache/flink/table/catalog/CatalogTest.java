@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -34,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;

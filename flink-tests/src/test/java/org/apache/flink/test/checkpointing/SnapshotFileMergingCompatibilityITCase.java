@@ -20,7 +20,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -118,15 +118,13 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                                 .setNumberTaskManagers(2)
                                 .setNumberSlotsPerTaskManager(2)
                                 .build());
-        EmbeddedRocksDBStateBackend stateBackend1 = new EmbeddedRocksDBStateBackend();
-        stateBackend1.configure(config, Thread.currentThread().getContextClassLoader());
+        config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         firstCluster.before();
         String firstCheckpoint;
         CheckpointMetadata firstMetadata;
         try {
             firstCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend1,
                             null,
                             firstCluster,
                             recoveryClaimMode,
@@ -141,8 +139,6 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         }
 
         config.set(CheckpointingOptions.FILE_MERGING_ENABLED, secondFileMergingSwitch);
-        EmbeddedRocksDBStateBackend stateBackend2 = new EmbeddedRocksDBStateBackend();
-        stateBackend2.configure(config, Thread.currentThread().getContextClassLoader());
         MiniClusterWithClientResource secondCluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -156,7 +152,6 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         try {
             secondCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend2,
                             firstCheckpoint,
                             secondCluster,
                             recoveryClaimMode,
@@ -176,8 +171,6 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
             secondCluster.after();
         }
 
-        EmbeddedRocksDBStateBackend stateBackend3 = new EmbeddedRocksDBStateBackend();
-        stateBackend3.configure(config, Thread.currentThread().getContextClassLoader());
         MiniClusterWithClientResource thirdCluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -191,7 +184,6 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         try {
             thirdCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend3,
                             secondCheckpoint,
                             thirdCluster,
                             recoveryClaimMode,
@@ -212,8 +204,6 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         }
 
         // We config ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION here.
-        EmbeddedRocksDBStateBackend stateBackend4 = new EmbeddedRocksDBStateBackend();
-        stateBackend4.configure(config, Thread.currentThread().getContextClassLoader());
         MiniClusterWithClientResource fourthCluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -226,7 +216,6 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         try {
             fourthCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend4,
                             thirdCheckpoint,
                             fourthCluster,
                             recoveryClaimMode,

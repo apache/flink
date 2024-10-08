@@ -87,16 +87,18 @@ public class ContextKey<K, N> {
     public byte[] getOrCreateSerializedKey(
             FunctionWithException<ContextKey<K, N>, byte[], IOException> serializeKeyFunc)
             throws IOException {
-        if (recordContext.getExtra() != null) {
-            return (byte[]) recordContext.getExtra();
+        byte[] serializedKey = (byte[]) recordContext.getExtra();
+        if (serializedKey != null) {
+            return serializedKey;
         }
         synchronized (recordContext) {
-            if (recordContext.getExtra() == null) {
-                byte[] serializedKey = serializeKeyFunc.apply(this);
+            serializedKey = (byte[]) recordContext.getExtra();
+            if (serializedKey == null) {
+                serializedKey = serializeKeyFunc.apply(this);
                 recordContext.setExtra(serializedKey);
             }
         }
-        return (byte[]) recordContext.getExtra();
+        return serializedKey;
     }
 
     @Override

@@ -112,6 +112,30 @@ class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'bounded' = 'true'\n"
                         + ")";
         tEnv().executeSql(ddl3);
+
+        String ddl4 =
+                "CREATE TABLE AggregatableTable_WithoutAggPushDown (\n"
+                        + "  id int,\n"
+                        + "  age int not null,\n"
+                        + "  name string,\n"
+                        + "  height int,\n"
+                        + "  gender string,\n"
+                        + "  deposit bigint,\n"
+                        + "  points bigint,\n"
+                        + "  metadata_1 BIGINT METADATA,\n"
+                        + "  metadata_2 STRING METADATA,\n"
+                        + "  PRIMARY KEY (`id`) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'data-id' = '"
+                        + testDataId
+                        + "',\n"
+                        + "  'filterable-fields' = 'id;age',\n"
+                        + "  'readable-metadata' = 'metadata_1:BIGINT, metadata_2:STRING',\n"
+                        + "  'enable-aggregate-push-down' = 'false',\n"
+                        + "  'bounded' = 'true'\n"
+                        + ")";
+        tEnv().executeSql(ddl4);
     }
 
     @Test
@@ -133,12 +157,6 @@ class LocalAggregatePushDownITCase extends BatchTestBase {
 
     @Test
     void testDisablePushDownLocalAgg() {
-        // disable push down local agg
-        tEnv().getConfig()
-                .set(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
-                        false);
-
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit) as avg_dep,\n"
@@ -146,7 +164,7 @@ class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  count(1),\n"
                         + "  gender\n"
                         + "FROM\n"
-                        + "  AggregatableTable\n"
+                        + "  AggregatableTable_WithoutAggPushDown\n"
                         + "GROUP BY gender\n"
                         + "ORDER BY avg_dep",
                 JavaScalaConversionUtil.toScala(

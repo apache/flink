@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
-import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionTempFileManager;
 import org.apache.flink.connector.file.table.RowPartitionComputer;
@@ -28,6 +27,7 @@ import org.apache.flink.connector.file.table.stream.compact.CompactMessages.Inpu
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Row;

@@ -19,12 +19,14 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackendMigrationTestBase;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -32,10 +34,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-/** Tests for the partitioned state part of {@link RocksDBStateBackend}. */
+/** Tests for the partitioned state part of {@link EmbeddedRocksDBStateBackend}. */
 @ExtendWith(ParameterizedTestExtension.class)
 public class RocksDBStateBackendMigrationTest
-        extends StateBackendMigrationTestBase<RocksDBStateBackend> {
+        extends StateBackendMigrationTestBase<EmbeddedRocksDBStateBackend> {
 
     @Parameters(name = "Incremental checkpointing: {0}")
     public static Collection<Boolean> parameters() {
@@ -48,12 +50,11 @@ public class RocksDBStateBackendMigrationTest
     private String dbPath;
 
     @Override
-    protected RocksDBStateBackend getStateBackend() throws IOException {
+    protected EmbeddedRocksDBStateBackend getStateBackend() throws IOException {
         dbPath = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
-        String checkpointPath = TempDirUtils.newFolder(tempFolder).toURI().toString();
-        RocksDBStateBackend backend =
-                new RocksDBStateBackend(
-                        new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+        EmbeddedRocksDBStateBackend backend =
+                new EmbeddedRocksDBStateBackend(
+                        TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
 
         Configuration configuration = new Configuration();
         configuration.set(
@@ -62,5 +63,11 @@ public class RocksDBStateBackendMigrationTest
         backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
         backend.setDbStoragePath(dbPath);
         return backend;
+    }
+
+    @Override
+    protected CheckpointStorage getCheckpointStorage() throws Exception {
+        String checkpointPath = TempDirUtils.newFolder(tempFolder).toURI().toString();
+        return new FileSystemCheckpointStorage(checkpointPath);
     }
 }

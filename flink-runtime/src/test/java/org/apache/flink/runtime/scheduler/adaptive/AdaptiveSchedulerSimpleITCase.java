@@ -60,7 +60,8 @@ class AdaptiveSchedulerSimpleITCase {
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         configuration.set(
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofMillis(100L));
 
         return configuration;
     }

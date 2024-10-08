@@ -20,10 +20,10 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.legacy.api.Types;
 import org.apache.flink.types.Row;
 
 /** A bunch of UDFs for testing the SQL Client. */

@@ -176,12 +176,6 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
         return this.serializer;
     }
 
-    @Override
-    @PublicEvolving
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
-    }
-
     /**
      * Gets the class that represents the component type.
      *

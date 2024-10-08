@@ -43,7 +43,6 @@ class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequest
     protected JarRunRequestBody getTestRequestInstance() {
         return new JarRunRequestBody(
                 "hello",
-                "world",
                 Arrays.asList("boo", "far"),
                 4,
                 new JobID(),
@@ -57,7 +56,6 @@ class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequest
     protected void assertOriginalEqualsToUnmarshalled(
             final JarRunRequestBody expected, final JarRunRequestBody actual) {
         assertThat(actual.getEntryClassName()).isEqualTo(expected.getEntryClassName());
-        assertThat(actual.getProgramArguments()).isEqualTo(expected.getProgramArguments());
         assertThat(actual.getProgramArgumentsList()).isEqualTo(expected.getProgramArgumentsList());
         assertThat(actual.getParallelism()).isEqualTo(expected.getParallelism());
         assertThat(actual.getJobId()).isEqualTo(expected.getJobId());

@@ -75,10 +75,10 @@ public class StateHandleReuseITCase extends AbstractTestBaseJUnit4 {
                     env.setParallelism(1);
                     env.enableCheckpointing(10);
                     RestartStrategyUtils.configureNoRestartStrategy(env);
-                    env.setStateBackend(new MockStateBackend(new SingleHandleSnapshotSupplier()));
                     // changelog backend doesn't work with the mock backend
                     env.enableChangelogStateBackend(false);
-                });
+                },
+                new MockStateBackend(new SingleHandleSnapshotSupplier()));
     }
 
     /** {@link MockSnapshotSupplier} that always sends the same handle (object). */

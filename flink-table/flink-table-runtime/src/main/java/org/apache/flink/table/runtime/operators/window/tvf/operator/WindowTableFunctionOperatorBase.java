@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.window.tvf.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.table.data.GenericRowData;
@@ -79,8 +78,6 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
         this.rowtimeIndex = rowtimeIndex;
         this.windowAssigner = windowAssigner;
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
-
-        setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
     @Override

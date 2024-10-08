@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.S
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.JavaConversions._
@@ -91,6 +91,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                        |""".stripMargin)
   }
 
+  @Disabled("FLINK-36166")
   @TestTemplate
   def testJoinDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
@@ -334,6 +335,49 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .hasMessage("You should enable the checkpointing for sinking to managed table " +
         "'default_catalog.default_database.MyCtasTable'," +
         " managed table relies on checkpoint to commit and the data is visible only after commit.")
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithColumnOrdering(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(votes, person)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[1, jason]",
+      "+I[1, jason]",
+      "+I[1, jason]",
+      "+I[1, jason]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement(votes, person)
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate

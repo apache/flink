@@ -74,7 +74,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         this.writer = writer;
     }
 
-    public SinkWriter<InputT> createWriter(InitContext context) {
+    public SinkWriter<InputT> createWriter(WriterInitContext context) {
         writer.init(context);
         return writer;
     }
@@ -225,11 +225,6 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         public SimpleVersionedSerializer<String> getCommittableSerializer() {
             return committableSerializer;
         }
-
-        @Override
-        public SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
-            return super.createWriter(context);
-        }
     }
 
     // -------------------------------------- Sink With PostCommitTopology -------------------------
@@ -298,7 +293,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public DefaultStatefulSinkWriter<InputT> createWriter(InitContext context) {
+        public DefaultStatefulSinkWriter<InputT> createWriter(WriterInitContext context) {
             return (DefaultStatefulSinkWriter<InputT>) super.createWriter(context);
         }
 
@@ -360,7 +355,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
             // noting to do here
         }
 
-        public void init(InitContext context) {
+        public void init(WriterInitContext context) {
             // context is not used in default case
         }
     }

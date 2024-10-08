@@ -25,7 +25,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -180,7 +179,6 @@ class ContinuousFileProcessingRescalingTest {
                         maxParallelism,
                         noOfTasks,
                         taskIdx);
-        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
         return testHarness;
     }
 

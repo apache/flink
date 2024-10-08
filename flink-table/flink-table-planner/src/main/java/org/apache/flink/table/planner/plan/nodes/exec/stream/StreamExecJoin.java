@@ -22,7 +22,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -41,11 +43,11 @@ import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.operators.join.stream.AbstractStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.MiniBatchStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingSemiAntiJoinOperator;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -195,7 +197,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         long leftStateRetentionTime = leftAndRightStateRetentionTime.get(0);
         long rightStateRetentionTime = leftAndRightStateRetentionTime.get(1);
 
-        AbstractStreamingJoinOperator operator;
+        TwoInputStreamOperator<RowData, RowData, RowData> operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
         final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
         if (joinType == FlinkJoinType.ANTI || joinType == FlinkJoinType.SEMI) {
@@ -230,18 +232,33 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                                 rightStateRetentionTime,
                                 MinibatchUtil.createMiniBatchCoTrigger(config));
             } else {
-                operator =
-                        new StreamingJoinOperator(
-                                leftTypeInfo,
-                                rightTypeInfo,
-                                generatedCondition,
-                                leftInputSpec,
-                                rightInputSpec,
-                                leftIsOuter,
-                                rightIsOuter,
-                                joinSpec.getFilterNulls(),
-                                leftStateRetentionTime,
-                                rightStateRetentionTime);
+                if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+                    operator =
+                            new AsyncStateStreamingJoinOperator(
+                                    leftTypeInfo,
+                                    rightTypeInfo,
+                                    generatedCondition,
+                                    leftInputSpec,
+                                    rightInputSpec,
+                                    leftIsOuter,
+                                    rightIsOuter,
+                                    joinSpec.getFilterNulls(),
+                                    leftStateRetentionTime,
+                                    rightStateRetentionTime);
+                } else {
+                    operator =
+                            new StreamingJoinOperator(
+                                    leftTypeInfo,
+                                    rightTypeInfo,
+                                    generatedCondition,
+                                    leftInputSpec,
+                                    rightInputSpec,
+                                    leftIsOuter,
+                                    rightIsOuter,
+                                    joinSpec.getFilterNulls(),
+                                    leftStateRetentionTime,
+                                    rightStateRetentionTime);
+                }
             }
         }
 

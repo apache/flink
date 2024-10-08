@@ -54,7 +54,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
 	<build>
 		<plugins>

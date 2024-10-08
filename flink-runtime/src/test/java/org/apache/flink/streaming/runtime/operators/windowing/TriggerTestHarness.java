@@ -22,9 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,9 +35,9 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -50,7 +47,6 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -74,7 +70,7 @@ public class TriggerTestHarness<T, W extends Window> {
         // we only ever use one key, other tests make sure that windows work across different
         // keys
         DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
-        MemoryStateBackend backend = new MemoryStateBackend();
+        HashMapStateBackend backend = new HashMapStateBackend();
 
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
@@ -359,18 +355,6 @@ public class TriggerTestHarness<T, W extends Window> {
             } catch (Exception e) {
                 throw new RuntimeException("Error getting state", e);
             }
-        }
-
-        @Override
-        public <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, Class<S> stateType, S defaultState) {
-            return getPartitionedState(new ValueStateDescriptor<>(name, stateType, defaultState));
-        }
-
-        @Override
-        public <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, TypeInformation<S> stateType, S defaultState) {
-            return getPartitionedState(new ValueStateDescriptor<>(name, stateType, defaultState));
         }
     }
 

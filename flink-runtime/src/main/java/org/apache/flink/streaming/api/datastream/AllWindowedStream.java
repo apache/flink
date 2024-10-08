@@ -28,7 +28,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -42,15 +41,14 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughAllWindowFu
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessAllWindowFunction;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalAggregateProcessAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessAllWindowFunction;
@@ -61,6 +59,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Utils;
 
 import java.time.Duration;
 
@@ -126,21 +125,6 @@ public class AllWindowedStream<T, W extends Window> {
 
         this.trigger = trigger;
         return this;
-    }
-
-    /**
-     * Sets the time by which elements are allowed to be late. Elements that arrive behind the
-     * watermark by more than the specified time will be dropped. By default, the allowed lateness
-     * is {@code 0L}.
-     *
-     * <p>Setting an allowed lateness is only valid for event-time windows.
-     *
-     * @deprecated Use {@link #allowedLateness(Duration)}, instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public AllWindowedStream<T, W> allowedLateness(Time lateness) {
-        return allowedLateness(lateness.toDuration());
     }
 
     /**
@@ -280,7 +264,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opDescription;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -310,7 +294,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -351,7 +335,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -426,7 +410,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opName;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -456,7 +440,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -498,7 +482,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -686,7 +670,7 @@ public class AllWindowedStream<T, W extends Window> {
         final String opName;
         final KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -716,7 +700,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -755,7 +739,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -862,7 +846,7 @@ public class AllWindowedStream<T, W extends Window> {
         final String opDescription;
         final KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        OneInputStreamOperator<T, R> operator;
+        OneInputStreamOperatorFactory<T, R> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -892,7 +876,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -930,7 +914,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1043,7 +1027,7 @@ public class AllWindowedStream<T, W extends Window> {
         String opName;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
-        WindowOperator<Byte, T, Iterable<T>, R, W> operator;
+        WindowOperatorFactory<Byte, T, Iterable<T>, R, W> operator;
 
         if (evictor != null) {
             @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1073,7 +1057,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new EvictingWindowOperator<>(
+                    new EvictingWindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1112,7 +1096,7 @@ public class AllWindowedStream<T, W extends Window> {
                             + ")";
 
             operator =
-                    new WindowOperator<>(
+                    new WindowOperatorFactory<>(
                             windowAssigner,
                             windowAssigner.getWindowSerializer(
                                     getExecutionEnvironment().getConfig()),
@@ -1124,151 +1108,6 @@ public class AllWindowedStream<T, W extends Window> {
                                                     .getSerializerConfig()),
                             stateDesc,
                             function,
-                            trigger,
-                            allowedLateness,
-                            lateDataOutputTag);
-        }
-
-        return input.transform(opName, resultType, operator).forceNonParallel();
-    }
-
-    /**
-     * Applies the given window function to each window. The window function is called for each
-     * evaluation of the window for each key individually. The output of the window function is
-     * interpreted as a regular non-windowed stream.
-     *
-     * <p>Arriving data is incrementally aggregated using the given reducer.
-     *
-     * @param reduceFunction The reduce function that is used for incremental aggregation.
-     * @param function The window function.
-     * @return The data stream that is the result of applying the window function to the window.
-     * @deprecated Use {@link #reduce(ReduceFunction, AllWindowFunction)} instead.
-     */
-    @Deprecated
-    public <R> SingleOutputStreamOperator<R> apply(
-            ReduceFunction<T> reduceFunction, AllWindowFunction<T, R, W> function) {
-        TypeInformation<T> inType = input.getType();
-        TypeInformation<R> resultType = getAllWindowFunctionReturnType(function, inType);
-
-        return apply(reduceFunction, function, resultType);
-    }
-
-    /**
-     * Applies the given window function to each window. The window function is called for each
-     * evaluation of the window for each key individually. The output of the window function is
-     * interpreted as a regular non-windowed stream.
-     *
-     * <p>Arriving data is incrementally aggregated using the given reducer.
-     *
-     * @param reduceFunction The reduce function that is used for incremental aggregation.
-     * @param function The window function.
-     * @param resultType Type information for the result type of the window function
-     * @return The data stream that is the result of applying the window function to the window.
-     * @deprecated Use {@link #reduce(ReduceFunction, AllWindowFunction, TypeInformation)} instead.
-     */
-    @Deprecated
-    public <R> SingleOutputStreamOperator<R> apply(
-            ReduceFunction<T> reduceFunction,
-            AllWindowFunction<T, R, W> function,
-            TypeInformation<R> resultType) {
-        if (reduceFunction instanceof RichFunction) {
-            throw new UnsupportedOperationException(
-                    "ReduceFunction of apply can not be a RichFunction.");
-        }
-
-        // clean the closures
-        function = input.getExecutionEnvironment().clean(function);
-        reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
-
-        String callLocation = Utils.getCallLocationName();
-        String udfName = "AllWindowedStream." + callLocation;
-
-        String opName;
-        KeySelector<T, Byte> keySel = input.getKeySelector();
-
-        OneInputStreamOperator<T, R> operator;
-
-        if (evictor != null) {
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            TypeSerializer<StreamRecord<T>> streamRecordSerializer =
-                    (TypeSerializer<StreamRecord<T>>)
-                            new StreamElementSerializer(
-                                    input.getType()
-                                            .createSerializer(
-                                                    getExecutionEnvironment()
-                                                            .getConfig()
-                                                            .getSerializerConfig()));
-
-            ListStateDescriptor<StreamRecord<T>> stateDesc =
-                    new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
-            opName =
-                    "TriggerWindow("
-                            + windowAssigner
-                            + ", "
-                            + stateDesc
-                            + ", "
-                            + trigger
-                            + ", "
-                            + evictor
-                            + ", "
-                            + udfName
-                            + ")";
-
-            operator =
-                    new EvictingWindowOperator<>(
-                            windowAssigner,
-                            windowAssigner.getWindowSerializer(
-                                    getExecutionEnvironment().getConfig()),
-                            keySel,
-                            input.getKeyType()
-                                    .createSerializer(
-                                            getExecutionEnvironment()
-                                                    .getConfig()
-                                                    .getSerializerConfig()),
-                            stateDesc,
-                            new InternalIterableAllWindowFunction<>(
-                                    new ReduceApplyAllWindowFunction<>(reduceFunction, function)),
-                            trigger,
-                            evictor,
-                            allowedLateness,
-                            lateDataOutputTag);
-
-        } else {
-            ReducingStateDescriptor<T> stateDesc =
-                    new ReducingStateDescriptor<>(
-                            "window-contents",
-                            reduceFunction,
-                            input.getType()
-                                    .createSerializer(
-                                            getExecutionEnvironment()
-                                                    .getConfig()
-                                                    .getSerializerConfig()));
-
-            opName =
-                    "TriggerWindow("
-                            + windowAssigner
-                            + ", "
-                            + stateDesc
-                            + ", "
-                            + trigger
-                            + ", "
-                            + udfName
-                            + ")";
-
-            operator =
-                    new WindowOperator<>(
-                            windowAssigner,
-                            windowAssigner.getWindowSerializer(
-                                    getExecutionEnvironment().getConfig()),
-                            keySel,
-                            input.getKeyType()
-                                    .createSerializer(
-                                            getExecutionEnvironment()
-                                                    .getConfig()
-                                                    .getSerializerConfig()),
-                            stateDesc,
-                            new InternalSingleValueAllWindowFunction<>(function),
                             trigger,
                             allowedLateness,
                             lateDataOutputTag);

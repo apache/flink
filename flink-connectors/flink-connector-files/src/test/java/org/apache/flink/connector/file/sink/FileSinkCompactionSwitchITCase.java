@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -42,14 +43,12 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
@@ -78,6 +77,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+import static org.apache.flink.streaming.util.StateBackendUtils.configureHashMapStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -224,7 +224,7 @@ public class FileSinkCompactionSwitchITCase {
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
         RestartStrategyUtils.configureNoRestartStrategy(env);
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, cpPath);
-        env.setStateBackend(new HashMapStateBackend());
+        configureHashMapStateBackend(env);
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))
                 .setParallelism(NUM_SOURCES)

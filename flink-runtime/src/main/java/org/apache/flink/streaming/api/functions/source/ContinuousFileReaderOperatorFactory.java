@@ -55,11 +55,7 @@ public class ContinuousFileReaderOperatorFactory<OUT, T extends TimestampedInput
             StreamOperatorParameters<OUT> parameters) {
         ContinuousFileReaderOperator<OUT, T> operator =
                 new ContinuousFileReaderOperator<>(
-                        inputFormat, processingTimeService, getMailboxExecutor());
-        operator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
+                        parameters, inputFormat, processingTimeService, getMailboxExecutor());
         operator.setOutputType(type, executionConfig);
         return (O) operator;
     }

@@ -132,7 +132,7 @@ public class LocalRecoveryITCase extends TestLogger {
                 StateBackendEnum backendEnum,
                 boolean localBackupEnable,
                 boolean localRecoveryEnabled) {
-            super(backendEnum, 2);
+            super(backendEnum);
             this.backendEnum = backendEnum;
             this.localBackupEnable = localBackupEnable;
             this.localRecoveryEnabled = localRecoveryEnabled;

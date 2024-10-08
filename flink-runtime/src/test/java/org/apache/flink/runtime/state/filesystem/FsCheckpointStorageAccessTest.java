@@ -48,10 +48,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage aspects
- * of the {@link FsStateBackend}.
- */
+/** Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage. */
 class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
 
     private static final int FILE_SIZE_THRESHOLD = 1024;

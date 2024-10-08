@@ -45,7 +45,10 @@ public class RocksDbMultiClassLoaderTest {
         // collect the libraries / class folders with RocksDB related code: the state backend and
         // RocksDB itself
         final URL codePath1 =
-                RocksDBStateBackend.class.getProtectionDomain().getCodeSource().getLocation();
+                EmbeddedRocksDBStateBackend.class
+                        .getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation();
         final URL codePath2 = RocksDB.class.getProtectionDomain().getCodeSource().getLocation();
 
         final ClassLoader parent = getClass().getClassLoader();
@@ -64,17 +67,15 @@ public class RocksDbMultiClassLoaderTest {
                         NOOP_EXCEPTION_HANDLER,
                         true);
 
-        final String className = RocksDBStateBackend.class.getName();
+        final String className = EmbeddedRocksDBStateBackend.class.getName();
 
         final Class<?> clazz1 = Class.forName(className, false, loader1);
         final Class<?> clazz2 = Class.forName(className, false, loader2);
         assertNotEquals(
                 "Test broken - the two reflectively loaded classes are equal", clazz1, clazz2);
 
-        final Object instance1 =
-                clazz1.getConstructor(String.class).newInstance(tmp.newFolder().toURI().toString());
-        final Object instance2 =
-                clazz2.getConstructor(String.class).newInstance(tmp.newFolder().toURI().toString());
+        final Object instance1 = clazz1.getConstructor().newInstance();
+        final Object instance2 = clazz2.getConstructor().newInstance();
 
         final String tempDir = tmp.newFolder().getAbsolutePath();
 

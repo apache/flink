@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.table.legacy.factories.TableSinkFactory;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

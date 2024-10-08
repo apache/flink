@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
@@ -84,8 +84,12 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)]
+      )
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -124,8 +128,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.createTemporaryView("T1", t1)
     val sink = new TestingAppendSink
@@ -541,8 +548,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -613,8 +623,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -691,9 +704,13 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
+
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -761,8 +778,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -834,8 +854,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -902,8 +925,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -962,8 +988,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -1019,8 +1048,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -1088,8 +1120,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -1342,7 +1377,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     env.setParallelism(1)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
+    val table = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", table)
     tEnv.createTemporarySystemFunction("PairCount", classOf[CountPairs])
 

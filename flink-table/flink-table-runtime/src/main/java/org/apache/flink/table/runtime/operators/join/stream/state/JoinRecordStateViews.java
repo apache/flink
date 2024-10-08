@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
 

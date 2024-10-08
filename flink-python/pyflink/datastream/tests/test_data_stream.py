@@ -26,8 +26,8 @@ from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
-from pyflink.datastream import (TimeCharacteristic, RuntimeContext, SlotSharingGroup,
-                                StreamExecutionEnvironment, RuntimeExecutionMode)
+from pyflink.datastream import (RuntimeContext, SlotSharingGroup, StreamExecutionEnvironment,
+                                RuntimeExecutionMode)
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
                                           MapFunction, FilterFunction, FlatMapFunction,
@@ -122,7 +122,6 @@ class DataStreamTests(object):
 
     def test_keyed_process_function_with_state(self):
         self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
         data_stream = self.env.from_collection([(1, 'hi', '1603708211000'),
                                                 (2, 'hello', '1603708224000'),
                                                 (3, 'hi', '1603708226000'),
@@ -1090,7 +1089,6 @@ class ProcessDataStreamTests(DataStreamTests):
     def test_process_function(self):
         self.env.set_parallelism(1)
         self.env.get_config().set_auto_watermark_interval(2000)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
         data_stream = self.env.from_collection([(1, '1603708211000'),
                                                 (2, '1603708224000'),
                                                 (3, '1603708226000'),

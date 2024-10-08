@@ -28,12 +28,12 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 
 import java.util.List;
 

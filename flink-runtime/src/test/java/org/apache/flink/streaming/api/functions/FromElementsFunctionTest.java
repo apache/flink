@@ -31,8 +31,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.types.Value;
@@ -48,7 +48,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for the {@link org.apache.flink.streaming.api.functions.source.FromElementsFunction}. */
+/** Tests for the {@link FromElementsFunction}. */
 class FromElementsFunctionTest {
 
     private static final String[] STRING_ARRAY_DATA = {"Oh", "boy", "what", "a", "show", "!"};

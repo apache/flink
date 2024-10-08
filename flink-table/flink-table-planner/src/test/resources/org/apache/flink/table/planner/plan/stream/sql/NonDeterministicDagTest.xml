@@ -2752,6 +2752,74 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProctimeDedupOnCdcWithMetadataSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+SELECT a, metadata_3, c
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM cdc_with_meta
+)
+WHERE rowNum = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, metadata_3, c])
++- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
+   +- LogicalFilter(condition=[=($7, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+            +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, metadata_3, c])
++- Calc(select=[a, metadata_3, c])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$7 ASC], select=[a, c, metadata_3, $7])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, c, metadata_3, PROCTIME() AS $7])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]], fields=[a, b, c, d, metadata_1, metadata_2, metadata_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProctimeDedupOnCdcWithMetadataSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+SELECT a, metadata_3, c
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM cdc_with_meta
+)
+WHERE rowNum = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
++- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
+   +- LogicalFilter(condition=[=($7, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+            +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
++- Calc(select=[a, metadata_3, c])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$7 ASC], select=[a, c, metadata_3, $7])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, c, metadata_3, PROCTIME() AS $7])
+            +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]], fields=[a, b, c, d, metadata_1, metadata_2, metadata_3])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProctimeIntervalJoinSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
@@ -2879,6 +2947,43 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
          +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
             +- Exchange(distribution=[hash[a]])
                +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowtimeDedupOnCdcWithMetadataSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+SELECT a, b, c
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY op_ts ASC) as rowNum
+  FROM cdc_with_meta_and_wm
+)
+WHERE rowNum = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[=($5, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], op_ts=[$4], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+         +- LogicalWatermarkAssigner(rowtime=[op_ts], watermark=[-($4, 5000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], op_ts=[CAST($4):TIMESTAMP_LTZ(3) *ROWTIME*])
+               +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta_and_wm, metadata=[op_ts]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[ROWTIME op_ts ASC], select=[a, b, c, op_ts])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, b, c, op_ts])
+            +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
+               +- Calc(select=[a, b, c, d, CAST(op_ts AS TIMESTAMP_LTZ(3) *ROWTIME*) AS op_ts])
+                  +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta_and_wm, metadata=[op_ts]]], fields=[a, b, c, d, op_ts])
 ]]>
     </Resource>
   </TestCase>

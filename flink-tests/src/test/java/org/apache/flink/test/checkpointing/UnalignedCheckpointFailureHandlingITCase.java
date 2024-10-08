@@ -45,6 +45,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -105,7 +106,12 @@ public class UnalignedCheckpointFailureHandlingITCase {
                 "org.apache.flink.test.checkpointing.UnalignedCheckpointFailureHandlingITCase$TestCheckpointStorageFactory");
         buildGraph(env);
 
-        JobClient jobClient = env.executeAsync();
+        // use non-snapshotting backend to test channel state persistence integration with
+        // checkpoint storage
+        MockStateBackend stateBackend = new MockStateBackend(MockSnapshotSupplier.EMPTY);
+        JobClient jobClient =
+                StateBackendUtils.configureStateBackendAndExecuteAsync(env, stateBackend);
+
         JobID jobID = jobClient.getJobID();
         MiniCluster miniCluster = miniClusterResource.getMiniCluster();
 
@@ -122,10 +128,6 @@ public class UnalignedCheckpointFailureHandlingITCase {
         env.enableCheckpointing(Long.MAX_VALUE, CheckpointingMode.EXACTLY_ONCE);
 
         CheckpointStorageUtils.configureCheckpointStorageWithFactory(env, storageFactory);
-
-        // use non-snapshotting backend to test channel state persistence integration with
-        // checkpoint storage
-        env.setStateBackend(new MockStateBackend(MockSnapshotSupplier.EMPTY));
 
         env.getCheckpointConfig().enableUnalignedCheckpoints();
 

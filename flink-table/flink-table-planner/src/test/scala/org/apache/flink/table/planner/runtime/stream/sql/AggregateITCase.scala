@@ -19,12 +19,11 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.{Types, _}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{UserDefinedObjectUDAF, UserDefinedObjectUDAF2, VarSumAggFunction}
@@ -181,10 +180,6 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
 
   @TestTemplate
   def testAggregationWithoutWatermark(): Unit = {
-    // NOTE: Different from AggregateITCase, we do not set stream time characteristic
-    // of environment to event time, so that emitWatermark() actually does nothing.
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
     val data = new mutable.MutableList[(Int, Int)]
     data.+=((1, 1))
     data.+=((2, 2))
@@ -1418,7 +1413,11 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
       (4, 3, (14, "45.2136")),
       (5, 3, (18, "42.6"))
     )
-    tEnv.createTemporaryView("src", env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c))
+    tEnv.createTemporaryView(
+      "src",
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'a, 'b, 'c))
 
     val sql = "SELECT a, b, COLLECT(c) as `set` FROM src GROUP BY a, b"
     val view1 = tEnv.sqlQuery(sql)
@@ -1710,8 +1709,8 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   @TestTemplate
   def testAggregationCodeSplit(): Unit = {
 
-    val t = env
-      .fromCollection(TestData.smallTupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.smallTupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 

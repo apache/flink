@@ -151,14 +151,6 @@ class LimitedConnectionsFileSystemDelegationTest {
             lfs.rename(path1, path2);
             verify(fs).rename(path1, path2);
         }
-
-        {
-            FileSystemKind kind =
-                    rnd.nextBoolean() ? FileSystemKind.FILE_SYSTEM : FileSystemKind.OBJECT_STORE;
-            when(fs.getKind()).thenReturn(kind);
-            assertThat(lfs.getKind()).isEqualTo(kind);
-            verify(fs).getKind();
-        }
     }
 
     @Test

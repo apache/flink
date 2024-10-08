@@ -97,15 +97,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch</artifactId>
-			<version>${project.version}</version>
-			<type>jar</type>
-			<classifier>WordCount</classifier>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-examples-streaming</artifactId>
 			<version>${project.version}</version>
 			<type>jar</type>
@@ -322,14 +313,6 @@ under the License.
 						</goals>
 						<configuration>
 							<artifactItems>
-								<artifactItem>
-									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-examples-batch</artifactId>
-									<type>jar</type>
-									<classifier>WordCount</classifier>
-									<overWrite>true</overWrite>
-									<destFileName>BatchWordCount.jar</destFileName>
-								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-examples-streaming</artifactId>

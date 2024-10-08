@@ -250,6 +250,13 @@ public abstract class AbstractKeyedStateBackend<K>
                 KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups));
     }
 
+    @Override
+    public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
+        notifyKeySelected(newKey);
+        this.keyContext.setCurrentKey(newKey);
+        this.keyContext.setCurrentKeyGroupIndex(newKeyGroupIndex);
+    }
+
     private void notifyKeySelected(K newKey) {
         // we prefer a for-loop over other iteration schemes for performance reasons here.
         for (int i = 0; i < keySelectionListeners.size(); ++i) {

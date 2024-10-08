@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}

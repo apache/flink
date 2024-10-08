@@ -22,6 +22,7 @@ import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 
 import java.io.IOException;
 
@@ -84,7 +85,7 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
     }
 
     @Override
-    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
+    public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
         final PrintSinkOutputWriter<IN> writer =
                 new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
         writer.open(

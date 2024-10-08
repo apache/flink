@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
 import org.apache.flink.core.execution.CheckpointingMode
-import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
@@ -102,11 +102,10 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
           " You can only configure 'metastore' partition commit policy for a hive table.")
   }
 
-  def getDataStream2(fun: Row => Long) = {
-    new DataStream(
-      env.getJavaEnv.addSource(
-        new FiniteTestSource(getData2, fun),
-        new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
+  def getDataStream2(fun: Row => Long): DataStream[Row] = {
+    env.addSource(
+      new FiniteTestSource(getData2, fun),
+      new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING))
   }
 
   @Test
@@ -131,10 +130,9 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   }
 
   def getDataStream(fun: Row => Long): DataStream[Row] = {
-    new DataStream(
-      env.getJavaEnv.addSource(
-        new FiniteTestSource(getData, fun),
-        new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
+    env.addSource(
+      new FiniteTestSource(getData, fun),
+      new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING))
   }
 
   def testPartitionCustomFormatDate(partition: Boolean, policy: String = "success-file"): Unit = {

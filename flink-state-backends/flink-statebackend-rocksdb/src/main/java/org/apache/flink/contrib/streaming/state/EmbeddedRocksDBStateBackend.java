@@ -570,54 +570,31 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             optionsFactory = originalOptionsFactory;
         } else if (factoryClassName != null) {
             // Do nothing if user does not define any factory class.
-            if (factoryClassName.equalsIgnoreCase(
-                    DefaultConfigurableOptionsFactory.class.getName())) {
-                // From FLINK-24046, we deprecate the DefaultConfigurableOptionsFactory.
-                LOG.warn(
-                        "{} is deprecated. Please remove this value from the configuration."
-                                + "It is safe to do so since the configurable options will be loaded "
-                                + "in other place. For more information, please refer to FLINK-24046.",
-                        DefaultConfigurableOptionsFactory.class.getName());
-            } else {
-                try {
-                    Class<? extends RocksDBOptionsFactory> clazz =
-                            Class.forName(factoryClassName, false, classLoader)
-                                    .asSubclass(RocksDBOptionsFactory.class);
+            try {
+                Class<? extends RocksDBOptionsFactory> clazz =
+                        Class.forName(factoryClassName, false, classLoader)
+                                .asSubclass(RocksDBOptionsFactory.class);
 
-                    optionsFactory = clazz.newInstance();
-                    if (optionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
-                        optionsFactory =
-                                ((ConfigurableRocksDBOptionsFactory) optionsFactory)
-                                        .configure(config);
-                    }
-                    LOG.info("Using configured options factory: {}.", optionsFactory);
-
-                } catch (ClassNotFoundException e) {
-                    throw new DynamicCodeLoadingException(
-                            "Cannot find configured options factory class: " + factoryClassName, e);
-                } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
-                    throw new DynamicCodeLoadingException(
-                            "The class configured under '"
-                                    + RocksDBOptions.OPTIONS_FACTORY.key()
-                                    + "' is not a valid options factory ("
-                                    + factoryClassName
-                                    + ')',
-                            e);
+                optionsFactory = clazz.newInstance();
+                if (optionsFactory instanceof ConfigurableRocksDBOptionsFactory) {
+                    optionsFactory =
+                            ((ConfigurableRocksDBOptionsFactory) optionsFactory).configure(config);
                 }
+                LOG.info("Using configured options factory: {}.", optionsFactory);
+
+            } catch (ClassNotFoundException e) {
+                throw new DynamicCodeLoadingException(
+                        "Cannot find configured options factory class: " + factoryClassName, e);
+            } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+                throw new DynamicCodeLoadingException(
+                        "The class configured under '"
+                                + RocksDBOptions.OPTIONS_FACTORY.key()
+                                + "' is not a valid options factory ("
+                                + factoryClassName
+                                + ')',
+                        e);
             }
         }
-
-        if (optionsFactory instanceof DefaultConfigurableOptionsFactory) {
-            LOG.warn(
-                    "{} is extending from {}, which is deprecated and will be removed in the "
-                            + "future. It is highly recommended to directly implement the "
-                            + "ConfigurableRocksDBOptionsFactory without extending the {}. "
-                            + "For more information, please refer to FLINK-24046.",
-                    optionsFactory,
-                    DefaultConfigurableOptionsFactory.class.getName(),
-                    DefaultConfigurableOptionsFactory.class.getName());
-        }
-
         return optionsFactory;
     }
 

@@ -45,6 +45,14 @@ public interface StateExecutor {
      */
     StateRequestContainer createStateRequestContainer();
 
+    /**
+     * Check if this executor is fully loaded. Will be invoked to determine whether to give more
+     * requests to run or wait for a while.
+     *
+     * @return the count.
+     */
+    boolean fullyLoaded();
+
     /** Shutdown the StateExecutor, and new committed state execution requests will be rejected. */
     void shutdown();
 }

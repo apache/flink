@@ -29,11 +29,13 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalListState;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.v2.AbstractListState;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -41,16 +43,16 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalListState} implement for ForStDB.
+ * The {@link AbstractListState} implement for ForStDB.
  *
- * <p>{@link ForStStateBackend} must ensure that we set the {@link org.rocksdb.StringAppendOperator}
+ * <p>{@link ForStStateBackend} must ensure that we set the {@link org.forstdb.StringAppendOperator}
  * on the column family that we use for our state since we use the {@code merge()} call.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class ForStListState<K, N, V> extends InternalListState<K, N, V>
+public class ForStListState<K, N, V> extends AbstractListState<K, N, V>
         implements ListState<V>, ForStInnerTable<K, N, List<V>> {
 
     /** The column family which this internal value state belongs to. */
@@ -70,6 +72,9 @@ public class ForStListState<K, N, V> extends InternalListState<K, N, V>
     /** The data inputStream used for value deserializer, which should be thread-safe. */
     private final ThreadLocal<DataInputDeserializer> valueDeserializerView;
 
+    /** Whether to enable the reuse of serialized key(and namespace). */
+    private final boolean enableKeyReuse;
+
     public ForStListState(
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
@@ -86,6 +91,11 @@ public class ForStListState<K, N, V> extends InternalListState<K, N, V>
         this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
+        // We only enable key reuse for the most common namespace across all states.
+        this.enableKeyReuse =
+                (defaultNamespace instanceof VoidNamespace)
+                        && (namespaceSerializerInitializer.get()
+                                instanceof VoidNamespaceSerializer);
     }
 
     @Override
@@ -95,15 +105,12 @@ public class ForStListState<K, N, V> extends InternalListState<K, N, V>
 
     @Override
     public byte[] serializeKey(ContextKey<K, N> contextKey) throws IOException {
-        return contextKey.getOrCreateSerializedKey(
-                ctxKey -> {
-                    SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
-                    builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    N namespace = contextKey.getNamespace();
-                    return builder.buildCompositeKeyNamespace(
-                            namespace == null ? defaultNamespace : namespace,
-                            namespaceSerializer.get());
-                });
+        return ForStSerializerUtils.serializeKeyAndNamespace(
+                contextKey,
+                serializedKeyBuilder.get(),
+                defaultNamespace,
+                namespaceSerializer.get(),
+                enableKeyReuse);
     }
 
     @Override

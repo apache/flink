@@ -37,7 +37,7 @@ import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
@@ -93,8 +93,16 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
+        Environment env = getTestingEnvironment();
         operator =
                 new TestingSourceOperator<>(
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(env),
+                                new MockStreamConfig(new Configuration(), 1),
+                                output,
+                                () -> timeService,
+                                null,
+                                null),
                         mockSourceReader,
                         watermarkStrategy,
                         timeService,
@@ -102,12 +110,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         SUBTASK_INDEX,
                         5,
                         true);
-        Environment env = getTestingEnvironment();
-        operator.setup(
-                new SourceOperatorStreamTask<Integer>(env),
-                new MockStreamConfig(new Configuration(), 1),
-                output);
-        operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
+        operator.initializeState(
+                new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
     }
 
     @Override
@@ -162,7 +166,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
 
     private OperatorStateStore createOperatorStateStore() throws Exception {
         MockEnvironment env = new MockEnvironmentBuilder().build();
-        final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         return abstractStateBackend.createOperatorStateBackend(
                 new OperatorStateBackendParametersImpl(

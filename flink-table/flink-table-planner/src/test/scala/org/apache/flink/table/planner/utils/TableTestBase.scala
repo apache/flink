@@ -21,29 +21,33 @@ import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
+import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, UpsertStreamTableSink}
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
-import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
-import org.apache.flink.table.catalog.{CatalogManager, CatalogStoreHolder, FunctionCatalog, GenericInMemoryCatalog, GenericInMemoryCatalogStore, ObjectIdentifier}
+import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
 import org.apache.flink.table.functions._
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
+import org.apache.flink.table.legacy.sinks.TableSink
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
@@ -63,8 +67,6 @@ import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
@@ -79,9 +81,7 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.rel2sql.RelToSqlConverter
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.apache.calcite.sql.dialect.AnsiSqlDialect
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, fail}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
@@ -204,8 +204,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    *   returns the registered [[Table]].
    */
   def addDataStream[T: TypeInformation](name: String, fields: Expression*): Table = {
-    val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
-    val dataStream = env.fromElements[T]().javaStream
+    val env = new LocalStreamEnvironment()
+    val typeInfo = implicitly[TypeInformation[T]]
+    val dataStream = env.fromCollection[T](Collections.emptyList[T](), typeInfo)
     val tableEnv = getTableEnv
     TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
     tableEnv.from(name)
@@ -1263,8 +1264,8 @@ abstract class TableTestUtil(
 
 abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
-  // scala env
-  val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
+  // env
+  val env = new LocalStreamEnvironment()
   // scala tableEnv
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 
@@ -1320,6 +1321,7 @@ case class StreamTableTestUtil(
       sourceRel.getCluster,
       sourceRel.getTraitSet,
       sourceRel,
+      Collections.emptyList(),
       rowtimeFieldIdx,
       expr
     )
@@ -1452,7 +1454,7 @@ case class ScalaBatchTableTestUtil(test: TableTestBase) extends ScalaTableTestUt
 /** Utility for batch java table test. */
 case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, false) {}
 
-/** Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing. */
+/** Batch/Stream [[TableSource]] for testing. */
 class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   extends StreamTableSource[Row] {
 
@@ -1716,17 +1718,6 @@ object TableTestUtil {
       .map(
         (f: Array[Expression]) => {
           val fieldsInfo = FieldInfoUtils.getFieldsInfo(streamType, f)
-          // check if event-time is enabled
-          if (
-            fieldsInfo.isRowtimeDefined &&
-            (execEnv.getStreamTimeCharacteristic ne TimeCharacteristic.EventTime)
-          ) {
-            throw new ValidationException(
-              String.format(
-                "A rowtime attribute requires an EventTime time characteristic in stream " +
-                  "environment. But is: %s",
-                execEnv.getStreamTimeCharacteristic))
-          }
           fieldsInfo
         })
       .getOrElse(FieldInfoUtils.getFieldsInfo(streamType))

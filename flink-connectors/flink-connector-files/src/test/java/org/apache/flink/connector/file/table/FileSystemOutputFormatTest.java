@@ -19,9 +19,9 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.api.common.io.FinalizeOnMaster.FinalizationContext;
-import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;

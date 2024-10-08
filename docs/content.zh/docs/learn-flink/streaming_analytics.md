@@ -169,16 +169,16 @@ Flink 有一些内置的窗口分配器，如下所示：
 
 * 滚动时间窗口
   * _每分钟页面浏览量_
-  * `TumblingEventTimeWindows.of(Time.minutes(1))`
+  * `TumblingEventTimeWindows.of(Duration.ofMinutes(1))`
 * 滑动时间窗口
   * _每10秒钟计算前1分钟的页面浏览量_
-  * `SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10))`
+  * `SlidingEventTimeWindows.of(Duration.ofMinutes(1), Duration.ofSeconds(10))`
 * 会话窗口
   * _每个会话的网页浏览量，其中会话之间的间隔至少为30分钟_
-  * `EventTimeSessionWindows.withGap(Time.minutes(30))`
+  * `EventTimeSessionWindows.withGap(Duration.ofMinutes(30))`
 
-以下都是一些可以使用的间隔时间 `Time.milliseconds(n)`, `Time.seconds(n)`, `Time.minutes(n)`,
- `Time.hours(n)`, 和 `Time.days(n)`。
+以下都是一些可以使用的间隔时间 `Duration.ofMillis(n)`, `Duration.ofSeconds(n)`, `Duration.ofMinutes(n)`,
+ `Duration.ofHours(n)`, 和 `Duration.ofDays(n)`。
 
 基于时间的窗口分配器（包括会话时间）既可以处理 `事件时间`，也可以处理 `处理时间`。这两种基于时间的处理没有哪一个更好，我们必须折衷。使用 `处理时间`，我们必须接受以下限制：
 
@@ -214,7 +214,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .process(new MyWastefulMax());
 
 public static class MyWastefulMax extends ProcessWindowFunction<
@@ -270,7 +270,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .reduce(new MyReducingMax(), new MyWindowFunction());
 
 private static class MyReducingMax implements ReduceFunction<SensorReading> {
@@ -327,7 +327,7 @@ DataStream<Event> lateStream = result.getSideOutput(lateTag);
 stream
     .keyBy(...)
     .window(...)
-    .allowedLateness(Time.seconds(10))
+    .allowedLateness(Duration.ofSeconds(10))
     .process(...);
 ```
 

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api._

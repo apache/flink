@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 
@@ -52,6 +53,16 @@ public class CheckpointStorageUtils {
         env.configure(
                 new Configuration()
                         .set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory));
+    }
+
+    public static void configureFileSystemCheckpointStorage(
+            StreamExecutionEnvironment env, String checkpointDirectory, long stateThreshold) {
+        Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        configureFileSystemCheckpointStorage(env, checkpointDirectory);
+
+        MemorySize memorySize = MemorySize.parse(stateThreshold + "b");
+        env.configure(
+                new Configuration().set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, memorySize));
     }
 
     /**

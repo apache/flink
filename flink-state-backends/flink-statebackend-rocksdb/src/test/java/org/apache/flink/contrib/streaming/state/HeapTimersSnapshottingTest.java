@@ -20,11 +20,12 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -51,10 +52,11 @@ public class HeapTimersSnapshottingTest {
     public void testNotSerializingTimersInRawStateForSavepoints() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
                 getTestHarness()) {
-            RocksDBStateBackend backend =
-                    new RocksDBStateBackend(temporaryFolder.newFolder().toURI());
+            EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
             backend.setPriorityQueueStateType(PriorityQueueStateType.HEAP);
             testHarness.setStateBackend(backend);
+            testHarness.setCheckpointStorage(
+                    new FileSystemCheckpointStorage(temporaryFolder.newFolder().toURI()));
             testHarness.open();
             testHarness.processElement(0, 0L);
 
@@ -71,10 +73,11 @@ public class HeapTimersSnapshottingTest {
     public void testSerializingTimersInRawStateForCheckpoints() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
                 getTestHarness()) {
-            RocksDBStateBackend backend =
-                    new RocksDBStateBackend(temporaryFolder.newFolder().toURI());
+            EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
             backend.setPriorityQueueStateType(PriorityQueueStateType.HEAP);
             testHarness.setStateBackend(backend);
+            testHarness.setCheckpointStorage(
+                    new FileSystemCheckpointStorage(temporaryFolder.newFolder().toURI()));
             testHarness.open();
             testHarness.processElement(0, 0L);
 

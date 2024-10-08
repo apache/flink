@@ -197,8 +197,8 @@ README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
 PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh"
 PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat"
 
-in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
-                                 "ExecutionEnvironment.java")
+in_flink_source = os.path.isfile("../flink-runtime/src/main/java/org/apache/flink/streaming"
+                                 "/api/environment/StreamExecutionEnvironment.java")
 try:
     if in_flink_source:
 

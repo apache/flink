@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
@@ -35,7 +38,12 @@ import java.io.Closeable;
  * in batch.
  */
 @Internal
-public interface AsyncKeyedStateBackend extends Disposable, Closeable {
+public interface AsyncKeyedStateBackend<K>
+        extends Snapshotable<SnapshotResult<KeyedStateHandle>>,
+                InternalCheckpointListener,
+                Disposable,
+                Closeable,
+                AsyncExecutionController.SwitchContextListener<K> {
 
     /**
      * Initializes with some contexts.
@@ -74,6 +82,10 @@ public interface AsyncKeyedStateBackend extends Disposable, Closeable {
      */
     @Nonnull
     StateExecutor createStateExecutor();
+
+    /** By default, a state backend does nothing when a key is switched in async processing. */
+    @Override
+    default void switchContext(RecordContext<K> context) {}
 
     @Override
     void dispose();

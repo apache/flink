@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapreduce;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.test.hadoopcompatibility.mapreduce.example.WordCount;
@@ -56,7 +57,7 @@ class HadoopInputOutputITCase extends JavaProgramTestBase {
     }
 
     @Override
-    protected void testProgram() throws Exception {
-        WordCount.main(new String[] {textPath, resultPath});
+    protected JobExecutionResult testProgram() throws Exception {
+        return WordCount.run(new String[] {textPath, resultPath});
     }
 }

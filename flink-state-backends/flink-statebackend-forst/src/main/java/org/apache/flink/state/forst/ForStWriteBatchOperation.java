@@ -18,8 +18,8 @@
 
 package org.apache.flink.state.forst;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.WriteOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.WriteOptions;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,15 +37,27 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
 
     private final Executor executor;
 
+    private final Runnable subProcessFinished;
+
     ForStWriteBatchOperation(
             RocksDB db,
             List<ForStDBPutRequest<?, ?, ?>> batchRequest,
             WriteOptions writeOptions,
             Executor executor) {
+        this(db, batchRequest, writeOptions, executor, null);
+    }
+
+    ForStWriteBatchOperation(
+            RocksDB db,
+            List<ForStDBPutRequest<?, ?, ?>> batchRequest,
+            WriteOptions writeOptions,
+            Executor executor,
+            Runnable subProcessFinished) {
         this.db = db;
         this.batchRequest = batchRequest;
         this.writeOptions = writeOptions;
         this.executor = executor;
+        this.subProcessFinished = subProcessFinished;
     }
 
     @Override
@@ -69,8 +81,17 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
                         }
                         // fail the whole batch operation
                         throw new CompletionException(msg, e);
+                    } finally {
+                        if (subProcessFinished != null) {
+                            subProcessFinished.run();
+                        }
                     }
                 },
                 executor);
+    }
+
+    @Override
+    public int subProcessCount() {
+        return batchRequest.size();
     }
 }

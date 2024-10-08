@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Configuration for {@link BufferDebloater}. */
 public final class BufferDebloatConfiguration {
-    private final Duration targetTotalBufferSize;
+    private final Duration targetTotalTime;
     private final int maxBufferSize;
     private final int minBufferSize;
     private final int bufferDebloatThresholdPercentages;
@@ -40,12 +40,12 @@ public final class BufferDebloatConfiguration {
 
     private BufferDebloatConfiguration(
             boolean enabled,
-            Duration targetTotalBufferSize,
+            Duration targetTotalTime,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             int numberOfSamples) {
-        this.targetTotalBufferSize = checkNotNull(targetTotalBufferSize);
+        this.targetTotalTime = checkNotNull(targetTotalTime);
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
         this.bufferDebloatThresholdPercentages = bufferDebloatThresholdPercentages;
@@ -57,8 +57,8 @@ public final class BufferDebloatConfiguration {
         return enabled;
     }
 
-    public Duration getTargetTotalBufferSize() {
-        return targetTotalBufferSize;
+    public Duration getTargetTotalTime() {
+        return targetTotalTime;
     }
 
     public int getMaxBufferSize() {
@@ -78,7 +78,7 @@ public final class BufferDebloatConfiguration {
     }
 
     public static BufferDebloatConfiguration fromConfiguration(ReadableConfig config) {
-        Duration targetTotalBufferSize = config.get(BUFFER_DEBLOAT_TARGET);
+        Duration targetTotalTime = config.get(BUFFER_DEBLOAT_TARGET);
         int maxBufferSize =
                 Math.toIntExact(config.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes());
         int minBufferSize =
@@ -93,10 +93,10 @@ public final class BufferDebloatConfiguration {
         checkArgument(minBufferSize > 0);
         checkArgument(numberOfSamples > 0);
         checkArgument(maxBufferSize >= minBufferSize);
-        checkArgument(targetTotalBufferSize.toMillis() > 0.0);
+        checkArgument(targetTotalTime.toMillis() > 0.0);
         return new BufferDebloatConfiguration(
                 config.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED),
-                targetTotalBufferSize,
+                targetTotalTime,
                 maxBufferSize,
                 minBufferSize,
                 bufferDebloatThresholdPercentages,

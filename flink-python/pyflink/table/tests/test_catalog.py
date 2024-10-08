@@ -56,12 +56,10 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertEqual(cd1.get_properties(), cd2.get_properties())
 
     def check_catalog_table_equals(self, t1, t2):
-        self.assertEqual(t1.get_schema(), t2.get_schema())
         self.assertEqual(t1.get_options(), t2.get_options())
         self.assertEqual(t1.get_comment(), t2.get_comment())
 
     def check_catalog_view_equals(self, v1, v2):
-        self.assertEqual(v1.get_schema(), v1.get_schema())
         self.assertEqual(v1.get_options(), v2.get_options())
         self.assertEqual(v1.get_comment(), v2.get_comment())
 

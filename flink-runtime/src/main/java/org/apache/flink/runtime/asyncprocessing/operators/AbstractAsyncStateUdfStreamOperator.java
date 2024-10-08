@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -80,7 +80,7 @@ public abstract class AbstractAsyncStateUdfStreamOperator<OUT, F extends Functio
     // ------------------------------------------------------------------------
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {

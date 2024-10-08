@@ -26,7 +26,6 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
@@ -38,7 +37,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
-import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_LEGACY_HEAP_OPTIONS;
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_PROCESS_MEMORY_OPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -70,10 +68,7 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
                             new ExternalResource(EXTERNAL_RESOURCE_NAME_2, 2)));
 
     public TaskExecutorProcessUtilsTest() {
-        super(
-                TM_PROCESS_MEMORY_OPTIONS,
-                TM_LEGACY_HEAP_OPTIONS,
-                TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+        super(TM_PROCESS_MEMORY_OPTIONS, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
     }
 
     @Test
@@ -314,23 +309,6 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
                 .isThrownBy(() -> TaskExecutorProcessUtils.processSpecFromConfig(configuration));
     }
 
-    @Test
-    public void testConsistencyCheckOfDerivedNetworkMemoryDoesNotMatchLegacyConfigFails() {
-        final int numberOfNetworkBuffers = 10;
-        final int pageSizeMb = 16;
-        // derive network memory which is bigger than the number of legacy network buffers
-        final int networkMemorySizeMbToDerive = pageSizeMb * (numberOfNetworkBuffers + 1);
-        final Configuration configuration =
-                setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(networkMemorySizeMbToDerive);
-        configuration.set(
-                TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.ofMebiBytes(pageSizeMb));
-        configuration.set(
-                NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, numberOfNetworkBuffers);
-        // internal validation should fail
-        assertThatExceptionOfType(IllegalConfigurationException.class)
-                .isThrownBy(() -> TaskExecutorProcessUtils.processSpecFromConfig(configuration));
-    }
-
     private static Configuration setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(
             final int networkMemorySizeToDeriveMb) {
         final Configuration conf = new Configuration();
@@ -415,36 +393,6 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
 
         conf.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 1.0f);
         validateFailInAllConfigurations(conf);
-    }
-
-    @Test
-    void testConfigNetworkMemoryLegacyNumOfBuffers() {
-        final MemorySize pageSize = MemorySize.parse("32k");
-        final int numOfBuffers = 1024;
-        final MemorySize networkSize = pageSize.multiply(numOfBuffers);
-
-        @SuppressWarnings("deprecation")
-        final ConfigOption<Integer> legacyOption =
-                NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS;
-
-        Configuration conf = new Configuration();
-        conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, pageSize);
-        conf.set(legacyOption, numOfBuffers);
-
-        // validate in configurations without explicit total flink/process memory, otherwise
-        // explicit configured
-        // network memory size might conflict with total flink/process memory minus other memory
-        // sizes
-        validateInConfigWithExplicitTaskHeapAndManagedMem(
-                conf,
-                taskExecutorProcessSpec ->
-                        assertThat(taskExecutorProcessSpec.getNetworkMemSize())
-                                .isEqualTo(networkSize));
-        validateInConfigurationsWithoutExplicitTaskHeapMem(
-                conf,
-                taskExecutorProcessSpec ->
-                        assertThat(taskExecutorProcessSpec.getNetworkMemSize())
-                                .isEqualTo(networkSize));
     }
 
     @Test
@@ -809,12 +757,5 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     @Override
     protected TaskExecutorProcessSpec processSpecFromConfig(Configuration config) {
         return TaskExecutorProcessUtils.processSpecFromConfig(config);
-    }
-
-    @Override
-    protected Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-            Configuration config) {
-        return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-                config, getNewOptionForLegacyHeapOption());
     }
 }

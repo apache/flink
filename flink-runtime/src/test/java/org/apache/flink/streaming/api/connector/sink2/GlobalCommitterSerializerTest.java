@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
+import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
 import org.apache.flink.streaming.runtime.operators.sink.committables.SinkV1CommittableDeserializer;
@@ -49,11 +50,7 @@ class GlobalCommitterSerializerTest {
                     new IntegerSerializer(), SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
     private static final GlobalCommitterSerializer<Integer, String> SERIALIZER =
             new GlobalCommitterSerializer<>(
-                    COMMITTABLE_COLLECTOR_SERIALIZER,
-                    new StringSerializer(),
-                    SUBTASK_ID,
-                    NUMBER_OF_SUBTASKS,
-                    METRIC_GROUP);
+                    COMMITTABLE_COLLECTOR_SERIALIZER, new StringSerializer(), METRIC_GROUP);
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
@@ -62,11 +59,8 @@ class GlobalCommitterSerializerTest {
                 new GlobalCommitterSerializer<>(
                         COMMITTABLE_COLLECTOR_SERIALIZER,
                         withSinkV1State ? new StringSerializer() : null,
-                        SUBTASK_ID,
-                        NUMBER_OF_SUBTASKS,
                         METRIC_GROUP);
-        final CommittableCollector<Integer> collector =
-                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
+        final CommittableCollector<Integer> collector = new CommittableCollector<>(METRIC_GROUP);
         collector.addMessage(new CommittableSummary<>(2, 3, 1L, 1, 1, 0));
         collector.addMessage(new CommittableWithLineage<>(1, 1L, 2));
         final List<String> v1State =
@@ -76,10 +70,11 @@ class GlobalCommitterSerializerTest {
         final GlobalCommittableWrapper<Integer, String> copy =
                 serializer.deserialize(2, serializer.serialize(wrapper));
         assertThat(copy.getGlobalCommittables()).containsExactlyInAnyOrderElementsOf(v1State);
-        assertThat(collector.getNumberOfSubtasks()).isEqualTo(1);
-        assertThat(collector.isFinished()).isFalse();
-        assertThat(collector.getSubtaskId()).isEqualTo(0);
-        assertThat(collector.getCheckpointCommittablesUpTo(2)).hasSize(1);
+        assertThat(collector).returns(false, CommittableCollector::isFinished);
+        assertThat(collector.getCheckpointCommittablesUpTo(2))
+                .singleElement()
+                .returns(1L, CheckpointCommittableManager::getCheckpointId)
+                .returns(3, CheckpointCommittableManager::getNumberOfSubtasks);
     }
 
     @Test
@@ -101,8 +96,6 @@ class GlobalCommitterSerializerTest {
 
         assertThat(wrapper.getGlobalCommittables()).containsExactlyInAnyOrder(state1, state2);
         final CommittableCollector<Integer> collector = wrapper.getCommittableCollector();
-        assertThat(collector.getNumberOfSubtasks()).isEqualTo(1);
-        assertThat(collector.getSubtaskId()).isEqualTo(0);
         assertThat(collector.getCheckpointCommittablesUpTo(Long.MAX_VALUE)).isEmpty();
     }
 

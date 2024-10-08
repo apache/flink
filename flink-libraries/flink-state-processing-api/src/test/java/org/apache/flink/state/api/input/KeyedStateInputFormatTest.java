@@ -30,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
@@ -72,7 +72,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<?, ?, ?> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
                         new ExecutionConfig());
@@ -93,7 +93,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<?, ?, ?> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
                         new ExecutionConfig());
@@ -116,7 +116,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<?, ?, ?> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
                         new ExecutionConfig());
@@ -141,7 +141,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<?, ?, ?> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
                         new ExecutionConfig());
@@ -167,7 +167,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<?, ?, ?> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
                         new ExecutionConfig());
@@ -193,7 +193,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<?, ?, ?> format =
                 new KeyedStateInputFormat<>(
                         operatorState,
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new TimerReaderFunction(), Types.INT),
                         new ExecutionConfig());
@@ -214,7 +214,7 @@ public class KeyedStateInputFormatTest {
         KeyedStateInputFormat<Integer, VoidNamespace, Integer> format =
                 new KeyedStateInputFormat<>(
                         new OperatorState(null, null, OperatorIDGenerator.fromUid("uid"), 1, 4),
-                        new MemoryStateBackend(),
+                        new HashMapStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(userFunction, Types.INT),
                         new ExecutionConfig());
@@ -263,12 +263,6 @@ public class KeyedStateInputFormatTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
-        }
-
-        @Override
         public void readKey(
                 Integer key, KeyedStateReaderFunction.Context ctx, Collector<Integer> out)
                 throws Exception {
@@ -285,12 +279,6 @@ public class KeyedStateInputFormatTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
-        }
-
-        @Override
         public void readKey(
                 Integer key, KeyedStateReaderFunction.Context ctx, Collector<Integer> out)
                 throws Exception {
@@ -304,12 +292,6 @@ public class KeyedStateInputFormatTest {
         @Override
         public void open(OpenContext openContext) {
             getRuntimeContext().getState(stateDescriptor);
-        }
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
         }
 
         @Override
@@ -358,12 +340,6 @@ public class KeyedStateInputFormatTest {
         @Override
         public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
-        }
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
         }
 
         @Override

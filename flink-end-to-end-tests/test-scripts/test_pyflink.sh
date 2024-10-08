@@ -170,9 +170,9 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
 echo "Test using python udf in sql client:\n"
-INIT_SQL=$TEST_DATA_DIR/sql-client-init.sql
+SUBMITTED_SQL=$TEST_DATA_DIR/submit-sql-client.sql
 
-cat >> $INIT_SQL << EOF
+cat >> $SUBMITTED_SQL << EOF
 CREATE TABLE sink (
   a BIGINT
 ) WITH (
@@ -184,17 +184,16 @@ CREATE TABLE sink (
 CREATE FUNCTION add_one AS 'add_one.add_one' LANGUAGE PYTHON;
 
 SET 'python.client.executable'='$PYTHON_EXEC';
+
+INSERT INTO sink SELECT add_one(a) FROM (VALUES (1), (2), (3)) as source (a);
 EOF
 
-SQL_STATEMENT="insert into sink select add_one(a) from (VALUES (1), (2), (3)) as source (a)"
-
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
-  --init $INIT_SQL \
   -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
   -pyreq "${REQUIREMENTS_PATH}" \
   -pyarch "${TEST_DATA_DIR}/venv.zip" \
   -pyexec "venv.zip/.conda/bin/python" \
-  --update "$SQL_STATEMENT" | grep "Job ID:" | sed 's/.* //g')
+  -f "$SUBMITTED_SQL" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
 

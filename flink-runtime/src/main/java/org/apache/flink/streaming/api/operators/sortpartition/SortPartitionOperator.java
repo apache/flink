@@ -124,7 +124,7 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<INPUT>> output) {
@@ -137,7 +137,7 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
                             inputType);
             recordSorterForKeySelector =
                     getSorter(
-                            sortTypeInfo.createSerializer(executionConfig),
+                            sortTypeInfo.createSerializer(executionConfig.getSerializerConfig()),
                             ((CompositeType<Tuple2<?, INPUT>>) sortTypeInfo)
                                     .createComparator(
                                             getSortFieldIndex(),
@@ -148,7 +148,7 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
         } else {
             recordSorter =
                     getSorter(
-                            inputType.createSerializer(executionConfig),
+                            inputType.createSerializer(executionConfig.getSerializerConfig()),
                             ((CompositeType<INPUT>) inputType)
                                     .createComparator(
                                             getSortFieldIndex(),

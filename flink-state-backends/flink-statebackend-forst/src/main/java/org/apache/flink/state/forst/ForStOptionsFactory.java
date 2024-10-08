@@ -20,10 +20,10 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.Experimental;
 
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.WriteOptions;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.ReadOptions;
+import org.forstdb.WriteOptions;
 
 import java.util.Collection;
 
@@ -45,7 +45,7 @@ public interface ForStOptionsFactory extends java.io.Serializable {
      *
      * @param currentOptions The options object with the pre-defined options.
      * @param handlesToClose The collection to register newly created {@link
-     *     org.rocksdb.RocksObject}s.
+     *     org.forstdb.RocksObject}s.
      * @return The options object on which the additional options are set.
      */
     DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose);
@@ -60,7 +60,7 @@ public interface ForStOptionsFactory extends java.io.Serializable {
      *
      * @param currentOptions The options object with the pre-defined options.
      * @param handlesToClose The collection to register newly created {@link
-     *     org.rocksdb.RocksObject}s.
+     *     org.forstdb.RocksObject}s.
      * @return The options object on which the additional options are set.
      */
     ColumnFamilyOptions createColumnOptions(
@@ -90,7 +90,7 @@ public interface ForStOptionsFactory extends java.io.Serializable {
      *
      * @param currentOptions The options object with the pre-defined options.
      * @param handlesToClose The collection to register newly created {@link
-     *     org.rocksdb.RocksObject}s.
+     *     org.forstdb.RocksObject}s.
      * @return The options object on which the additional options are set.
      */
     default WriteOptions createWriteOptions(
@@ -108,7 +108,7 @@ public interface ForStOptionsFactory extends java.io.Serializable {
      *
      * @param currentOptions The options object with the pre-defined options.
      * @param handlesToClose The collection to register newly created {@link
-     *     org.rocksdb.RocksObject}s.
+     *     org.forstdb.RocksObject}s.
      * @return The options object on which the additional options are set.
      */
     default ReadOptions createReadOptions(

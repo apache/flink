@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCo
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
+import org.apache.flink.table.planner.plan.utils.RankUtil
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -186,70 +187,78 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(rel: Rank, mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
-    val inputMonotonicity = fmq.getRelModifiedMonotonicity(rel.getInput)
+    rel match {
+      case physicalRank: StreamPhysicalRank if RankUtil.isDeduplication(rel) =>
+        getPhysicalRankModifiedMonotonicity(physicalRank, mq)
 
-    // If child monotonicity is null, we should return early.
-    if (inputMonotonicity == null) {
-      return null
-    }
+      case _ =>
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+        val inputMonotonicity = fmq.getRelModifiedMonotonicity(rel.getInput)
 
-    // if partitionBy a update field or partitionBy a field whose mono is null, just return null
-    if (rel.partitionKey.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
-      return null
-    }
-
-    val fieldCount = rel.getRowType.getFieldCount
-
-    // init current mono
-    val currentMonotonicity = notMonotonic(fieldCount)
-    // 1. partitionBy field is CONSTANT
-    rel.partitionKey.foreach(e => currentMonotonicity.fieldMonotonicities(e) = CONSTANT)
-    // 2. row number filed is CONSTANT
-    if (rel.outputRankNumber) {
-      currentMonotonicity.fieldMonotonicities(fieldCount - 1) = CONSTANT
-    }
-    // 3. time attribute field is increasing
-    (0 until fieldCount).foreach(
-      e => {
-        if (FlinkTypeFactory.isTimeIndicatorType(rel.getRowType.getFieldList.get(e).getType)) {
-          inputMonotonicity.fieldMonotonicities(e) = INCREASING
+        // If child monotonicity is null, we should return early.
+        if (inputMonotonicity == null) {
+          return null
         }
-      })
-    val fieldCollations = rel.orderKey.getFieldCollations
-    if (fieldCollations.nonEmpty) {
-      // 4. process the first collation field, we can only deduce the first collation field
-      val firstCollation = fieldCollations.get(0)
-      // Collation field index in child node will be same with Rank node,
-      // see ProjectToLogicalProjectAndWindowRule for details.
-      val fieldMonotonicity = inputMonotonicity.fieldMonotonicities(firstCollation.getFieldIndex)
-      val result = fieldMonotonicity match {
-        case SqlMonotonicity.INCREASING | SqlMonotonicity.CONSTANT
-            if firstCollation.direction == RelFieldCollation.Direction.DESCENDING =>
-          INCREASING
-        case SqlMonotonicity.DECREASING | SqlMonotonicity.CONSTANT
-            if firstCollation.direction == RelFieldCollation.Direction.ASCENDING =>
-          DECREASING
-        case _ => NOT_MONOTONIC
-      }
-      currentMonotonicity.fieldMonotonicities(firstCollation.getFieldIndex) = result
-    }
 
-    currentMonotonicity
+        // if partitionBy a update field or partitionBy a field whose mono is null, just return null
+        if (rel.partitionKey.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+          return null
+        }
+
+        val fieldCount = rel.getRowType.getFieldCount
+
+        // init current mono
+        val currentMonotonicity = notMonotonic(fieldCount)
+        // 1. partitionBy field is CONSTANT
+        rel.partitionKey.foreach(e => currentMonotonicity.fieldMonotonicities(e) = CONSTANT)
+        // 2. row number filed is CONSTANT
+        if (rel.outputRankNumber) {
+          currentMonotonicity.fieldMonotonicities(fieldCount - 1) = CONSTANT
+        }
+        // 3. time attribute field is increasing
+        (0 until fieldCount).foreach(
+          e => {
+            if (FlinkTypeFactory.isTimeIndicatorType(rel.getRowType.getFieldList.get(e).getType)) {
+              inputMonotonicity.fieldMonotonicities(e) = INCREASING
+            }
+          })
+        val fieldCollations = rel.orderKey.getFieldCollations
+        if (fieldCollations.nonEmpty) {
+          // 4. process the first collation field, we can only deduce the first collation field
+          val firstCollation = fieldCollations.get(0)
+          // Collation field index in child node will be same with Rank node,
+          // see ProjectToLogicalProjectAndWindowRule for details.
+          val fieldMonotonicity =
+            inputMonotonicity.fieldMonotonicities(firstCollation.getFieldIndex)
+          val result = fieldMonotonicity match {
+            case SqlMonotonicity.INCREASING | SqlMonotonicity.CONSTANT
+                if firstCollation.direction == RelFieldCollation.Direction.DESCENDING =>
+              INCREASING
+            case SqlMonotonicity.DECREASING | SqlMonotonicity.CONSTANT
+                if firstCollation.direction == RelFieldCollation.Direction.ASCENDING =>
+              DECREASING
+            case _ => NOT_MONOTONIC
+          }
+          currentMonotonicity.fieldMonotonicities(firstCollation.getFieldIndex) = result
+        }
+
+        currentMonotonicity
+    }
   }
 
-  def getRelModifiedMonotonicity(
-      rel: StreamPhysicalDeduplicate,
+  private def getPhysicalRankModifiedMonotonicity(
+      rank: StreamPhysicalRank,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
-    if (allAppend(mq, rel.getInput)) {
-      if (rel.keepLastRow || rel.isRowtime) {
+    // Can't use RankUtil.canConvertToDeduplicate directly because modifyKindSetTrait is undefined.
+    if (allAppend(mq, rank.getInput)) {
+      if (RankUtil.keepLastDeduplicateRow(rank.orderKey) || rank.sortOnRowTime) {
         val mono = new RelModifiedMonotonicity(
-          Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
-        rel.getUniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
+          Array.fill(rank.getRowType.getFieldCount)(NOT_MONOTONIC))
+        rank.partitionKey.toArray.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
         mono
       } else {
         // FirstRow do not generate updates.
-        new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(CONSTANT))
+        new RelModifiedMonotonicity(Array.fill(rank.getRowType.getFieldCount)(CONSTANT))
       }
     } else {
       null

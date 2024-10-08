@@ -25,11 +25,11 @@ import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.v2.InternalPartitionedState;
+import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
+import org.forstdb.RocksDB;
+import org.forstdb.RocksIterator;
 import org.junit.jupiter.api.Test;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksIterator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

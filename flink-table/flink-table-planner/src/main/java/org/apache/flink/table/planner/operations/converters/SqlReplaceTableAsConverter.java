@@ -111,7 +111,7 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
             ConvertContext context,
             MergeTableAsUtil mergeTableAsUtil,
             SqlReplaceTableAs sqlReplaceTableAs,
-            ResolvedSchema mergeSchema) {
+            ResolvedSchema querySchema) {
         CatalogManager catalogManager = context.getCatalogManager();
 
         // get table comment
@@ -129,13 +129,21 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
                                         ((SqlTableOption) p).getKeyString(),
                                         ((SqlTableOption) p).getValueString()));
 
-        // merge schemas
-        Schema mergedSchema =
-                mergeTableAsUtil.mergeSchemas(
-                        sqlReplaceTableAs.getColumnList(),
-                        sqlReplaceTableAs.getWatermark().orElse(null),
-                        sqlReplaceTableAs.getFullConstraints(),
-                        mergeSchema);
+        Schema mergedSchema;
+        if (sqlReplaceTableAs.isSchemaWithColumnsIdentifiersOnly()) {
+            // If only column identifiers are provided, then these are used to
+            // order the columns in the schema.
+            mergedSchema =
+                    mergeTableAsUtil.reorderSchema(sqlReplaceTableAs.getColumnList(), querySchema);
+        } else {
+            // merge schemas
+            mergedSchema =
+                    mergeTableAsUtil.mergeSchemas(
+                            sqlReplaceTableAs.getColumnList(),
+                            sqlReplaceTableAs.getWatermark().orElse(null),
+                            sqlReplaceTableAs.getFullConstraints(),
+                            querySchema);
+        }
 
         // get distribution
         Optional<TableDistribution> tableDistribution =

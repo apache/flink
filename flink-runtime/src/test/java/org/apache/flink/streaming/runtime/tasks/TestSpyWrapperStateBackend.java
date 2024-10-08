@@ -25,7 +25,8 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -37,10 +38,12 @@ import static org.mockito.Mockito.spy;
  */
 public class TestSpyWrapperStateBackend extends AbstractStateBackend implements CheckpointStorage {
 
-    private final MemoryStateBackend delegate;
+    private final HashMapStateBackend delegate;
+    private final JobManagerCheckpointStorage jobManagerCheckpointStorage;
 
-    public TestSpyWrapperStateBackend(MemoryStateBackend delegate) {
+    public TestSpyWrapperStateBackend(HashMapStateBackend delegate) {
         this.delegate = Preconditions.checkNotNull(delegate);
+        jobManagerCheckpointStorage = new JobManagerCheckpointStorage();
     }
 
     @Override
@@ -58,11 +61,11 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend implements 
     @Override
     public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer)
             throws IOException {
-        return spy(delegate.resolveCheckpoint(externalPointer));
+        return spy(jobManagerCheckpointStorage.resolveCheckpoint(externalPointer));
     }
 
     @Override
     public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-        return spy(delegate.createCheckpointStorage(jobId));
+        return spy(jobManagerCheckpointStorage.createCheckpointStorage(jobId));
     }
 }

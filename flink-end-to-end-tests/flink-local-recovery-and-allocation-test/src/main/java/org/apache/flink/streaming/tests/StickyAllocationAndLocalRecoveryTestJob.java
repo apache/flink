@@ -26,21 +26,20 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -113,10 +112,15 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 
         String stateBackend = pt.get("stateBackend", "hashmap");
         if ("hashmap".equals(stateBackend)) {
-            env.setStateBackend(new HashMapStateBackend());
+            env.configure(new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"));
         } else if ("rocks".equals(stateBackend)) {
             boolean incrementalCheckpoints = pt.getBoolean("incrementalCheckpoints", false);
-            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
+            env.configure(
+                    new Configuration()
+                            .set(StateBackendOptions.STATE_BACKEND, "rocksdb")
+                            .set(
+                                    CheckpointingOptions.INCREMENTAL_CHECKPOINTS,
+                                    incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend: " + stateBackend);
         }
@@ -141,14 +145,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         env.execute("Sticky Allocation And Local Recovery Test");
     }
 
-    /**
-     * Source function that produces a long sequence.
-     *
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
+    /** Source function that produces a long sequence. */
     private static final class RandomLongSource extends RichParallelSourceFunction<Long>
             implements CheckpointedFunction {
 

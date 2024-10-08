@@ -18,8 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -91,7 +90,6 @@ class StreamSourceContextIdleDetectionTests {
 
         SourceFunction.SourceContext<String> context =
                 StreamSourceContexts.getSourceContext(
-                        TimeCharacteristic.EventTime,
                         processingTimeService,
                         new Object(),
                         new CollectorOutput<>(output),
@@ -161,177 +159,6 @@ class StreamSourceContextIdleDetectionTests {
                 context.emitWatermark(new Watermark(watermarkTime));
                 break;
         }
-    }
-
-    /**
-     * Test scenario (idleTimeout = 100, watermarkInterval = 40): (1) Start from 20 as initial time.
-     * (2) As soon as time reaches 120, status should have been toggled to IDLE. (3) After some
-     * arbitrary time (until 320), the status should remain IDLE, and no watermarks should have been
-     * emitted. (4) Emit a record at 330. Status should become ACTIVE. This should schedule a
-     * idleness detection to be fired at 430. (5) Emit another record at 350 (which is before the
-     * next check). This should make the idleness check pass. (6) Advance time to 430 and trigger
-     * idleness detection. The status should still be ACTIVE due to step (5). This should schedule a
-     * idleness detection to be fired at 530. (7) Advance time to 460, in which a watermark emission
-     * task should be fired. Idleness detection should have been "piggy-backed" in the task,
-     * allowing the status to be toggled to IDLE before the next actual idle detection task at 530.
-     *
-     * <p>Inline comments will refer to the corresponding tested steps in the scenario.
-     */
-    @TestTemplate
-    void testAutomaticWatermarkContext() throws Exception {
-        long watermarkInterval = 40;
-        long idleTimeout = 100;
-        long initialTime = 20;
-
-        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-        processingTimeService.setCurrentTime(initialTime);
-
-        final List<StreamElement> output = new ArrayList<>();
-        final List<StreamElement> expectedOutput = new ArrayList<>();
-
-        SourceFunction.SourceContext<String> context =
-                StreamSourceContexts.getSourceContext(
-                        TimeCharacteristic.IngestionTime,
-                        processingTimeService,
-                        new Object(),
-                        new CollectorOutput<String>(output),
-                        watermarkInterval,
-                        idleTimeout,
-                        true);
-
-        // -------------------------- begin test scenario --------------------------
-
-        // corresponds to step (2) of scenario (please see method-level Javadoc comment)
-        processingTimeService.setCurrentTime(initialTime + watermarkInterval);
-        expectedOutput.add(
-                new Watermark(
-                        processingTimeService.getCurrentProcessingTime()
-                                - (processingTimeService.getCurrentProcessingTime()
-                                        % watermarkInterval)));
-        processingTimeService.setCurrentTime(initialTime + 2 * watermarkInterval);
-        expectedOutput.add(
-                new Watermark(
-                        processingTimeService.getCurrentProcessingTime()
-                                - (processingTimeService.getCurrentProcessingTime()
-                                        % watermarkInterval)));
-        processingTimeService.setCurrentTime(initialTime + idleTimeout);
-        expectedOutput.add(WatermarkStatus.IDLE);
-        assertThat(output).isEqualTo(expectedOutput);
-
-        // corresponds to step (3) of scenario (please see method-level Javadoc comment)
-        processingTimeService.setCurrentTime(initialTime + 3 * watermarkInterval);
-        processingTimeService.setCurrentTime(initialTime + 4 * watermarkInterval);
-        processingTimeService.setCurrentTime(initialTime + 2 * idleTimeout);
-        processingTimeService.setCurrentTime(initialTime + 6 * watermarkInterval);
-        processingTimeService.setCurrentTime(initialTime + 7 * watermarkInterval);
-        processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout);
-        assertThat(output).isEqualTo(expectedOutput);
-
-        // corresponds to step (4) of scenario (please see method-level Javadoc comment)
-        processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout + idleTimeout / 10);
-        switch (testMethod) {
-            case COLLECT:
-                expectedOutput.add(WatermarkStatus.ACTIVE);
-                context.collect("msg");
-                expectedOutput.add(
-                        new StreamRecord<>(
-                                "msg", processingTimeService.getCurrentProcessingTime()));
-                expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
-                assertThat(output).isEqualTo(expectedOutput);
-                break;
-            case COLLECT_WITH_TIMESTAMP:
-                expectedOutput.add(WatermarkStatus.ACTIVE);
-                context.collectWithTimestamp(
-                        "msg", processingTimeService.getCurrentProcessingTime());
-                expectedOutput.add(
-                        new StreamRecord<>(
-                                "msg", processingTimeService.getCurrentProcessingTime()));
-                expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
-                assertThat(output).isEqualTo(expectedOutput);
-                break;
-            case EMIT_WATERMARK:
-                // for emitWatermark, since the watermark will be blocked,
-                // it should not make the status become active;
-                // from here on, the status should remain idle for the emitWatermark variant test
-                context.emitWatermark(
-                        new Watermark(processingTimeService.getCurrentProcessingTime()));
-                assertThat(output).isEqualTo(expectedOutput);
-        }
-
-        // corresponds to step (5) of scenario (please see method-level Javadoc comment)
-        processingTimeService.setCurrentTime(initialTime + 8 * watermarkInterval);
-        processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout + 3 * idleTimeout / 10);
-        switch (testMethod) {
-            case COLLECT:
-                context.collect("msg");
-                expectedOutput.add(
-                        new StreamRecord<>(
-                                "msg", processingTimeService.getCurrentProcessingTime()));
-                assertThat(output).isEqualTo(expectedOutput);
-                break;
-            case COLLECT_WITH_TIMESTAMP:
-                context.collectWithTimestamp(
-                        "msg", processingTimeService.getCurrentProcessingTime());
-                expectedOutput.add(
-                        new StreamRecord<>(
-                                "msg", processingTimeService.getCurrentProcessingTime()));
-                assertThat(output).isEqualTo(expectedOutput);
-                break;
-            case EMIT_WATERMARK:
-                context.emitWatermark(
-                        new Watermark(processingTimeService.getCurrentProcessingTime()));
-                assertThat(output).isEqualTo(expectedOutput);
-        }
-
-        processingTimeService.setCurrentTime(initialTime + 9 * watermarkInterval);
-        switch (testMethod) {
-            case COLLECT:
-            case COLLECT_WITH_TIMESTAMP:
-                expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
-                assertThat(output).isEqualTo(expectedOutput);
-                break;
-            case EMIT_WATERMARK:
-                assertThat(output).isEqualTo(expectedOutput);
-        }
-
-        processingTimeService.setCurrentTime(initialTime + 10 * watermarkInterval);
-        switch (testMethod) {
-            case COLLECT:
-            case COLLECT_WITH_TIMESTAMP:
-                expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
-                assertThat(output).isEqualTo(expectedOutput);
-                break;
-            case EMIT_WATERMARK:
-                assertThat(output).isEqualTo(expectedOutput);
-        }
-
-        // corresponds to step (6) of scenario (please see method-level Javadoc comment)
-        processingTimeService.setCurrentTime(initialTime + 4 * idleTimeout + idleTimeout / 10);
-        assertThat(output).isEqualTo(expectedOutput);
-
-        // corresponds to step (7) of scenario (please see method-level Javadoc comment)
-        processingTimeService.setCurrentTime(initialTime + 11 * watermarkInterval);
-        // emit watermark does not change the previous status
-        if (testMethod != TestMethod.EMIT_WATERMARK) {
-            expectedOutput.add(WatermarkStatus.IDLE);
-        }
-        assertThat(output).isEqualTo(expectedOutput);
     }
 
     @Parameters(name = "TestMethod = {0}")

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -29,6 +28,7 @@ import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +44,7 @@ class ContinuousEventTimeTriggerTest {
     void testTriggerHandlesAllOnTimerCalls() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
-                        ContinuousEventTimeTrigger.<TimeWindow>of(Time.milliseconds(5)),
+                        ContinuousEventTimeTrigger.<TimeWindow>of(Duration.ofMillis(5)),
                         new TimeWindow.Serializer());
 
         assertThat(testHarness.numStateEntries()).isZero();
@@ -68,7 +68,7 @@ class ContinuousEventTimeTriggerTest {
     void testWindowSeparationAndFiring() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
-                        ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)),
+                        ContinuousEventTimeTrigger.<TimeWindow>of(Duration.ofHours(1)),
                         new TimeWindow.Serializer());
 
         // inject several elements
@@ -128,7 +128,7 @@ class ContinuousEventTimeTriggerTest {
     void testLateElementTriggersImmediately() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
-                        ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)),
+                        ContinuousEventTimeTrigger.<TimeWindow>of(Duration.ofHours(1)),
                         new TimeWindow.Serializer());
 
         testHarness.advanceWatermark(2);
@@ -146,7 +146,7 @@ class ContinuousEventTimeTriggerTest {
     void testClear() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
-                        ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)),
+                        ContinuousEventTimeTrigger.<TimeWindow>of(Duration.ofHours(1)),
                         new TimeWindow.Serializer());
 
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
@@ -179,10 +179,11 @@ class ContinuousEventTimeTriggerTest {
     void testMergingWindows() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
-                        ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)),
+                        ContinuousEventTimeTrigger.<TimeWindow>of(Duration.ofHours(1)),
                         new TimeWindow.Serializer());
 
-        assertThat(ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)).canMerge()).isTrue();
+        assertThat(ContinuousEventTimeTrigger.<TimeWindow>of(Duration.ofHours(1)).canMerge())
+                .isTrue();
 
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.CONTINUE);

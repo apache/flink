@@ -17,24 +17,21 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.sql.Timestamp
+import java.time.Duration
 
 import scala.collection.mutable
 
@@ -52,7 +49,6 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val sqlQuery =
       """
@@ -78,11 +74,11 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Euro", 116L))
     ratesHistoryData.+=(("Euro", 119L))
 
-    val orders = env
-      .fromCollection(ordersData)
+    val orders = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
     tEnv.createTemporaryView("Orders", orders)
@@ -101,7 +97,6 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     val result = tEnv
       .sqlQuery(
         "SELECT amount, currency, proctime() as proctime " +
@@ -116,7 +111,6 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val sqlQuery =
       """
@@ -142,14 +136,14 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Euro", 116L))
     ratesHistoryData.+=(("Euro", 119L))
 
-    val orders1 = env
-      .fromCollection(ordersData)
+    val orders1 = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
-    val orders2 = env
-      .fromCollection(ordersData)
+    val orders2 = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
     tEnv.createTemporaryView("Orders1", orders1)
@@ -172,7 +166,6 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -201,12 +194,12 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     expectedOutput += (2 * 114).toString
     expectedOutput += (3 * 116).toString
 
-    val orders = env
-      .fromCollection(ordersData)
+    val orders = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Timestamp)]())
       .toTable(tEnv, 'amount, 'currency, 'rowtime.rowtime)
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
@@ -236,7 +229,6 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
   def testNestedTemporalJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -257,8 +249,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ordersData.+=((2L, "A2", 1L, new Timestamp(3L)))
     ordersData.+=((3L, "A4", 50L, new Timestamp(4L)))
     ordersData.+=((4L, "A1", 3L, new Timestamp(5L)))
-    val orders = env
-      .fromCollection(ordersData)
+    val orders = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Long, Timestamp)]())
       .toTable(tEnv, 'orderId, 'productId, 'amount, 'rowtime.rowtime)
 
@@ -268,8 +260,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Yen", 1L, new Timestamp(1L)))
     ratesHistoryData.+=(("Euro", 116L, new Timestamp(5L)))
     ratesHistoryData.+=(("Euro", 119L, new Timestamp(7L)))
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
@@ -279,8 +271,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     pricesHistoryData.+=(("A4", "Yen", 1d, new Timestamp(1L)))
     pricesHistoryData.+=(("A1", "Euro", 11.6d, new Timestamp(5L)))
     pricesHistoryData.+=(("A1", "Euro", 11.9d, new Timestamp(7L)))
-    val pricesHistory = env
-      .fromCollection(pricesHistoryData)
+    val pricesHistory = StreamingEnvUtil
+      .fromCollection(env, pricesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, String, Double, Timestamp)]())
       .toTable(tEnv, 'productId, 'currency, 'price, 'rowtime.rowtime)
 
@@ -312,7 +304,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 }
 
 class TimestampExtractor[T <: Product]
-  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10)) {
+  extends BoundedOutOfOrdernessTimestampExtractor[T](Duration.ofSeconds(10)) {
   override def extractTimestamp(element: T): Long = element match {
     case (_, _, ts: Timestamp) => ts.getTime
     case (_, _, _, ts: Timestamp) => ts.getTime

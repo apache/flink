@@ -188,7 +188,7 @@ public class SavepointFormatITCase extends TestLogger {
 
             @Override
             protected String getConfigName() {
-                return "filesystem";
+                return "hashmap";
             }
 
             @Override

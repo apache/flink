@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.bridge.PlannerExternalQueryOperation;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
@@ -41,6 +41,9 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sources.LookupableTableSource;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.DataStreamQueryOperation;
@@ -90,9 +93,6 @@ import org.apache.flink.table.runtime.groupwindow.RowtimeAttribute;
 import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
-import org.apache.flink.table.sources.LookupableTableSource;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 

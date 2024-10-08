@@ -19,8 +19,7 @@
 package org.apache.flink.table.connector.sink;
 
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
+import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -33,7 +32,8 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,8 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Managed {@link Committer} for testing compaction. */
-public class TestManagedSinkCommitter
-        implements GlobalCommitter<TestManagedCommittable, TestManagedCommittable> {
+public class TestManagedSinkCommitter implements Committer<TestManagedCommittable> {
 
     private final ObjectIdentifier tableIdentifier;
     private final Path basePath;
@@ -58,36 +57,26 @@ public class TestManagedSinkCommitter
     }
 
     @Override
-    public List<TestManagedCommittable> filterRecoveredCommittables(
-            List<TestManagedCommittable> globalCommittables) throws IOException {
-        return null;
-    }
-
-    @Override
-    public TestManagedCommittable combine(List<TestManagedCommittable> committables)
-            throws IOException {
-        // combine files to add/delete
-        return TestManagedCommittable.combine(committables);
-    }
-
-    @Override
-    public List<TestManagedCommittable> commit(List<TestManagedCommittable> committables)
+    public void commit(Collection<CommitRequest<TestManagedCommittable>> committables)
             throws IOException, InterruptedException {
-        for (final TestManagedCommittable combinedCommittable : committables) {
-            AtomicReference<Map<CatalogPartitionSpec, List<Path>>> reference =
-                    TestManagedTableFactory.MANAGED_TABLE_FILE_ENTRIES.get(tableIdentifier);
-            assertThat(reference).isNotNull();
-            Map<CatalogPartitionSpec, List<Path>> managedTableFileEntries = reference.get();
-
-            // commit new files
-            commitAdd(combinedCommittable.getToAdd(), managedTableFileEntries);
-
-            // cleanup old files
-            commitDelete(combinedCommittable.getToDelete(), managedTableFileEntries);
-
-            reference.set(managedTableFileEntries);
+        List<TestManagedCommittable> committableList = new ArrayList<>();
+        for (final CommitRequest<TestManagedCommittable> commitRequest : committables) {
+            committableList.add(commitRequest.getCommittable());
         }
-        return Collections.emptyList();
+        TestManagedCommittable combinedCommittable =
+                TestManagedCommittable.combine(committableList);
+        AtomicReference<Map<CatalogPartitionSpec, List<Path>>> reference =
+                TestManagedTableFactory.MANAGED_TABLE_FILE_ENTRIES.get(tableIdentifier);
+        assertThat(reference).isNotNull();
+        Map<CatalogPartitionSpec, List<Path>> managedTableFileEntries = reference.get();
+
+        // commit new files
+        commitAdd(combinedCommittable.getToAdd(), managedTableFileEntries);
+
+        // cleanup old files
+        commitDelete(combinedCommittable.getToDelete(), managedTableFileEntries);
+
+        reference.set(managedTableFileEntries);
     }
 
     @Override
@@ -145,9 +134,6 @@ public class TestManagedSinkCommitter
             managedTableFileEntries.put(partitionSpec, paths);
         }
     }
-
-    @Override
-    public void endOfInput() throws IOException, InterruptedException {}
 
     /** An {@link Encoder} implementation to encode records. */
     private static class RowDataEncoder implements Encoder<RowData> {

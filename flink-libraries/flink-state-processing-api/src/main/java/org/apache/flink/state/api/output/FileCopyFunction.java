@@ -44,7 +44,7 @@ public final class FileCopyFunction implements OutputFormat<Path> {
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         // Create the destination parent directory before copy.
         // It is not a problem if it exists already.
         Path destParent = new Path(path);

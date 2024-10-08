@@ -20,6 +20,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
-import static org.apache.flink.configuration.JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB;
+import static org.apache.flink.configuration.JobManagerOptions.TOTAL_PROCESS_MEMORY;
 import static org.apache.flink.configuration.TaskManagerOptions.CPU_CORES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assume.assumeNoException;
@@ -89,17 +90,20 @@ class PseudoRandomValueSelectorTest {
     void testStableRandomization() {
         final Double[] doubles =
                 IntStream.range(0, 1000).boxed().map(Double::valueOf).toArray(Double[]::new);
-        final Integer[] numbers = IntStream.range(0, 1000).boxed().toArray(Integer[]::new);
+        final MemorySize[] memorySizes =
+                IntStream.range(0, 1000)
+                        .mapToObj(MemorySize::ofMebiBytes)
+                        .toArray(MemorySize[]::new);
         final String[] strings =
                 IntStream.range(0, 1000).mapToObj(i -> "string" + i).toArray(String[]::new);
 
-        final Set<Tuple3<Double, Integer, String>> uniqueValues = new HashSet<>(1);
+        final Set<Tuple3<Double, MemorySize, String>> uniqueValues = new HashSet<>(1);
         for (int i = 0; i < 100; i++) {
             final PseudoRandomValueSelector selector = PseudoRandomValueSelector.create("test");
             uniqueValues.add(
                     new Tuple3<>(
                             selectValue(selector, CPU_CORES, doubles),
-                            selectValue(selector, JOB_MANAGER_HEAP_MEMORY_MB, numbers),
+                            selectValue(selector, TOTAL_PROCESS_MEMORY, memorySizes),
                             selectValue(selector, SAVEPOINT_DIRECTORY, strings)));
         }
         assertThat(uniqueValues).hasSize(1);

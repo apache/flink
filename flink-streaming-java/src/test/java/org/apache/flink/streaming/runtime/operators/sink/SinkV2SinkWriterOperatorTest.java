@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
@@ -97,7 +97,7 @@ class SinkV2SinkWriterOperatorTest extends SinkWriterOperatorTestBase {
         }
 
         @Override
-        public void init(Sink.InitContext context) {
+        public void init(WriterInitContext context) {
             this.processingTimeService = context.getProcessingTimeService();
             this.processingTimeService.registerTimer(1000, this);
         }

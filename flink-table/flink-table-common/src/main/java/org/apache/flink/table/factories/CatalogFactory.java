@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.legacy.factories.TableFactory;
 
 import java.util.List;
 import java.util.Map;

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,6 +72,21 @@ class DelegationTokenReceiverRepositoryTest {
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
         assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("test"));
         assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
+    }
+
+    @Test
+    public void testDelegationTokenDisabled() {
+        Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.DELEGATION_TOKENS_ENABLED, false);
+        DelegationTokenReceiverRepository delegationTokenReceiverRepository =
+                new DelegationTokenReceiverRepository(configuration, null);
+
+        assertEquals(0, delegationTokenReceiverRepository.delegationTokenReceivers.size());
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
+        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("test"));
+        assertFalse(ExceptionThrowingDelegationTokenReceiver.constructed.get());
         assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
     }
 }

@@ -46,9 +46,6 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 {{< tab "Java" >}}
 {{< artifact flink-cep >}}
 {{< /tab >}}
-{{< tab "Scala" >}}
-{{< artifact flink-cep-scala withScalaVersion >}}
-{{< /tab >}}
 {{< /tabs >}}
 
 FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution 
@@ -673,12 +670,12 @@ A pattern sequence can only have one temporal constraint. If multiple such const
 {{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
 {{< tab "Java" >}}
 ```java
-next.within(Time.seconds(10));
+next.within(Duration.ofSeconds(10));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-next.within(Time.seconds(10))
+next.within(Duration.ofSeconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -694,14 +691,14 @@ Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("a")))
     .notFollowedBy("end")
     .where(SimpleCondition.of(value -> value.getName().equals("b")))
-    .within(Time.seconds(10));
+    .within(Duration.ofSeconds(10));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 Pattern.begin("start").where(_.getName().equals("a"))
 .notFollowedBy("end").where(_.getName == "b")
-.within(Time.seconds(10))
+.within(Duration.ofSeconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1052,12 +1049,12 @@ If a non-completed event sequence exceeds this time, it is discarded.
 {{< tabs within >}}
 {{< tab "Java" >}}
 ```java
-pattern.within(Time.seconds(10));
+pattern.within(Duration.ofSeconds(10));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-pattern.within(Time.seconds(10))
+pattern.within(Duration.ofSeconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1511,7 +1508,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
     .where(SimpleCondition.of(value -> value.getName().equals("error")))
     .followedBy("end")
     .where(SimpleCondition.of(value -> value.getName().equals("critical")))
-    .within(Time.seconds(10));
+    .within(Duration.ofSeconds(10));
 
 PatternStream<Event> patternStream = CEP.pattern(partitionedInput, pattern);
 
@@ -1534,7 +1531,7 @@ val partitionedInput = input.keyBy(event => event.getId)
 val pattern = Pattern.begin[Event]("start")
   .next("middle").where(_.getName == "error")
   .followedBy("end").where(_.getName == "critical")
-  .within(Time.seconds(10))
+  .within(Duration.ofSeconds(10))
 
 val patternStream = CEP.pattern(partitionedInput, pattern)
 

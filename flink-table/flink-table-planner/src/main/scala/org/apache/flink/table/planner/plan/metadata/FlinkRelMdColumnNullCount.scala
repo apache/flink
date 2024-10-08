@@ -21,7 +21,6 @@ import org.apache.flink.table.planner.{JDouble, JList}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil
@@ -176,9 +175,7 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
       } else {
         // If predicate has $index is not null, null count of index is must be 0 after predicate.
         val rexBuilder = rel.getCluster.getRexBuilder
-        val tableConfig = unwrapTableConfig(rel)
-        val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
-        val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
+        val cnf = FlinkRexUtil.toCnf(rexBuilder, predicate)
         val conjunctions = RelOptUtil.conjunctions(cnf)
         val notNullPredicatesAtIndexField = conjunctions.exists {
           case call: RexCall if call.getOperator == SqlStdOperatorTable.IS_NOT_NULL =>

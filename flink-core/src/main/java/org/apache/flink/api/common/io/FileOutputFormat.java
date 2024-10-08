@@ -180,7 +180,10 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT>
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
+        int numTasks = context.getNumTasks();
+        int taskNumber = context.getTaskNumber();
+
         if (taskNumber < 0 || numTasks < 1) {
             throw new IllegalArgumentException(
                     "TaskNumber: " + taskNumber + ", numTasks: " + numTasks);

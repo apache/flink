@@ -20,7 +20,7 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
 
 import java.io.IOException;
 

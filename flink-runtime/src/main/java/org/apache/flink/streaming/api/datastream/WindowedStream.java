@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorBuilder;
@@ -97,21 +96,6 @@ public class WindowedStream<T, K, W extends Window> {
     public WindowedStream<T, K, W> trigger(Trigger<? super T, ? super W> trigger) {
         builder.trigger(trigger);
         return this;
-    }
-
-    /**
-     * Sets the time by which elements are allowed to be late. Elements that arrive behind the
-     * watermark by more than the specified time will be dropped. By default, the allowed lateness
-     * is {@code 0L}.
-     *
-     * <p>Setting an allowed lateness is only valid for event-time windows.
-     *
-     * @deprecated Use {@link #allowedLateness(Duration)}
-     */
-    @Deprecated
-    @PublicEvolving
-    public WindowedStream<T, K, W> allowedLateness(Time lateness) {
-        return allowedLateness(lateness.toDuration());
     }
 
     /**
@@ -629,57 +613,6 @@ public class WindowedStream<T, K, W extends Window> {
         final String opDesc = builder.generateOperatorDescription(function, null);
 
         OneInputStreamOperator<T, R> operator = builder.process(function);
-
-        return input.transform(opName, resultType, operator).setDescription(opDesc);
-    }
-
-    /**
-     * Applies the given window function to each window. The window function is called for each
-     * evaluation of the window for each key individually. The output of the window function is
-     * interpreted as a regular non-windowed stream.
-     *
-     * <p>Arriving data is incrementally aggregated using the given reducer.
-     *
-     * @param reduceFunction The reduce function that is used for incremental aggregation.
-     * @param function The window function.
-     * @return The data stream that is the result of applying the window function to the window.
-     * @deprecated Use {@link #reduce(ReduceFunction, WindowFunction)} instead.
-     */
-    @Deprecated
-    public <R> SingleOutputStreamOperator<R> apply(
-            ReduceFunction<T> reduceFunction, WindowFunction<T, R, K, W> function) {
-        TypeInformation<T> inType = input.getType();
-        TypeInformation<R> resultType = getWindowFunctionReturnType(function, inType);
-
-        return apply(reduceFunction, function, resultType);
-    }
-
-    /**
-     * Applies the given window function to each window. The window function is called for each
-     * evaluation of the window for each key individually. The output of the window function is
-     * interpreted as a regular non-windowed stream.
-     *
-     * <p>Arriving data is incrementally aggregated using the given reducer.
-     *
-     * @param reduceFunction The reduce function that is used for incremental aggregation.
-     * @param function The window function.
-     * @param resultType Type information for the result type of the window function
-     * @return The data stream that is the result of applying the window function to the window.
-     * @deprecated Use {@link #reduce(ReduceFunction, WindowFunction, TypeInformation)} instead.
-     */
-    @Deprecated
-    public <R> SingleOutputStreamOperator<R> apply(
-            ReduceFunction<T> reduceFunction,
-            WindowFunction<T, R, K, W> function,
-            TypeInformation<R> resultType) {
-        // clean the closures
-        function = input.getExecutionEnvironment().clean(function);
-        reduceFunction = input.getExecutionEnvironment().clean(reduceFunction);
-
-        final String opName = builder.generateOperatorName();
-        final String opDesc = builder.generateOperatorDescription(reduceFunction, function);
-
-        OneInputStreamOperator<T, R> operator = builder.reduce(reduceFunction, function);
 
         return input.transform(opName, resultType, operator).setDescription(opDesc);
     }

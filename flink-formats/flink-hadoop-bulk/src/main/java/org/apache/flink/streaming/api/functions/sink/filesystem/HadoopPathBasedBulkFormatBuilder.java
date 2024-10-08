@@ -24,6 +24,7 @@ import org.apache.flink.formats.hadoop.bulk.DefaultHadoopFileCommitterFactory;
 import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitterFactory;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedBulkWriter;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.util.Preconditions;

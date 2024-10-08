@@ -612,12 +612,12 @@ instances are parameterized to return internal data structures (i.e. `RowData`).
 
 ```java
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 

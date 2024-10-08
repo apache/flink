@@ -18,10 +18,11 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory}

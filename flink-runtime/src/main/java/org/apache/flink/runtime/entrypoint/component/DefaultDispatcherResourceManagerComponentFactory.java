@@ -46,7 +46,6 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServiceImpl;
-import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.rest.RestEndpointFactory;
 import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
@@ -300,13 +299,5 @@ public class DefaultDispatcherResourceManagerComponentFactory
                         SessionDispatcherFactory.INSTANCE),
                 resourceManagerFactory,
                 SessionRestEndpointFactory.INSTANCE);
-    }
-
-    public static DefaultDispatcherResourceManagerComponentFactory createJobComponentFactory(
-            ResourceManagerFactory<?> resourceManagerFactory, JobGraphRetriever jobGraphRetriever) {
-        return new DefaultDispatcherResourceManagerComponentFactory(
-                DefaultDispatcherRunnerFactory.createJobRunner(jobGraphRetriever),
-                resourceManagerFactory,
-                JobRestEndpointFactory.INSTANCE);
     }
 }

@@ -17,17 +17,19 @@
  */
 package org.apache.flink.table.planner.sources
 
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.legacy.api.{TableSchema, WatermarkSpec}
+import org.apache.flink.table.legacy.sources._
+import org.apache.flink.table.legacy.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.runtime.types.DataTypePrecisionFixer
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.sources._
-import org.apache.flink.table.sources.tsextractors.{TimestampExtractor, TimestampExtractorUtils}
+import org.apache.flink.table.sources.tsextractors.TimestampExtractorUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.RowType.RowField

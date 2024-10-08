@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.scala._
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -26,12 +26,13 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.factories.TableSourceFactory
+import org.apache.flink.table.legacy.sources.{LookupableTableSource, TableSource}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
-import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
@@ -47,7 +48,7 @@ import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 /**
- * The physical plans for legacy [[org.apache.flink.table.sources.LookupableTableSource]] and new
+ * The physical plans for legacy [[LookupableTableSource]] and new
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))

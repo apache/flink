@@ -30,11 +30,9 @@ import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -128,9 +126,6 @@ public class StreamConfig implements Serializable {
     private static final String STATE_PARTITIONER = "statePartitioner";
 
     private static final String STATE_KEY_SERIALIZER = "statekeyser";
-
-    private static final ConfigOption<Integer> TIME_CHARACTERISTIC =
-            ConfigOptions.key("timechar").intType().defaultValue(-1);
 
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
 
@@ -302,19 +297,6 @@ public class StreamConfig implements Serializable {
                                 ManagedMemoryUseCase.valueOf(
                                         key.replaceFirst(MANAGED_MEMORY_FRACTION_PREFIX, "")))
                 .collect(Collectors.toSet());
-    }
-
-    public void setTimeCharacteristic(TimeCharacteristic characteristic) {
-        config.set(TIME_CHARACTERISTIC, characteristic.ordinal());
-    }
-
-    public TimeCharacteristic getTimeCharacteristic() {
-        int ordinal = config.get(TIME_CHARACTERISTIC, -1);
-        if (ordinal >= 0) {
-            return TimeCharacteristic.values()[ordinal];
-        } else {
-            throw new CorruptConfigurationException("time characteristic is not set");
-        }
     }
 
     public void setTypeSerializerOut(TypeSerializer<?> serializer) {

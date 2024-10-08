@@ -31,6 +31,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
+import org.apache.flink.test.util.MigrationTest;
 
 import org.assertj.core.api.Condition;
 
@@ -40,6 +41,13 @@ import java.util.Collections;
 
 /** Migration tests for NFA-related serializers. */
 class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+
+    // we dropped support for old versions and only test against versions since 1.20.
+    @Override
+    public Collection<FlinkVersion> getMigrationVersions() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_20, MigrationTest.getMostRecentlyPublishedVersion());
+    }
 
     public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
             throws Exception {

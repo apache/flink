@@ -18,11 +18,16 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.hadoopcompatibility.mapred.HadoopReducerWrappedFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
@@ -42,27 +47,30 @@ import java.util.Iterator;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
-/** IT cases for the {@link HadoopReduceFunction}. */
+/** IT cases for the {@link HadoopReducerWrappedFunction}. */
 @ExtendWith(ParameterizedTestExtension.class)
 class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
 
     @TestTemplate
     void testStandardGrouping(@TempDir Path tempFolder) throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataSet<Tuple2<IntWritable, Text>> ds =
-                HadoopTestData.getKVPairDataSet(env).map(new Mapper1());
+        DataStream<Tuple2<IntWritable, Text>> ds =
+                HadoopTestData.getKVPairDataStream(env).map(new Mapper1());
 
-        DataSet<Tuple2<IntWritable, IntWritable>> commentCnts =
-                ds.groupBy(0)
-                        .reduceGroup(
-                                new HadoopReduceFunction<
-                                        IntWritable, Text, IntWritable, IntWritable>(
-                                        new CommentCntReducer()));
+        DataStream<Tuple2<IntWritable, IntWritable>> commentCnts =
+                ds.keyBy(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(new HadoopReducerWrappedFunction<>(new CommentCntReducer()));
 
         String resultPath = tempFolder.toUri().toString();
 
-        commentCnts.writeAsText(resultPath);
+        commentCnts.sinkTo(
+                FileSink.forRowFormat(
+                                new org.apache.flink.core.fs.Path(resultPath),
+                                new SimpleStringEncoder<Tuple2<IntWritable, IntWritable>>())
+                        .build());
         env.execute();
 
         String expected = "(0,0)\n" + "(1,3)\n" + "(2,5)\n" + "(3,5)\n" + "(4,2)\n";
@@ -72,18 +80,22 @@ class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
 
     @TestTemplate
     void testUngroupedHadoopReducer(@TempDir Path tempFolder) throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
+        DataStream<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataStream(env);
 
-        DataSet<Tuple2<IntWritable, IntWritable>> commentCnts =
-                ds.reduceGroup(
-                        new HadoopReduceFunction<IntWritable, Text, IntWritable, IntWritable>(
-                                new AllCommentCntReducer()));
+        SingleOutputStreamOperator<Tuple2<IntWritable, IntWritable>> commentCnts =
+                ds.windowAll(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(new HadoopReducerWrappedFunction<>(new AllCommentCntReducer()));
 
         String resultPath = tempFolder.toUri().toString();
 
-        commentCnts.writeAsText(resultPath);
+        commentCnts.sinkTo(
+                FileSink.forRowFormat(
+                                new org.apache.flink.core.fs.Path(resultPath),
+                                new SimpleStringEncoder<Tuple2<IntWritable, IntWritable>>())
+                        .build());
         env.execute();
 
         String expected = "(42,15)\n";
@@ -93,24 +105,29 @@ class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
 
     @TestTemplate
     void testConfigurationViaJobConf(@TempDir Path tempFolder) throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         JobConf conf = new JobConf();
         conf.set("my.cntPrefix", "Hello");
 
-        DataSet<Tuple2<IntWritable, Text>> ds =
-                HadoopTestData.getKVPairDataSet(env).map(new Mapper2());
+        DataStream<Tuple2<IntWritable, Text>> ds =
+                HadoopTestData.getKVPairDataStream(env).map(new Mapper2());
 
-        DataSet<Tuple2<IntWritable, IntWritable>> helloCnts =
-                ds.groupBy(0)
-                        .reduceGroup(
-                                new HadoopReduceFunction<
-                                        IntWritable, Text, IntWritable, IntWritable>(
+        DataStream<Tuple2<IntWritable, IntWritable>> helloCnts =
+                ds.keyBy(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(
+                                new HadoopReducerWrappedFunction<>(
                                         new ConfigurableCntReducer(), conf));
 
         String resultPath = tempFolder.toUri().toString();
 
-        helloCnts.writeAsText(resultPath);
+        helloCnts.sinkTo(
+                FileSink.forRowFormat(
+                                new org.apache.flink.core.fs.Path(resultPath),
+                                new SimpleStringEncoder<Tuple2<IntWritable, IntWritable>>())
+                        .build());
         env.execute();
 
         String expected = "(0,0)\n" + "(1,0)\n" + "(2,1)\n" + "(3,1)\n" + "(4,1)\n";

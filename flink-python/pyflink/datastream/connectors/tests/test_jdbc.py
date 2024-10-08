@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 from pyflink.common import Types
 from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, JdbcExecutionOptions
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
@@ -23,6 +25,7 @@ from pyflink.util.java_utils import get_field_value
 
 class FlinkJdbcSinkTest(PyFlinkStreamingTestCase):
 
+    @unittest.skip("Disable due to jdbc connectors need to release a new version 2.0")
     def test_jdbc_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))

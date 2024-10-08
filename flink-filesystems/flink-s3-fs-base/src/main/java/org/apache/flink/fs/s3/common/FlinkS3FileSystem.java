@@ -20,7 +20,6 @@ package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.EntropyInjectingFileSystem;
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.PathsCopyingFileSystem;
@@ -447,11 +446,6 @@ public class FlinkS3FileSystem extends HadoopFileSystem
     public String generateEntropy() {
         return StringUtils.generateRandomAlphanumericString(
                 ThreadLocalRandom.current(), entropyLength);
-    }
-
-    @Override
-    public FileSystemKind getKind() {
-        return FileSystemKind.OBJECT_STORE;
     }
 
     public String getLocalTmpDir() {

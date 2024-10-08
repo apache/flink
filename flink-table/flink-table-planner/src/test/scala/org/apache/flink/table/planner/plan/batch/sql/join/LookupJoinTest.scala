@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql.join
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
@@ -36,7 +36,7 @@ import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 /**
- * The physical plans for legacy [[org.apache.flink.table.sources.LookupableTableSource]] and new
+ * The physical plans for legacy [[LookupableTableSource]] and new
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))

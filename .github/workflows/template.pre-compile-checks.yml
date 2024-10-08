@@ -23,15 +23,15 @@ on:
     inputs:
       jdk_version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
-        default: "8"
+        default: "11"
         type: choice
-        options: ["8", "11", "17", "21"]
+        options: ["11", "17", "21"]
 
   workflow_call:
     inputs:
       jdk_version:
         description: "The JDK version that shall be used as a default within the Flink CI Docker container."
-        default: 8
+        default: 11
         type: number
 
 permissions: read-all

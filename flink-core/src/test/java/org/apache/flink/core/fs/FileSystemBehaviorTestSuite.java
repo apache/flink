@@ -76,13 +76,6 @@ public abstract class FileSystemBehaviorTestSuite {
     //  Suite of Tests
     // ------------------------------------------------------------------------
 
-    // --- file system kind
-
-    @Test
-    void testFileSystemKind() {
-        assertThat(fs.getKind()).isEqualTo(getFileSystemKind());
-    }
-
     // --- access and scheme
 
     @Test

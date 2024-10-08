@@ -243,8 +243,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
             int rightArity,
             InternalTypeInfo<RowData> returnTypeInfo,
             ExecNodeConfig config) {
-        boolean shouldCreateUid =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS);
+        boolean shouldCreateUid = config.isCompiled();
 
         // We filter all records instead of adding an empty source to preserve the watermarks.
         FilterAllFlatMapFunction allFilter = new FilterAllFlatMapFunction(returnTypeInfo);
