@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.api.operators.legacy;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
 /**
  * This class is no longer needed. {@link MailboxExecutor} is accessible via {@link
@@ -27,7 +29,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
  * <p>An operator that needs access to the {@link MailboxExecutor} to yield to downstream operators
  * needs to be created through a factory implementing this interface.
  */
-@Experimental
+@Internal
 @Deprecated
 public interface YieldingOperatorFactory<OUT> extends StreamOperatorFactory<OUT> {
     void setMailboxExecutor(MailboxExecutor mailboxExecutor);

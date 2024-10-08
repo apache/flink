@@ -104,7 +104,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -1065,8 +1065,8 @@ class StreamingJobGraphGeneratorTest {
     }
 
     /**
-     * Tests that {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory} are not
-     * chained to legacy sources, see FLINK-16219.
+     * Tests that {@link YieldingOperatorFactory} are not chained to legacy sources, see
+     * FLINK-16219.
      */
     @Test
     void testYieldingOperatorProperlyChainedOnLegacySources() {
@@ -1123,10 +1123,7 @@ class StreamingJobGraphGeneratorTest {
         }
     }
 
-    /**
-     * Tests that {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory} are
-     * chained to new sources, see FLINK-20444.
-     */
+    /** Tests that {@link YieldingOperatorFactory} are chained to new sources, see FLINK-20444. */
     @Test
     void testYieldingOperatorProperlyChainedOnNewSources() {
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
