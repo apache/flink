@@ -74,7 +74,7 @@ elif [ "${OUT_TYPE}" == "s3" ]; then
   # overwrites implementation for local runs
   function get_complete_result {
     # copies the data from S3 to the local LOCAL_JOB_OUTPUT_PATH
-    s3_get_by_full_path_and_filename_prefix "$LOCAL_JOB_OUTPUT_PATH" "$S3_DATA_PREFIX" "part-" true
+    s3_get_by_full_path_and_filename_prefix "$LOCAL_JOB_OUTPUT_PATH" "$S3_DATA_PREFIX" true "part-"
 
     # and prints the sorted output
     find "${LOCAL_JOB_OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g
