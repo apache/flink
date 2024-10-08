@@ -2244,7 +2244,13 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.5.1</version>
+					<version>3.5.3</version>
+				</plugin>
+				<!-- Pin the version of the maven remote resource plugin -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-remote-resources-plugin</artifactId>
+					<version>3.2.0</version>
 				</plugin>
 
 				<plugin>
