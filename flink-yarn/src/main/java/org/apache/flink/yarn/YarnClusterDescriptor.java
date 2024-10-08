@@ -19,8 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -912,23 +910,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (jarUrls != null
                 && YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
             userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
-        }
-
-        // only for per job mode
-        if (jobGraph != null) {
-            for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
-                    jobGraph.getUserArtifacts().entrySet()) {
-                // only upload local files
-                if (!Utils.isRemotePath(entry.getValue().filePath)) {
-                    Path localPath = new Path(entry.getValue().filePath);
-                    Tuple2<Path, Long> remoteFileInfo =
-                            fileUploader.uploadLocalFileToRemote(localPath, entry.getKey());
-                    jobGraph.setUserArtifactRemotePath(
-                            entry.getKey(), remoteFileInfo.f0.toString());
-                }
-            }
-
-            jobGraph.writeUserArtifactEntriesToConfiguration();
         }
 
         if (providedLibDirs == null || providedLibDirs.isEmpty()) {

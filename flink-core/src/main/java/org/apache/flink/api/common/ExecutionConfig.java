@@ -83,12 +83,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private static final long serialVersionUID = 1L;
 
     /**
-     * The constant to use for the parallelism, if the system should use the number of currently
-     * available slots.
-     */
-    @Deprecated public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
-
-    /**
      * The flag value indicating use of the default parallelism. This value can be used to reset the
      * parallelism back to the default state.
      */
