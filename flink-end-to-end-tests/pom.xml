@@ -70,7 +70,6 @@ under the License.
 		<module>flink-end-to-end-tests-scala</module>
 		<module>flink-end-to-end-tests-sql</module>
 		<module>flink-end-to-end-tests-jdbc-driver</module>
-		<module>flink-end-to-end-tests-hive</module>
 		<module>flink-end-to-end-tests-restclient</module>
 		<module>flink-failure-enricher-test</module>
     </modules>
